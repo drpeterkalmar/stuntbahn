@@ -299,7 +299,7 @@ export class UI {
     this.sheet('Steuerung', `
       <p><b>Handy (quer halten):</b> Fahrhilfe <i>Leicht</i>: linke/rechte Bildschirmhälfte halten zum Lenken – Gas und Bremse macht das Auto. Oder in den Optionen „Lenken durch Neigen“.</p>
       <p><i>Mittel/Original</i>: links ◀ ▶ lenken, rechts GAS und BREMSE. Bremse im Stand = Rückwärtsgang.</p>
-      <p><b>Tastatur:</b> Pfeile oder WASD, Leertaste bremsen, <b>R</b> zurückspulen, <b>C</b> Kamera, <b>L</b> Ideallinie ein/aus, <b>Esc</b> Pause.</p>
+      <p><b>Tastatur:</b> Pfeile oder WASD, Leertaste bremsen, <b>R</b> zurückspulen, <b>C</b> Kamera (Verfolger, Cockpit, Hubschrauber, Stoßstange, Strecke), <b>L</b> Ideallinie ein/aus, <b>Esc</b> Pause.</p>
       <p><b>Gamepad:</b> linker Stick lenken, RT/A Gas, LT/X Bremse, Y zurückspulen, LB Kamera, Back Ideallinie, Start Pause.</p>
       <p><b>Crash:</b> Standardmäßig kein Totalschaden – das Auto steht sofort wieder auf der Fahrbahn vor dem Stunt, mit Schwung, und du bekommst <b>+${PENALTY} s</b> auf die Zeit. Klappt ein Stunt mehrmals nicht, wirst du dahinter gesetzt (auch dann je +${PENALTY} s). Wer es hart mag: Optionen → <b>💥 Totalschaden</b> (Wrack wie im Original).</p>
       <p><b>⏪ Zurückspulen</b> (Leicht/Mittel): 3 s zurück, um einen Crash zu vermeiden. Ohne Totalschaden läuft die Uhr dabei weiter – es kostet die Zeit, die du neu fährst, aber keine Strafe.</p>
@@ -418,10 +418,12 @@ export class UI {
     const R = $('#replayui');
     R.classList.add('show');
     this._rpen = 0; this._rsec = 0; this._rtxt = '';
-    $('.btns', R).innerHTML = [['chase', '🚗 Verfolger'], ['far', '🚁 Hubschrauber'], ['track', '📹 Strecke'], ['bumper', '🎯 Stoßstange']]
+    $('.btns', R).innerHTML = [['chase', '🚗 Verfolger'], ['cockpit', '🏁 Cockpit'], ['far', '🚁 Hubschrauber'], ['track', '📹 Strecke'], ['bumper', '🎯 Stoßstange']]
       .map(([m, n]) => `<button data-a="rcam" data-v="${m}">${n}</button>`).join('') + '<button data-a="rplay">⏯</button><button data-a="rslow">🐢</button><button data-a="rend">✕</button>';
+    this.replayCamMark('chase');
   }
-  replayCam(m) { window.__game.cam(m); for (const b of document.querySelectorAll('#replayui [data-a=rcam]')) b.classList.toggle('on', b.dataset.v === m); }
+  replayCam(m) { window.__game.cam(m); this.replayCamMark(m); }
+  replayCamMark(m) { for (const b of document.querySelectorAll('#replayui [data-a=rcam]')) b.classList.toggle('on', b.dataset.v === m); }
   replayHud(r) {
     $('#replayui .bar i').style.width = (100 * r.t / r.duration).toFixed(1) + '%';
     // Schnitt beim Fahrbahn-Reset: Überblendung statt Sprung

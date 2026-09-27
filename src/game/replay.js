@@ -1,6 +1,7 @@
 // Replay der letzten Fahrt (60 Hz aufgezeichnet), mit Pause/Zeitlupe und wählbaren Kameras.
 // Fahrbahn-Resets erscheinen als Schnitt mit Überblendung (kein Teleport-Ruckler), Zeitstrafen im Overlay.
 import { REC_HZ, REC_STRIDE } from './race.js';
+import { gearTrack, displayGear } from '../gfx/gauges.js';
 
 export class Replay {
   constructor(rec, env, marks = {}) {
@@ -15,6 +16,10 @@ export class Replay {
     this.jumped = false;
     const mk = () => ({ comp: 0, steer: 0, spin: 0 });
     this.fake = { wheels: [mk(), mk(), mk(), mk()] };
+    // Gang wird nicht aufgezeichnet: aus dem Tempo mit der Schaltlogik der Physik nachgerechnet (Cockpit)
+    const sp = new Float32Array(this.frames);
+    for (let i = 0; i < this.frames; i++) sp[i] = this.rec[i * REC_STRIDE + 14];
+    this.gears = gearTrack(sp);
     this.P = { pos: { x: 0, y: 0, z: 0 }, q: { x: 0, y: 0, z: 0, w: 1 }, frame: { f: { x: 0, y: 0, z: -1 }, u: { x: 0, y: 1, z: 0 }, r: { x: 1, y: 0, z: 0 } } };
   }
   advance(dt) {
@@ -55,4 +60,5 @@ export class Replay {
   }
   speed() { const [i] = this._i(); return this.rec[i * REC_STRIDE + 14]; }
   rpm() { const [i] = this._i(); return this.rec[i * REC_STRIDE + 15]; }
+  gear() { const [i] = this._i(); return displayGear(this.rec[i * REC_STRIDE + 14], this.gears[i] || 1); }
 }

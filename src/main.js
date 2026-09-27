@@ -6,7 +6,9 @@ import { makeMaterials } from './gfx/materials.js';
 import { makeSky, makeEnvironment, loadSkyInfo, sunDirFromUV, bakeStaticShadow } from './gfx/env.js';
 import { buildWorld, STATIC_LAYER } from './gfx/world.js';
 import { makeCar, loadCarModel, parkedCarGeometry } from './gfx/carmesh.js';
-import { CameraRig } from './gfx/camera.js';
+import { CameraRig, CAM_MODES, CAM_NAMES } from './gfx/camera.js';
+import { Cockpit } from './gfx/cockpit.js';
+import { displayGear } from './gfx/gauges.js';
 import { Input } from './game/input.js';
 import { Race, ASSISTS } from './game/race.js';
 import { UI } from './ui/ui.js';
@@ -39,11 +41,12 @@ renderer.toneMapping = TM[params.get('tm') || 'neutral'];
 renderer.toneMappingExposure = +(params.get('exp') || 1.05);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFShadowMap;
+renderer.info.autoReset = false;   // zwei Durchgänge (Welt + Cockpit) → Zähler je Bild selbst zurücksetzen
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(62, 1, 0.25, 4000);
 camera.layers.enable(STATIC_LAYER);
 const quality = new Quality(renderer, params.get('q'));
-let sun, skyInfo, envMap, M, carVis, ghostVis, sky;
+let sun, skyInfo, envMap, M, carVis, ghostVis, sky, cockpit;
 
 function resize() {
   const w = innerWidth, h = innerHeight;
@@ -109,6 +112,7 @@ async function boot() {
   });
   ghostVis.root.visible = false;
   scene.add(ghostVis.root);
+  cockpit = new Cockpit(envMap, carVis.mats.paint);
   lineViz = new LineViz(scene);
   fx = new CarFX(scene);
   ui.loading(0.8, 'Strecke bauen …');
@@ -280,6 +284,7 @@ function startRace(opts = {}) {
   race = new Race(env, { assist: store.settings.assist, wreck: store.settings.wreck, autopilot: !!opts.autopilot });
   ghost = new Ghost(store.loadGhost(env.meta.key, store.settings.assist, race.wreckOn));
   ghostVis.root.visible = !!ghost.data && store.settings.ghost;
+  rig.mode = CAM_MODES.includes(store.settings.cam) ? store.settings.cam : 'chase';
   rig.init = false;
   mode = 'race';
   ui.showHud(race, env);
@@ -314,7 +319,13 @@ function toggleLine() {
   ui.toast('Ideallinie: ' + LINE_LEVELS[S.line].name);
   if (ui.screen === 'pause') ui.showPause(true);
 }
-function cycleCam() { const m = rig.cycle(); ui.toast({ chase: 'Verfolger', far: 'Hubschrauber', bumper: 'Stoßstange', track: 'Streckenkamera' }[m]); }
+// Kamera wechseln; die Wahl im Rennen bleibt gespeichert (Replay startet wie bisher im Verfolger)
+function cycleCam() {
+  const m = rig.cycle();
+  if (mode === 'replay') ui.replayCamMark(m);
+  else { store.settings.cam = m; store.save(); }
+  ui.toast(CAM_NAMES[m]);
+}
 function togglePause() { if (mode !== 'race') return; frozen = !frozen; ui.showPause(frozen); if (frozen) sound.stop(); else sound.start(); }
 
 // ---------- Schleife ----------
@@ -363,12 +374,41 @@ function handleEvents() {
   race.events.length = 0;
 }
 
+// Cockpit-Layout: freie Zone zwischen den Touch-Tasten (Querformat) bzw. über der Replay-Leiste.
+// DOM-Maße nur alle 15 Bilder lesen (erzwingt sonst jedes Bild eine Layout-Berechnung).
+let cpZone = null, cpZoneF = -1e9;
+function cockpitZone() {
+  if (cpZone && app.frames - cpZoneF < 15 && cpZone.W === innerWidth && cpZone.H === innerHeight) return cpZone;
+  cpZoneF = app.frames;
+  const W = innerWidth, H = innerHeight;
+  const half = Math.min(0.47 * W, 0.55 * H);
+  let zl = W / 2 - half, zr = W / 2 + half, bottom = 0;
+  const pads = document.querySelectorAll('#touch.show.pads .pad');
+  for (const p of pads) {
+    const r = p.getBoundingClientRect();
+    if (!r.width) continue;
+    if (r.left < W / 2) zl = Math.max(zl, r.right + 12); else zr = Math.min(zr, r.left - 12);
+  }
+  const R = document.getElementById('replayui');
+  if (R && R.classList.contains('show')) { const r = R.getBoundingClientRect(); if (r.top > H / 2) bottom = r.height; }
+  cpZone = { W, H, zl, zr, bottom };
+  return cpZone;
+}
+function cockpitValues() {
+  if (mode === 'replay' && replay) return { kmh: Math.abs(replay.speed()) * 3.6, rpm: replay.rpm(), gear: replay.gear(), steer: replay.phys().wheels[0].steer };
+  const c = race.car;
+  return { kmh: Math.abs(c.fwdSpeed()) * 3.6, rpm: c.rpm, gear: displayGear(c.fwdSpeed(), c.gear), steer: c.steerAng };
+}
+
 const tmpQ = new THREE.Quaternion(), tmpQ2 = new THREE.Quaternion();
 function render(rdt) {
   let pose = null;
+  renderer.info.reset();
   if (mode === 'replay' && replay) {
     pose = replay.pose();
-    carVis.sync(replay.phys(), 1, pose);
+    const ph = replay.phys();
+    pose.wheels = ph.wheels;
+    carVis.sync(ph, 1, pose);
   } else if (race) {
     const c = race.car;
     const a = acc / DT;
@@ -380,6 +420,7 @@ function render(rdt) {
       pose.q = { x: tmpQ.x, y: tmpQ.y, z: tmpQ.z, w: tmpQ.w };
     } else pose = { pos: c.pos, q: c.q, frame: c.frame };
     pose.air = c.onGround === 0 && !c.surfaceKind && !c.crash;
+    pose.wheels = c.wheels;
     carVis.sync(c, 1, pose);
   }
   if (pose && mode === 'menu' && !app.freezeCam) {
@@ -407,12 +448,22 @@ function render(rdt) {
   sky.position.copy(camera.position);
   if (mode === 'race' && race) { ui.hud(race, env, ghost); sound.update(race.car, rdt, race.state); }
   if (mode === 'replay' && replay) ui.replayHud(replay);
+  // Cockpit: Außenkarosserie ausblenden (ragt sonst ins Bild), Innenraum im zweiten Durchgang darüber
+  const inCockpit = mode !== 'menu' && !!pose && rig.view === 'cockpit';
+  carVis.root.visible = !inCockpit;
+  const camTag = mode === 'menu' ? 'menu' : rig.view;
+  if (document.body.dataset.cam !== camTag) document.body.dataset.cam = camTag;
   renderer.render(scene, camera);
+  if (inCockpit) {
+    cockpit.layout({ ...cockpitZone(), vfov: camera.fov });
+    cockpit.update(frozen ? 0 : rdt * (mode === 'replay' && replay ? replay.speedMul * (replay.paused ? 0 : 1) : 1), cockpitValues(), camera, sun.userData.dir);
+    cockpit.render(renderer);
+  }
 }
 
 // ---------- Debug-API ----------
 window.__game = {
-  get env() { return env; }, get race() { return race; }, get mode() { return mode; }, scene, camera, renderer, rig, store, ui, quality, trkLib,
+  get env() { return env; }, get race() { return race; }, get mode() { return mode; }, get replayObj() { return replay; }, scene, camera, renderer, rig, store, ui, quality, trkLib,
   // Import (Tests): Bytes als Array → Ergebnisliste; Strecke laden
   importBytes: (arr, name) => importFiles([new File([new Uint8Array(arr)], name || 'test.trk')]),
   loadImported: (id) => playImported(id),
@@ -431,6 +482,7 @@ window.__game = {
   freeze(on = true) { frozen = on; },
   setTimeScale(s) { timeScale = s; },
   cam(m) { rig.mode = m; rig.init = false; },
+  get cockpit() { return cockpit; },
   // Physik ohne Rendering vorspulen (Headless: schneller als Echtzeit)
   sim(seconds, inp = null) {
     const I = inp || { steer: 0, throttle: 0, brake: 0 };

@@ -89,6 +89,13 @@ button.go { background: linear-gradient(180deg, #ff7a36, #e24e10); border-color:
 #touch .tb.brake { width: 92px; height: 86px; background: rgba(160, 40, 30, .45); font-size: 15px; }
 #touch .tb.down { background: rgba(255, 255, 255, .35); }
 #touch.tilt .pad.left { display: none; }
+/* Cockpit: analoge Instrumente statt Digital-Tempo; Lenk-Pfeile (Leicht) an die Ränder, weg von den Instrumenten */
+body[data-cam="cockpit"] #hud .speed { display: none; }
+body[data-cam="cockpit"] #touch.halves .half.l { justify-content: flex-start; padding-left: max(24px, env(safe-area-inset-left)); }
+body[data-cam="cockpit"] #touch.halves .half.r { justify-content: flex-end; padding-right: max(24px, env(safe-area-inset-right)); }
+/* Replay im Cockpit: Leiste oben (Dachrahmen/Himmel), damit die Instrumente unten frei bleiben */
+body[data-cam="cockpit"][data-mode="replay"] #replayui.show { top: 0; bottom: auto; display: flex; flex-direction: column-reverse; padding-top: max(8px, env(safe-area-inset-top)); padding-bottom: 14px; background: linear-gradient(180deg, #000b, #0000); }
+body[data-cam="cockpit"][data-mode="replay"] #replayui .bar { margin: 8px 0 0; }
 
 #pause .card, #result .card, .sheetc { width: min(560px, 94vw); display: flex; flex-direction: column; gap: 10px; max-height: 96vh; }
 #pause, #result, #sheet { background: #0008; pointer-events: auto; }
