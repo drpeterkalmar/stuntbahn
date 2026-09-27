@@ -96,6 +96,7 @@ export class UI {
           <div class="tname">${isDay ? '📅 Strecke des Tages<br>' : ''}${m.name || 'Strecke'}</div>
           <div class="tmeta">Code <b>${m.seed}-${m.diff}</b> · ${m.diffName || ''} · ${(env.ideal.total / 1000).toFixed(2)} km</div>
           <div class="stunts">${stuntTxt || 'ohne Stunts'}</div>
+          ${m.apTime ? `<div class="tmeta">🤖 Autopilot-Referenz ${fmtTime(m.apTime)}${m.fixes ? ' · ' + m.fixes + '× entschärft' : ''}</div>` : ''}
           <div class="bests">${bests}</div>
         </div>
         <button class="big go" data-a="start">▶ Losfahren</button>
@@ -234,6 +235,13 @@ export class UI {
     else if (e.type === 'rewind') this.toast('⏪ Zurückgespult');
     else if (e.type === 'reset') this.toast('Zurück auf die Strecke');
   }
+  // Fahrhilfe im Rennen gewechselt: HUD + Touch-Modus anpassen
+  assistChanged() {
+    const k = this.store.settings.assist, A = ASSISTS[k];
+    $('#hud .assistTag').textContent = A.icon + ' ' + A.name;
+    $('#hud [data-a=rewind]').style.display = k === 'original' ? 'none' : '';
+    if (document.body.dataset.mode === 'race') this.setTouchMode(true);
+  }
   showPause(on) {
     if (!on) { this.show(null); return; }
     const S = this.store.settings;
@@ -297,7 +305,11 @@ export class UI {
       const z = el && el.closest && el.closest('#touch [data-t]');
       return z ? z.dataset.t : null;
     };
-    T.addEventListener('pointerdown', (e) => { const z = zoneAt(e.clientX, e.clientY); if (z) { this.touchIds.set(e.pointerId, z); T.setPointerCapture?.(e.pointerId); } update(); e.preventDefault(); });
+    T.addEventListener('pointerdown', (e) => {
+      const z = zoneAt(e.clientX, e.clientY);
+      if (z) { this.touchIds.set(e.pointerId, z); try { T.setPointerCapture(e.pointerId); } catch { /* synthetisch/alt */ } }
+      update(); e.preventDefault();
+    });
     T.addEventListener('pointermove', (e) => { if (!this.touchIds.has(e.pointerId)) return; const z = zoneAt(e.clientX, e.clientY); if (z) this.touchIds.set(e.pointerId, z); update(); });
     const up = (e) => { this.touchIds.delete(e.pointerId); update(); };
     T.addEventListener('pointerup', up); T.addEventListener('pointercancel', up); T.addEventListener('lostpointercapture', up);

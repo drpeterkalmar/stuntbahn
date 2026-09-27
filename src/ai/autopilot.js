@@ -69,6 +69,7 @@ export class Autopilot {
     const psi = Math.atan2(fpx * L.bx[ja] + fpy * L.by[ja] + fpz * L.bz[ja], fpx * L.tx[ja] + fpy * L.ty[ja] + fpz * L.tz[ja]);
     const jf = this.ahead(i, 1.2 + Math.abs(v) * 0.06);
     const ff = Math.atan(2.72 * (this.P.kA ? this.P.kA[jf] : 0));
+    this.psi = psi; this.cross = e;
     let delta = -psi - Math.atan2(2.4 * e, Math.abs(v) + 3) + ff;
     // Gierraten-Dämpfung (verhindert Pendeln bei hohem Tempo)
     const yaw = car.w.x * F.u.x + car.w.y * F.u.y + car.w.z * F.u.z;

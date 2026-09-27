@@ -114,3 +114,4 @@ h2 { margin: 0; font-size: 24px; }
 @media (max-width: 700px) and (orientation: portrait) {
   #menu { flex-direction: column; overflow-y: auto; justify-content: flex-start; }
 }
+.sheetc .row > button { white-space: normal; line-height: 1.15; }

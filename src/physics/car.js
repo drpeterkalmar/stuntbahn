@@ -345,7 +345,7 @@ export class Car {
       if (kind === 1) this._roofTouch = true;
       this._bodyTouch = true;
       if (kind === 1 && !this.crash) this.setCrash('Überschlag');
-      doContact(ax + dx * Ln, ay + dy * Ln, az + dz * Ln, hit.nx, hit.ny, hit.nz, pen, kind === 0 ? 0.35 : 0.45, 0.12, kind);
+      doContact(ax + dx * Ln, ay + dy * Ln, az + dz * Ln, hit.nx, hit.ny, hit.nz, pen, kind === 0 ? 0.35 : kind === 1 ? 0.5 : 0.22, 0.12, kind);
     }
     if (bestPen > 0.002) {
       const c = Math.min(bestPen, 0.25) * 0.8;

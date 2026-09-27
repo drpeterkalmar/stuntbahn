@@ -2,10 +2,6 @@
 // Debug-API window.__game für Headless-Tests.
 import * as THREE from 'three';
 import { BUILD } from './build.js';
-import { buildTrack } from './track/build.js';
-import { CollisionWorld } from './physics/collide.js';
-import { computeIdeal } from './ai/ideal.js';
-import { computeProfile } from './ai/profile.js';
 import { makeMaterials } from './gfx/materials.js';
 import { makeSky, makeEnvironment, loadSkyInfo, sunDirFromUV, bakeStaticShadow } from './gfx/env.js';
 import { buildWorld, STATIC_LAYER } from './gfx/world.js';
@@ -15,6 +11,7 @@ import { Input } from './game/input.js';
 import { Race, ASSISTS } from './game/race.js';
 import { UI } from './ui/ui.js';
 import { generate, demoLayout, galleryLayout } from './track/generator.js';
+import { verify, prepare } from './track/verify.js';
 import { Store } from './game/store.js';
 import { Ghost } from './game/ghost.js';
 import { Replay } from './game/replay.js';
@@ -103,7 +100,7 @@ async function boot() {
   const q = params.get('seed');
   if (params.has('demo')) await loadTrack(demoLayout(), { name: 'Teststrecke' });
   else if (params.has('gallery')) await loadTrack(galleryLayout());
-  else await loadTrack(generate(q ? +q : daySeed(), +(params.get('d') || 2)));
+  else await loadGenerated(q ? +q : daySeed(), +(params.get('d') || 2));
   ui.loading(1, 'Fertig');
   app.ready = true;
   ui.bind({ startRace, newTrack, setAssist, toMenu, retry, startReplay, cycleCam, rewind: () => race && race.requestRewind(), pause: togglePause, setPaint, sound, input, quality });
@@ -113,13 +110,26 @@ async function boot() {
   requestAnimationFrame(frame);
 }
 
-async function loadTrack(layout, meta = {}) {
+// Generierte Strecke: aus Cache (bereits geprüft) oder Autopilot-Prüfung mit Fortschrittsanzeige
+async function loadGenerated(seed, diff) {
+  const lay = generate(seed, diff);
+  const key = lay.meta.key;
+  const cached = store.getVerified(key, BUILD);
+  if (cached) {
+    lay.pieces = cached.pieces;
+    return loadTrack(lay, { apTime: cached.ap, fixes: cached.fixes });
+  }
+  ui.loading(0.82, 'Autopilot prüft die Strecke …');
+  const res = await verify(lay, (p, f) => ui.loading(0.82 + 0.16 * p, `Autopilot prüft die Strecke … ${Math.round(p * 100)} %${f ? ' (entschärft: ' + f + ')' : ''}`));
+  store.setVerified(key, BUILD, res.layout.pieces, res.apTime, res.fixes);
+  return loadTrack(res.layout, { apTime: res.apTime, fixes: res.fixes }, res.env);
+}
+
+async function loadTrack(layout, meta = {}, pre = null) {
   if (worldGroup) { scene.remove(worldGroup); worldGroup.traverse((o) => { if (o.geometry) o.geometry.dispose(); }); }
   const t0 = performance.now();
-  const track = buildTrack(layout);
-  const world = new CollisionWorld(track);
-  const ideal = computeIdeal(track.line);
-  const prof = computeProfile(ideal, { jumps: track.jumps, startIdx: track.start.idx });
+  const P = pre || prepare(layout);
+  const { track, world, ideal, prof } = P;
   env = { track, world, ideal, prof, layout, meta: { ...layout.meta, ...meta } };
   worldGroup = buildWorld(track, M);
   scene.add(worldGroup);
@@ -148,12 +158,12 @@ function retry() { startRace(); }
 async function newTrack(seed, diff) {
   ui.loading(0.5, 'Strecke bauen …');
   await new Promise((r) => setTimeout(r, 30));
-  await loadTrack(generate(seed, diff));
+  await loadGenerated(seed, diff);
   ui.loading(1);
   ui.showMenu(env);
   mode = 'menu';
 }
-function setAssist(k) { store.settings.assist = k; store.save(); if (race) race.setAssist(k); ui.refresh(); }
+function setAssist(k) { store.settings.assist = k; store.save(); if (race) race.setAssist(k); ui.refresh(); ui.assistChanged(); }
 function setPaint(c) { store.settings.paint = c; store.save(); carVis.setPaint(c); }
 function toMenu() { mode = 'menu'; replay = null; sound.stop(); race = new Race(env, { assist: store.settings.assist, countdown: 1e9 }); ui.showMenu(env); }
 function startReplay() {

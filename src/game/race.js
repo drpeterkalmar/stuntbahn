@@ -5,7 +5,7 @@ import { Autopilot, Tracker } from '../ai/autopilot.js';
 
 export const ASSISTS = {
   easy: { name: 'Leicht', icon: '🟢', steerPull: 0.82, autoSpeed: true, autoStunts: true, magnet: 1, air: 1, autoRewind: true, wreck: false, showLine: true },
-  medium: { name: 'Mittel', icon: '🟡', steerPull: 0.28, autoSpeed: false, brakeAssist: true, autoStunts: false, magnet: 0.35, air: 0.4, autoRewind: true, wreck: true, showLine: true },
+  medium: { name: 'Mittel', icon: '🟡', steerPull: 0.28, stuntPull: 0.6, autoSpeed: false, brakeAssist: true, autoStunts: false, magnet: 0.35, air: 0.4, autoRewind: true, wreck: true, showLine: true },
   original: { name: 'Original', icon: '🔴', steerPull: 0, autoSpeed: false, autoStunts: false, magnet: 0, air: 0, autoRewind: false, wreck: true, showLine: false },
 };
 
@@ -38,6 +38,7 @@ export class Race {
     this.autopilotOnly = !!opts.autopilot;
     this.maxProgress = 0;
     this.offT = 0;
+    this.stuckProg = -1e9; this.stuckT = 0;
     this.lastInput = { steer: 0, throttle: 0, brake: 0 };
     this.place(this.startIdx - (opts.startBack ?? 1));
   }
@@ -90,14 +91,24 @@ export class Race {
     let steer = input.steer, thr = input.throttle, brk = input.brake;
     if (this.autopilotOnly) { steer = ap.steer; thr = ap.throttle; brk = ap.brake; }
     else if (A.steerPull > 0) {
+      const pull = stunt && A.stuntPull ? A.stuntPull : A.steerPull;
       if (A.autoStunts && stunt) { steer = ap.steer; }
-      else steer = ap.steer * A.steerPull + steer * (1 - A.steerPull) + (A.steerPull > 0.5 ? steer * 0.25 : 0);
+      else steer = ap.steer * pull + steer * (1 - pull) + (pull > 0.5 && !A.stuntPull ? steer * 0.25 : 0);
       steer = Math.max(-1, Math.min(1, steer));
       if (A.autoSpeed) { thr = ap.throttle; brk = ap.brake; if (input.brake > 0.5) { thr = 0; brk = Math.max(brk, input.brake * 0.6); } }
       else if (A.brakeAssist) {
         const vt = this.env.prof.vt[idx];
         const v = car.fwdSpeed();
         if (v > vt * 1.06 + 1.5) { thr = Math.min(thr, 0.15); brk = Math.max(brk, ap.brake * 0.8); }
+        // Stabilitätshilfe (ESP): bei großem Kurswinkel gegenlenken + Gas weg, falsche Richtung abfangen
+        const psi = Math.abs(this.ap.psi || 0);
+        if (psi > 0.5 && v > 3) {
+          const k = Math.min(1, (psi - 0.5) / 0.6);
+          steer = steer * (1 - 0.8 * k) + ap.steer * 0.8 * k;
+          thr = Math.min(thr, 1 - 0.7 * k);
+        }
+        if (psi > 2.2 && Math.abs(v) < 6) { this.wrongT = (this.wrongT || 0) + dt; if (this.wrongT > 1.5) { this.wrongT = 0; this.car.setCrash('Falsche Richtung'); } }
+        else this.wrongT = 0;
       }
     }
     this.lastInput = { steer, throttle: thr, brake: brk };
@@ -118,6 +129,9 @@ export class Race {
     }
     // Abseits: zu weit weg von der Linie
     if (this.tracker.dist > 30) { this.offT += dt; if (this.offT > 4) { this.car.setCrash('Abseits'); } } else this.offT = 0;
+    // Festgefahren: 5 s ohne nennenswerten Fortschritt
+    if (prog > this.stuckProg + 2) { this.stuckProg = prog; this.stuckT = 0; }
+    else { this.stuckT = (this.stuckT || 0) + dt; if (this.stuckT > 5) { this.stuckT = 0; this.stuckProg = prog; this.car.setCrash('Festgefahren'); } }
     // Rückspul-Puffer (10 Hz, 8 s)
     this.snapT += dt;
     if (this.snapT >= 0.1) {
@@ -155,12 +169,34 @@ export class Race {
     else this.recover();
   }
 
-  // Zurück: Rückspulen (3 s) oder bei Original: an die Strecke setzen
+  // Zurück: Rückspulen (3 s) oder bei Original: vor das Element setzen (fliegender Neustart)
   recover() {
-    if (this.assist.autoRewind || this.state === 'rewindRequest') { this.rewind(3); return; }
-    const L = this.env.track.line;
-    const back = Math.max(0, this.tracker.idx - 12);
-    this.place(back, 0);
+    const again = this.simTime - (this.lastRecoverT ?? -99) < 6;
+    this.lastRecoverT = this.simTime;
+    if (this.assist.autoRewind && !again) { this.rewind(3); return; }
+    this.safeReset();
+  }
+
+  // Sicherer Punkt: vor Stunt-Elementen ~45 m zurück, sonst ~12 m; Tempo aus dem Profil
+  safeReset() {
+    const L = this.env.track.line, T = this.env.track;
+    let idx = this.tracker.idx;
+    const pc = T.pieces[L.piece[idx]];
+    if (pc && pc.stunt) idx = pc.lineStart;
+    const back = pc && pc.stunt ? 45 : 12;
+    let j = idx, acc = 0;
+    while (acc < back) {
+      const pj = j - 1 < 0 ? (L.closed ? L.n - 2 : 0) : j - 1;
+      if (pj === j) break;
+      acc += Math.abs(L.s[j] - L.s[pj]) || 0;
+      j = pj;
+      if (L.air[j]) acc = Math.min(acc, back - 5);
+    }
+    // nicht vor den Start zurück (Checkpoints/Runde bleiben gültig)
+    const v = Math.min(this.env.prof.vt[j] || 10, 26) * 0.95;
+    const lap = this.tracker.lap - (j > this.tracker.idx ? 1 : 0);
+    this.place(j, v);
+    this.tracker.lap = lap;
     this.state = 'running';
     this.emit('reset');
   }
