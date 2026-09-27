@@ -4,7 +4,7 @@
 import { parseTrk, trkHash, TRK_BYTES } from '../track/trk.js';
 
 const KEY = 'stuntbahn.trklib.v1';
-const MAX = 150;
+const MAX = 400;          // ~2,7 KB je Strecke → ~1 MB localStorage
 
 const toB64 = (u8) => { let s = ''; for (let i = 0; i < u8.length; i++) s += String.fromCharCode(u8[i]); return btoa(s); };
 const fromB64 = (b) => { const s = atob(b); const u = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); return u; };

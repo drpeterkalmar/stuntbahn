@@ -246,8 +246,10 @@ export class UI {
     // nach einem Import den (ersten) neuen Eintrag zeigen
     const fresh = document.querySelector('#sheet .trk.new');
     if (fresh) fresh.scrollIntoView({ block: 'center' });
-    // Minikarten zeichnen
-    for (const cv of document.querySelectorAll('#sheet canvas[data-mm]')) {
+    // Minikarten erst zeichnen, wenn sie ins Bild scrollen (Bibliothek bis 400 Strecken)
+    const draw = (cv) => {
+      if (cv.dataset.done) return;
+      cv.dataset.done = '1';
       const id = cv.dataset.mm;
       try {
         const bytes = id.startsWith('demo-') ? A.showcaseBytes(id) : lib.bytes(id);
@@ -258,6 +260,13 @@ export class UI {
         g.fillStyle = '#fff'; g.font = '14px sans-serif'; g.fillText('⚠️ Fehler', 20, 64);
         cv.title = e.message;
       }
+    };
+    const cvs = [...document.querySelectorAll('#sheet canvas[data-mm]')];
+    if (typeof IntersectionObserver === 'undefined') cvs.forEach(draw);
+    else {
+      if (this._mmObs) this._mmObs.disconnect();
+      this._mmObs = new IntersectionObserver((es) => { for (const e of es) if (e.isIntersecting) draw(e.target); }, { root: document.querySelector('#sheet .scroll'), rootMargin: '200px' });
+      cvs.forEach((cv) => this._mmObs.observe(cv));
     }
   }
   showSettings() {

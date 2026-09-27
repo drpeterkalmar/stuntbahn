@@ -33,7 +33,10 @@ with Server() as srv, sync_playwright() as pw:
     check('NOTIZ.TRK' in res and 'zu kurz' in res, 'keine Strecke → Meldung')
     n = s.ev("() => window.__game.trkLib.list.length")
     check(n == 5, f'Bibliothek hat 5 Strecken ({n})')
-    # Minikarten gezeichnet (nicht einfarbig)
+    # Minikarten werden beim Sichtbarwerden gezeichnet: alle nacheinander ins Bild scrollen
+    for k in range(s.ev("() => document.querySelectorAll('#sheet canvas[data-mm]').length")):
+        s.ev(f"() => document.querySelectorAll('#sheet canvas[data-mm]')[{k}].scrollIntoView({{ block: 'center' }})")
+        s.pg.wait_for_function(f"document.querySelectorAll('#sheet canvas[data-mm]')[{k}].dataset.done === '1'", timeout=20000)
     var = s.ev("""() => [...document.querySelectorAll('#sheet canvas[data-mm]')].map(c => { const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; const set = new Set(); for (let i = 0; i < d.length; i += 97) set.add(d[i] + ',' + d[i+1] + ',' + d[i+2]); return set.size; })""")
     check(len(var) >= 6 and min(var) > 3, 'Minikarten gezeichnet ' + str(var))
     s.shot('ui_01_bibliothek', 'trkui')
