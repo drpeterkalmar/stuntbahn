@@ -10,6 +10,7 @@ function geo(b) {
   g.setAttribute('normal', new THREE.BufferAttribute(b.nrm, 3));
   g.setAttribute('uv', new THREE.BufferAttribute(b.uv, 2));
   if (b.road) g.setAttribute('aRoad', new THREE.BufferAttribute(b.road, 4));
+  if (b.col) g.setAttribute('color', new THREE.BufferAttribute(b.col, 3));
   g.setIndex(new THREE.BufferAttribute(b.idx, 1));
   g.computeBoundingSphere();
   return g;
@@ -59,7 +60,7 @@ export function buildWorld(track, M, opts = {}) {
     const pos = new Float32Array(nx * nx * 3), uv = new Float32Array(nx * nx * 2);
     for (let j = 0; j < nx; j++) for (let i = 0; i < nx; i++) {
       const k = j * nx + i, x = -ext + i * step, z = -ext + j * step;
-      pos[k * 3] = x; pos[k * 3 + 1] = T.H[k]; pos[k * 3 + 2] = z;
+      pos[k * 3] = x; pos[k * 3 + 1] = (T.Hr || T.H)[k]; pos[k * 3 + 2] = z;
       uv[k * 2] = x; uv[k * 2 + 1] = z;
     }
     const idx = new Uint32Array((nx - 1) * (nx - 1) * 6);
@@ -138,10 +139,31 @@ export function buildWorld(track, M, opts = {}) {
     mesh.name = 'water';
     add(mesh, false);
   }
-  // Banner an Start/Checkpoint-Portalen
+  // Banner an Start/Checkpoint-Portalen, Schilder der Szenerie
   const texStart = bannerTexture('START  •  ZIEL', '#10151c', '#f4f4f4');
   const texCp = bannerTexture('CHECKPOINT', '#f2b705', '#10151c');
+  // Schilder der Szenerie: je Text ein instanziertes Mesh (1 Draw-Call, egal wie viele)
+  const signs = new Map();
+  for (const d of track.decals) if (d.type === 'sign') { if (!signs.has(d.text)) signs.set(d.text, []); signs.get(d.text).push(d); }
+  for (const [text, list] of signs) {
+    const mat = new THREE.MeshStandardMaterial({ map: bannerTexture(text, '#c21d14', '#fff4d6'), roughness: 0.6, metalness: 0 });
+    const g = new THREE.PlaneGeometry(list[0].w, list[0].h);
+    const im = new THREE.InstancedMesh(g, mat, list.length * 2);
+    const o = new THREE.Object3D();
+    list.forEach((d, k) => {
+      for (const [q, side] of [[0, -1], [1, 1]]) {
+        o.rotation.set(0, Math.atan2(side * d.F[0], side * d.F[2]), 0);
+        o.position.set(d.p[0] + d.F[0] * side * 0.33, d.p[1], d.p[2] + d.F[2] * side * 0.33);
+        o.updateMatrix();
+        im.setMatrixAt(k * 2 + q, o.matrix);
+      }
+    });
+    im.computeBoundingSphere();
+    im.name = 'signs';
+    add(im, false);
+  }
   for (const d of track.decals) {
+    if (d.type === 'car' || d.type === 'sign') continue;   // Autos setzt main.js, Schilder oben
     const t = d.type === 'start' ? texStart : texCp;
     const mat = new THREE.MeshStandardMaterial({ map: t, roughness: 0.7, metalness: 0 });
     const w = 2 * (4.5 + 1.6) + 0.3, h = 1.05;

@@ -22,6 +22,29 @@ function toFloat(g) {
   }
   return g;
 }
+// Geparkte Autos (Szenerie importierter Strecken): vereinfachtes Modell ohne Texturen, nur bei Bedarf
+let lodPromise = null, lastM = null;
+export async function parkedCarGeometry() {
+  if (!lodPromise) {
+    const l = new GLTFLoader();
+    l.setMeshoptDecoder(MeshoptDecoder);
+    lodPromise = l.loadAsync('assets/car/goblin_lod.glb');
+  }
+  const gltf = await lodPromise;
+  if (!lastM) await makeCar({});                    // Modell→Auto-Transformation des Heldenautos
+  const src = gltf.scene;
+  src.updateMatrixWorld(true);
+  const out = [];
+  src.traverse((o) => {
+    if (!o.isMesh || Array.isArray(o.material) || /car_shadow/.test(o.name)) return;
+    const g = toFloat(o.geometry.clone()).applyMatrix4(o.matrixWorld).applyMatrix4(lastM);
+    const m = new THREE.MeshStandardMaterial({ color: o.material.color, metalness: o.material.metalness, roughness: o.material.roughness });
+    patchStaticShadow(m);
+    out.push({ g, m });
+  });
+  return out;
+}
+
 export function loadCarModel() {
   if (!gltfPromise) {
     const l = new GLTFLoader();
@@ -92,6 +115,7 @@ export async function makeCar(opts = {}) {
   // Achsmitte des Modells liegt nach toCar bei y=0 → Karosserie so verschieben, dass Räder auf wheelY0 sitzen
   const bodyShift = new THREE.Matrix4().makeTranslation(0, wheelY0, (d.wheels[0].z + d.wheels[2].z) / 2);
   const M = new THREE.Matrix4().multiplyMatrices(bodyShift, toCar);
+  lastM = M.clone();
 
   const root = new THREE.Group();
   root.name = 'car';

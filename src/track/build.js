@@ -181,7 +181,9 @@ export function buildTrack(layout, opt = {}) {
     if (!b) { b = new Batch(mat, ROAD_MATS.has(mat)); b.chunk = chunk; batches.set(k, b); }
     return b;
   };
-  const chunkOf = (x, z) => Math.floor((x + 1000) / CHUNK) + ',' + Math.floor((z + 1000) / CHUNK);
+  // Importe füllen das ganze 600-m-Raster: größere Chunks halten die Draw-Calls < 200
+  const CH = layout.trk ? 200 : CHUNK;
+  const chunkOf = (x, z) => Math.floor((x + 1000) / CH) + ',' + Math.floor((z + 1000) / CH);
   const addColTri = (p0, p1, p2, n0, n1, n2, mat) => {
     colPos.push(p0[0], p0[1], p0[2], p1[0], p1[1], p1[2], p2[0], p2[1], p2[2]);
     colNrm.push(n0[0], n0[1], n0[2], n1[0], n1[1], n1[2], n2[0], n2[1], n2[2]);

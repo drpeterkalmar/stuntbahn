@@ -180,6 +180,14 @@ export function makeMaterials(renderer, q = {}) {
   M[MAT.PAD] = new THREE.MeshStandardMaterial({ ...set('pad', 1 / 4), roughness: 1, metalness: 0, color: lin(1.15, 1.15, 1.12), aoMapIntensity: 0.6 });
   M[MAT.METAL] = new THREE.MeshStandardMaterial({ ...set('metal', 1 / 2.2), roughness: 0.8, metalness: 0.35, color: lin(4.2, 5.4, 7.2), envMapIntensity: 1.2 });
   M[MAT.STEEL] = new THREE.MeshStandardMaterial({ color: 0x9aa3ad, roughness: 0.35, metalness: 0.9 });
+  // Import-Beläge: Schotter (heller, rauer, braun) und Eis (bläulich, glatter) – gleiche Markierungen
+  M[MAT.DIRT] = new THREE.MeshStandardMaterial({ ...set('pad', 1 / 3), roughness: 1, metalness: 0, color: lin(1.55, 1.12, 0.72), aoMapIntensity: 0.6 });
+  patchRoad(M[MAT.DIRT]);
+  M[MAT.ICE] = new THREE.MeshStandardMaterial({ ...set('asphalt', 1 / 5), roughness: 0.22, metalness: 0.05, color: lin(1.9, 2.25, 2.7), normalScale: new THREE.Vector2(0.35, 0.35), envMapIntensity: 1.3 });
+  patchRoad(M[MAT.ICE]);
+  // Szenerie: Vertexfarben (Häuser, Palmen, Schiff …) + Glas
+  M[MAT.PAINT] = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.78, metalness: 0.02, color: 0xffffff });
+  M[MAT.GLASS] = new THREE.MeshStandardMaterial({ color: 0x1b2a38, roughness: 0.06, metalness: 0.7, envMapIntensity: 1.6 });
   M[MAT.BANNER] = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6 });
   M.grass = new THREE.MeshStandardMaterial({ ...set('grass', 1 / 3.2), roughness: 1, metalness: 0, color: 0xffffff, vertexColors: true, aoMapIntensity: 0.7, normalScale: new THREE.Vector2(0.9, 0.9) });
   patchGrass(M.grass);

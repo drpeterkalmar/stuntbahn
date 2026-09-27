@@ -173,8 +173,32 @@ export class Race {
   recover() {
     const again = this.simTime - (this.lastRecoverT ?? -99) < 6;
     this.lastRecoverT = this.simTime;
+    // Fahrhilfe: dreimal an derselben Stelle gescheitert → hinter das Hindernis setzen (nie festhängen)
+    const prog = this.tracker.progress();
+    if (Math.abs(prog - (this.failS ?? -1e9)) < 80) this.failN = (this.failN || 0) + 1; else { this.failS = prog; this.failN = 1; }
+    if (this.assist.autoRewind && this.failN >= 3) { this.skipAhead(); return; }
     if (this.assist.autoRewind && !again) { this.rewind(3); return; }
     this.safeReset();
+  }
+
+  // Hinter das Stück setzen, an dem der Unfall passiert (plus Sprunglücken), mit Tempo aus dem Profil
+  skipAhead() {
+    const L = this.env.track.line, T = this.env.track;
+    let idx = this.tracker.idx;
+    const pc = T.pieces[L.piece[idx]];
+    let j = pc ? pc.lineEnd + 1 : idx + 20;
+    // anschließende Luftstrecke (Sprunglücke) mit überspringen
+    for (let guard = 0; guard < 400 && L.air[((j % L.n) + L.n) % L.n]; guard++) j++;
+    j += 6;
+    let lap = this.tracker.lap;
+    if (L.closed && j >= L.n) { j -= L.n - 1; lap++; }
+    j = Math.min(L.n - 3, j);
+    this.place(j, Math.min(this.env.prof.vt[j] || 12, 18));
+    this.tracker.lap = lap;
+    this.failN = 0; this.failS = this.tracker.progress();
+    this.skips = (this.skips || 0) + 1;
+    this.state = 'running';
+    this.emit('skip');
   }
 
   // Sicherer Punkt: vor Stunt-Elementen ~45 m zurück, sonst ~12 m; Tempo aus dem Profil

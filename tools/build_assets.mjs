@@ -63,3 +63,35 @@ if (all || args.includes('--car')) {
   console.log('Auto: Dreiecke', before, '->', after, 'Datei', (fs.statSync(path.join(OUT, 'car', 'goblin.glb')).size / 1e6).toFixed(2), 'MB');
   for (const mat of doc.getRoot().listMaterials()) console.log('  Material', mat.getName(), 'metal', mat.getMetallicFactor(), 'rough', mat.getRoughnessFactor(), 'color', mat.getBaseColorFactor().map(v => v.toFixed(2)).join(','), mat.getBaseColorTexture() ? 'tex' : '');
 }
+
+// Stark vereinfachtes Auto ohne Texturen für geparkte Autos importierter Strecken (wird nur bei Bedarf geladen)
+if (all || args.includes('--car-lod')) {
+  await MeshoptEncoder.ready; await MeshoptDecoder.ready; await MeshoptSimplifier.ready;
+  const io = new NodeIO().registerExtensions(ALL_EXTENSIONS)
+    .registerDependencies({ 'meshopt.encoder': MeshoptEncoder, 'meshopt.decoder': MeshoptDecoder });
+  const doc = await io.read(path.join(SRC, 'goblin_src.glb'));
+  for (const n of doc.getRoot().listNodes()) if (n.getName().startsWith('car_shadow')) n.dispose();
+  // Texturen weg, Materialien als einfache Farben (Lack, Glas, Reifen, Chrom)
+  for (const mat of doc.getRoot().listMaterials()) {
+    const n = mat.getName().toLowerCase();
+    mat.setBaseColorTexture(null).setNormalTexture(null).setMetallicRoughnessTexture(null).setOcclusionTexture(null).setEmissiveTexture(null);
+    for (const ext of mat.listExtensions()) mat.setExtension(ext.extensionName, null);
+    if (n.includes('glass')) mat.setBaseColorFactor([0.03, 0.05, 0.05, 1]).setMetallicFactor(0.2).setRoughnessFactor(0.08);
+    else if (n.includes('tire')) mat.setBaseColorFactor([0.05, 0.05, 0.05, 1]).setMetallicFactor(0).setRoughnessFactor(0.9);
+    else if (n.includes('clearcoat') || n.includes('body')) mat.setBaseColorFactor([0.1, 0.25, 0.7, 1]).setMetallicFactor(0.5).setRoughnessFactor(0.35);
+    else mat.setBaseColorFactor([0.5, 0.5, 0.52, 1]).setMetallicFactor(0.6).setRoughnessFactor(0.4);
+  }
+  let before = 0;
+  for (const m of doc.getRoot().listMeshes()) for (const p of m.listPrimitives()) before += (p.getIndices()?.getCount() || 0) / 3;
+  await doc.transform(
+    dedup(), prune(), weld(),
+    simplify({ simplifier: MeshoptSimplifier, ratio: 0.03, error: 0.03, lockBorder: false }),
+    prune(),
+  );
+  for (const t of doc.getRoot().listTextures()) t.dispose();
+  await doc.transform(prune(), meshopt({ encoder: MeshoptEncoder, level: 'medium' }));
+  let after = 0;
+  for (const m of doc.getRoot().listMeshes()) for (const p of m.listPrimitives()) after += (p.getIndices()?.getCount() || 0) / 3;
+  await io.write(path.join(OUT, 'car', 'goblin_lod.glb'), doc);
+  console.log('Auto (LOD, geparkt): Dreiecke', before, '->', after, 'Datei', (fs.statSync(path.join(OUT, 'car', 'goblin_lod.glb')).size / 1e3).toFixed(0), 'KB');
+}

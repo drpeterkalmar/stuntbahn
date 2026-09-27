@@ -1,9 +1,10 @@
 // Service-Worker: offline spielbar, Cache-Busting über Inhalts-Hash (tools/update_sw.py)
-const VERSION = '785bf90069';
+const VERSION = '98b1bd4138';
 const CACHE = 'stuntbahn-' + VERSION;
 const ASSETS = [
   './',
   'assets/car/goblin.glb',
+  'assets/car/goblin_lod.glb',
   'assets/hdr/sky_1k.hdr',
   'assets/sky/sky.jpg',
   'assets/sky/sky.json',
@@ -49,6 +50,7 @@ const ASSETS = [
   'src/game/race.js',
   'src/game/replay.js',
   'src/game/store.js',
+  'src/game/trklib.js',
   'src/gfx/camera.js',
   'src/gfx/carmesh.js',
   'src/gfx/env.js',
@@ -64,8 +66,16 @@ const ASSETS = [
   'src/track/defs.js',
   'src/track/generator.js',
   'src/track/pieces.js',
+  'src/track/pieces_trk.js',
+  'src/track/scenery.js',
+  'src/track/showcase.js',
   'src/track/trk.js',
+  'src/track/trkdesign.js',
+  'src/track/trkelems.js',
+  'src/track/trkimport.js',
+  'src/track/trkterrain.js',
   'src/track/verify.js',
+  'src/ui/minimap.js',
   'src/ui/ui.js'
 ];
 self.addEventListener('install', (e) => {

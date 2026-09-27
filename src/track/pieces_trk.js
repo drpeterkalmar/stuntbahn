@@ -65,7 +65,7 @@ function truss(pb, S) {
 
 // Tunnelröhre (Kastenprofil) über [f0, f1] mit Portalen
 function tunnelShell(pb, f0, f1, portalIn, portalOut) {
-  const H = 5.4, w = HW + 0.9, th = 0.6, L = f1 - f0, fm = (f0 + f1) / 2;
+  const H = 5.4, w = HW + 0.5, th = 0.6, L = f1 - f0, fm = (f0 + f1) / 2;
   for (const s of [-1, 1]) pb.box(fm, H / 2 - 0.3, s * (w + th / 2), L, H + 0.6, th, MAT.CONCRETE, { collide: true });
   pb.box(fm, H + th / 2, 0, L, th, 2 * w + 2 * th, MAT.CONCRETE, { collide: true });
   const fac = (f, dir) => {
@@ -77,6 +77,23 @@ function tunnelShell(pb, f0, f1, portalIn, portalOut) {
 }
 
 const kerbs = (pc) => !pc.sub && !pc.noKerb;
+// Offenes Ende einer erhöhten Fahrbahn (Sprunglücke, Deko ohne Anschluss): Stirnfläche statt hohlem Profil
+const openEnd = (k) => k == null || k === 'gap';
+function endCap(pb, f, y, r, prof, rotY = 0) {
+  if (prof === 'road') return;
+  const g = pb.ground(f, r) - pb.base;
+  if (y - g < 0.4) return;
+  const w = 2 * (HW + 0.35), d = HW + 0.175;
+  // Brüstungen links/rechts entlang der (gedrehten) Querachse
+  const parapets = () => { for (const s of [-1, 1]) pb.box(f - s * d * Math.sin(rotY), y + 0.45, r + s * d * Math.cos(rotY), 0.12, 0.9, 0.35, MAT.WALL, { rotY }); };
+  if (prof === 'deck') {
+    pb.box(f, y - 0.5, r, 0.12, 1.0, w, MAT.CONCRETE, { rotY, collide: true });
+    parapets();
+  } else {
+    pb.box(f, (y + g) / 2, r, 0.12, y - g, w + (prof === 'causeway' ? 1.2 : 0), MAT.CONCRETE, { rotY, collide: true });
+    if (prof === 'rampwall') parapets();
+  }
+}
 const profFor = (pc, pb, L) => {
   if (pc.sup === 'solid') return 'rampwall';
   if (pc.sup === 'pillars' || pc.sup === 'truss' || pc.sup === 'span') return 'deck';
@@ -110,6 +127,8 @@ function buildStraight(pb, L) {
   const mark = pc.type === 'tr_sf' ? 'start' : pc.cp ? 'cp' : undefined;
   pb.path(S, { profile: prof, mark, markAt: pc.type === 'tr_sf' ? 12 : L / 2 });
   if (start) { pb.startLine(12); pb.gate('start', 12); }
+  if (openEnd(pc.pk)) endCap(pb, 0.06, S[0].y, 0, prof);
+  if (openEnd(pc.nk)) endCap(pb, L - 0.06, S[S.length - 1].y, 0, prof);
   if (pc.deco === 'tunnel' && !pc.sub) tunnelShell(pb, 0, L, pc.pk !== 'tunnel', pc.nk !== 'tunnel');
   if (pc.sup === 'pillars') for (let f = L / 4; f < L; f += L / 2) pillars(pb, f, 0, heightAt(pc, pb.LH, f, L));
   if (pc.sup === 'truss') {
@@ -137,6 +156,8 @@ function buildCorner(pb, radius) {
   const deck = pc.sup === 'pillars';
   const S = lin(0, PI / 2, n).map((th) => ({ f: radius * Math.sin(th), y: 0, r: m * (radius - radius * Math.cos(th)), th }));
   pb.path(S, { profile: deck ? 'deck' : 'road', kerbIn: !deck && kerbs(pc), kerbOut: !deck && kerbs(pc), turn: m });
+  if (deck && openEnd(pc.pk)) endCap(pb, 0.06, 0, 0, 'deck');
+  if (deck && openEnd(pc.nk)) endCap(pb, radius, 0, m * (radius - 0.06), 'deck', m * PI / 2);
   if (deck) for (const th of [PI / 8, 3 * PI / 8]) pillars(pb, radius * Math.sin(th), m * (radius - radius * Math.cos(th)), 0, m * th);
 }
 

@@ -5,13 +5,18 @@ import { BUILD } from './build.js';
 import { makeMaterials } from './gfx/materials.js';
 import { makeSky, makeEnvironment, loadSkyInfo, sunDirFromUV, bakeStaticShadow } from './gfx/env.js';
 import { buildWorld, STATIC_LAYER } from './gfx/world.js';
-import { makeCar, loadCarModel } from './gfx/carmesh.js';
+import { makeCar, loadCarModel, parkedCarGeometry } from './gfx/carmesh.js';
 import { CameraRig } from './gfx/camera.js';
 import { Input } from './game/input.js';
 import { Race, ASSISTS } from './game/race.js';
 import { UI } from './ui/ui.js';
 import { generate, demoLayout, galleryLayout } from './track/generator.js';
-import { verify, prepare } from './track/verify.js';
+import { verify, prepare, probeLap } from './track/verify.js';
+import { parseTrk } from './track/trk.js';
+import { trkToLayout } from './track/trkimport.js';
+import { KIND_NAMES } from './track/trkelems.js';
+import { TrkLib, unzipTracks } from './game/trklib.js';
+import { SHOWCASE, showcaseBytes } from './track/showcase.js';
 import { Store } from './game/store.js';
 import { Ghost } from './game/ghost.js';
 import { Replay } from './game/replay.js';
@@ -56,6 +61,8 @@ const store = new Store();
 const ui = new UI(app, store);
 const rig = new CameraRig(camera);
 const sound = new Sound(store);
+const trkLib = new TrkLib();
+let parked = [];         // geparkte Autos (Szenerie „Geisterauto“ importierter Strecken)
 window.__soundRef = sound;
 
 let env = null;          // aktuelle Strecke { track, world, ideal, prof, layout, meta }
@@ -108,10 +115,12 @@ async function boot() {
   const q = params.get('seed');
   if (params.has('demo')) await loadTrack(demoLayout(), { name: 'Teststrecke' });
   else if (params.has('gallery')) await loadTrack(galleryLayout());
+  else if (params.has('trk')) await loadImported(params.get('trk'));
   else await loadGenerated(q ? +q : daySeed(), +(params.get('d') || 2));
   ui.loading(1, 'Fertig');
   app.ready = true;
-  ui.bind({ startRace, newTrack, setAssist, toMenu, retry, startReplay, cycleCam, rewind: () => race && race.requestRewind(), pause: togglePause, setPaint, sound, input, quality });
+  ui.bind({ startRace, newTrack, setAssist, toMenu, retry, startReplay, cycleCam, rewind: () => race && race.requestRewind(), pause: togglePause, setPaint, sound, input, quality, importFiles, playImported, deleteImported, trkLib, showcase: SHOWCASE, showcaseBytes, store });
+  initDrop();
   ui.showMenu(env);
   mode = params.has('race') ? 'race' : 'menu';
   if (mode === 'race') startRace();
@@ -133,6 +142,118 @@ async function loadGenerated(seed, diff) {
   return loadTrack(res.layout, { apTime: res.apTime, fixes: res.fixes }, res.env);
 }
 
+// ---------- Importierte .TRK-Strecken ----------
+function importedBytes(id) {
+  if (id.startsWith('demo-')) return showcaseBytes(id);
+  return trkLib.bytes(id);
+}
+async function loadImported(id) {
+  const bytes = importedBytes(id);
+  if (!bytes) throw new Error('Strecke nicht gefunden: ' + id);
+  const rec = trkLib.get(id) || SHOWCASE.find((x) => x.id === id) || { name: id };
+  const trk = parseTrk(bytes, rec.name + '.trk');
+  trk.name = rec.name;
+  const { layout, report } = trkToLayout(trk);
+  layout.meta.key = id;
+  layout.meta.name = rec.name;
+  let v = trkLib.getVerified(id, BUILD) || (id.startsWith('demo-') ? store.getVerified(id, BUILD) : null);
+  let pre = null;
+  if (!v) {
+    ui.loading(0.84, 'Strecke bauen …');
+    await new Promise((r) => setTimeout(r, 20));
+    pre = prepare(layout);
+    ui.loading(0.86, 'Autopilot fährt probe …');
+    const r = await probeLap(pre, (p) => ui.loading(0.86 + 0.12 * p, `Autopilot fährt probe … ${Math.round(p * 100)} %`));
+    v = { ap: r.time, ok: r.ok, reason: r.reason || '', kind: r.kind || '' };
+    if (id.startsWith('demo-')) store.setVerified(id, BUILD, [], v.ap, 0); else trkLib.setVerified(id, BUILD, v);
+  }
+  const apFail = v.ok === false ? `${v.reason} bei ${KIND_NAMES[v.kind] || v.kind || '?'}` : null;
+  return loadTrack(layout, { apTime: v.ap, apFail, report, imported: true }, pre);
+}
+async function playImported(id) {
+  ui.loading(0.5, 'Strecke laden …');
+  await new Promise((r) => setTimeout(r, 30));
+  try {
+    await loadImported(id);
+    ui.loading(1);
+    ui.showMenu(env);
+    mode = 'menu';
+  } catch (e) {
+    ui.loading(1);
+    ui.showLibrary([{ name: id, err: e.message }]);
+  }
+}
+async function importFiles(files) {
+  const results = [];
+  for (const f of files) {
+    let u8;
+    try { u8 = new Uint8Array(await f.arrayBuffer()); } catch { results.push({ name: f.name, err: 'Datei nicht lesbar.' }); continue; }
+    const isZip = u8.length > 4 && u8[0] === 0x50 && u8[1] === 0x4b && u8[2] === 3 && u8[3] === 4;
+    const entries = isZip ? await unzipTracks(u8) : [{ name: f.name, data: u8 }];
+    if (isZip && !entries.length) results.push({ name: f.name, err: 'Keine .TRK-/.RPL-Dateien im ZIP gefunden.' });
+    for (const e of entries) {
+      try {
+        const r = trkLib.add(e.data, e.name);
+        // gleich prüfen, ob die Strecke fahrbar ist (Weg von Start/Ziel)
+        trkToLayout(r.trk);
+        results.push({ name: e.name, ok: true, dup: r.dup, id: r.rec.id });
+      } catch (err) {
+        results.push({ name: e.name, err: err.message });
+      }
+    }
+  }
+  ui.showLibrary(results);
+  return results;
+}
+function deleteImported(id) {
+  trkLib.remove(id);
+  for (const k of Object.keys(store.best)) if (k.startsWith(id + '|')) delete store.best[k];
+  for (const a of Object.keys(ASSISTS)) { try { localStorage.removeItem('stuntbahn.ghost.' + id + '|' + a); } catch { /* egal */ } }
+  store.save();
+  ui.showLibrary();
+}
+// Drag & Drop am Desktop: Dateien irgendwo ins Fenster ziehen
+function initDrop() {
+  let depth = 0;
+  const has = (e) => e.dataTransfer && [...(e.dataTransfer.types || [])].includes('Files');
+  addEventListener('dragenter', (e) => { if (!has(e)) return; depth++; document.body.classList.add('dropping'); e.preventDefault(); });
+  addEventListener('dragover', (e) => { if (has(e)) e.preventDefault(); });
+  addEventListener('dragleave', () => { depth = Math.max(0, depth - 1); if (!depth) document.body.classList.remove('dropping'); });
+  addEventListener('drop', (e) => {
+    depth = 0; document.body.classList.remove('dropping');
+    if (!has(e)) return;
+    e.preventDefault();
+    if (mode === 'race') return;
+    importFiles([...e.dataTransfer.files]);
+  });
+}
+
+// Geparkte Autos (Szenerie „Geisterauto“): vereinfachtes Modell, je Teil ein instanziertes Mesh
+// (≈15 Draw-Calls gesamt, ~6,5 k Dreiecke je Auto), höchstens 8 Stück.
+async function placeParkedCars(track) {
+  for (const p of parked) scene.remove(p);
+  parked = [];
+  const cars = track.decals.filter((d) => d.type === 'car').slice(0, 8);
+  if (!cars.length) return;
+  let parts;
+  try { parts = await parkedCarGeometry(); } catch { return; }
+  const o = new THREE.Object3D();
+  for (const { g, m } of parts) {
+    const im = new THREE.InstancedMesh(g, m, cars.length);
+    cars.forEach((d, k) => {
+      o.position.set(d.p[0], d.p[1], d.p[2]);
+      o.rotation.set(0, [-Math.PI / 2, Math.PI, Math.PI / 2, 0][d.d] ?? 0, 0);
+      o.updateMatrix();
+      im.setMatrixAt(k, o.matrix);
+    });
+    im.computeBoundingSphere();
+    im.receiveShadow = true;
+    im.name = 'parked';
+    scene.add(im);
+    parked.push(im);
+  }
+}
+
 async function loadTrack(layout, meta = {}, pre = null) {
   if (worldGroup) { scene.remove(worldGroup); worldGroup.traverse((o) => { if (o.geometry) o.geometry.dispose(); }); }
   const t0 = performance.now();
@@ -141,6 +262,7 @@ async function loadTrack(layout, meta = {}, pre = null) {
   env = { track, world, ideal, prof, layout, meta: { ...layout.meta, ...meta } };
   worldGroup = buildWorld(track, M, { world });
   scene.add(worldGroup);
+  await placeParkedCars(track);
   bakeStaticShadow(renderer, scene, sun.userData.dir, track.bounds, quality.staticShadowSize());
   rig.setTrackCams(track);
   lineViz.build(ideal, prof, track);
@@ -276,7 +398,10 @@ function render(rdt) {
 
 // ---------- Debug-API ----------
 window.__game = {
-  get env() { return env; }, get race() { return race; }, get mode() { return mode; }, scene, camera, renderer, rig, store, ui, quality,
+  get env() { return env; }, get race() { return race; }, get mode() { return mode; }, scene, camera, renderer, rig, store, ui, quality, trkLib,
+  // Import (Tests): Bytes als Array → Ergebnisliste; Strecke laden
+  importBytes: (arr, name) => importFiles([new File([new Uint8Array(arr)], name || 'test.trk')]),
+  loadImported: (id) => playImported(id),
   info() { const i = renderer.info; return { calls: i.render.calls, tris: i.render.triangles, geometries: i.memory.geometries, textures: i.memory.textures, programs: i.programs ? i.programs.length : 0, pixelRatio: renderer.getPixelRatio(), tier: quality.tier, fps: quality.fps }; },
   state() {
     const c = race && race.car;

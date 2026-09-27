@@ -24,7 +24,7 @@ function rundkurs() {
     .terrain(1, 9, 1, 9, 0x0D).terrain(7, 9, 7, 9, 0x0C).terrain(1, 12, 1, 12, 0x0E).terrain(7, 12, 7, 12, 0x0B);
   t.terrain(11, 9, 19, 12, 0x01);
   // Szenerie
-  t.deco(21, 16, 0x9F).deco(15, 11, 0xAC).deco(22, 11, 0xA9).deco(9, 3, 0xA5).deco(12, 3, 0xA3).deco(24, 3, 0x9D)
+  t.deco(22, 16, 0x9F).deco(15, 11, 0xAC).deco(22, 11, 0xA9).deco(9, 3, 0xA5).deco(12, 3, 0xA3).deco(24, 3, 0x9D)
     .deco(17, 3, 0xB1).deco(8, 8, 0x9A).deco(25, 9, 0x97).deco(25, 10, 0x97).deco(25, 12, 0x98).deco(9, 12, 0x99)
     .deco(9, 13, 0x99).deco(10, 14, 0x99).deco(3, 3, 0x99).deco(2, 7, 0x99).deco(20, 8, 0x97).deco(26, 18, 0x99);
   return t;

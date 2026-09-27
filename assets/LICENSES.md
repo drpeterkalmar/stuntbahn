@@ -9,7 +9,17 @@ Physik, Generator, Ton und Icons sind eigene Arbeit. Keine Assets aus „Stunts�
 |---|---|---|---|---|
 | `car/goblin.glb` | [Fictional supercar – V12 Goblin](https://sketchfab.com/3d-models/fictional-supercar-v12-goblin-0a20e49ad5774d778567cb5c3f345786) (Sketchfab) | Olli Teittinen ([ollitei](https://sketchfab.com/ollitei)) | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | Spec-Gloss → Metal-Rough, Schattenebene entfernt, Geometrie vereinfacht (86k → 56k Dreiecke), Texturen WebP 1k, Meshopt-Kompression; im Spiel Lack per Maske umgefärbt |
 
+| `car/goblin_lod.glb` | wie oben (abgeleitet) | Olli Teittinen (ollitei) | CC BY 4.0 | stark vereinfacht (86k → 6,5k Dreiecke), ohne Texturen, einfarbige Materialien – nur für geparkte Autos importierter Strecken, wird bei Bedarf geladen |
+
 Fiktives Originaldesign (kein Markenauto). Namensnennung auch im Spiel unter „Credits“.
+
+## .TRK-Import (Strecken des Stunt-Klassikers)
+
+Das Spiel liest das dokumentierte Streckenformat ([wiki.stunts.hu/wiki/Track_file](https://wiki.stunts.hu/wiki/Track_file)).
+Parser, Elementtabelle, Wegverfolgung und alle Bausteine/Szenerie-Modelle (Palme, Kaktus, Tennisplatz,
+Tankstelle, Scheune, Bürohaus, Windmühle, Schiff, Imbiss) sind eigene Arbeit (prozedurale Geometrie).
+Es werden **keine** fremden Strecken mitgeliefert: Importe wählt der Nutzer selbst, sie bleiben nur in
+seinem Browser. Die Beispielstrecke im Spiel ist eine eigene Strecke (`src/track/showcase.js`).
 
 ## Himmel & Texturen (Poly Haven, CC0)
 

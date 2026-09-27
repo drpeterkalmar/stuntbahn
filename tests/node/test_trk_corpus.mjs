@@ -59,7 +59,8 @@ function lap(env, assist) {
     }
     race.events.length = 0;
   }
-  const ok = race.state === 'finished';
+  // „Überspringen“ nach 3 Fehlversuchen ist eine Spiel-Sicherung – für die Quote zählt es als Ausfall
+  const ok = race.state === 'finished' && !race.skips;
   let fail = null;
   if (!ok) {
     const idx = race.tracker.idx;

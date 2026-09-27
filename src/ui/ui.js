@@ -4,10 +4,20 @@ import { ASSISTS } from '../game/race.js';
 import { DIFFS } from '../track/generator.js';
 import { PAINTS } from '../gfx/carmesh.js';
 import { PIECES } from '../track/pieces.js';
+import { parseTrk } from '../track/trk.js';
+import { trkToLayout } from '../track/trkimport.js';
+import { drawMinimap } from './minimap.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const h = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
 const ICON = { loop: '➰', jump: '🛫', tube: '🕳️', bank: '↪️', crest: '⛰️', bumps: '〰️', chicane: '🔀', bridge: '🌉' };
+// Symbole für importierte Strecken (Elementart → Symbol, Name)
+const TICON = { loop: ['➰', 'Looping'], corklr: ['🌀', 'Korkenzieher'], corkud: ['🌀', 'Wendel'], gap: ['🛫', 'Sprung'], pipe: ['🕳️', 'Röhre'], bankC: ['↪️', 'Steilkurve'], chicane: ['🔀', 'Schikane'], elev: ['🌉', 'Hochstraße'], tunnel: ['🚇', 'Tunnel'], hwy: ['🛣️', 'Autobahn'], slalom: ['🚧', 'Slalom'] };
+function stuntSummary(pieces) {
+  const c = {};
+  for (const p of pieces) { const k = p.kind === 'pobst' ? 'pipe' : p.kind === 'span' || p.kind === 'solid' ? 'elev' : p.kind; if (TICON[k]) c[k] = (c[k] || 0) + 1; }
+  return Object.entries(c).map(([k, n]) => `<span title="${TICON[k][1]}">${TICON[k][0]}${n > 1 ? '×' + n : ''}</span>`).join(' ');
+}
 
 export class UI {
   constructor(app, store) {
@@ -43,7 +53,14 @@ export class UI {
       <div id="pause" class="screen"></div>
       <div id="result" class="screen"></div>
       <div id="replayui"><div class="bar"><i></i></div><div class="btns"></div></div>
-      <div id="sheet" class="screen"></div>`;
+      <div id="sheet" class="screen"></div>
+      <div id="drop"><div>📂 Strecken hier ablegen<small>.TRK, .RPL oder .ZIP</small></div></div>`;
+    // Datei-Auswahl (Handy + Desktop); wird per Knopf im Nutzer-Klick geöffnet
+    this.fileInput = h('input');
+    this.fileInput.type = 'file'; this.fileInput.multiple = true; this.fileInput.accept = '.trk,.TRK,.rpl,.RPL,.zip,.ZIP,application/zip,application/octet-stream';
+    this.fileInput.style.display = 'none';
+    this.fileInput.addEventListener('change', () => { const f = [...this.fileInput.files]; this.fileInput.value = ''; if (f.length && this.a.importFiles) this.a.importFiles(f); });
+    document.body.appendChild(this.fileInput);
     this.root.addEventListener('click', (e) => {
       const b = e.target.closest('[data-a]');
       if (!b) return;
@@ -88,15 +105,22 @@ export class UI {
     const stuntTxt = Object.entries(stunts).map(([t, n]) => `<span title="${PIECES[t] ? PIECES[t].name : t}">${ICON[t]}${n > 1 ? '×' + n : ''}</span>`).join(' ');
     const bests = Object.keys(ASSISTS).map((k) => { const b = this.store.bestFor(m.key, k); return `<span>${ASSISTS[k].icon} ${b ? fmtTime(b.time) : '–'}</span>`; }).join('');
     const today = daySeed();
-    const isDay = m.seed === today && m.diff === 2;
+    const isDay = m.seed === today && m.diff === 2 && !m.imported;
+    const km = (env.ideal.total / 1000).toFixed(2);
+    const metaLine = m.imported
+      ? `📂 Importiert${m.diffName ? ' · ' + m.diffName : ''} · ${km} km${m.closed === false ? ' · offen' : ''}`
+      : `Code <b>${m.seed}-${m.diff}</b> · ${m.diffName || ''} · ${km} km`;
+    const stuntsHtml = m.imported ? stuntSummary(lay.pieces) : stuntTxt;
+    const apLine = m.apTime ? `<div class="tmeta">🤖 Autopilot-Referenz ${fmtTime(m.apTime)}${m.fixes ? ' · ' + m.fixes + '× entschärft' : ''}</div>`
+      : m.apFail ? `<div class="tmeta">🤖 Probefahrt ohne Hilfen: ${m.apFail} – Fahrhilfe Leicht hilft</div>` : '';
     $('#menu').innerHTML = `
       <div class="col left">
         <div class="logo">STUNT<b>BAHN</b></div>
         <div class="card track">
           <div class="tname">${isDay ? '📅 Strecke des Tages<br>' : ''}${m.name || 'Strecke'}</div>
-          <div class="tmeta">Code <b>${m.seed}-${m.diff}</b> · ${m.diffName || ''} · ${(env.ideal.total / 1000).toFixed(2)} km</div>
-          <div class="stunts">${stuntTxt || 'ohne Stunts'}</div>
-          ${m.apTime ? `<div class="tmeta">🤖 Autopilot-Referenz ${fmtTime(m.apTime)}${m.fixes ? ' · ' + m.fixes + '× entschärft' : ''}</div>` : ''}
+          <div class="tmeta">${metaLine}</div>
+          <div class="stunts">${stuntsHtml || 'ohne Stunts'}</div>
+          ${apLine}
           <div class="bests">${bests}</div>
         </div>
         <button class="big go" data-a="start">▶ Losfahren</button>
@@ -112,6 +136,7 @@ export class UI {
           <button data-a="today">📅 Tages-Strecke</button>
           <button data-a="code">🔢 Code</button>
         </div>
+        <div class="row"><button data-a="trklib">📂 Strecke laden (.TRK)</button></div>
         <div class="row">
           <button data-a="settings">⚙️ Optionen</button>
           <button data-a="help">🎮 Steuerung</button>
@@ -145,6 +170,14 @@ export class UI {
         break;
       }
       case 'settings': this.showSettings(); break;
+      case 'trklib': this.showLibrary(); break;
+      case 'trkpick': this.fileInput.click(); break;
+      case 'trkplay': A.playImported(v); break;
+      case 'trkdel': {
+        const t = A.trkLib.get(v);
+        if (t && confirm(`„${t.name}“ löschen? Bestzeiten und Geisterautos dieser Strecke gehen verloren.`)) A.deleteImported(v);
+        break;
+      }
       case 'help': this.showHelp(); break;
       case 'credits': this.showCredits(); break;
       case 'close': this.showMenu(this.env); break;
@@ -170,6 +203,50 @@ export class UI {
   sheet(title, html) {
     $('#sheet').innerHTML = `<div class="card sheetc"><h2>${title}</h2><div class="scroll">${html}</div><button class="big" data-a="close">Zurück</button></div>`;
     this.show('sheet');
+  }
+  // ---------- Importierte Strecken ----------
+  showLibrary(results) {
+    const A = this.a, lib = A.trkLib;
+    const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    const bests = (id) => Object.keys(ASSISTS).map((k) => { const b = this.store.bestFor(id, k); return `<span>${ASSISTS[k].icon} ${b ? fmtTime(b.time) : '–'}</span>`; }).join('');
+    let res = '';
+    if (results && results.length) {
+      const ok = results.filter((r) => r.ok && !r.dup).length, dup = results.filter((r) => r.dup).length, bad = results.filter((r) => r.err);
+      res = `<div class="impres${ok || dup ? '' : ' bad'}">${ok ? `✅ ${ok} Strecke${ok > 1 ? 'n' : ''} importiert` : ''}${dup ? ` · ${dup} schon vorhanden` : ''}${bad.map((r) => `<div class="err">⚠️ ${esc(r.name)}: ${esc(r.err)}</div>`).join('')}</div>`;
+    }
+    const entry = (id, name, sub, del) => `<div class="trk${results && results.some((r) => r.id === id && r.ok) ? ' new' : ''}">
+        <canvas width="120" height="120" data-mm="${esc(id)}"></canvas>
+        <div class="ti"><b>${esc(name)}</b><small>${sub}</small><div class="tbests">${bests(id)}</div></div>
+        <div class="tbtn"><button class="go" data-a="trkplay" data-v="${esc(id)}" aria-label="Fahren">▶ Fahren</button>${del ? `<button data-a="trkdel" data-v="${esc(id)}" aria-label="Löschen">🗑</button>` : ''}</div>
+      </div>`;
+    const mine = lib.list.map((t) => entry(t.id, t.name, `${esc(t.file || '')} · ${t.added}${t.meta && t.meta.author ? ' · von ' + esc(t.meta.author) : ''}`, true)).join('');
+    const demos = A.showcase.map((d) => entry(d.id, d.name, 'eigene Beispielstrecke', false)).join('');
+    this.sheet('Strecken laden (.TRK)', `
+      ${res}
+      <div class="row"><button class="big go" data-a="trkpick">📂 Datei wählen …</button></div>
+      <p class="hint">Strecken des Stunt-Klassikers (.TRK), Replays (.RPL, enthalten die Strecke) oder ganze ZIP-Archive.
+      <span class="desk">Am Computer auch einfach ins Fenster ziehen.</span> Die Strecken bleiben nur in diesem Browser.
+      Quellen: <b>zak.stunts.hu</b> → Downloads (Track-Pack), <b>archive.org</b> → „stunts tracks“.</p>
+      <div class="lbl">Meine Strecken (${lib.list.length})</div>
+      ${mine || '<p class="hint">Noch keine importiert.</p>'}
+      <div class="lbl">Beispiele</div>
+      ${demos}`);
+    // nach einem Import den (ersten) neuen Eintrag zeigen
+    const fresh = document.querySelector('#sheet .trk.new');
+    if (fresh) fresh.scrollIntoView({ block: 'center' });
+    // Minikarten zeichnen
+    for (const cv of document.querySelectorAll('#sheet canvas[data-mm]')) {
+      const id = cv.dataset.mm;
+      try {
+        const bytes = id.startsWith('demo-') ? A.showcaseBytes(id) : lib.bytes(id);
+        const trk = parseTrk(bytes, id);
+        drawMinimap(cv, trk, trkToLayout(trk).layout);
+      } catch (e) {
+        const g = cv.getContext('2d'); g.fillStyle = '#402020'; g.fillRect(0, 0, cv.width, cv.height);
+        g.fillStyle = '#fff'; g.font = '14px sans-serif'; g.fillText('⚠️ Fehler', 20, 64);
+        cv.title = e.message;
+      }
+    }
   }
   showSettings() {
     const S = this.store.settings;
@@ -234,6 +311,7 @@ export class UI {
     else if (e.type === 'crash') this.big(`💥 ${e.reason}`, 'crash', 1400);
     else if (e.type === 'rewind') this.toast('⏪ Zurückgespult');
     else if (e.type === 'reset') this.toast('Zurück auf die Strecke');
+    else if (e.type === 'skip') this.toast('⏭ Stelle übersprungen', 1800);
   }
   // Fahrhilfe im Rennen gewechselt: HUD + Touch-Modus anpassen
   assistChanged() {
