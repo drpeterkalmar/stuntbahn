@@ -3,8 +3,9 @@
 // Schaltkulisse (Knauf fährt über die Neutralgasse), Gang fürs Replay aus dem aufgezeichneten Tempo.
 import { CAR_DEF } from '../physics/car.js';
 
-// Vmax des Autos: 286 km/h (Ebene, Vollgas, gemessen mit der Physik) → Skala aufgerundet bis 300.
-export const SPEEDO = { max: 300, major: 50, minor: 10, sweep: 260 * Math.PI / 180 };
+// Vmax des Autos: 586 km/h (Ebene, Vollgas, gemessen mit der Physik, tools/tempo_measure.mjs) → Skala
+// aufgerundet bis 600, Zahlen alle 100, Striche alle 20 km/h. Bis 27.09.2026: Vmax 286 → 0 … 300 (50/10).
+export const SPEEDO = { max: 600, major: 100, minor: 20, sweep: 260 * Math.PI / 180 };
 // Drehzahl: Begrenzer 7600 (CAR_DEF.redline) → Skala 0 … 8 ×1000 U/min, roter Bereich ab 7000.
 export const TACHO = { max: Math.ceil(CAR_DEF.redline / 1000), red: 7, sweep: 260 * Math.PI / 180 };
 

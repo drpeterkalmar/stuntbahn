@@ -212,7 +212,7 @@ async function importFiles(files) {
 function deleteImported(id) {
   trkLib.remove(id);
   for (const k of Object.keys(store.best)) if (k.startsWith(id + '|')) delete store.best[k];
-  for (const a of Object.keys(ASSISTS)) for (const w of [false, true]) { try { localStorage.removeItem('stuntbahn.ghost.' + id + '|' + modeKey(a, w)); } catch { /* egal */ } }
+  for (const a of Object.keys(ASSISTS)) for (const w of [false, true]) for (const p of [1, 2]) { try { localStorage.removeItem('stuntbahn.ghost.' + id + '|' + modeKey(a, w, p)); } catch { /* egal */ } }
   store.save();
   ui.showLibrary();
 }

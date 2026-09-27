@@ -294,7 +294,9 @@ export class Race {
     const off = this.tracker.dist > L.hw[ti] + 1.0 && !L.air[ti];
     if (!off) {
       this.shortcut = null;
-      this.onRoad.prog = prog; this.onRoad.idx = ti; this.onRoad.lap = this.tracker.lap; this.onRoad.cp = this.cpNext;
+      // Rücksetzpunkt nur auf Fahrbahn merken – nie über einer Sprunglücke (dort läge die Linie in der Luft,
+      // das Auto fiele nach dem Versetzen herunter; fiel mit dem schnelleren Auto 27.09. auf)
+      if (!L.air[ti]) { this.onRoad.prog = prog; this.onRoad.idx = ti; this.onRoad.lap = this.tracker.lap; this.onRoad.cp = this.cpNext; }
       return false;
     }
     if (!this.shortcut) this.shortcut = { ...this.onRoad, driven: 0 };

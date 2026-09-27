@@ -66,7 +66,7 @@ with Server() as srv, sync_playwright() as pw:
         time.sleep(1.5)
         vals.append(s.ev("() => ({ deg: __game.cockpit.readout().speedDeg, kmh: Math.abs(__game.replayObj.speed()) * 3.6 })"))
     print('Replay-Zeiger', vals)
-    expect(all(abs(v['deg'] - (-130 + min(1.02, v['kmh'] / 300) * 260)) < 3 for v in vals), 'Replay-Tachozeiger = aufgezeichnetes Tempo')
+    expect(all(abs(v['deg'] - (-130 + min(1.02, v['kmh'] / 600) * 260)) < 3 for v in vals), 'Replay-Tachozeiger = aufgezeichnetes Tempo')  # Skala 0–600 (Tempo-Umbau 27.09.)
     s.ev("__game.setTimeScale(1.25)")
     s.tap('#replayui [data-v=chase]'); s.frames(3)
     expect(s.ev("__game.scene.getObjectByName('car').visible"), 'zurück im Verfolger: Auto sichtbar')

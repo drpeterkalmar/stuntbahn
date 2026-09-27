@@ -11,6 +11,7 @@ import { prepare } from '../../src/track/verify.js';
 import { Race } from '../../src/game/race.js';
 import { KIND_NAMES } from '../../src/track/trkelems.js';
 import { fmtTime } from '../../src/core/util.js';
+import { CAR_DEF, CAR_DEF_ALT } from '../../src/physics/car.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const DIR = path.join(ROOT, 'trk_local');
@@ -20,6 +21,8 @@ const only = (args.find((a) => a.startsWith('--only=')) || '').slice(7);
 const jsonOut = (args.find((a) => a.startsWith('--json=')) || '').slice(7);
 const allParse = args.includes('--all-parse');
 const assists = (args.find((a) => a.startsWith('--assist=')) || '--assist=easy,strict').slice(9).split(',');
+// --auto=alt: Vergleich mit der Abstimmung bis 27.09.2026 (Vmax 286 km/h)
+if (args.includes('--auto=alt')) Object.assign(CAR_DEF, CAR_DEF_ALT);
 
 if (!fs.existsSync(DIR)) { console.log('trk_local/ fehlt – Korpus-Test übersprungen (Archiv-Strecken nur lokal).'); process.exit(0); }
 const files = [];
@@ -39,11 +42,12 @@ function lap(env, assist) {
   const race = new Race(env, assist === 'strict' ? { assist: 'original', autopilot: true, countdown: 0.05 } : { assist: 'easy', countdown: 0.05 });
   const L = env.track.line;
   const maxT = Math.max(90, L.total / 7);
-  let t = 0, firstCrash = null;
+  let t = 0, firstCrash = null, vtop = 0;
   const zero = { steer: 0, throttle: 0, brake: 0 };
   while (t < maxT) {
     race.step(DT, zero);
     t += DT;
+    vtop = Math.max(vtop, race.car.fwdSpeed());
     if (race.state === 'finished') break;
     if (race.car.crash || race.state === 'wreck') {
       if (!firstCrash) {
@@ -67,7 +71,7 @@ function lap(env, assist) {
     const pc = env.layout.pieces[L.piece[idx]];
     fail = firstCrash || { reason: 'Zeitlimit', kind: pc ? pc.kind : '?', type: pc ? pc.type : '?', s: Math.round(L.s[idx]) };
   }
-  return { ok, time: ok ? race.finalTime : null, crashes: race.crashes, rewinds: race.rewinds, fail, progress: race.tracker.progress() / L.total };
+  return { ok, vtop: vtop * 3.6, time: ok ? race.finalTime : null, crashes: race.crashes, rewinds: race.rewinds, fail, progress: race.tracker.progress() / L.total };
 }
 
 const res = [];
@@ -119,6 +123,13 @@ console.log(`| vollständig gemappt + gebaut | ${mapped} | ${pct(mapped)} |`);
 console.log(`| Rundkurs gefunden | ${cnt((r) => r.closed)} | ${pct(cnt((r) => r.closed))} |`);
 if (assists.includes('easy')) console.log(`| Autopilot im Ziel, Fahrhilfe Leicht | ${easyOk} | ${pct(easyOk)} |`);
 if (assists.includes('strict')) console.log(`| Autopilot im Ziel, ohne Hilfen (streng) | ${strictOk} | ${pct(strictOk)} |`);
+if (assists.includes('easy')) {
+  const easyNoCrash = cnt((r) => r.easy && r.easy.ok && !r.easy.crashes);
+  const vt = res.filter((r) => r.easy).map((r) => r.easy.vtop).sort((a, b) => a - b);
+  const q = (p) => Math.round(vt[Math.min(vt.length - 1, Math.floor(p * vt.length))] || 0);
+  console.log(`| davon ohne Crash (Leicht) | ${easyNoCrash} | ${pct(easyNoCrash)} |`);
+  console.log(`| Höchsttempo je Strecke (Leicht): Median / 90 % / Max | ${q(0.5)} / ${q(0.9)} / ${q(0.999)} km/h | |`);
+}
 // Ausfälle gruppieren
 for (const a of assists) {
   const g = {};

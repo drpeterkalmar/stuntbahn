@@ -36,7 +36,7 @@ def check(s, name, out):
         speedHud: getComputedStyle(document.querySelector('#hud .speed')).display, carVisible: G.scene.getObjectByName('car').visible,
         calls: G.info().calls }; }""")
     ro = r['ro']
-    es = abs(ro['speedDeg'] - v_angle(r['kmh'], 300))
+    es = abs(ro['speedDeg'] - v_angle(r['kmh'], 600))  # Tacho 0–600 seit 27.09.
     et = abs(ro['rpmDeg'] - v_angle(r['rpm'] / 1000, 8))
     # Überdeckung: Instrumente (Kreise) gegen sichtbare Touch-Knöpfe / Replay-Leiste
     px = ro['px']

@@ -185,10 +185,12 @@ console.log('--- D: ⏪ ohne Totalschaden ---');
 // ---- E: Wertungs-Schlüssel (Bestzeiten/Geister getrennt, alte Schlüssel behalten ihre Bedeutung) ----
 console.log('--- E: Bestzeiten-Schlüssel ---');
 {
-  const keys = [];
-  for (const a of ['easy', 'medium', 'original']) for (const w of [false, true]) keys.push(modeKey(a, w));
-  const ok = new Set(keys).size === 6 && modeKey('easy', false) === 'easy' && modeKey('medium', true) === 'medium' && modeKey('original', true) === 'original';
-  check(ok, `6 getrennte Wertungen: ${keys.join(', ')} (bisherige Schlüssel easy/medium/original = Leicht aus, Mittel/Original an)`);
+  const keys = [], old = [];
+  for (const a of ['easy', 'medium', 'original']) for (const w of [false, true]) { keys.push(modeKey(a, w)); old.push(modeKey(a, w, 1)); }
+  const ok = new Set(old).size === 6 && modeKey('easy', false, 1) === 'easy' && modeKey('medium', true, 1) === 'medium' && modeKey('original', true, 1) === 'original';
+  check(ok, `6 getrennte Wertungen (alte Physik): ${old.join(', ')} (bisherige Schlüssel easy/medium/original = Leicht aus, Mittel/Original an)`);
+  // Tempo-Umbau 27.09.: neue Physik wertet getrennt (Zusatz @t2), alte Einträge bleiben unberührt
+  check(new Set([...keys, ...old]).size === 12 && keys.every((k, i) => k === old[i] + '@t2'), `neue Physik eigene Wertungen: ${keys.join(', ')}`);
 }
 
 console.log(fails ? `${fails} Fehlschläge` : 'Reset mit Zeitstrafe + Totalschaden-Option ok');

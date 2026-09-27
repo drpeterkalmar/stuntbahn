@@ -104,6 +104,15 @@ export class UI {
     W.classList.toggle('in', !!on);
   }
   flash() { this.wipe(true); clearTimeout(this._wt); this._wt = setTimeout(() => this.wipe(false), 90); }
+  // Bestzeiten je Fahrhilfe (aktuelle Physik) + ggf. Zeile mit den Zeiten der alten Physik (bis 27.09.2026,
+  // nicht vergleichbar – nur Anzeige, gespeichert bleiben sie unverändert)
+  bestsHtml(id) {
+    const ks = Object.keys(ASSISTS);
+    const now = ks.map((k) => { const b = this.store.bestFor(id, k); return `<span>${ASSISTS[k].icon} ${b ? fmtTime(b.time) : '–'}</span>`; }).join('');
+    const olds = ks.map((k) => [k, this.store.oldBestFor(id, k)]).filter(([, b]) => b);
+    const old = olds.length ? `<span class="oldp" title="Bestzeiten mit der alten, langsameren Physik (bis 27.09.2026)">alte Physik: ${olds.map(([k, b]) => ASSISTS[k].icon + ' ' + fmtTime(b.time)).join(' ')}</span>` : '';
+    return { now, old };
+  }
   // ---------- Menü ----------
   showMenu(env) {
     this.env = env;
@@ -113,7 +122,7 @@ export class UI {
     for (const p of lay.pieces) if (ICON[p.type]) stunts[p.type] = (stunts[p.type] || 0) + 1;
     if (lay.pieces.some((p) => p.type === 'rampUp')) stunts.bridge = lay.pieces.filter((p) => p.type === 'bridge').length;
     const stuntTxt = Object.entries(stunts).map(([t, n]) => `<span title="${PIECES[t] ? PIECES[t].name : t}">${ICON[t]}${n > 1 ? '×' + n : ''}</span>`).join(' ');
-    const bests = Object.keys(ASSISTS).map((k) => { const b = this.store.bestFor(m.key, k); return `<span>${ASSISTS[k].icon} ${b ? fmtTime(b.time) : '–'}</span>`; }).join('');
+    const bests = this.bestsHtml(m.key);
     const today = daySeed();
     const isDay = m.seed === today && m.diff === 2 && !m.imported;
     const km = (env.ideal.total / 1000).toFixed(2);
@@ -131,7 +140,7 @@ export class UI {
           <div class="tmeta">${metaLine}</div>
           <div class="stunts">${stuntsHtml || 'ohne Stunts'}</div>
           ${apLine}
-          <div class="bests">${bests}<span class="bmode">${S.wreck ? '💥 mit Totalschaden' : '↺ Reset +' + PENALTY + ' s'}</span></div>
+          <div class="bests">${bests.now}<span class="bmode">${S.wreck ? '💥 mit Totalschaden' : '↺ Reset +' + PENALTY + ' s'}</span>${bests.old}</div>
         </div>
         <button class="big go" data-a="start">▶ Losfahren</button>
       </div>
@@ -225,7 +234,7 @@ export class UI {
   showLibrary(results) {
     const A = this.a, lib = A.trkLib;
     const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-    const bests = (id) => Object.keys(ASSISTS).map((k) => { const b = this.store.bestFor(id, k); return `<span>${ASSISTS[k].icon} ${b ? fmtTime(b.time) : '–'}</span>`; }).join('');
+    const bests = (id) => { const b = this.bestsHtml(id); return b.now + b.old; };
     let res = '';
     if (results && results.length) {
       const ok = results.filter((r) => r.ok && !r.dup).length, dup = results.filter((r) => r.dup).length, bad = results.filter((r) => r.err);

@@ -33,7 +33,7 @@ with Server() as srv, sync_playwright() as pw:
     s.shot('reset_03_optionen_an', 'reset')
     s.tap('#sheet [data-a=close]')
     menu_on = s.ev("document.querySelector('#menu .bests').textContent")
-    check('0:51,23' in menu_on and 'Totalschaden' in menu_on, f'Menü (an): alte Mittel-Bestzeit erscheint: {menu_on!r}')
+    check('0:51,23' in menu_on and 'Totalschaden' in menu_on and 'alte Physik' in menu_on, f'Menü (an): alte Mittel-Bestzeit erscheint (als alte Physik): {menu_on!r}')
     s.tap('button[data-a=settings]'); s.tap('#sheet [data-a=toggle][data-v=wreck]'); s.tap('#sheet [data-a=close]')
     check(s.ev("__game.store.settings.wreck") is False, 'wieder aus')
 
@@ -68,7 +68,7 @@ with Server() as srv, sync_playwright() as pw:
     meta = s.ev("document.querySelector('#result .rmeta').textContent")
     check(rp and '1 Strafe' in rp and '+5 s' in rp, f'Ergebnis mit Strafenzähler: {rp!r} / {meta!r}')
     s.shot('reset_06_ergebnis_quer', 'reset')
-    best = s.ev(f"__game.store.best['{key}|medium+reset']")
+    best = s.ev(f"__game.store.best['{key}|medium+reset@t2']")  # neue Physik (Tempo-Umbau 27.09.): eigene Wertung
     check(best and abs(best['time'] - st['time']) < 0.01 and best.get('pen') == 1 and s.ev(f"__game.store.best['{key}|medium'].time") == 51.23,
           f'Bestzeit unter eigener Wertung gespeichert ({best}), alte bleibt unberührt')
     small = s.small_buttons()

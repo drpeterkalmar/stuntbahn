@@ -13,6 +13,7 @@ export function cockpitFov(aspect) {
   return Math.max(34, Math.min(75, v));
 }
 const clamp = (x, a) => Math.max(-a, Math.min(a, x));
+const LAG_MAX = 3.0; // m: größter Verzug des Verfolgers hinter dem Auto (Tempo-Nachführung)
 
 export class CameraRig {
   constructor(camera) {
@@ -26,6 +27,7 @@ export class CameraRig {
     this.fov = 62;
     this._t = V(); this._d = V(); this._u = V(); this._h = V();
     this.airT = 0; this.airK = 0; this.baseY = 0;
+    this.lastCp = V(); this.hasCp = false;
     this.view = 'chase';     // tatsächlich gezeigte Ansicht (Cockpit → Verfolger beim Wrack)
     // Cockpit: geglättete Lage, Kopf-Feder (Landungen), Hilfsobjekte
     this.cq = new THREE.Quaternion(); this.cInit = false;
@@ -59,7 +61,7 @@ export class CameraRig {
     const f = this._d.set(P.frame.f.x, P.frame.f.y, P.frame.f.z);
     const u = this._u.set(P.frame.u.x, P.frame.u.y, P.frame.u.z);
     if (crashed) { u.set(0, 1, 0); }
-    if (!this.init) { this.cInit = false; this.fwd.copy(f); this.up.copy(u); this.init = true; this.pos.copy(cp).addScaledVector(f, -6).addScaledVector(u, 2.3); this.baseY = cp.y; this.airK = 0; }
+    if (!this.init) { this.cInit = false; this.fwd.copy(f); this.up.copy(u); this.init = true; this.pos.copy(cp).addScaledVector(f, -6).addScaledVector(u, 2.3); this.baseY = cp.y; this.airK = 0; this.hasCp = false; }
     // Flug (alle Räder frei, nicht in Looping/Röhre): Verfolger zieht nicht mit hoch, sondern bleibt auf
     // Absprunghöhe, etwas weiter hinten und waagrecht → der Sprung wirkt sichtbar hoch. airK blendet weich.
     this.airT = P.air && !crashed ? this.airT + dt : 0;
@@ -75,7 +77,8 @@ export class CameraRig {
     // im Flug: Oben → Welt-Oben (Kamera kippt nicht mit der Nase des Autos)
     if (this.airK > 0.01 && (this.mode === 'chase' || this.mode === 'far')) u.lerp(this._h.set(0, 1, 0), this.airK).normalize();
     this.up.lerp(u, ku).normalize();
-    let targetFov = 62 + Math.min(14, speed * 0.16);
+    // Tempo-Sichtfeld: bis ~315 km/h wie bisher +14°, darüber (seit Vmax ~580 km/h) sanft bis +20°
+    let targetFov = 62 + Math.min(14, speed * 0.16) + 6 * Math.max(0, Math.min(1, (speed - 70) / 85));
     // Cockpit beim Wrack: kurz in den Verfolger (wie im Original), danach wieder zurück ins Cockpit
     const view = this.mode === 'cockpit' && crashed ? 'chase' : this.mode;
     if (view !== this.view && view === 'cockpit') this.cInit = false;
@@ -84,7 +87,10 @@ export class CameraRig {
       this.cockpit(dt, P, cp);
       return;
     }
+    const hadCp = this.hasCp;
+    this.hasCp = false;
     if (view === 'chase' || this.mode === 'far') {
+      this.hasCp = hadCp;
       // Verfolger näher am Auto (Peter 27.09.: vorher 6.8 m / 2.15 m)
       const dist = this.mode === 'far' ? 11.5 : crashed ? 8 : 5.0, h = this.mode === 'far' ? 3.8 : crashed ? 3.0 : 1.75;
       // Flug: Blickrichtung waagrecht, 1,5 m weiter zurück, Höhe bleibt bei der Absprunghöhe (85 %)
@@ -101,12 +107,21 @@ export class CameraRig {
         const gy = world.terrain.height(want.x, want.z) + 0.6;
         if (want.y < gy) want.y = gy;
       }
+      // Nachführung: Verzug hinter dem Auto ~ Tempo/14 (bei 100 km/h ~2 m, wirkt lebendig). Bei hohem Tempo
+      // (Vmax ~580 km/h) wären das > 11 m – daher wird die Kamera vorab um einen Teil der Autobewegung
+      // mitgenommen, der Verzug bleibt höchstens LAG_MAX m (bis 27.09.2026: nur das Nachziehen).
       const kp = 1 - Math.exp(-dt * 14);
+      if (this.hasCp && !crashed) {
+        const vcar = this._h.subVectors(cp, this.lastCp), stepLen = vcar.length();
+        const v = stepLen / Math.max(dt, 1e-4), carry = v > 1 ? Math.max(0, 1 - LAG_MAX * 14 / v) : 0;
+        if (stepLen < 30) this.pos.addScaledVector(vcar, carry);   // kein Mitnehmen bei Teleport (Reset)
+      }
       this.pos.lerp(want, kp);
       cam.position.copy(this.pos);
       cam.up.copy(this.up);
       this.look.copy(cp).addScaledVector(this.fwd, 3.5).addScaledVector(this.up, 0.9);
       cam.lookAt(this.look);
+      this.lastCp.copy(cp); this.hasCp = true;
     } else if (this.mode === 'bumper') {
       this.pos.copy(cp).addScaledVector(f, -0.2).addScaledVector(u, 0.62);
       cam.position.copy(this.pos);

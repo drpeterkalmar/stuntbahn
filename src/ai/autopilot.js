@@ -1,6 +1,7 @@
 // Autopilot: Pure Pursuit auf der Ideallinie + Tempo-Regler auf das Profil.
 // Wird für Lösbarkeitsprüfung (Generator), Fahrhilfen (Mischung Spieler/Autopilot) und Demo genutzt.
 import { GRIP } from '../track/defs.js';
+import { maxSteerAt } from '../physics/car.js';
 
 export class Tracker {
   // Fortschritt entlang der Linie (nächster Linienpunkt, lokal gesucht → kein Springen bei Kreuzungen)
@@ -84,7 +85,7 @@ export class Autopilot {
     const yaw = car.w.x * F.u.x + car.w.y * F.u.y + car.w.z * F.u.z;
     const yawWant = -v * (this.P.kA ? this.P.kA[jf] : 0);
     delta += 0.06 * (yaw - yawWant);
-    const maxSteer = car.def.steerMax / (1 + Math.abs(v) / 15) + 0.035;
+    const maxSteer = maxSteerAt(car.def, v);
     o.steer = Math.max(-1, Math.min(1, delta / maxSteer));
     if (L.air[i] || car.onGround === 0) o.steer = 0;
     // Tempo: Ziel = Minimum des Profils über die nächsten ~0.35 s

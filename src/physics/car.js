@@ -5,6 +5,12 @@
 import { GRIP, ROLL, MAT } from '../track/defs.js';
 import { G as GRAV, gravStep } from './air.js';
 
+// Abstimmung „doppelt so schnell“ (Peter 27.09.2026: „km/h können gut doppelt so hoch werden“):
+// Vmax ~586 statt 286 km/h. Viel mehr Leistung (2,2 MW), lange Übersetzung, mehr Abtrieb,
+// Rennreifen (mu 1,5 statt 1,0: schnellere Kurven, kürzere Bremswege – die Strecken sind eng, ohne mehr
+// Haftung bliebe das Tempo dort fast gleich).
+// Neu: Antriebs- und Bremskraft wachsen mit der Aero-Last (aeroGrip) – die Reifen können bei Tempo mehr
+// übertragen, weil der Abtrieb sie auf die Straße drückt. Lenkung, Federung und Stunt-Geometrie bleiben gleich.
 export const CAR_DEF = {
   mass: 1300,
   inertia: [3000, 3300, 850],
@@ -16,12 +22,49 @@ export const CAR_DEF = {
   ],
   mountY: 0.12, wheelR: 0.345, rest: 0.36, maxComp: 0.33,
   k: 70000, bumpStart: 0.22, bumpK: 260000, cComp: 4300, cReb: 6000,
-  mu: 1.0, slip0: 0.085, rollH: 0.3,
-  power: 240000, maxDrive: 15500, driveFront: 0.42, brake: 27000, brakeFront: 0.6,
-  dragK: 0.43, downK: 1.1, reverseMax: 9,
+  mu: 1.5, slip0: 0.085, rollH: 0.3,
+  power: 2200000, maxDrive: 18000, driveFront: 0.42, brake: 27000, brakeFront: 0.6, aeroGrip: 1,
+  dragK: 0.48, downK: 1.5, reverseMax: 9,
   steerMax: 0.6, steerSpeed: 3.0,
-  gears: [0, 13, 22, 31, 41, 53, 70], idle: 900, redline: 7600,
+  gears: [0, 20, 35, 55, 82, 117, 165], idle: 900, redline: 7600,   // Gangspitzen m/s (bis 27.09.: 13 … 70)
 };
+// Abstimmung bis 27.09.2026 (Vmax 286 km/h) – zum Vergleich (tools/tempo_measure.mjs, URL ?auto=alt)
+export const CAR_DEF_ALT = {
+  ...CAR_DEF,
+  mu: 1.0, power: 240000, maxDrive: 15500, brake: 27000, aeroGrip: 0, dragK: 0.43, downK: 1.1,
+  gears: [0, 13, 22, 31, 41, 53, 70],
+};
+
+// Physik-Version für Bestzeiten/Geister (store.js): 1 = bis 27.09.2026, 2 = „doppelt so schnell“.
+// URL ?auto=alt fährt zum Vergleich mit der alten Abstimmung (und wertet dann auch in der alten Liste).
+export const PHYS = (() => {
+  const q = globalThis.location && globalThis.location.search;
+  if (q && new URLSearchParams(q).get('auto') === 'alt') { Object.assign(CAR_DEF, CAR_DEF_ALT); return 1; }
+  return 2;
+})();
+
+// Größter Lenkwinkel bei Tempo v (m/s) – gemeinsam für Physik und Autopilot
+export function maxSteerAt(def, v) { return def.steerMax / (1 + Math.abs(v) / 15) + 0.035; }
+// Aero-Last-Faktor: (Gewicht + Abtrieb) / Gewicht. Antrieb und Bremse wachsen damit (aeroGrip = 1), weil
+// die Reifen unter Abtrieb entsprechend mehr übertragen können. Alte Abstimmung: aeroGrip = 0 → immer 1.
+export function aeroLoad(def, vF) { return 1 + (def.aeroGrip || 0) * def.downK * vF * vF / (def.mass * 9.81); }
+
+// Längsbeschleunigung bei Vollgas auf ebener Straße (m/s², ohne Rollwiderstand) – für Tempo-Profil/Messungen
+export function driveAccel(def, v) {
+  v = Math.max(1, Math.abs(v));
+  return (Math.min(def.maxDrive * aeroLoad(def, v), def.power / v) - def.dragK * v * v) / def.mass;
+}
+// Planbare Bremsverzögerung bei Tempo v (m/s²): Grundwert (Asphalt, mit Reserve für den Regler) wächst mit
+// der Aero-Last, dazu der halbe Luftwiderstand. Gemessen bei Vollbremsung: 12,7·Aero-Last + Luftwiderstand.
+export function brakeDecel(def, v, base = 8) {
+  return base * aeroLoad(def, v) + 0.5 * def.dragK * v * v / def.mass;
+}
+// Höchsttempo (m/s) auf ebener Straße: Vollgas reicht gerade noch für 0,3 m/s² (Rollwiderstand, Reserve)
+export function topSpeed(def) {
+  let v = 5;
+  while (v < 250 && driveAccel(def, v) > 0.3) v += 0.25;
+  return v;
+}
 
 // Karosserie-Sonden: [innen, außen, Art]  Art: 0 Boden, 1 Dach, 2 Front/Heck, 3 Seite
 const PROBES = [];
@@ -152,7 +195,7 @@ export class Car {
     const vF = this.fwdSpeed();
     const sp = this.speed();
     // Lenkung (drehzahl-/tempoabhängiger Einschlag, begrenzte Lenkgeschwindigkeit)
-    const maxSteer = d.steerMax / (1 + Math.abs(vF) / 15) + 0.035;
+    const maxSteer = maxSteerAt(d, vF);
     const target = steerIn * maxSteer;
     const ds = d.steerSpeed * dt;
     this.steerAng += Math.max(-ds, Math.min(ds, target - this.steerAng));
@@ -169,7 +212,8 @@ export class Car {
 
     // Antrieb (Allrad) / Bremse / Rückwärts
     let drive = 0, brake = brk;
-    if (thr > 0.01) drive = thr * Math.min(d.maxDrive, d.power / Math.max(Math.abs(vF), 1));
+    const aero = aeroLoad(d, vF);
+    if (thr > 0.01) drive = thr * Math.min(d.maxDrive * aero, d.power / Math.max(Math.abs(vF), 1));
     if (brk > 0.01 && vF < 1.0 && thr < 0.01 && !inp.hold && !wrecked) { drive = -brk * d.maxDrive * 0.55 * (vF > -d.reverseMax ? 1 : 0); brake = 0; }
 
     // Federbeine
@@ -220,7 +264,7 @@ export class Car {
       fLong += drive * share;
       if (brake > 0) {
         const bshare = w.front ? d.brakeFront / 2 : (1 - d.brakeFront) / 2;
-        fLong -= brake * d.brake * bshare * Math.max(-1, Math.min(1, vLong / 0.6));
+        fLong -= brake * d.brake * aero * bshare * Math.max(-1, Math.min(1, vLong / 0.6));
       }
       const rr = (ROLL[w.mat] ?? 0.02) * load * Math.max(-1, Math.min(1, vLong / 0.4));
       fLong -= rr;

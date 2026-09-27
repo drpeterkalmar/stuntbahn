@@ -27,7 +27,9 @@ const offLine = (race) => { const c = race.car.pos, i = race.ap.tr.idx; return M
 {
   const race = new Race(env, { assist: 'easy', countdown: 0.2 });
   const zero = { steer: 0, throttle: 0, brake: 0 };
-  run(race, +(process.env.T0 || 2.2), zero);            // anfahren (~80 km/h), auf der Linie
+  // anfahren bis ~80 km/h, auf der Linie (seit dem Tempo-Umbau 27.09. nach Tempo statt fest 2,2 s –
+  // das stärkere Auto wäre nach 2,2 s schon 100 km/h schnell)
+  for (let k = 0; k < 6 / DT && !(race.state === 'running' && race.car.fwdSpeed() >= +(process.env.V0 || 21.7)); k++) race.step(DT, zero);
   const v0 = race.car.fwdSpeed();
   let tOwn = null, t = 0;
   const ev1 = [];
@@ -60,7 +62,9 @@ const offLine = (race) => { const c = race.car.pos, i = race.ap.tr.idx; return M
     if (back === null && offLine(race) < 1.0 && race.own === 0) back = t2;
   }
   const cr = crashes([...ev1, ...ev2]);
-  check(back !== null && back <= 6 && !cr.length, `A3 losgelassen: zurück auf der Linie (< 1 m) nach ${back && back.toFixed(1)} s (Richtwert ~5 s), Crashs/Resets: ${cr.join(', ') || 'keine'}; Verlauf ${steerLog.slice(0, 8).join(' ')}`);
+  // Grenze 7 s (bis 27.09. 6 s): mit Rennreifen (mu 1,5) lenkt das Auto bei vollem Einschlag enger ein und steht
+  // nach 2 s voll links steiler zur Strecke (~55° statt ~40°), der Rückweg über die Wiese ist länger
+  check(back !== null && back <= 7 && !cr.length, `A3 losgelassen: zurück auf der Linie (< 1 m) nach ${back && back.toFixed(1)} s (Richtwert ~6 s), Crashs/Resets: ${cr.join(', ') || 'keine'}; Verlauf ${steerLog.slice(0, 8).join(' ')}`);
   check(maxJerk <= 4.01 && maxYaw < 1.3, `A4 ohne Ruck: größte Lenkänderung der Hilfe ${maxJerk.toFixed(1)}/s (Grenze 4/s, Tastatur rampt mit 3,2–8/s), größte Gierrate ${maxYaw.toFixed(2)} rad/s`);
   run(race, 60, zero);
   check(race.state === 'finished', `A5 danach fährt Leicht allein ins Ziel (${race.state})`);

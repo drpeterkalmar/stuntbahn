@@ -9,10 +9,10 @@ const ok = (c, msg) => { console.log((c ? 'OK   ' : 'FAIL ') + msg); if (!c) fai
 const deg = (r) => r * 180 / Math.PI;
 
 // 1) Skalen
-ok(Math.abs(deg(speedAngle(0)) + 130) < 1e-6 && Math.abs(deg(speedAngle(300)) - 130) < 1e-6, 'Tacho 0 … 300 km/h über 260°');
-ok(Math.abs(deg(speedAngle(150))) < 1e-6, '150 km/h = senkrecht');
+ok(SPEEDO.max === 600 && Math.abs(deg(speedAngle(0)) + 130) < 1e-6 && Math.abs(deg(speedAngle(600)) - 130) < 1e-6, 'Tacho 0 … 600 km/h über 260°');
+ok(Math.abs(deg(speedAngle(300))) < 1e-6, '300 km/h = senkrecht');
 ok(TACHO.max === 8 && TACHO.red === 7 && CAR_DEF.redline <= TACHO.max * 1000, `Drehzahl 0 … ${TACHO.max}×1000, Begrenzer ${CAR_DEF.redline} auf der Skala, rot ab ${TACHO.red}000`);
-ok(deg(speedAngle(400)) < 136 && deg(speedAngle(-20)) > -135, 'Anschlagstifte begrenzen den Zeiger');
+ok(deg(speedAngle(800)) < 136 && deg(speedAngle(-20)) > -135, 'Anschlagstifte begrenzen den Zeiger');
 
 // 2) Vmax (Ebene, Vollgas) ≤ Skalenende, aber nicht viel darunter (Skala = Vmax aufgerundet)
 const flat = { ray(x, y, z, dx, dy, dz, L) { if (dy >= -1e-6) return null; const t = -y / dy; if (t < 0 || t > L) return null; return { t, x: x + dx * t, y: 0, z: z + dz * t, nx: 0, ny: 1, nz: 0, mat: 0 }; }, rayTrack() { return null; }, contacts() { return []; } };

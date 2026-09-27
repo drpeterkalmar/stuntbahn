@@ -53,7 +53,7 @@ button.go { background: linear-gradient(180deg, #ff7a36, #e24e10); border-color:
 .seg.dis { opacity: .45; } .seg > button:disabled { cursor: not-allowed; }
 .rb { width: 52px; height: 52px; border-radius: 14px; background: rgba(12, 16, 22, .6); border: 1px solid #ffffff2a; font-size: 22px; pointer-events: auto; }
 #hud .speed { position: absolute; bottom: max(12px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); text-shadow: 0 2px 6px #000; display: flex; align-items: baseline; gap: 6px; }
-#hud .speed b { font-size: 40px; font-weight: 900; font-variant-numeric: tabular-nums; min-width: 2.2ch; text-align: right; }
+#hud .speed b { font-size: 40px; font-weight: 900; font-variant-numeric: tabular-nums; min-width: 3ch; text-align: right; }
 #hud .speed span { font-size: 14px; opacity: .8; }
 #hud .gear { font-style: normal; font-size: 16px; font-weight: 800; background: #ffffff22; border-radius: 6px; padding: 1px 6px; }
 #hud .hint2 { position: absolute; top: max(48px, calc(env(safe-area-inset-top) + 40px)); left: 50%; transform: translateX(-50%); background: rgba(12, 16, 22, .62); border: 1px solid #ffffff22; border-radius: 10px; padding: 5px 12px; font-size: 15px; font-weight: 700; white-space: nowrap; opacity: 0; transition: opacity .25s; pointer-events: none; }
@@ -72,6 +72,7 @@ button.go { background: linear-gradient(180deg, #ff7a36, #e24e10); border-color:
 .rpen { text-align: center; color: #ffcf3d; font-weight: 800; font-size: 18px; }
 .rpen.ok { color: #9dffa0; font-weight: 700; font-size: 15px; }
 .track .bests .bmode { opacity: .7; font-size: 12px; align-self: center; }
+.bests .oldp, .tbests .oldp { flex-basis: 100%; opacity: .55; font-size: 11px; }
 #replayui .rinfo { text-align: center; font-weight: 800; font-size: 16px; font-variant-numeric: tabular-nums; margin-bottom: 6px; text-shadow: 0 2px 4px #000c; }
 #toast { position: absolute; bottom: 22%; left: 50%; transform: translateX(-50%); background: #000b; padding: 8px 14px; border-radius: 10px; opacity: 0; transition: opacity .2s; font-weight: 600; }
 #toast.show { opacity: 1; }

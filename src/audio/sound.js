@@ -216,7 +216,11 @@ export class Sound {
     const sp = car.speed();
     const tireV = Math.max(0, Math.min(1, (slip - 0.12) * 3)) * Math.min(1, sp / 8) * 0.35;
     N.tire.g.gain.setTargetAtTime(tireV, t, 0.05);
-    N.wind.g.gain.setTargetAtTime(Math.min(0.35, sp * sp / 9000), t, 0.1);
+    // Fahrtwind: bis ~200 km/h wie bisher (sp²/9000, höchstens 0,35), darüber lauter und heller bis Vmax
+    // (~580 km/h: 0,6, Tonhöhe ×1,45) – seit dem Tempo-Umbau 27.09.2026
+    const hi = Math.max(0, Math.min(1, (sp - 56) / 100));
+    N.wind.g.gain.setTargetAtTime(Math.min(0.35, sp * sp / 9000) + 0.25 * hi, t, 0.1);
+    N.wind.s.playbackRate.setTargetAtTime(1 + 0.45 * hi, t, 0.1);
     // Aufsetzer nach Sprüngen
     if (this._air && car.onGround >= 2 && this._airT > 0.35) this.event({ type: 'land', v: Math.min(12, this._vy || 5) });
     this._air = car.onGround === 0;

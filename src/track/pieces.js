@@ -90,7 +90,8 @@ export function jumpWindow() {
   };
   let vmin = 0, vmax = 0, vbest = 0, bestErr = 1e9, best = null;
   const target = JUMP.landLen * JUMP.aim;
-  for (let v = 10; v <= 40; v += 0.1) {
+  // Suchbereich 8–70 m/s (bis 27.09.2026: 10–40; das Auto fährt jetzt bis ~160 m/s, Fenster liegt bei ~17 m/s)
+  for (let v = 8; v <= 70; v += 0.1) {
     const r = landAt(v);
     const ok = !r.fail && r.fl > 1.5 && r.fl < JUMP.landLen + 8;
     if (ok && !vmin) vmin = v;
