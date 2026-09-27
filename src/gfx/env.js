@@ -1,0 +1,99 @@
+// Himmel (HDRI von Poly Haven, CC0), Bildbasiertes Licht, Sonne, Nebel, statische Schattenkarte.
+import * as THREE from 'three';
+import { HDRLoader } from 'three/addons/loaders/HDRLoader.js';
+import { shadowUniforms } from './materials.js';
+
+export async function loadSkyInfo() {
+  const r = await fetch('assets/sky/sky.json');
+  return r.json();
+}
+
+// Sonnenrichtung aus Equirect-Koordinaten, three.js-Konvention (equirectUv): u = atan(z,x)/2π + 0.5
+export function sunDirFromUV(u, v) {
+  const phi = (u - 0.5) * 2 * Math.PI;
+  const theta = v * Math.PI;
+  const y = Math.cos(theta), r = Math.sin(theta);
+  return new THREE.Vector3(r * Math.cos(phi), y, r * Math.sin(phi)).normalize();
+}
+
+export function makeSky(skyInfo) {
+  const tex = new THREE.TextureLoader().load('assets/sky/sky.jpg');
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.generateMipmaps = false;           // sonst Naht am u-Übergang (Ableitungssprung)
+  tex.minFilter = THREE.LinearFilter;
+  const hz = new THREE.Color().setRGB(...skyInfo.horizon, THREE.SRGBColorSpace);
+  const mat = new THREE.ShaderMaterial({
+    uniforms: { sky: { value: tex }, cutV: { value: skyInfo.cutV }, horizon: { value: hz }, exposure: { value: 1.0 } },
+    vertexShader: `varying vec3 vDir; void main(){ vDir = position; vec4 p = projectionMatrix * modelViewMatrix * vec4(position, 1.0); gl_Position = p.xyww; }`,
+    fragmentShader: `uniform sampler2D sky; uniform float cutV; uniform vec3 horizon; uniform float exposure; varying vec3 vDir;
+      void main(){
+        vec3 d = normalize(vDir);
+        float u = atan(d.z, d.x) / 6.2831853 + 0.5;
+        float v = acos(clamp(d.y, -1.0, 1.0)) / 3.14159265;
+        vec3 c;
+        if (v < cutV - 0.002) c = texture2D(sky, vec2(u, 1.0 - v / cutV)).rgb;
+        else c = horizon;
+        gl_FragColor = vec4(c * exposure, 1.0);
+        #include <colorspace_fragment>
+      }`,
+    side: THREE.BackSide, depthWrite: false, fog: false,
+  });
+  const m = new THREE.Mesh(new THREE.SphereGeometry(5000, 48, 24), mat);
+  m.frustumCulled = false;
+  m.renderOrder = -1;
+  m.name = 'sky';
+  return m;
+}
+
+export async function makeEnvironment(renderer) {
+  const loader = new HDRLoader();
+  loader.setDataType(THREE.FloatType);
+  const hdr = await loader.loadAsync('assets/hdr/sky_1k.hdr');
+  // Sonnenscheibe kappen: Sonnenlicht kommt von der DirectionalLight (mit Schatten),
+  // sonst steckt fast die ganze Sonne im unbeschattbaren Umgebungslicht.
+  const d = hdr.image.data, ch = d.length / (hdr.image.width * hdr.image.height);
+  for (let i = 0; i < d.length; i += ch) {
+    const l = 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
+    if (l > 4) { const k = 4 / l; d[i] *= k; d[i + 1] *= k; d[i + 2] *= k; }
+  }
+  hdr.needsUpdate = true;
+  hdr.mapping = THREE.EquirectangularReflectionMapping;
+  const pm = new THREE.PMREMGenerator(renderer);
+  const env = pm.fromEquirectangular(hdr).texture;
+  hdr.dispose(); pm.dispose();
+  return env;
+}
+
+// Einmal gerenderte Tiefenkarte aus Sonnenrichtung über alle statischen Objekte (Layer 1)
+export function bakeStaticShadow(renderer, scene, sunDir, bounds, size = 2048) {
+  const cx = (bounds.minX + bounds.maxX) / 2, cz = (bounds.minZ + bounds.maxZ) / 2;
+  const rad = Math.hypot(bounds.maxX - bounds.minX, bounds.maxZ - bounds.minZ) / 2 + 30;
+  const cam = new THREE.OrthographicCamera(-rad, rad, rad, -rad, 1, 1400);
+  const center = new THREE.Vector3(cx, bounds.maxY * 0.3, cz);
+  cam.position.copy(center).addScaledVector(sunDir, 700);
+  cam.up.set(0, 1, 0);
+  cam.lookAt(center);
+  cam.updateMatrixWorld(); cam.updateProjectionMatrix();
+  cam.layers.set(1);
+  const dt = new THREE.DepthTexture(size, size);
+  dt.type = THREE.UnsignedIntType;
+  dt.compareFunction = THREE.LessEqualCompare;
+  dt.minFilter = dt.magFilter = THREE.LinearFilter;
+  const rt = new THREE.WebGLRenderTarget(size, size, { depthTexture: dt, depthBuffer: true, colorSpace: THREE.NoColorSpace });
+  const prevBg = scene.background, prevFog = scene.fog;
+  scene.background = null; scene.fog = null;
+  renderer.setRenderTarget(rt);
+  renderer.clear();
+  renderer.render(scene, cam);
+  renderer.setRenderTarget(null);
+  scene.background = prevBg; scene.fog = prevFog;
+  const bias = new THREE.Matrix4().set(0.5, 0, 0, 0.5, 0, 0.5, 0, 0.5, 0, 0, 0.5, 0.5, 0, 0, 0, 1);
+  shadowUniforms.sbShadowMat.value.copy(bias).multiply(cam.projectionMatrix).multiply(cam.matrixWorldInverse);
+  if (shadowUniforms.sbShadowMap.value && shadowUniforms._rt) shadowUniforms._rt.dispose();
+  shadowUniforms._rt = rt;
+  shadowUniforms.sbShadowMap.value = dt;
+  shadowUniforms.sbTexel.value = 1 / size;
+  shadowUniforms.sbShadowOn.value = 1;
+  return rt;
+}

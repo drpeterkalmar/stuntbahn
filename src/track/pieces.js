@@ -1,0 +1,242 @@
+// Streckenelemente ("Bausteine") auf dem 30×30-Raster.
+// Lokale Koordinaten je Element: f = vorwärts ab Einfahrtskante, r = rechts, y = hoch (Meter).
+// Jedes Element beschreibt: belegte Felder (a vorwärts, b rechts), Ausfahrt, Höhenwechsel und
+// baut Fahrlinie + Geometrie über den Piece-Builder (pb, siehe build.js).
+import { TILE, LEVEL_H, ROAD_HW, MAT } from './defs.js';
+import { smoothstep, smootherstep, clamp } from '../core/util.js';
+
+const T = TILE;
+const PI = Math.PI;
+
+// ---------- Looping: Klothoiden-Form (Krümmung ~ sin), einmal vorberechnet ----------
+export const LOOP = (() => {
+  const S = 56, N = 1400;
+  let tot = 0;
+  const w = (t) => Math.sin(PI * t);
+  for (let i = 0; i < N; i++) tot += w((i + 0.5) / N);
+  const k0 = 2 * PI / (S * tot / N);
+  const pts = [];
+  let th = 0, f = 0, y = 0;
+  for (let i = 0; i <= N; i++) {
+    pts.push({ f, y, th });
+    if (i === N) break;
+    const ds = S / N, k = k0 * w((i + 0.5) / N);
+    f += Math.cos(th + 0.5 * k * ds) * ds;
+    y += Math.sin(th + 0.5 * k * ds) * ds;
+    th += k * ds;
+  }
+  const dF = pts[N].f;
+  let H = 0;
+  for (const p of pts) H = Math.max(H, p.y);
+  return { S, N, pts, dF, H, shift: 2.95, hw: 2.25 };
+})();
+
+// ---------- Sprung: Schanze (Feld 1), Lücke (Feld 2..), Landung (letztes Feld) ----------
+export const JUMP = {
+  kickStart: 4, lipH: 2.1, lipDeg: 15, landH: 2.5, landLen: 18,
+};
+function kickerY(f) { // Kreisbogen von Steigung 0 bis lipDeg, endet bei f = T
+  const L = T - JUMP.kickStart, th = JUMP.lipDeg * PI / 180, R = L / th;
+  if (f <= JUMP.kickStart) return { y: 0, slope: 0 };
+  const a = (f - JUMP.kickStart) / R;
+  const s = Math.min(a, th);
+  return { y: R * (1 - Math.cos(s)), slope: Math.tan(s) };
+}
+export function landY(x) { // x ab Vorderkante der Landung; oben ~15° Gefälle, unten flach
+  const L = JUMP.landLen;
+  if (x <= 0) return JUMP.landH;
+  if (x >= L) return 0;
+  const u = 1 - x / L;
+  return JUMP.landH * u * u;
+}
+
+// Hilfen
+const lin = (a, b, n) => Array.from({ length: n + 1 }, (_, i) => a + (b - a) * i / n);
+const hwRoad = ROAD_HW;
+
+function straightSamples(len, step = 2) {
+  const n = Math.max(1, Math.round(len / step));
+  return lin(0, len, n).map((f) => ({ f, y: 0, r: 0 }));
+}
+
+function arcSamples(radius, m, step = 1) {
+  const len = radius * PI / 2;
+  const n = Math.max(8, Math.round(len / step));
+  return lin(0, PI / 2, n).map((th) => ({ f: radius * Math.sin(th), y: 0, r: m * (radius - radius * Math.cos(th)), th }));
+}
+
+// Pfeiler unter einer Hochstraße bei f: vom Boden (lokal -Basis) bis Unterkante Deck (lokal -1)
+function pillars(pb, f, r0 = 0) {
+  const bottom = -(pb.lvl * LEVEL_H + 0.06), top = -1.0, h = top - bottom;
+  if (h < 1.5) return;
+  for (const r of [-2.6, 2.6]) pb.box(f, (top + bottom) / 2, r + r0, 1.1, h, 1.1, MAT.CONCRETE, { collide: true });
+  pb.box(f, top - 0.45, r0, 1.6, 0.9, 7.6, MAT.CONCRETE, { collide: true });
+}
+
+export const PIECES = {
+  // ---------------- Grundelemente ----------------
+  straight: {
+    name: 'Gerade', cells: [[0, 0]], next: [1, 0], turn: 0, dl: 0,
+    build(pb) {
+      pb.path(straightSamples(T), { profile: pb.lvl > 0 ? 'deck' : 'road' });
+      if (pb.lvl > 0) pillars(pb, T / 2);
+    },
+  },
+  start: {
+    name: 'Start/Ziel', cells: [[0, 0]], next: [1, 0], turn: 0, dl: 0,
+    build(pb) {
+      pb.path(straightSamples(T), { profile: 'road', mark: 'start', markAt: 12 });
+      pb.startLine(12);
+      pb.gate('start', 12);
+    },
+  },
+  checkpoint: {
+    name: 'Checkpoint', cells: [[0, 0]], next: [1, 0], turn: 0, dl: 0,
+    build(pb) {
+      pb.path(straightSamples(T), { profile: pb.lvl > 0 ? 'deck' : 'road', mark: 'cp', markAt: 10 });
+      pb.checkpoint(10);
+      pb.gate('cp', 10);
+      if (pb.lvl > 0) pillars(pb, T / 2);
+    },
+  },
+  turnS: {
+    name: 'Kurve eng', cells: [[0, 0]], next: [0, 1], turn: 1, dl: 0,
+    build(pb) {
+      pb.path(arcSamples(T / 2, pb.m, 0.8), { profile: 'road', kerbIn: true, kerbOut: true, turn: pb.m });
+    },
+  },
+  turnL: {
+    name: 'Kurve weit', cells: [[0, 0], [1, 0], [0, 1], [1, 1]], next: [1, 2], turn: 1, dl: 0,
+    build(pb) {
+      pb.path(arcSamples(1.5 * T, pb.m, 1.2), { profile: 'road', kerbIn: true, kerbOut: true, turn: pb.m });
+    },
+  },
+  bank: {
+    name: 'Steilkurve', cells: [[0, 0], [1, 0], [0, 1], [1, 1]], next: [1, 2], turn: 1, dl: 0, stunt: 1,
+    build(pb) {
+      const maxB = 30 * PI / 180, hw = hwRoad + 0.5;
+      const s = arcSamples(1.5 * T, pb.m, 1.0).map((p) => {
+        const u = p.th / (PI / 2);
+        const b = maxB * smootherstep(u / 0.3) * smootherstep((1 - u) / 0.3);
+        // Innenkante bleibt am Boden: Mittellinie um hw*sin(b) angehoben
+        return { ...p, y: hw * Math.sin(b), bank: -pb.m * b, hw };
+      });
+      pb.path(s, { profile: 'banked', turn: pb.m, hw });
+    },
+  },
+  chicane: {
+    name: 'Schikane', cells: [[0, 0], [1, 0]], next: [2, 0], turn: 0, dl: 0,
+    build(pb) {
+      const A = 7.5, hw = 3.7;
+      const s = lin(0, 2 * T, 50).map((f) => ({ f, y: 0, r: pb.m * A * Math.sin(PI * f / (2 * T)) ** 2, hw }));
+      pb.path(s, { profile: 'road', kerbIn: true, kerbOut: true, hw });
+    },
+  },
+  bumps: {
+    name: 'Bodenwellen', cells: [[0, 0]], next: [1, 0], turn: 0, dl: 0, stunt: 1,
+    build(pb) {
+      const s = lin(0, T, 60).map((f) => ({ f, y: (f > 2.5 && f < 17.5) ? 0.42 * Math.sin(PI * (f - 2.5) / 5) ** 2 : 0, r: 0 }));
+      pb.path(s, { profile: 'road' });
+    },
+  },
+  crest: {
+    name: 'Kuppe', cells: [[0, 0], [1, 0]], next: [2, 0], turn: 0, dl: 0, stunt: 1,
+    build(pb) {
+      const H = 3.4;
+      const hy = (f) => H * Math.sin(PI * f / (2 * T)) ** 2;
+      const s = lin(0, 2 * T, 40).map((f) => ({ f, y: hy(f), r: 0 }));
+      pb.path(s, { profile: 'road' });
+      pb.mound(0, 2 * T, hy, hwRoad + 1.5, 9);
+    },
+  },
+  // ---------------- Höhe ----------------
+  rampUp: {
+    name: 'Rampe hoch', cells: [[0, 0], [1, 0]], next: [2, 0], turn: 0, dl: 1,
+    build(pb) {
+      const s = lin(0, 2 * T, 40).map((f) => ({ f, y: LEVEL_H * smootherstep(f / (2 * T)), r: 0 }));
+      pb.path(s, { profile: 'rampwall' });
+    },
+  },
+  rampDown: {
+    name: 'Rampe runter', cells: [[0, 0], [1, 0]], next: [2, 0], turn: 0, dl: -1,
+    build(pb) {
+      const s = lin(0, 2 * T, 40).map((f) => ({ f, y: -LEVEL_H * smootherstep(f / (2 * T)), r: 0 }));
+      pb.path(s, { profile: 'rampwall' });
+    },
+  },
+  bridge: {
+    name: 'Brücke', cells: [[0, 0]], next: [1, 0], turn: 0, dl: 0, needLevel: 1,
+    build(pb) {
+      pb.path(straightSamples(T), { profile: 'deck' });
+      pb.arch(T);
+      pb.river(0, T);
+    },
+  },
+  // ---------------- Stunts ----------------
+  jump: {
+    name: 'Sprungschanze', cells: [[0, 0], [1, 0], [2, 0]], next: [3, 0], turn: 0, dl: 0, stunt: 1,
+    build(pb) {
+      const s = [];
+      const fix = (f) => (f < 2 ? {} : { lo: -0.15, hi: 0.15 });
+      for (const f of lin(0, T, 40)) { const k = kickerY(f); s.push({ f, y: k.y, r: 0, surf: 1, prof: f < JUMP.kickStart ? 'road' : 'ramp', ...fix(f) }); }
+      // Flugphase: Linie ohne Fahrbahn (Parabel nur für Kamera/Anzeige, Physik fliegt frei)
+      const lip = kickerY(T);
+      const x1 = 2 * T;
+      for (const f of lin(T, x1, 10).slice(1, -1)) {
+        const x = f - T;
+        s.push({ f, y: lip.y + x * lip.slope - 0.012 * x * x, r: 0, surf: 0, air: 1, lo: 0, hi: 0 });
+      }
+      for (const f of lin(2 * T, 3 * T, 30)) s.push({ f, y: landY(f - 2 * T), r: 0, surf: 1, prof: f - 2 * T < JUMP.landLen ? 'ramp' : 'road', ...(f - 2 * T < 12 ? { lo: -0.6, hi: 0.6 } : {}) });
+      pb.path(s, { profile: 'ramp', kind: 'jump' });
+      pb.pit(T - 1, 2 * T + 1, 7.5);
+      pb.jumpInfo({ lipF: T, lipY: lip.y, lipDeg: JUMP.lipDeg, landF: 2 * T });
+    },
+  },
+  loop: {
+    name: 'Looping', cells: [[0, 0], [1, 0]], next: [2, 0], turn: 0, dl: 0, stunt: 1,
+    build(pb) {
+      // Spur im Looping liegt links (−a) beim Hochfahren und rechts (+a) beim Herunterkommen;
+      // Wechsel oben (hoher Anpressdruck). Anfahrt/Ausfahrt: breite Straße, Ideallinie wechselt dort.
+      const L = LOOP, f0 = (2 * T - L.dF) / 2, a = L.shift * pb.m, M = 1.3;
+      const s = [];
+      const road = (f, r) => ({ f, y: 0, r, hw: hwRoad, prof: 'none', lo: -hwRoad + M - r, hi: hwRoad - M - r });
+      for (const f of lin(0, f0, 8)) s.push(road(f, -a * smootherstep(f / f0)));
+      const step = 4;
+      for (let i = step; i <= L.N; i += step) {
+        const p = L.pts[i], t = i / L.N;
+        const r = -a + 2 * a * smootherstep((t - 0.28) / 0.44);
+        s.push({ f: f0 + p.f, y: p.y, r, up: [-Math.sin(p.th), Math.cos(p.th), 0], hw: L.hw, loop: 1, prof: 'loopLane' });
+      }
+      const f1 = f0 + L.dF;
+      for (const f of lin(f1, 2 * T, 8).slice(1)) s.push(road(f, a * (1 - smootherstep((f - f1) / (2 * T - f1)))));
+      pb.path(s, { profile: 'loop', kind: 'loop' });
+      // Fahrbahn vor/nach dem Looping (volle Breite, Mitte r=0) + Betonplatte darunter
+      pb.ribbon(straightSamples(f0, 1.5), { profile: 'road' });
+      pb.ribbon(straightSamples(2 * T - f1, 1.5).map((q) => ({ ...q, f: q.f + f1 })), { profile: 'road' });
+      pb.pad(f0 - 0.5, f1 + 0.5, -hwRoad - 1.5, hwRoad + 1.5);
+      pb.loopSupports(f0);
+    },
+  },
+  tube: {
+    name: 'Röhre', cells: [[0, 0], [1, 0]], next: [2, 0], turn: 0, dl: 0, stunt: 1,
+    build(pb) {
+      const s = lin(0, 2 * T, 20).map((f) => ({ f, y: 0, r: 0, tube: f > 3 && f < 2 * T - 3 ? 1 : 0, lo: -1.2, hi: 1.2 }));
+      pb.path(s, { profile: 'tube', kind: 'tube' });
+      pb.portal(4); pb.portal(2 * T - 4);
+    },
+  },
+};
+
+// Hilfsfunktion für den Generator: Richtung/Felder in Welt-Raster
+export function pieceCells(type, i, j, d, m = 1) {
+  const P = PIECES[type];
+  const F = [[1, 0], [0, 1], [-1, 0], [0, -1]][d];
+  const R = [[1, 0], [0, 1], [-1, 0], [0, -1]][(d + 1) % 4];
+  const cells = P.cells.map(([a, b]) => [i + F[0] * a + R[0] * b * m, j + F[1] * a + R[1] * b * m]);
+  const [na, nb] = P.next;
+  const ni = i + F[0] * na + R[0] * nb * m, nj = j + F[1] * na + R[1] * nb * m;
+  const nd = (d + (P.turn ? (m > 0 ? 1 : 3) : 0)) % 4;
+  return { cells, next: [ni, nj, nd] };
+}
+
+export { clamp };

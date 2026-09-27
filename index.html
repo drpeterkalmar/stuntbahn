@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0e1116">
+<meta name="description" content="Stuntbahn – Stunt-Rennspiel im Browser: Loopings, Schanzen, Steilkurven, Strecke des Tages. Mit Fahrhilfen fürs Handy.">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Stuntbahn">
+<title>Stuntbahn</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="stylesheet" href="css/style.css">
+<script type="importmap">{ "imports": { "three": "./lib/three.module.min.js", "three/addons/": "./lib/addons/" } }</script>
+</head>
+<body data-mode="menu">
+<canvas id="c"></canvas>
+<div id="ui"></div>
+<div id="rotate">📱↻ Bitte das Handy quer halten</div>
+<noscript><p style="padding:30px;font:20px sans-serif;color:#fff">Bitte JavaScript aktivieren, um Stuntbahn zu spielen.</p></noscript>
+<script>
+  window.__errors = [];
+  addEventListener('error', function (e) { __errors.push(String(e.message || e)); });
+  addEventListener('unhandledrejection', function (e) { __errors.push('Promise: ' + String(e.reason && e.reason.message || e.reason)); });
+  if ('serviceWorker' in navigator && !/[?&]nosw/.test(location.search) && location.protocol === 'https:') {
+    var hadCtl = !!navigator.serviceWorker.controller;
+    navigator.serviceWorker.register('sw.js').catch(function () {});
+    navigator.serviceWorker.addEventListener('controllerchange', function () {
+      if (hadCtl && document.body.dataset.mode === 'menu') location.reload();
+    });
+  }
+</script>
+<script type="module" src="src/main.js"></script>
+</body>
+</html>

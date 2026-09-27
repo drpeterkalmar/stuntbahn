@@ -1,0 +1,10 @@
+# lokale Quell-Assets (groß, nicht im Repo; siehe tools/fetch_assets.py)
+assets_src/
+node_modules/
+# Test-Artefakte (Auswahl in tests/shots/final bleibt)
+tests/shots/*
+!tests/shots/final/
+tests/out/
+__pycache__/
+*.pyc
+.DS_Store

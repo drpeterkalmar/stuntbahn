@@ -1,0 +1,39 @@
+// Replay der letzten Fahrt (60 Hz aufgezeichnet), mit Pause/Zeitlupe und wählbaren Kameras.
+import { REC_HZ, REC_STRIDE } from './race.js';
+
+export class Replay {
+  constructor(rec, env) {
+    this.rec = Float32Array.from(rec); this.env = env;
+    this.frames = Math.floor(rec.length / REC_STRIDE);
+    this.t = 0; this.speedMul = 1; this.paused = false;
+    this.duration = this.frames / REC_HZ;
+    const mk = () => ({ comp: 0, steer: 0, spin: 0 });
+    this.fake = { wheels: [mk(), mk(), mk(), mk()] };
+    this.P = { pos: { x: 0, y: 0, z: 0 }, q: { x: 0, y: 0, z: 0, w: 1 }, frame: { f: { x: 0, y: 0, z: -1 }, u: { x: 0, y: 1, z: 0 }, r: { x: 1, y: 0, z: 0 } } };
+  }
+  advance(dt) { if (!this.paused) this.t += dt * this.speedMul; if (this.t >= this.duration) this.t = 0; }
+  _i() { const f = this.t * REC_HZ; const i = Math.min(this.frames - 2, Math.max(0, Math.floor(f))); return [i, Math.min(1, f - i)]; }
+  pose() {
+    const [i, a] = this._i(), r = this.rec, o = i * REC_STRIDE, p = o + REC_STRIDE;
+    const P = this.P;
+    P.pos.x = r[o] + (r[p] - r[o]) * a; P.pos.y = r[o + 1] + (r[p + 1] - r[o + 1]) * a; P.pos.z = r[o + 2] + (r[p + 2] - r[o + 2]) * a;
+    let qx = r[o + 3] + (r[p + 3] - r[o + 3]) * a, qy = r[o + 4] + (r[p + 4] - r[o + 4]) * a, qz = r[o + 5] + (r[p + 5] - r[o + 5]) * a, qw = r[o + 6] + (r[p + 6] - r[o + 6]) * a;
+    if (r[o + 3] * r[p + 3] + r[o + 4] * r[p + 4] + r[o + 5] * r[p + 5] + r[o + 6] * r[p + 6] < 0) { qx = r[p + 3]; qy = r[p + 4]; qz = r[p + 5]; qw = r[p + 6]; }
+    const l = Math.hypot(qx, qy, qz, qw) || 1; qx /= l; qy /= l; qz /= l; qw /= l;
+    P.q.x = qx; P.q.y = qy; P.q.z = qz; P.q.w = qw;
+    // Rahmen aus Quaternion
+    const rot = (x, y, z, out) => { const tx = 2 * (qy * z - qz * y), ty = 2 * (qz * x - qx * z), tz = 2 * (qx * y - qy * x); out.x = x + qw * tx + (qy * tz - qz * ty); out.y = y + qw * ty + (qz * tx - qx * tz); out.z = z + qw * tz + (qx * ty - qy * tx); };
+    rot(0, 0, -1, P.frame.f); rot(0, 1, 0, P.frame.u); rot(1, 0, 0, P.frame.r);
+    return P;
+  }
+  phys() {
+    const [i] = this._i(), r = this.rec, o = i * REC_STRIDE;
+    const w = this.fake.wheels;
+    w[0].steer = w[1].steer = r[o + 7];
+    w[0].spin = w[1].spin = r[o + 8]; w[2].spin = w[3].spin = r[o + 9];
+    for (let k = 0; k < 4; k++) w[k].comp = r[o + 10 + k];
+    return this.fake;
+  }
+  speed() { const [i] = this._i(); return this.rec[i * REC_STRIDE + 14]; }
+  rpm() { const [i] = this._i(); return this.rec[i * REC_STRIDE + 15]; }
+}

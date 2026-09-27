@@ -1,0 +1,614 @@
+// Baut aus einem Layout (Liste platzierter Elemente) alles, was Spiel, Physik und Grafik brauchen:
+// Fahrlinie mit Rahmen (Tangente/Normale/Rechts), Render-Geometrie (je Material + Chunk),
+// Kollisionsdreiecke (identisch zur Render-Geometrie), Gelände-Höhenfeld, Bäume, Checkpoints.
+// Reines JS ohne DOM/three.js → läuft auch in Node (Tests, Generator-Prüfung).
+import { TILE, LEVEL_H, ROAD_HW, ROAD_Y, GRID, DIRS, tileX, tileZ, MAT } from './defs.js';
+import { PIECES, JUMP, LOOP } from './pieces.js';
+import { clamp, smoothstep, makeNoise2, rng } from '../core/util.js';
+
+const CHUNK = 100;
+
+// ---------- kleine Vektorhelfer (Arrays [x,y,z]) ----------
+const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
+const mul = (a, s) => [a[0] * s, a[1] * s, a[2] * s];
+const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+const norm = (a) => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
+
+class Batch {
+  constructor(mat, road) { this.mat = mat; this.pos = []; this.nrm = []; this.uv = []; this.road = road ? [] : null; this.idx = []; this.nv = 0; }
+  v(p, n, u, v, rd) {
+    this.pos.push(p[0], p[1], p[2]); this.nrm.push(n[0], n[1], n[2]); this.uv.push(u, v);
+    if (this.road) this.road.push(...(rd || [0, 0, 0, 999]));
+    return this.nv++;
+  }
+}
+
+// ---------- Querschnitte (Profile) im Rahmen: x = rechts, y = Fahrbahn-Normale ----------
+function mirrorSegs(segs) {
+  return segs.map((s) => ({ ...s, a: [-s.b[0], s.b[1]], b: [-s.a[0], s.a[1]], na: s.nb && [-s.nb[0], s.nb[1]], nb: s.na && [-s.na[0], s.na[1]] }));
+}
+function arcSegs(cx, cy, rad, a0, a1, n, mat, col, inward) {
+  const out = [];
+  for (let k = 0; k < n; k++) {
+    const t0 = a0 + (a1 - a0) * k / n, t1 = a0 + (a1 - a0) * (k + 1) / n;
+    const p0 = [cx + rad * Math.cos(t0), cy + rad * Math.sin(t0)], p1 = [cx + rad * Math.cos(t1), cy + rad * Math.sin(t1)];
+    const s = inward ? -1 : 1;
+    out.push({ a: p0, b: p1, mat, col, na: [s * Math.cos(t0), s * Math.sin(t0)], nb: [s * Math.cos(t1), s * Math.sin(t1)] });
+  }
+  return out;
+}
+const PROFILES = {
+  road(s, o) {
+    const hw = s.hw, segs = [{ a: [-hw, 0], b: [hw, 0], mat: MAT.ROAD, col: 1, road: 1 }];
+    let xl = -hw, xr = hw, yl = 0, yr = 0;
+    const kw = 1.1, kh = 0.05;
+    const inR = (o.turn || 0) > 0, inL = (o.turn || 0) < 0;
+    const kerbR = (o.kerbIn && (inR || !o.turn)) || (o.kerbOut && inL);
+    const kerbL = (o.kerbIn && (inL || !o.turn)) || (o.kerbOut && inR);
+    if (kerbR) { segs.push({ a: [hw, 0], b: [hw + kw, kh], mat: MAT.KERB, col: 1, kerb: 1 }); xr = hw + kw; yr = kh; }
+    if (kerbL) { segs.push({ a: [-hw - kw, kh], b: [-hw, 0], mat: MAT.KERB, col: 1, kerb: 1 }); xl = -hw - kw; yl = kh; }
+    segs.push({ a: [xr, yr], b: [xr + 0.45, -0.55], mat: MAT.PAD, col: 0 });
+    segs.push({ a: [xl - 0.45, -0.55], b: [xl, yl], mat: MAT.PAD, col: 0 });
+    return segs;
+  },
+  deck(s) {
+    const hw = s.hw, ph = 0.9, pt = 0.35, bot = -1.0;
+    return [
+      { a: [-hw, 0], b: [hw, 0], mat: MAT.ROAD, col: 1, road: 1 },
+      { a: [hw, 0], b: [hw, ph], mat: MAT.WALL, col: 1 },
+      { a: [hw, ph], b: [hw + pt, ph], mat: MAT.WALL, col: 1 },
+      { a: [hw + pt, ph], b: [hw + pt, bot], mat: MAT.CONCRETE, col: 1 },
+      { a: [hw + pt, bot], b: [-hw - pt, bot], mat: MAT.CONCRETE, col: 1 },
+      { a: [-hw - pt, bot], b: [-hw - pt, ph], mat: MAT.CONCRETE, col: 1 },
+      { a: [-hw - pt, ph], b: [-hw, ph], mat: MAT.WALL, col: 1 },
+      { a: [-hw, ph], b: [-hw, 0], mat: MAT.WALL, col: 1 },
+    ];
+  },
+  rampwall(s) {
+    const hw = s.hw, ph = 0.9, pt = 0.35, bot = -Math.max(0.6, s.hg + 0.6);
+    return [
+      { a: [-hw, 0], b: [hw, 0], mat: MAT.ROAD, col: 1, road: 1 },
+      { a: [hw, 0], b: [hw, ph], mat: MAT.WALL, col: 1 },
+      { a: [hw, ph], b: [hw + pt, ph], mat: MAT.WALL, col: 1 },
+      { a: [hw + pt, ph], b: [hw + pt, bot], mat: MAT.CONCRETE, col: 1 },
+      { a: [-hw - pt, bot], b: [-hw - pt, ph], mat: MAT.CONCRETE, col: 1 },
+      { a: [-hw - pt, ph], b: [-hw, ph], mat: MAT.WALL, col: 1 },
+      { a: [-hw, ph], b: [-hw, 0], mat: MAT.WALL, col: 1 },
+    ];
+  },
+  banked(s, o) {
+    // für Rechtskurve (Außen = links) gebaut, Linkskurve gespiegelt
+    const hw = s.hw, wh = 1.3, wt = 0.4;
+    const depth = (2 * hw * Math.abs(Math.sin(s.bank)) + 0.3) / Math.max(0.5, Math.cos(s.bank)) + 0.6;
+    const segs = [
+      { a: [-hw, 0], b: [hw, 0], mat: MAT.ROAD, col: 1, road: 1 },
+      { a: [hw, 0], b: [hw + 0.5, -0.7], mat: MAT.PAD, col: 0 },
+      { a: [-hw, wh], b: [-hw, 0], mat: MAT.WALL, col: 1 },
+      { a: [-hw - wt, wh], b: [-hw, wh], mat: MAT.WALL, col: 1 },
+      { a: [-hw - wt, -depth], b: [-hw - wt, wh], mat: MAT.CONCRETE, col: 1 },
+    ];
+    return (o.turn || 1) > 0 ? segs : mirrorSegs(segs);
+  },
+  loopLane(s) {
+    const hw = s.hw, wh = 0.55, wt = 0.25, bot = -0.4;
+    return [
+      { a: [-hw, 0], b: [hw, 0], mat: MAT.ROAD, col: 1, road: 1 },
+      { a: [hw, 0], b: [hw, wh], mat: MAT.WALL, col: 1 },
+      { a: [hw, wh], b: [hw + wt, wh], mat: MAT.WALL, col: 1 },
+      { a: [hw + wt, wh], b: [hw + wt, bot], mat: MAT.CONCRETE, col: 1 },
+      { a: [hw + wt, bot], b: [-hw - wt, bot], mat: MAT.CONCRETE, col: 1 },
+      { a: [-hw - wt, bot], b: [-hw - wt, wh], mat: MAT.CONCRETE, col: 1 },
+      { a: [-hw - wt, wh], b: [-hw, wh], mat: MAT.WALL, col: 1 },
+      { a: [-hw, wh], b: [-hw, 0], mat: MAT.WALL, col: 1 },
+    ];
+  },
+  tube() {
+    const b = 2.2, R = 3.5, H = 2 * R, th = 0.45, n = 10;
+    const inner = [
+      { a: [-b, 0], b: [b, 0], mat: MAT.ROAD, col: 1, road: 1 },
+      ...arcSegs(b, R, R, -Math.PI / 2, Math.PI / 2, n, MAT.CONCRETE, 1, true),
+      { a: [b, H], b: [-b, H], mat: MAT.CONCRETE, col: 1 },
+      ...arcSegs(-b, R, R, Math.PI / 2, 1.5 * Math.PI, n, MAT.CONCRETE, 1, true),
+    ];
+    const Ro = R + th;
+    const outer = [
+      ...arcSegs(-b, R, Ro, 1.5 * Math.PI, Math.PI / 2, n, MAT.CONCRETE, 0, false),
+      { a: [-b, R + Ro], b: [b, R + Ro], mat: MAT.CONCRETE, col: 0 },
+      ...arcSegs(b, R, Ro, Math.PI / 2, -Math.PI / 2, n, MAT.CONCRETE, 0, false),
+    ];
+    return inner.concat(outer);
+  },
+  ramp(s) {
+    const hw = s.hw, bot = -Math.max(0.3, s.hg + 0.3);
+    return [
+      { a: [-hw, 0], b: [hw, 0], mat: MAT.METAL, col: 1 },
+      { a: [hw, 0], b: [hw, bot], mat: MAT.CONCRETE, col: 1 },
+      { a: [-hw, bot], b: [-hw, 0], mat: MAT.CONCRETE, col: 1 },
+    ];
+  },
+};
+
+// ---------- Hauptfunktion ----------
+export function buildTrack(layout, opt = {}) {
+  const batches = new Map();
+  const colPos = [], colNrm = [], colMat = [];
+  const line = [];           // Samples der Fahrlinie (Welt)
+  const shapes = [];         // Geländeformen (Grube, Hügel, Teich)
+  const decals = [];         // Portale/Banner für die Grafik
+  const jumps = [];
+  const cpMarks = [];        // {pieceIdx, s}
+  let startMark = null;
+  const occupied = new Uint8Array(GRID * GRID);
+  const pieceInfo = [];
+
+  const batch = (chunk, mat) => {
+    const k = chunk + '|' + mat;
+    let b = batches.get(k);
+    if (!b) { b = new Batch(mat, mat === MAT.ROAD); b.chunk = chunk; batches.set(k, b); }
+    return b;
+  };
+  const chunkOf = (x, z) => Math.floor((x + 1000) / CHUNK) + ',' + Math.floor((z + 1000) / CHUNK);
+  const addColTri = (p0, p1, p2, n0, n1, n2, mat) => {
+    colPos.push(p0[0], p0[1], p0[2], p1[0], p1[1], p1[2], p2[0], p2[1], p2[2]);
+    colNrm.push(n0[0], n0[1], n0[2], n1[0], n1[1], n1[2], n2[0], n2[1], n2[2]);
+    colMat.push(mat);
+  };
+
+  layout.pieces.forEach((pc, pidx) => {
+    const P = PIECES[pc.type];
+    if (!P) throw new Error('Unbekanntes Element ' + pc.type);
+    const m = pc.m || 1, lvl = pc.lvl || 0, d = pc.d;
+    const F = [DIRS[d][0], 0, DIRS[d][1]];
+    const R = [DIRS[(d + 1) % 4][0], 0, DIRS[(d + 1) % 4][1]];
+    const E = [tileX(pc.i) - F[0] * TILE / 2, 0, tileZ(pc.j) - F[2] * TILE / 2];
+    const base = lvl * LEVEL_H + ROAD_Y;
+    const W = (f, y, r) => [E[0] + F[0] * f + R[0] * r, y + base, E[2] + F[2] * f + R[2] * r];
+    const Wv = (v) => [F[0] * v[0] + R[0] * v[2], v[1], F[2] * v[0] + R[2] * v[2]];
+    const nd = (d + (P.turn ? (m > 0 ? 1 : 3) : 0)) % 4;
+    const exitDir = [DIRS[nd][0], 0, DIRS[nd][1]];
+    const cells = P.cells.map(([a, b]) => [pc.i + DIRS[d][0] * a + DIRS[(d + 1) % 4][0] * b * m, pc.j + DIRS[d][1] * a + DIRS[(d + 1) % 4][1] * b * m]);
+    for (const [ci, cj] of cells) if (ci >= 0 && cj >= 0 && ci < GRID && cj < GRID) occupied[cj * GRID + ci] = 1;
+    const ctr = W(TILE / 2, 0, 0);
+    const chunk = chunkOf(ctr[0], ctr[2]);
+    const info = { type: pc.type, idx: pidx, lineStart: line.length, lineEnd: -1, cells, chunk, stunt: !!P.stunt };
+    pieceInfo.push(info);
+
+    // ----- Box (Quader) in lokalen Achsen -----
+    const addBox = (f, y, r, lf, ly, lr, mat, o = {}) => {
+      const c = W(f, y, r);
+      const ax = [F, [0, 1, 0], R], hs = [lf / 2, ly / 2, lr / 2];
+      const rotY = o.rotY || 0;
+      let A = ax;
+      if (rotY) { const cs = Math.cos(rotY), sn = Math.sin(rotY); A = [add(mul(F, cs), mul(R, sn)), [0, 1, 0], add(mul(R, cs), mul(F, -sn))]; }
+      if (o.pitch) { const cs = Math.cos(o.pitch), sn = Math.sin(o.pitch); A = [add(mul(A[0], cs), mul(A[1], sn)), add(mul(A[1], cs), mul(A[0], -sn)), A[2]]; }
+      const b = batch(chunk, mat);
+      for (let ax0 = 0; ax0 < 3; ax0++) for (const sg of [-1, 1]) {
+        const a1 = (ax0 + 1) % 3, a2 = (ax0 + 2) % 3;
+        const n = mul(A[ax0], sg);
+        const cF = add(c, mul(A[ax0], sg * hs[ax0]));
+        const u = mul(A[a1], hs[a1]), v = mul(A[a2], hs[a2]);
+        const q = [add(add(cF, mul(u, -1)), mul(v, -1)), add(add(cF, u), mul(v, -1)), add(add(cF, u), v), add(add(cF, mul(u, -1)), v)];
+        const ul = 2 * hs[a1], vl = 2 * hs[a2];
+        const i0 = b.v(q[0], n, 0, 0), i1 = b.v(q[1], n, ul, 0), i2 = b.v(q[2], n, ul, vl), i3 = b.v(q[3], n, 0, vl);
+        // Wicklung so, dass Normale nach außen zeigt
+        const fn = cross(sub(q[1], q[0]), sub(q[2], q[0]));
+        if (dot(fn, n) > 0) b.idx.push(i0, i1, i2, i0, i2, i3); else b.idx.push(i0, i2, i1, i0, i3, i2);
+        if (o.collide) {
+          if (dot(fn, n) > 0) { addColTri(q[0], q[1], q[2], n, n, n, mat); addColTri(q[0], q[2], q[3], n, n, n, mat); }
+          else { addColTri(q[0], q[2], q[1], n, n, n, mat); addColTri(q[0], q[3], q[2], n, n, n, mat); }
+        }
+      }
+    };
+
+    // ----- Fahrlinie + Bänder -----
+    const addPath = (samples, o) => {
+      const n = samples.length;
+      const S = samples.map((s) => {
+        const p = W(s.f, s.y, s.r);
+        return {
+          p, up: s.up ? norm(Wv(s.up)) : [0, 1, 0], bank: s.bank || 0, hw: s.hw ?? o.hw ?? ROAD_HW,
+          surf: s.surf ?? 1, air: s.air || 0, loop: s.loop || 0, tube: s.tube || 0, f: s.f,
+          hg: s.y + lvl * LEVEL_H, prof: s.prof || (o.profile === 'loop' ? (s.loop ? 'loopLane' : 'road') : o.profile === 'tube' ? (s.tube ? 'tube' : 'road') : o.profile),
+          lo: s.lo, hi: s.hi,
+        };
+      });
+      for (let i = 0; i < n; i++) {
+        const s = S[i];
+        let T;
+        if (i === 0) T = F.slice();
+        else if (i === n - 1) T = exitDir.slice();
+        else T = norm(sub(S[i + 1].p, S[i - 1].p));
+        let N = norm(sub(s.up, mul(T, dot(s.up, T))));
+        let B = cross(T, N);
+        if (s.bank) {
+          const c = Math.cos(s.bank), sn = Math.sin(s.bank);
+          const B2 = add(mul(B, c), mul(N, sn)), N2 = sub(mul(N, c), mul(B, sn));
+          B = B2; N = N2;
+        }
+        s.T = T; s.N = N; s.B = B;
+      }
+      // in die globale Linie übernehmen
+      for (let i = 0; i < n; i++) {
+        const s = S[i];
+        if (line.length && i === 0) {
+          const last = line[line.length - 1];
+          if (Math.hypot(last.p[0] - s.p[0], last.p[1] - s.p[1], last.p[2] - s.p[2]) < 0.05) continue;
+        }
+        const M = 1.3;
+        let lo = s.lo ?? (-s.hw + M), hi = s.hi ?? (s.hw - M);
+        if (lo > hi) lo = hi = (lo + hi) / 2;
+        line.push({ p: s.p, T: s.T, N: s.N, B: s.B, hw: s.hw, lo, hi, air: s.air, loop: s.loop, tube: s.tube, piece: pidx, f: s.f, surf: s.surf, kind: o.kind || '' });
+      }
+      // Läufe gleicher Oberfläche/Profil bauen
+      let i0 = 0;
+      while (i0 < n - 1) {
+        if (!S[i0].surf) { i0++; continue; }
+        let i1 = i0;
+        while (i1 + 1 < n && S[i1 + 1].surf && S[i1 + 1].prof === S[i0].prof) i1++;
+        // gemeinsame Grenz-Samples: bis zum nächsten Profilwechsel inkl. dessen erstes Sample
+        let iend = i1;
+        if (i1 + 1 < n && S[i1 + 1].surf) iend = i1 + 1;
+        if (iend > i0 && S[i0].prof !== 'none') buildRun(S.slice(i0, iend + 1), S[i0].prof, o);
+        // Kappen an Lücken (Schanze/Landung)
+        if (S[i0].prof === 'ramp' && i0 > 0 && !S[i0 - 1].surf) addCap(S[i0], -1);
+        if (S[i1].prof === 'ramp' && i1 + 1 < n && !S[i1 + 1].surf) addCap(S[i1], 1);
+        i0 = iend > i1 ? i1 + 1 : i1 + 1;
+      }
+    };
+
+    const addCap = (s, dir) => { // senkrechte Stirnfläche von der Fahrbahn bis in die Grube
+      const b = batch(chunk, MAT.CONCRETE);
+      const hw = s.hw, bottom = -3.8 - base;
+      const pL = add(s.p, mul(s.B, -hw)), pR = add(s.p, mul(s.B, hw));
+      const qL = [pL[0], bottom + base, pL[2]], qR = [pR[0], bottom + base, pR[2]];
+      const nrm = mul(s.T, dir);
+      const quad = dir > 0 ? [pL, pR, qR, qL] : [pR, pL, qL, qR];
+      const i = [b.v(quad[0], nrm, 0, 0), b.v(quad[1], nrm, 2 * hw, 0), b.v(quad[2], nrm, 2 * hw, 4), b.v(quad[3], nrm, 0, 4)];
+      const fn = cross(sub(quad[1], quad[0]), sub(quad[2], quad[0]));
+      if (dot(fn, nrm) > 0) b.idx.push(i[0], i[1], i[2], i[0], i[2], i[3]); else b.idx.push(i[0], i[2], i[1], i[0], i[3], i[2]);
+      addColTri(quad[0], quad[1], quad[2], nrm, nrm, nrm, MAT.CONCRETE);
+      addColTri(quad[0], quad[2], quad[3], nrm, nrm, nrm, MAT.CONCRETE);
+    };
+
+    const buildRun = (S, prof, o) => {
+      const pf = PROFILES[prof];
+      const profs = S.map((s) => pf(s, o));
+      const nseg = profs[0].length;
+      for (const pr of profs) if (pr.length !== nseg) throw new Error('Profil-Segmentzahl variiert: ' + prof);
+      // Bogenlänge entlang des Laufs (für UV v)
+      const sAlong = [0];
+      for (let i = 1; i < S.length; i++) sAlong.push(sAlong[i - 1] + Math.hypot(...sub(S[i].p, S[i - 1].p)));
+      const sBase = (info.sBase || 0);
+      for (let k = 0; k < nseg; k++) {
+        const seg0 = profs[0][k];
+        const b = batch(chunk, seg0.mat);
+        let prevA = -1, prevB = -1, prevPA, prevPB, prevNA, prevNB;
+        let uOff = 0;
+        for (let i = 0; i < S.length; i++) {
+          const s = S[i], sg = profs[i][k];
+          const pa = add(add(s.p, mul(s.B, sg.a[0])), mul(s.N, sg.a[1]));
+          const pbb = add(add(s.p, mul(s.B, sg.b[0])), mul(s.N, sg.b[1]));
+          const d2 = [sg.b[0] - sg.a[0], sg.b[1] - sg.a[1]];
+          const segLen = Math.hypot(d2[0], d2[1]) || 1e-6;
+          const n2 = [-d2[1] / segLen, d2[0] / segLen];
+          const na2 = sg.na || n2, nb2 = sg.nb || n2;
+          const nA = norm(add(mul(s.B, na2[0]), mul(s.N, na2[1])));
+          const nB = norm(add(mul(s.B, nb2[0]), mul(s.N, nb2[1])));
+          const v = sAlong[i] + sBase;
+          let ia, ib;
+          if (sg.road) {
+            // aRoad = (quer x, hw + 100*Typ, s entlang, Abstand zur Markierung); Typ: 0 normal, 1 Start, 2 CP, +10 schmal
+            const typ = (o.mark === 'start' ? 1 : o.mark === 'cp' ? 2 : 0) + (s.hw < 3.2 ? 10 : 0);
+            const md = o.mark && o.markAt != null ? (s.f - o.markAt) : 999;
+            ia = b.v(pa, nA, sg.a[0], v, [sg.a[0], s.hw + 100 * typ, v, md]);
+            ib = b.v(pbb, nB, sg.b[0], v, [sg.b[0], s.hw + 100 * typ, v, md]);
+          } else {
+            ia = b.v(pa, nA, uOff, v);
+            ib = b.v(pbb, nB, uOff + segLen, v);
+          }
+          if (i > 0) {
+            b.idx.push(prevA, prevB, ia, prevB, ib, ia);
+            if (sg.col) {
+              addColTri(prevPA, prevPB, pa, prevNA, prevNB, nA, sg.kerb ? MAT.KERB : seg0.mat);
+              addColTri(prevPB, pbb, pa, prevNB, nB, nA, sg.kerb ? MAT.KERB : seg0.mat);
+            }
+          }
+          prevA = ia; prevB = ib; prevPA = pa; prevPB = pbb; prevNA = nA; prevNB = nB;
+        }
+      }
+      info.sBase = sBase + sAlong[sAlong.length - 1];
+    };
+
+    const addRibbon = (samples, o) => {
+      const S = samples.map((s) => ({ p: W(s.f, s.y, s.r), up: [0, 1, 0], bank: 0, hw: s.hw ?? ROAD_HW, surf: 1, f: s.f, hg: s.y + lvl * LEVEL_H, prof: o.profile }));
+      for (let i = 0; i < S.length; i++) {
+        const T = i === 0 ? norm(sub(S[1].p, S[0].p)) : i === S.length - 1 ? norm(sub(S[i].p, S[i - 1].p)) : norm(sub(S[i + 1].p, S[i - 1].p));
+        S[i].T = T; S[i].N = [0, 1, 0]; S[i].B = cross(T, [0, 1, 0]);
+      }
+      buildRun(S, o.profile, o);
+    };
+    const pb = {
+      m, lvl,
+      path: addPath,
+      ribbon: addRibbon,
+      box: addBox,
+      startLine: (f) => { startMark = { piece: pidx, f }; },
+      checkpoint: (f) => { cpMarks.push({ piece: pidx, f }); },
+      gate: (type, f) => {
+        const c = W(f, 0, 0);
+        decals.push({ type, p: c, F, R, lvl });
+        const span = ROAD_HW + 1.6, h = 6.2;
+        for (const sgn of [-1, 1]) addBox(f, h / 2, sgn * span, 0.5, h, 0.5, MAT.STEEL, { collide: true });
+        addBox(f, h + 0.55, 0, 0.7, 1.1, 2 * span + 0.5, MAT.STEEL, { collide: false });
+      },
+      pad: (f0, f1, r0, r1) => {
+        const b = batch(chunk, MAT.PAD);
+        const y = -0.035;
+        const q = [W(f0, y, r0), W(f1, y, r0), W(f1, y, r1), W(f0, y, r1)];
+        const up = [0, 1, 0];
+        const i = q.map((p, k) => b.v(p, up, [0, f1 - f0, f1 - f0, 0][k], [0, 0, r1 - r0, r1 - r0][k]));
+        const fn = cross(sub(q[1], q[0]), sub(q[2], q[0]));
+        if (fn[1] > 0) b.idx.push(i[0], i[1], i[2], i[0], i[2], i[3]); else b.idx.push(i[0], i[2], i[1], i[0], i[3], i[2]);
+        if (fn[1] > 0) { addColTri(q[0], q[1], q[2], up, up, up, MAT.PAD); addColTri(q[0], q[2], q[3], up, up, up, MAT.PAD); }
+        else { addColTri(q[0], q[2], q[1], up, up, up, MAT.PAD); addColTri(q[0], q[3], q[2], up, up, up, MAT.PAD); }
+      },
+      pit: (f0, f1, hwid) => {
+        shapes.push({ type: 'pit', E, F, R, f0, f1, hw: hwid, depth: 3.8, slope: 2.5, base: 0 });
+      },
+      mound: (f0, f1, hy, hwid, slope) => {
+        const N = 40, arr = [];
+        for (let k = 0; k <= N; k++) arr.push(hy(f0 + (f1 - f0) * k / N));
+        shapes.push({ type: 'mound', E, F, R, f0, f1, arr, hw: hwid, slope });
+      },
+      river: (f0, f1) => { shapes.push({ type: 'pond', E, F, R, f0, f1, c: [(f0 + f1) / 2, 0], rx: (f1 - f0) * 0.45, rz: 30, depth: 3 }); },
+      arch: (len) => {
+        const H = 7.5, hw = ROAD_HW + 0.55, n = 10;
+        for (const sgn of [-1, 1]) {
+          for (let k = 0; k < n; k++) {
+            const f0 = len * k / n, f1 = len * (k + 1) / n;
+            const y0 = 0.9 + H * Math.sin(Math.PI * f0 / len), y1 = 0.9 + H * Math.sin(Math.PI * f1 / len);
+            const fm = (f0 + f1) / 2, ym = (y0 + y1) / 2, L = Math.hypot(f1 - f0, y1 - y0);
+            addBox(fm, ym, sgn * hw, L + 0.1, 0.45, 0.45, MAT.STEEL, { pitch: Math.atan2(y1 - y0, f1 - f0) });
+          }
+          for (let k = 1; k < 8; k++) {
+            const f = len * k / 8, y1 = 0.9 + H * Math.sin(Math.PI * f / len);
+            addBox(f, (0.9 + y1) / 2, sgn * hw, 0.12, y1 - 0.9, 0.12, MAT.STEEL, {});
+          }
+        }
+        // Querriegel oben
+        addBox(len / 2, 0.9 + H, 0, 0.35, 0.35, 2 * hw, MAT.STEEL, {});
+      },
+      loopSupports: (f0) => {
+        // Stahlrahmen seitlich des Loopings + Querträger über dem Scheitel
+        const fc = f0 + LOOP.dF / 2, top = LOOP.H + 1.3, off = 7.6;
+        for (const sgn of [-1, 1]) {
+          addBox(fc - 3, top / 2, sgn * off, 0.6, top, 0.6, MAT.STEEL, { collide: true });
+          addBox(fc + 3, top / 2, sgn * off, 0.6, top, 0.6, MAT.STEEL, { collide: true });
+          addBox(fc, top - 0.3, sgn * off, 6.6, 0.6, 0.6, MAT.STEEL, {});
+          addBox(fc, 4.0, sgn * off, 6.6, 0.4, 0.4, MAT.STEEL, {});
+        }
+        addBox(fc, top + 0.2, 0, 1.0, 0.6, 2 * off + 0.6, MAT.STEEL, {});
+      },
+      jumpInfo: (j) => { jumps.push({ piece: pidx, ...j, E, F, R, base }); },
+      portal: (f) => {
+        // Betonfassade um die Röhrenöffnung (Ring zwischen Innenkontur und Rechteck)
+        const b0 = 2.2, R0 = 3.5, Wx = 7.2, Yb = -0.5, Yt = 2 * R0 + 1.4, n = 10;
+        const pts = [];
+        for (let k = 0; k <= 4; k++) pts.push([-b0 + 2 * b0 * k / 4, 0]);
+        for (let k = 1; k <= n; k++) { const t = -Math.PI / 2 + Math.PI * k / n; pts.push([b0 + R0 * Math.cos(t), R0 + R0 * Math.sin(t)]); }
+        for (let k = 1; k <= 4; k++) pts.push([b0 - 2 * b0 * k / 4, 2 * R0]);
+        for (let k = 1; k <= n; k++) { const t = Math.PI / 2 + Math.PI * k / n; pts.push([-b0 + R0 * Math.cos(t), R0 + R0 * Math.sin(t)]); }
+        const proj = (p) => {
+          const dx = p[0], dy = p[1] - R0;
+          let t = 1e9;
+          if (dx > 1e-6) t = Math.min(t, Wx / dx); if (dx < -1e-6) t = Math.min(t, -Wx / dx);
+          if (dy > 1e-6) t = Math.min(t, (Yt - R0) / dy); if (dy < -1e-6) t = Math.min(t, (Yb - R0) / dy);
+          return [dx * t, R0 + dy * t];
+        };
+        const facing = f < TILE ? -1 : 1;
+        const nrm = mul(F, facing);
+        const bt = batch(chunk, MAT.CONCRETE);
+        const toW = (q) => W(f, q[1], q[0]);
+        for (let k = 0; k < pts.length - 1; k++) {
+          const a = pts[k], c = pts[k + 1], ao = proj(a), co = proj(c);
+          const quad = [toW(a), toW(c), toW(co), toW(ao)];
+          const ii = quad.map((p, q) => bt.v(p, nrm, [a[0], c[0], co[0], ao[0]][q], [a[1], c[1], co[1], ao[1]][q]));
+          const fn = cross(sub(quad[1], quad[0]), sub(quad[2], quad[0]));
+          const ok = dot(fn, nrm) > 0;
+          if (ok) bt.idx.push(ii[0], ii[1], ii[2], ii[0], ii[2], ii[3]); else bt.idx.push(ii[0], ii[2], ii[1], ii[0], ii[3], ii[2]);
+          if (ok) { addColTri(quad[0], quad[1], quad[2], nrm, nrm, nrm, MAT.CONCRETE); addColTri(quad[0], quad[2], quad[3], nrm, nrm, nrm, MAT.CONCRETE); }
+          else { addColTri(quad[0], quad[2], quad[1], nrm, nrm, nrm, MAT.CONCRETE); addColTri(quad[0], quad[3], quad[2], nrm, nrm, nrm, MAT.CONCRETE); }
+        }
+        // Dicke der Fassade: Deckel oben + Seiten
+        addBox(f + facing * 0.3, Yt + 0.0 - 0.25, 0, 0.6, 0.5, 2 * Wx, MAT.CONCRETE, { collide: true });
+        for (const sg of [-1, 1]) addBox(f + facing * 0.3, (Yt + Yb) / 2, sg * (Wx - 0.25), 0.6, Yt - Yb, 0.5, MAT.CONCRETE, { collide: true });
+      },
+    };
+    info.lineStart = line.length;
+    P.build(pb);
+    info.lineEnd = line.length - 1;
+    info.exitDir = exitDir;
+  });
+
+  // ----- Linie: Bogenlänge, Arrays -----
+  const n = line.length;
+  const L = {
+    n, px: new Float32Array(n), py: new Float32Array(n), pz: new Float32Array(n),
+    tx: new Float32Array(n), ty: new Float32Array(n), tz: new Float32Array(n),
+    nx: new Float32Array(n), ny: new Float32Array(n), nz: new Float32Array(n),
+    bx: new Float32Array(n), by: new Float32Array(n), bz: new Float32Array(n),
+    s: new Float32Array(n), hw: new Float32Array(n), lo: new Float32Array(n), hi: new Float32Array(n), air: new Uint8Array(n), loop: new Uint8Array(n), tube: new Uint8Array(n),
+    piece: new Uint16Array(n), total: 0, closed: false,
+  };
+  let acc = 0;
+  for (let i = 0; i < n; i++) {
+    const q = line[i];
+    if (i > 0) acc += Math.hypot(q.p[0] - line[i - 1].p[0], q.p[1] - line[i - 1].p[1], q.p[2] - line[i - 1].p[2]);
+    L.px[i] = q.p[0]; L.py[i] = q.p[1]; L.pz[i] = q.p[2];
+    L.tx[i] = q.T[0]; L.ty[i] = q.T[1]; L.tz[i] = q.T[2];
+    L.nx[i] = q.N[0]; L.ny[i] = q.N[1]; L.nz[i] = q.N[2];
+    L.bx[i] = q.B[0]; L.by[i] = q.B[1]; L.bz[i] = q.B[2];
+    L.s[i] = acc; L.hw[i] = q.hw; L.lo[i] = q.lo; L.hi[i] = q.hi; L.air[i] = q.air; L.loop[i] = q.loop; L.tube[i] = q.tube; L.piece[i] = q.piece;
+  }
+  L.total = acc;
+  // Rundkurs? (Ende == Anfang)
+  if (n > 2) {
+    const dx = L.px[n - 1] - L.px[0], dy = L.py[n - 1] - L.py[0], dz = L.pz[n - 1] - L.pz[0];
+    L.closed = Math.hypot(dx, dy, dz) < 0.5;
+  }
+  const idxAt = (pieceIdx, f) => {
+    const pi = pieceInfo[pieceIdx];
+    let best = pi.lineStart, bd = 1e9;
+    for (let i = pi.lineStart; i <= pi.lineEnd; i++) { const dd = Math.abs(line[i].f - f); if (dd < bd) { bd = dd; best = i; } }
+    return best;
+  };
+  const checkpoints = cpMarks.map((c) => ({ idx: idxAt(c.piece, c.f) }));
+  const start = startMark ? { idx: idxAt(startMark.piece, startMark.f) } : { idx: 0 };
+  for (const j of jumps) {
+    j.lipIdx = idxAt(j.piece, j.lipF);
+    j.landIdx = idxAt(j.piece, j.landF);
+  }
+
+  // ----- Gelände -----
+  const terrain = buildTerrain(occupied, shapes, layout.seed || 1);
+  // ----- Bäume -----
+  const trees = placeTrees(terrain, layout.seed || 1, opt.treeCount ?? 520);
+
+  // ----- Batches finalisieren -----
+  const outBatches = [];
+  for (const b of batches.values()) {
+    if (!b.idx.length) continue;
+    outBatches.push({
+      mat: b.mat, chunk: b.chunk,
+      pos: new Float32Array(b.pos), nrm: new Float32Array(b.nrm), uv: new Float32Array(b.uv),
+      road: b.road ? new Float32Array(b.road) : null,
+      idx: b.nv > 65535 ? new Uint32Array(b.idx) : new Uint16Array(b.idx),
+    });
+  }
+  let minX = 1e9, maxX = -1e9, minZ = 1e9, maxZ = -1e9, maxY = 0;
+  for (let i = 0; i < colPos.length; i += 3) {
+    minX = Math.min(minX, colPos[i]); maxX = Math.max(maxX, colPos[i]);
+    maxY = Math.max(maxY, colPos[i + 1]);
+    minZ = Math.min(minZ, colPos[i + 2]); maxZ = Math.max(maxZ, colPos[i + 2]);
+  }
+  return {
+    layout, line: L, batches: outBatches,
+    col: { pos: new Float32Array(colPos), nrm: new Float32Array(colNrm), mat: new Uint8Array(colMat) },
+    checkpoints, start, jumps, decals, shapes, terrain, trees, pieces: pieceInfo,
+    bounds: { minX, maxX, minZ, maxZ, maxY },
+  };
+}
+
+// ---------- Gelände ----------
+export function buildTerrain(occupied, shapes, seed) {
+  // Abstand jedes Feldes zur Strecke (in Feldern), 8er-Nachbarschaft
+  const D = new Float32Array(GRID * GRID).fill(99);
+  const q = [];
+  for (let k = 0; k < GRID * GRID; k++) if (occupied[k]) { D[k] = 0; q.push(k); }
+  for (let h = 0; h < q.length; h++) {
+    const k = q[h], i = k % GRID, j = (k / GRID) | 0;
+    for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
+      const ni = i + di, nj = j + dj;
+      if (ni < 0 || nj < 0 || ni >= GRID || nj >= GRID) continue;
+      const nk = nj * GRID + ni, nd = D[k] + (di && dj ? 1.414 : 1);
+      if (nd < D[nk]) { D[nk] = nd; q.push(nk); }
+    }
+  }
+  const noise = makeNoise2(seed * 7 + 3);
+  const distTiles = (x, z) => {
+    const fi = (x - tileX(0)) / TILE, fj = (z - tileZ(0)) / TILE;
+    const i0 = Math.floor(fi), j0 = Math.floor(fj);
+    const tx = fi - i0, tz = fj - j0;
+    const g = (i, j) => (i < 0 || j < 0 || i >= GRID || j >= GRID) ? 99 : D[j * GRID + i];
+    const a = g(i0, j0), b = g(i0 + 1, j0), c = g(i0, j0 + 1), dd = g(i0 + 1, j0 + 1);
+    const out = Math.max(Math.abs(x) - GRID * TILE / 2, Math.abs(z) - GRID * TILE / 2, 0) / TILE;
+    const v = Math.min(99, (a * (1 - tx) + b * tx) * (1 - tz) + (c * (1 - tx) + dd * tx) * tz);
+    return Math.min(v, 30) + out;
+  };
+  const baseH = (x, z) => {
+    const dt = distTiles(x, z);
+    const mask = smoothstep(1.4, 4.5, dt);
+    const r = Math.hypot(x, z);
+    const hills = 13 * Math.pow(noise.fbm(x / 230 + 11, z / 230 - 7, 4) * 0.5 + 0.5, 1.6) + 5 * noise.fbm(x / 90, z / 90, 3);
+    const rim = 70 * smoothstep(420, 950, r) * (0.7 + 0.3 * noise.fbm(x / 300, z / 300, 2));
+    return mask * Math.max(0, hills) + rim;
+  };
+  const shapeH = (x, z, h) => {
+    for (const s of shapes) {
+      const dx = x - s.E[0], dz = z - s.E[2];
+      const f = dx * s.F[0] + dz * s.F[2], r = dx * s.R[0] + dz * s.R[2];
+      if (s.type === 'pit') {
+        const df = Math.max(s.f0 - f, f - s.f1, 0), dr = Math.max(Math.abs(r) - s.hw, 0);
+        const e = Math.max(df, dr);
+        if (e < s.slope) {
+          const inner = Math.max(s.f0 + s.slope - f, f - (s.f1 - s.slope), Math.abs(r) - (s.hw - s.slope));
+          const t = inner <= 0 ? 1 : 1 - clamp(inner / s.slope, 0, 1);
+          h = Math.min(h, -s.depth * smoothstep(0, 1, t));
+        }
+      } else if (s.type === 'mound') {
+        if (f >= s.f0 - 12 && f <= s.f1 + 12) {
+          const ff = clamp((f - s.f0) / (s.f1 - s.f0), 0, 1) * (s.arr.length - 1);
+          const k = Math.floor(ff), t = ff - k;
+          const top = (s.arr[k] * (1 - t) + s.arr[Math.min(k + 1, s.arr.length - 1)] * t) - 0.12;
+          const dr = Math.max(Math.abs(r) - s.hw, 0);
+          const df = Math.max(s.f0 - f, f - s.f1, 0);
+          const v = top - (dr + df) / 2.2 * 1.0;
+          if (v > h) h = v;
+        }
+      } else if (s.type === 'pond') {
+        const u = (f - s.c[0]) / s.rx, w = r / s.rz;
+        const e = Math.hypot(u, w);
+        if (e < 1) h = Math.min(h, -s.depth * smoothstep(1, 0.55, e));
+      }
+    }
+    return h;
+  };
+  const heightFn = (x, z) => shapeH(x, z, baseH(x, z));
+
+  // Inneres Raster (Physik + Grafik): 5 m über das Streckenfeld + Rand
+  const ext = GRID * TILE / 2 + 60, step = 5;
+  const nx = Math.round(2 * ext / step) + 1;
+  const H = new Float32Array(nx * nx);
+  for (let j = 0; j < nx; j++) for (let i = 0; i < nx; i++) H[j * nx + i] = heightFn(-ext + i * step, -ext + j * step);
+  const height = (x, z) => {
+    const fx = (x + ext) / step, fz = (z + ext) / step;
+    if (fx < 0 || fz < 0 || fx >= nx - 1 || fz >= nx - 1) return heightFn(x, z);
+    const i = Math.floor(fx), j = Math.floor(fz), tx = fx - i, tz = fz - j;
+    const a = H[j * nx + i], b = H[j * nx + i + 1], c = H[(j + 1) * nx + i], d = H[(j + 1) * nx + i + 1];
+    return (a * (1 - tx) + b * tx) * (1 - tz) + (c * (1 - tx) + d * tx) * tz;
+  };
+  const waters = shapes.filter((s) => s.type === 'pit' || s.type === 'pond').map((s) => {
+    if (s.type === 'pit') return { E: s.E, F: s.F, R: s.R, f0: s.f0 - 1, f1: s.f1 + 1, r0: -s.hw - 1, r1: s.hw + 1, y: -2.6 };
+    return { E: s.E, F: s.F, R: s.R, f0: s.c[0] - s.rx, f1: s.c[0] + s.rx, r0: -s.rz, r1: s.rz, y: -1.4 };
+  });
+  return { ext, step, nx, H, height, heightFn, distTiles, waters };
+}
+
+function placeTrees(terrain, seed, count) {
+  const r = rng(seed * 13 + 5);
+  const noise = makeNoise2(seed * 3 + 1);
+  const out = [];
+  let tries = 0;
+  while (out.length < count && tries < count * 30) {
+    tries++;
+    const x = r.range(-560, 560), z = r.range(-560, 560);
+    const dt = terrain.distTiles(x, z);
+    if (dt < 1.35) continue;
+    const dens = noise.fbm(x / 140, z / 140, 3) * 0.5 + 0.5;
+    const near = dt < 4 ? 0.55 : 1;
+    if (r() > dens * dens * 2.2 * near) continue;
+    const y = terrain.height(x, z);
+    if (y < -0.5) continue;
+    let ok = true;
+    for (const w of terrain.waters) {
+      const dx = x - w.E[0], dz = z - w.E[2];
+      const f = dx * w.F[0] + dz * w.F[2], rr = dx * w.R[0] + dz * w.R[2];
+      if (f > w.f0 - 6 && f < w.f1 + 6 && rr > w.r0 - 6 && rr < w.r1 + 6) { ok = false; break; }
+    }
+    if (!ok) continue;
+    out.push({ x, y, z, s: r.range(0.75, 1.35), rot: r.range(0, Math.PI), v: r.int(2) });
+  }
+  return out;
+}
