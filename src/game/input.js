@@ -1,6 +1,18 @@
 // Eingabe: Tastatur, Gamepad, Touch (Tasten-Zonen bzw. Bildschirmhälften, optional Neigen).
 // Liefert Rohwerte steer (−1..1), throttle/brake (0..1) + Knöpfe (rewind, pause, cam, Ideallinie).
 
+// Neigen → Lenkwinkel in Grad (> 0 = rechts), für jede Bildschirm-Ausrichtung (0 hoch, 90/270 bzw. −90 quer,
+// 180 kopfüber). Aus beta/gamma wird die Richtung „oben“ im Geräte-System berechnet und auf die waagrechte
+// Bildschirmachse projiziert: rechter Bildschirmrand tiefer = rechts lenken. Funktioniert flach gehalten
+// (Kippen) wie aufrecht (Drehen wie ein Lenkrad) und ohne Sprung beim Kippen über 90°.
+export function tiltSteerDeg(beta, gamma, angle) {
+  const D = Math.PI / 180, b = beta * D, g = gamma * D, t = (((angle % 360) + 360) % 360) * D;
+  const ux = -Math.sin(g) * Math.cos(b), uy = Math.sin(b), uz = Math.cos(g) * Math.cos(b);
+  const sx = Math.cos(t), sy = -Math.sin(t);            // Bildschirm-rechts in Geräte-Koordinaten
+  const lat = -(ux * sx + uy * sy) / Math.max(1e-6, Math.hypot(ux, uy, uz));
+  return Math.asin(Math.max(-1, Math.min(1, lat))) / D;
+}
+
 export class Input {
   constructor() {
     this.keys = new Set();
@@ -19,6 +31,8 @@ export class Input {
     addEventListener('keyup', (e) => this.keys.delete(e.code));
     addEventListener('blur', () => this.keys.clear());
   }
+  // Alle gehaltenen Touch-Eingaben lösen (Drehen, App-Wechsel): nichts bleibt „gedrückt“
+  releaseTouch() { Object.assign(this.touch, { steer: 0, throttle: 0, brake: 0, active: false }); }
   consume(code) { const h = this.pressed.has(code); this.pressed.delete(code); return h; }
   enableTilt(on) {
     this.tilt.enabled = on;
@@ -26,9 +40,8 @@ export class Input {
     this._tiltBound = true;
     addEventListener('deviceorientation', (e) => {
       if (!this.tilt.enabled || e.beta == null) return;
-      // Querformat: Neigen um die lange Achse ~ beta bzw. gamma je nach Ausrichtung
-      const ang = (screen.orientation && screen.orientation.angle) || window.orientation || 0;
-      let v = Math.abs(ang) === 90 ? e.beta * Math.sign(ang) : e.gamma;
+      const ang = (screen.orientation && screen.orientation.angle != null) ? screen.orientation.angle : (window.orientation || 0);
+      const v = tiltSteerDeg(e.beta, e.gamma || 0, ang);
       if (this.tilt.base == null) this.tilt.base = 0;
       this.tilt.value = Math.max(-1, Math.min(1, (v - this.tilt.base) / 22));
     });

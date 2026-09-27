@@ -1,6 +1,7 @@
 // Kameras: Verfolger (folgt Fahrzeug-Oben weich → dreht im Looping mit), Cockpit (Fahrerplatz, dreht mit
 // dem Auto), Stoßstange, Streckenkameras (feste Masten an der Strecke, schwenken mit) für Replays.
 import * as THREE from 'three';
+import { Tracker } from '../ai/autopilot.js';
 
 const V = () => new THREE.Vector3();
 export const CAM_MODES = ['chase', 'cockpit', 'far', 'bumper', 'track'];
@@ -12,7 +13,15 @@ export function cockpitFov(aspect) {
   const v = 2 * Math.atan(Math.tan(37.5 * Math.PI / 180) / Math.max(0.2, aspect)) * 180 / Math.PI;
   return Math.max(34, Math.min(75, v));
 }
+// Hochformat (Handy hochkant): Verfolger höher, weiter hinten, größeres vertikales Sichtfeld, Blick weiter
+// voraus → Auto im unteren Drittel, mehr Strecke voraus. Anteil p = 0 (quer/Desktop, unverändert) … 1 (≤ 0,5).
+// Dazu blickt der Verfolger anteilig (aim) auf einen Punkt der Strecke aimDist + aimSpeed·v Meter voraus: Kurven
+// laufen hochkant sonst seitlich aus dem schmalen Bild.
+// Abgestimmt mit tests/hochformat_cam.py (Auto im unteren Drittel, Strecke voraus im Bild, Auto nie am Rand).
+export const PORTRAIT = { vfov: 88, dist: 2.2, h: 3.6, look: 12, lookUp: -0.5, speedFov: 0.5, aim: 0.5, aimDist: 40, aimSpeed: 0.6 };
+export function portraitK(aspect) { return Math.max(0, Math.min(1, (1 - aspect) / 0.5)); }
 const clamp = (x, a) => Math.max(-a, Math.min(a, x));
+const AIM_MAX = 14 * Math.PI / 180;   // hochkant: größtes Eindrehen in die Kurve
 const LAG_MAX = 3.0; // m: größter Verzug des Verfolgers hinter dem Auto (Tempo-Nachführung)
 
 export class CameraRig {
@@ -48,6 +57,56 @@ export class CameraRig {
       out.push({ p, s: L.s[i], i });
     }
     this.trackCams = out;
+    this.line = L; this.trk = new Tracker(L); this.trkOk = false;
+    this.cork = track.pieces.map((pc) => !!pc && /cork/.test(pc.kind || pc.type || ''));
+    this.aimK = 0; this.hiK = 1; this.aimDir = new THREE.Vector3(); this.aimInit = false;
+  }
+  // Hochformat: Richtung (nur Gieren, ⟂ Kamera-Oben) zu einem Punkt der Fahrlinie voraus; Gewicht 0, wenn das
+  // Auto weit neben der Strecke, im Looping/in der Röhre/im Korkenzieher, kopfüber oder in der Luft ist.
+  // Nebenbei hiK: Anteil der Hochkant-Zusatzhöhe/-distanz – in Looping/Röhre/Korkenzieher weich auf 0 (die
+  // höhere Kamera würde dort vom Bauwerk abgefangen und dicht ans Auto rücken)
+  aimAhead(dt, cp, speed, pk, air) {
+    const L = this.line, tr = this.trk, PT = PORTRAIT;
+    let want = 0, hi = 1;
+    if (L && pk > 0) {
+      tr.update(cp.x, cp.y, cp.z, !this.trkOk);
+      this.trkOk = tr.dist < 25;
+      const stunt = this.trkOk && (this.up.y < 0.6 || this.stuntAhead(tr.idx, 18));
+      if (stunt) hi = 0;
+      if (this.trkOk && !air && !stunt) {
+        const n = L.n, D = PT.aimDist + PT.aimSpeed * speed;
+        let i = tr.idx, acc = 0;
+        for (let k = 0; k < n && acc < D; k++) {
+          const j = i + 1 < n ? i + 1 : (L.closed ? 0 : i);
+          if (j === i) break;
+          acc += Math.hypot(L.px[j] - L.px[i], L.py[j] - L.py[i], L.pz[j] - L.pz[i]);
+          i = j;
+        }
+        const a = this._a || (this._a = new THREE.Vector3());
+        a.set(L.px[i] - cp.x, L.py[i] - cp.y, L.pz[i] - cp.z).addScaledVector(this.up, -a.dot(this.up));
+        if (a.lengthSq() > 1) {
+          a.normalize();
+          if (!this.aimInit) { this.aimDir.copy(a); this.aimInit = true; }
+          this.aimDir.lerp(a, 1 - Math.exp(-dt * 4)).normalize();
+          want = pk * PT.aim;
+        }
+      }
+    }
+    this.aimK += (want - this.aimK) * (1 - Math.exp(-dt * 3));
+    this.hiK += (hi - this.hiK) * (1 - Math.exp(-dt * (hi ? 1.5 : 4)));
+    return this.aimK;
+  }
+  // Looping, Röhre oder Korkenzieher/Wendel ab Linienpunkt i0 innerhalb der nächsten m Meter?
+  stuntAhead(i0, m) {
+    const L = this.line, n = L.n, C = this.cork;
+    for (let i = i0, k = 0, acc = 0; k < n && acc <= m; k++) {
+      if (L.loop[i] || L.tube[i] || C[L.piece[i]]) return true;
+      const j = i + 1 < n ? i + 1 : (L.closed ? 0 : i);
+      if (j === i) break;
+      acc += Math.hypot(L.px[j] - L.px[i], L.py[j] - L.py[i], L.pz[j] - L.pz[i]);
+      i = j;
+    }
+    return false;
   }
   cycle() {
     const modes = CAM_MODES;
@@ -61,7 +120,7 @@ export class CameraRig {
     const f = this._d.set(P.frame.f.x, P.frame.f.y, P.frame.f.z);
     const u = this._u.set(P.frame.u.x, P.frame.u.y, P.frame.u.z);
     if (crashed) { u.set(0, 1, 0); }
-    if (!this.init) { this.cInit = false; this.fwd.copy(f); this.up.copy(u); this.init = true; this.pos.copy(cp).addScaledVector(f, -6).addScaledVector(u, 2.3); this.baseY = cp.y; this.airK = 0; this.hasCp = false; }
+    if (!this.init) { this.cInit = false; this.fwd.copy(f); this.up.copy(u); this.init = true; this.pos.copy(cp).addScaledVector(f, -6).addScaledVector(u, 2.3); this.baseY = cp.y; this.airK = 0; this.hasCp = false; this.trkOk = false; this.aimK = 0; this.hiK = 1; this.aimInit = false; }
     // Flug (alle Räder frei, nicht in Looping/Röhre): Verfolger zieht nicht mit hoch, sondern bleibt auf
     // Absprunghöhe, etwas weiter hinten und waagrecht → der Sprung wirkt sichtbar hoch. airK blendet weich.
     this.airT = P.air && !crashed ? this.airT + dt : 0;
@@ -78,7 +137,11 @@ export class CameraRig {
     if (this.airK > 0.01 && (this.mode === 'chase' || this.mode === 'far')) u.lerp(this._h.set(0, 1, 0), this.airK).normalize();
     this.up.lerp(u, ku).normalize();
     // Tempo-Sichtfeld: bis ~315 km/h wie bisher +14°, darüber (seit Vmax ~580 km/h) sanft bis +20°
-    let targetFov = 62 + Math.min(14, speed * 0.16) + 6 * Math.max(0, Math.min(1, (speed - 70) / 85));
+    const pk = portraitK(cam.aspect), PT = PORTRAIT;
+    let targetFov = 62 + pk * (PT.vfov - 62) + (1 - pk * PT.speedFov) * (Math.min(14, speed * 0.16) + 6 * Math.max(0, Math.min(1, (speed - 70) / 85)));
+    if (pk > 0) targetFov = Math.min(targetFov, 62 + pk * (PT.vfov + 8 - 62) + 14 * (1 - pk));   // hochkant höchstens ~96°
+    // Drehen (quer ↔ hoch): Sichtfeld sofort umstellen statt langsam nachzuziehen
+    if (this.aspect !== cam.aspect) { if (this.aspect != null && Math.abs(portraitK(this.aspect) - pk) > 0.05) this.fov = targetFov; this.aspect = cam.aspect; }
     // Cockpit beim Wrack: kurz in den Verfolger (wie im Original), danach wieder zurück ins Cockpit
     const view = this.mode === 'cockpit' && crashed ? 'chase' : this.mode;
     if (view !== this.view && view === 'cockpit') this.cInit = false;
@@ -91,8 +154,10 @@ export class CameraRig {
     this.hasCp = false;
     if (view === 'chase' || this.mode === 'far') {
       this.hasCp = hadCp;
+      // Hochkant: Blick in die Kurve (Gewicht w) und Zusatzhöhe/-distanz (Anteil ph, in Loopings/Röhren weg)
+      const w = this.aimAhead(dt, cp, speed, pk, this.airK > 0.5 || crashed), ph = pk * this.hiK;
       // Verfolger näher am Auto (Peter 27.09.: vorher 6.8 m / 2.15 m)
-      const dist = this.mode === 'far' ? 11.5 : crashed ? 8 : 5.0, h = this.mode === 'far' ? 3.8 : crashed ? 3.0 : 1.75;
+      const dist = (this.mode === 'far' ? 11.5 : crashed ? 8 : 5.0) + ph * PT.dist, h = (this.mode === 'far' ? 3.8 : crashed ? 3.0 : 1.75) + ph * PT.h;
       // Flug: Blickrichtung waagrecht, 1,5 m weiter zurück, Höhe bleibt bei der Absprunghöhe (85 %)
       const a = this.airK, back = this._h.copy(this.fwd);
       if (a > 0) { back.y *= 1 - a; back.normalize(); }
@@ -119,7 +184,22 @@ export class CameraRig {
       this.pos.lerp(want, kp);
       cam.position.copy(this.pos);
       cam.up.copy(this.up);
-      this.look.copy(cp).addScaledVector(this.fwd, 3.5).addScaledVector(this.up, 0.9);
+      // Blickrichtung: Fahrtrichtung, hochkant anteilig in die Kurve voraus gedreht (Neigung bleibt die des Autos)
+      const dir = this._h.copy(this.fwd);
+      if (w > 0.001) {
+        // Gieren um Kamera-Oben: Anteil w des Winkels zum Zielpunkt, höchstens AIM_MAX (Auto bleibt sicher im
+        // Bild); liegt der Punkt fast quer/hinter dem Auto (Wendel, Kehre), sanft aus
+        const up = this.up, fh = V().copy(this.fwd).addScaledVector(up, -this.fwd.dot(up));
+        if (fh.lengthSq() > 1e-4) {
+          fh.normalize();
+          const th = Math.acos(Math.max(-1, Math.min(1, fh.dot(this.aimDir))));
+          const fade = Math.max(0, Math.min(1, (1.9 - th) / 0.5));
+          const yaw = Math.min(w * th, AIM_MAX) * fade * Math.sign(V().crossVectors(fh, this.aimDir).dot(up));
+          const side = V().crossVectors(up, fh);   // links von fh
+          dir.copy(fh).multiplyScalar(Math.cos(yaw)).addScaledVector(side, Math.sin(yaw)).addScaledVector(up, this.fwd.dot(up)).normalize();
+        }
+      }
+      this.look.copy(cp).addScaledVector(dir, 3.5 + ph * PT.look).addScaledVector(this.up, 0.9 + ph * PT.lookUp);
       cam.lookAt(this.look);
       this.lastCp.copy(cp); this.hasCp = true;
     } else if (this.mode === 'bumper') {
@@ -137,7 +217,7 @@ export class CameraRig {
         cam.position.copy(best.p);
         cam.up.set(0, 1, 0);
         cam.lookAt(cp);
-        targetFov = Math.max(18, Math.min(55, 900 / Math.max(8, Math.sqrt(bd))));
+        targetFov = Math.max(18, Math.min(55, 900 / Math.max(8, Math.sqrt(bd)))) * (1 + 0.5 * pk);
       }
     }
     this.fov += (targetFov - this.fov) * Math.min(1, dt * 3);

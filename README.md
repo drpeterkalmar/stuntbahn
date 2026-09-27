@@ -2,7 +2,7 @@
 
 **Stunt-Rennspiel im Browser** – Loopings, Schanzen, Steilkurven, Röhren und Brücken auf einem
 30×30-Raster, wie bei den großen Stunt-Klassikern der frühen 90er. Realistische Grafik, Arcade-Physik,
-spielbar am Handy (quer), mit Gamepad oder Tastatur. Als App installierbar (PWA), läuft offline.
+spielbar am Handy (quer oder hochkant), mit Gamepad oder Tastatur. Als App installierbar (PWA), läuft offline.
 
 ▶ **Spielen:** https://drpeterkalmar.github.io/stuntbahn/
 
@@ -62,8 +62,9 @@ zurückgesetzt, an der er die Fahrbahn verlassen hat (Uhr läuft weiter). Ab 18 
 - **An:** Wrack wie früher; Leicht/Mittel spulen danach 3 s zurück (samt Uhr), Original setzt vor das Element.
 
 ## Steuerung
-- **Handy (quer halten):** Leicht – Bildschirmhälften halten; Mittel/Original – links ◀ ▶, rechts GAS und BREMSE
-  (Bremse im Stand = rückwärts). Optional „Lenken durch Neigen“. Keine Wischgesten.
+- **Handy (quer oder hochkant):** Leicht – Bildschirmhälften halten; Mittel/Original – links ◀ ▶, rechts GAS und BREMSE
+  (Bremse im Stand = rückwärts; hochkant alle vier Tasten unten in einer Reihe). Optional „Lenken durch Neigen“
+  (hochkant: seitlich kippen oder wie ein Lenkrad drehen). Keine Wischgesten. Drehen im Rennen → kurze Pause mit „▶ Weiter“.
 - **Tastatur:** Pfeile/WASD, Leertaste bremsen, `R` zurückspulen, `C` Kamera, `L` Ideallinie, `Esc` Pause.
 - **Gamepad:** linker Stick lenken, RT/A Gas, LT/X Bremse, Y zurückspulen, LB Kamera, Back Ideallinie, Start Pause.
 
@@ -101,7 +102,11 @@ node tools/linie_analyse.mjs --laps       # Ideallinie: Scheitel-Nutzung, Löser
 python3 tests/linie_shots.py              # Fotos: Linie mit Scheitel-Keilen, HUD-Ansagen (tests/shots/linie/)
 python3 tests/smoke.py                    # Browser (Playwright, Pixel 7 quer), Screenshots nach tests/shots/
 python3 tests/test_race.py                # Rennen, Bestzeit nach Reload, Geist, Replay
-python3 tests/test_touch.py               # Touch-Steuerung, Knopfgrößen ≥ 48 px
+python3 tests/test_touch.py               # Touch-Steuerung quer + hochkant, Knopfgrößen ≥ 48 px, Layout
+python3 tests/test_hochformat.py          # Drehen im Rennen (quer→hoch→quer), keine hängenden Finger, Neigen-Achse, Platz für 2 Knöpfe
+python3 tests/hochformat_shots.py         # Fotos + Layout-Prüfung aller Bildschirme (pixel7 iphone14 klein | …q = quer)
+python3 tests/hochformat_cam.py 4711      # Verfolger hoch vs. quer: Auto-Lage, Horizont, Strecke voraus (m)
+node tests/node/test_tilt.mjs             # Neigen: richtige Achse je Bildschirm-Ausrichtung
 python3 tests/test_reset_ui.py            # Totalschalter, „+5 s“, Strafen in Ergebnis/Replay, Bestzeit-Wertungen
 node tests/node/test_cockpit.mjs          # Instrumente: Skalen, Vmax ≤ Tacho, Zeiger-Dynamik, Kulisse, Replay-Gang
 python3 tests/test_cockpit_ui.py          # Cockpit: Kamera-Knopf, gespeichert, Wrack → Verfolger, Replay, 0 Fehler

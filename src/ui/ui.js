@@ -37,14 +37,13 @@ export class UI {
         <div class="tl"><div class="time">0:00,00</div><div class="pen"></div><div class="best"></div></div>
         <div class="tc"><div class="cp"></div></div>
         <div class="hint2" aria-live="polite"></div>
-        <div class="tr">
+        <div class="tr"><div class="rbs">
           <button class="rb line" data-a="linetoggle" aria-label="Ideallinie ein/aus" title="Ideallinie ein/aus (L)"><svg viewBox="0 0 24 24" aria-hidden="true"><defs><linearGradient id="lg" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#3bdc55"/><stop offset=".55" stop-color="#ffd21a"/><stop offset="1" stop-color="#ff4a2a"/></linearGradient></defs><path d="M4 21C6 13 18 15 20 3" fill="none" stroke="url(#lg)" stroke-width="3.2" stroke-linecap="round"/><path class="x" d="M4 4L20 20" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/></svg></button>
           <button class="rb" data-a="rewind" aria-label="Zurückspulen" title="Zurückspulen (R)">⏪</button>
           <button class="rb" data-a="cam" aria-label="Kamera wechseln" title="Kamera (C)">🎥</button>
           <button class="rb" data-a="pause" aria-label="Pause" title="Pause (Esc)">⏸</button>
-        </div>
+        </div><div class="assistTag"></div></div>
         <div class="speed"><b>0</b><span>km/h</span><i class="gear">1</i></div>
-        <div class="assistTag"></div>
       </div>
       <div id="wipe"></div>
       <div id="big"></div>
@@ -307,9 +306,9 @@ export class UI {
   }
   showHelp() {
     this.sheet('Steuerung', `
-      <p><b>Handy (quer halten):</b> Fahrhilfe <i>Leicht</i>: linke/rechte Bildschirmhälfte halten zum Lenken – Gas macht das Auto. Oder in den Optionen „Lenken durch Neigen“.</p>
+      <p><b>Handy (quer oder hochkant):</b> Fahrhilfe <i>Leicht</i>: linke/rechte Bildschirmhälfte halten zum Lenken – Gas macht das Auto. Oder in den Optionen „Lenken durch Neigen“ (hochkant: seitlich kippen oder wie ein Lenkrad drehen). Drehst du das Handy im Rennen, pausiert es kurz – weiter mit „▶ Weiter“.</p>
       <p><b>Leicht:</b> Ohne Lenken fährt das Auto allein auf der Ideallinie. Lenkst du deutlich (kurz halten), hast <b>du Vorrang</b>: Die Hilfe lässt los, du kannst die Fahrbahn verlassen und durchs Gelände fahren. Loslassen – die Hilfe blendet weich ein und führt dich sanft zurück. Deine Bremse geht immer vor. Loopings, Röhren, Korkenzieher und Sprünge lenkt weiter das Auto; vorher steht oben „… voraus – Autopilot lenkt“. Gilt für Tastatur, Gamepad, Touch und Neigen.</p>
-      <p><i>Mittel/Original</i>: links ◀ ▶ lenken, rechts GAS und BREMSE. Bremse im Stand = Rückwärtsgang.</p>
+      <p><i>Mittel/Original</i>: links ◀ ▶ lenken, rechts GAS und BREMSE (hochkant alle unten in einer Reihe). Bremse im Stand = Rückwärtsgang.</p>
       <p><b>Tastatur:</b> Pfeile oder WASD, Leertaste bremsen, <b>R</b> zurückspulen, <b>C</b> Kamera (Verfolger, Cockpit, Hubschrauber, Stoßstange, Strecke), <b>L</b> Ideallinie ein/aus, <b>Esc</b> Pause.</p>
       <p><b>Gamepad:</b> linker Stick lenken, RT/A Gas, LT/X Bremse, Y zurückspulen, LB Kamera, Back Ideallinie, Start Pause.</p>
       <p><b>Crash:</b> Standardmäßig kein Totalschaden – das Auto steht sofort wieder auf der Fahrbahn vor dem Stunt, mit Schwung, und du bekommst <b>+${PENALTY} s</b> auf die Zeit. Klappt ein Stunt mehrmals nicht, wirst du dahinter gesetzt (auch dann je +${PENALTY} s). Wer es hart mag: Optionen → <b>💥 Totalschaden</b> (Wrack wie im Original).</p>
@@ -439,8 +438,9 @@ export class UI {
     const R = $('#replayui');
     R.classList.add('show');
     this._rpen = 0; this._rsec = 0; this._rtxt = '';
-    $('.btns', R).innerHTML = [['chase', '🚗 Verfolger'], ['cockpit', '🏁 Cockpit'], ['far', '🚁 Hubschrauber'], ['track', '📹 Strecke'], ['bumper', '🎯 Stoßstange']]
-      .map(([m, n]) => `<button data-a="rcam" data-v="${m}">${n}</button>`).join('') + '<button data-a="rplay">⏯</button><button data-a="rslow">🐢</button><button data-a="rend">✕</button>';
+    $('.btns', R).innerHTML = [['chase', '🚗 Ver&shy;folger'], ['cockpit', '🏁 Cockpit'], ['far', '🚁 Hub&shy;schrauber'], ['track', '📹 Strecke'], ['bumper', '🎯 Stoß&shy;stange']]
+      .map(([m, n]) => { const [ic, ...w] = n.split(' '); return `<button data-a="rcam" data-v="${m}"><i>${ic}</i> <span>${w.join(' ')}</span></button>`; }).join('')
+      + '<button data-a="rplay" aria-label="Pause/Weiter">⏯</button><button data-a="rslow" aria-label="Zeitlupe">🐢</button><button data-a="rend" aria-label="Replay beenden">✕</button>';
     this.replayCamMark('chase');
   }
   replayCam(m) { window.__game.cam(m); this.replayCamMark(m); }
@@ -457,11 +457,23 @@ export class UI {
     if (txt !== this._rtxt) { this._rtxt = txt; $('#replayui .rinfo').textContent = txt; }
   }
   // ---------- Touch ----------
+  isTouchDevice() { return matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window; }
+  // Gestenleiste/Home-Indikator unten in CSS-Pixeln (safe-area, per Mess-Element aufgelöst)
+  safeBottom() {
+    if (!this._sab) { this._sab = h('div'); this._sab.style.cssText = 'position:fixed;visibility:hidden;pointer-events:none;height:0;padding-bottom:var(--sab)'; document.body.appendChild(this._sab); }
+    return parseFloat(getComputedStyle(this._sab).paddingBottom) || 0;
+  }
+  // Alle Finger als losgelassen werten (Drehen, App im Hintergrund) – keine hängenden Eingaben
+  releaseTouch() {
+    this.touchIds.clear();
+    if (this._touchUpdate) this._touchUpdate();
+  }
   setTouchMode(on) {
     const T = $('#touch');
-    const touchDev = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
+    const touchDev = this.isTouchDevice();
     const easy = this.store.settings.assist === 'easy';
     T.className = on && touchDev ? (easy ? 'show halves' : 'show pads') : '';
+    document.body.dataset.touch = on && touchDev ? (easy ? 'halves' : 'pads') : 'none';
     if (on && this.store.settings.tilt) T.classList.add('tilt');
     if (!on) this.touchIds.clear();
     if (this._touchUpdate) this._touchUpdate();
@@ -491,5 +503,7 @@ export class UI {
     const up = (e) => { this.touchIds.delete(e.pointerId); update(); };
     T.addEventListener('pointerup', up); T.addEventListener('pointercancel', up); T.addEventListener('lostpointercapture', up);
     this._touchUpdate = update;
+    addEventListener('blur', () => this.releaseTouch());
+    document.addEventListener('visibilitychange', () => { if (document.hidden) this.releaseTouch(); });
   }
 }

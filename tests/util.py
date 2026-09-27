@@ -1,5 +1,5 @@
 # Test-Helfer: eingebauter HTTP-Server (Thread, endet mit dem Skript), Playwright mit
-# Pixel-7-Emulation im Querformat, SwiftShader-WebGL, Fehler-Sammlung, Screenshots.
+# Pixel-7-Emulation im Querformat, WebGL über die GPU (ANGLE/Metal), Fehler-Sammlung, Screenshots.
 import os, time, json, threading, socket, functools
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from playwright.sync_api import sync_playwright
@@ -8,7 +8,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PIXEL7_LAND = dict(viewport={"width": 915, "height": 412}, device_scale_factor=2.625, is_mobile=True, has_touch=True,
                    user_agent="Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36")
 DESKTOP = dict(viewport={"width": 1280, "height": 720}, device_scale_factor=1)
-ARGS = ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist", "--enable-webgl"]
+ARGS = ["--use-angle=metal", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist", "--enable-webgl"]   # WebGL über die GPU (Metal)
 
 class Quiet(SimpleHTTPRequestHandler):
     def log_message(self, *a): pass
@@ -72,6 +72,7 @@ class Session:
     def tap(self, sel):
         el = self.pg.locator(sel).first
         el.wait_for(state='visible', timeout=20000)
+        el.scroll_into_view_if_needed(timeout=5000)   # Hochformat: Menü/Karten scrollen
         box = el.bounding_box()
         try:
             self.pg.touchscreen.tap(box['x'] + box['width'] / 2, box['y'] + box['height'] / 2)

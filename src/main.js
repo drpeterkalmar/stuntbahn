@@ -48,15 +48,25 @@ camera.layers.enable(STATIC_LAYER);
 const quality = new Quality(renderer, params.get('q'));
 let sun, skyInfo, envMap, M, carVis, ghostVis, sky, cockpit;
 
+let sizeW = 0, sizeH = 0, portrait = null;
 function resize() {
   const w = innerWidth, h = innerHeight;
+  sizeW = w; sizeH = h;
   renderer.setPixelRatio(quality.pixelRatio());
   if (sun) quality.apply(sun, renderer);
   renderer.setSize(w, h, false);
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
+  const p = h > w;
+  if (portrait !== null && p !== portrait) rotated(p);
+  portrait = p;
+  document.body.dataset.orient = p ? 'hoch' : 'quer';
 }
 addEventListener('resize', resize);
+// Drehen: manche Browser melden die neuen Maße erst nach dem Ereignis → kurz danach noch einmal messen
+const reResize = () => { resize(); setTimeout(resize, 120); setTimeout(resize, 400); };
+addEventListener('orientationchange', reResize);
+if (screen.orientation && screen.orientation.addEventListener) screen.orientation.addEventListener('change', reResize);
 resize();
 
 const input = new Input();
@@ -326,6 +336,17 @@ function cycleCam() {
   else { store.settings.cam = m; store.save(); }
   ui.toast(CAM_NAMES[m]);
 }
+// Quer ↔ hoch gedreht: Finger sind weg (Touch lösen, kein hängendes Gas/Lenken); im laufenden Rennen am
+// Touch-Gerät kurz pausieren – Pause-Karte mit „▶ Weiter“ (Tastatur/Desktop: Rennen läuft einfach weiter)
+function rotated(p) {
+  ui.releaseTouch();
+  input.releaseTouch();
+  rig.init = false;
+  if (mode === 'race' && !frozen && race && (race.state === 'running' || race.state === 'countdown') && ui.isTouchDevice()) {
+    togglePause();
+    ui.toast(p ? '📱 Hochformat' : '📱 Querformat');
+  }
+}
 function togglePause() { if (mode !== 'race') return; frozen = !frozen; ui.showPause(frozen); if (frozen) sound.stop(); else sound.start(); }
 
 // ---------- Schleife ----------
@@ -334,6 +355,7 @@ function frame(now) {
   const rdt = Math.min(0.1, (now - last) / 1000);
   last = now;
   app.frames++;
+  if (innerWidth !== sizeW || innerHeight !== sizeH) resize();   // Drehen ohne (rechtzeitiges) resize-Ereignis
   quality.sample(rdt, () => resize());
   const inp = input.update(rdt);
   if (input.consume('Escape') || input.consume('KeyP')) { if (mode === 'race') togglePause(); }
@@ -374,7 +396,8 @@ function handleEvents() {
   race.events.length = 0;
 }
 
-// Cockpit-Layout: freie Zone zwischen den Touch-Tasten (Querformat) bzw. über der Replay-Leiste.
+// Cockpit-Layout: freie Zone zwischen den Touch-Tasten (Querformat) bzw. über den Tasten (Hochformat: Tasten
+// in einer Reihe unten) bzw. über der Replay-Leiste; Gestenleiste (safe-area unten) bleibt frei.
 // DOM-Maße nur alle 15 Bilder lesen (erzwingt sonst jedes Bild eine Layout-Berechnung).
 let cpZone = null, cpZoneF = -1e9;
 function cockpitZone() {
@@ -382,15 +405,15 @@ function cockpitZone() {
   cpZoneF = app.frames;
   const W = innerWidth, H = innerHeight;
   const half = Math.min(0.47 * W, 0.55 * H);
-  let zl = W / 2 - half, zr = W / 2 + half, bottom = 0;
-  const pads = document.querySelectorAll('#touch.show.pads .pad');
-  for (const p of pads) {
-    const r = p.getBoundingClientRect();
-    if (!r.width) continue;
-    if (r.left < W / 2) zl = Math.max(zl, r.right + 12); else zr = Math.min(zr, r.left - 12);
-  }
+  let zl = W / 2 - half, zr = W / 2 + half, bottom = ui.safeBottom();
+  const rects = [...document.querySelectorAll('#touch.show.pads .pad')].map((p) => p.getBoundingClientRect()).filter((r) => r.width);
+  let gl = zl, gr = zr;
+  for (const r of rects) { if (r.left < W / 2) gl = Math.max(gl, r.right + 12); else gr = Math.min(gr, r.left - 12); }
+  // Lücke zwischen den Tasten zu schmal für die Instrumente (Hochformat) → Instrumente über die Tasten
+  if (rects.length && (H > W || gr - gl < 200)) bottom = Math.max(bottom, H - Math.min(...rects.map((r) => r.top)) + 10);
+  else { zl = gl; zr = gr; }
   const R = document.getElementById('replayui');
-  if (R && R.classList.contains('show')) { const r = R.getBoundingClientRect(); if (r.top > H / 2) bottom = r.height; }
+  if (R && R.classList.contains('show')) { const r = R.getBoundingClientRect(); if (r.top > H / 2) bottom = Math.max(bottom, H - r.top); }
   cpZone = { W, H, zl, zr, bottom };
   return cpZone;
 }
