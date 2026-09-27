@@ -54,7 +54,8 @@ function runScenario(v, assist, wreck, kind, who) {
     states.add(race.state);
     if (race.penalties > p0 && Math.abs(race.time - t0 - DT - PENALTY) > 1e-6) jumpOk = false;
     // Lage einen Physikschritt nach dem Versetzen (Tracker misst den Abstand erst dann neu)
-    if (pending) { const c = race.car; resetInfo = { dist: race.tracker.dist, up: c.frame.u.y, v: c.fwdSpeed() }; pending = false; }
+    // Abstand zur Ideallinie: der Reset setzt das Auto auf die Linie, nicht mehr in die Fahrbahnmitte (27.09.)
+    if (pending) { const c = race.car; resetInfo = { dist: race.ap.tr.dist, up: c.frame.u.y, v: c.fwdSpeed() }; pending = false; }
     for (const e of race.events) {
       if (e.type === 'crash' && !firstReason) firstReason = e.reason;
       if ((e.type === 'reset' || e.type === 'skip') && !resetInfo) pending = true;

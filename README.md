@@ -37,7 +37,7 @@ spielbar am Handy (quer), mit Gamepad oder Tastatur. Als App installierbar (PWA)
 ## Fahrhilfen
 | Stufe | Was hilft |
 |---|---|
-| 🟢 **Leicht** | Gas und Bremse automatisch, Lenkung wird stark zur Ideallinie gezogen, Stunts fährt das Auto selbst. Handy: linke/rechte Bildschirmhälfte halten (oder Neigen). |
+| 🟢 **Leicht** | Gas automatisch (Bremse des Spielers geht vor). Ohne Lenken fährt das Auto allein die Ideallinie; deutlicher Lenkeinschlag (kurz gehalten) gibt dem Spieler Vorrang – auch quer durchs Gelände, Loslassen führt weich zurück. Loopings, Röhren, Korkenzieher und Sprünge lenkt das Auto selbst (mit Ansage im HUD). Handy: linke/rechte Bildschirmhälfte halten (oder Neigen). |
 | 🟡 **Mittel** | Bremsassistent, leichter Zug zur Linie (in Stunts stärker), Stabilitätshilfe, farbige Ideallinie (grün = Gas, gelb = vom Gas, rot = bremsen), Rückspul-Knopf. |
 | 🔴 **Original** | Keine Hilfen – so tricky wie damals. |
 
@@ -45,7 +45,13 @@ Die Fahrhilfe ist jederzeit im Pause-Menü umschaltbar.
 
 **Ideallinie** (Optionen/Pause, Leicht und Mittel): Aus / **Dezent** (Standard: schmaler, 28 % Deckkraft, weicher Rand,
 blendet ab ~60 m vor/hinter dem Auto aus) / Kräftig (bisheriger Look). Im Rennen schaltet der Knopf oben rechts, `L` oder
-Gamepad-Back zwischen Aus und der gewählten Stufe um. Nur Anzeige – die Lenkhilfe bleibt gleich.
+Gamepad-Back zwischen Aus und der gewählten Stufe um. Nur Anzeige – die Lenkhilfe bleibt gleich. Die Linie ist die
+Minimal-Krümmungs-Linie (exakt gelöst): außen anfahren, am Scheitel innen bis an den Sicherheitsabstand, außen raus;
+Keile am Innenrand markieren die Scheitelpunkte. Loopings, Röhren, Korkenzieher, Sprünge und Steilkurven bleiben auf der
+Bausteinspur.
+
+**Abkürzen** lohnt nicht (alle Stufen): Wer neben der Fahrbahn mehr Strecke gutmacht, als er fährt, wird an die Stelle
+zurückgesetzt, an der er die Fahrbahn verlassen hat (Uhr läuft weiter). Ab 18 m Abstand erscheint „Zurück zur Strecke ↺“.
 
 **Crash** (Option „💥 Totalschaden“, gilt für alle Stufen):
 - **Aus (Standard):** kurzes Aufblitzen → Fahrbahn-Reset vor das Element mit Profil-Tempo, **+5 s** (groß angezeigt,
@@ -88,6 +94,9 @@ node tests/node/test_loop_gate.mjs        # Physik-Gate: Ebene → Schanze → S
 node tests/node/test_verify_batch.mjs 10  # Generator: 10 Seeds × 3 Stufen per Autopilot lösbar
 node tests/node/test_assists.mjs          # Fahrhilfen mit simulierten Spielern
 node tests/node/test_reset.mjs            # Crash in Looping/Sprung/Wand: Reset +5 s bzw. Wrack; nie Endlosschleife
+node tests/node/test_free_steer.mjs       # Leicht: Spieler-Vorrang, weiche Rückführung, Abkürz-Regel, Stunt-Ansage
+node tools/linie_analyse.mjs --laps       # Ideallinie: Scheitel-Nutzung, Löser-Zeit, Autopilot-Runden auf allen Stufen
+python3 tests/linie_shots.py              # Fotos: Linie mit Scheitel-Keilen, HUD-Ansagen (tests/shots/linie/)
 python3 tests/smoke.py                    # Browser (Playwright, Pixel 7 quer), Screenshots nach tests/shots/
 python3 tests/test_race.py                # Rennen, Bestzeit nach Reload, Geist, Replay
 python3 tests/test_touch.py               # Touch-Steuerung, Knopfgrößen ≥ 48 px

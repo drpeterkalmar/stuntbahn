@@ -1,11 +1,11 @@
 // Renn-Logik: Countdown, Zeit, Checkpoints, Crash (Fahrbahn-Reset mit Zeitstrafe oder Wrack),
-// Rückspulen, Fahrhilfen (Mischung Spieler/Autopilot), Aufzeichnung für Replay + Geisterauto.
+// Rückspulen, Fahrhilfen (Mischung Spieler/Autopilot), Abkürzungs-Regel, Aufzeichnung für Replay + Geist.
 // Reines JS (auch in Node lauffähig).
 import { Car } from '../physics/car.js';
 import { Autopilot, Tracker } from '../ai/autopilot.js';
 
 export const ASSISTS = {
-  easy: { name: 'Leicht', icon: '🟢', steerPull: 0.82, autoSpeed: true, autoStunts: true, magnet: 1, air: 1, autoRewind: true, showLine: true },
+  easy: { name: 'Leicht', icon: '🟢', steerPull: 0.82, autoSpeed: true, autoStunts: true, free: true, magnet: 1, air: 1, autoRewind: true, showLine: true },
   medium: { name: 'Mittel', icon: '🟡', steerPull: 0.28, stuntPull: 0.6, autoSpeed: false, brakeAssist: true, autoStunts: false, magnet: 0.35, air: 0.4, autoRewind: true, showLine: true },
   original: { name: 'Original', icon: '🔴', steerPull: 0, autoSpeed: false, autoStunts: false, magnet: 0, air: 0, autoRewind: false, showLine: false },
 };
@@ -14,6 +14,17 @@ export const ASSISTS = {
 // vor das Element mit fliegendem Neustart und PENALTY Sekunden Zeitstrafe; an → Wrack wie bisher.
 export const PENALTY = 5;
 export const RESET_DELAY = 0.35; // kurzes Aufblitzen zwischen Crash und Reset (Spielzeit, s)
+
+// Leicht: Spieler hat Vorrang (Peter 27.09.). Deutlicher Lenkeinschlag (> in, hold s gehalten) blendet den
+// Zug zur Linie in fadeOut s aus – dann frei, auch ins Gelände. Loslassen (< keep, 0,3 s): Hilfe blendet in
+// fadeIn s ein, das Ziel des Autopiloten wandert weich (ohne Ruck) von der Autoposition zurück auf die Linie.
+// Vor Stunts (pre s bzw. mindestens preMin m) übernimmt der Autopilot wieder, mit Ansage im HUD.
+// Abseits der Fahrbahn gemäßigtes Gas (höchstens offV m/s).
+export const FREE = { in: 0.5, hold: 0.2, keep: 0.15, rel: 0.2, fadeOut: 0.25, fadeIn: 0.8, back: [1.2, 3.0], pre: 2.5, preMin: 35, offV: 16 };
+// Abkürzen (alle Stufen): neben der Fahrbahn mehr Streckenfortschritt als gefahrene Strecke → zurück an die
+// Stelle, wo das Auto die Fahrbahn verlassen hat (Uhr läuft weiter). Toleranz CUT_TOL m + 15 % der Strecke.
+export const CUT_TOL = 8;
+const STUNT_NAMES = { loop: 'Looping', tube: 'Röhre', cork: 'Korkenzieher', jump: 'Sprung' };
 
 export const REC_HZ = 60;
 export const REC_STRIDE = 16; // floats pro Frame
@@ -46,15 +57,23 @@ export class Race {
     this.pens = [];  // Zeitstrafen { f: Aufzeichnungs-Frame, sec }
     this.cuts = [];  // Schnitte (Auto versetzt) { f } – fürs Replay
     this.autopilotOnly = !!opts.autopilot;
+    this.noCutRule = !!opts.noCutRule;
     this.maxProgress = 0;
     this.offT = 0;
     this.stuckProg = -1e9; this.stuckT = 0;
     this.lastInput = { steer: 0, throttle: 0, brake: 0 };
+    // Leicht, freies Lenken: Anteil des Spielers (0 = Hilfe voll, 1 = frei), Haltezeit, Rückführung
+    this.own = 0; this.manual = false; this.holdT = 0; this.relT = 0; this.back = null;
+    this.hud = null;        // Hinweis fürs HUD (Stunt-Ansage, „Zurück zur Strecke“) oder null
+    this.shortcut = null;   // laufender Ausflug neben die Fahrbahn { p0, idx, lap, cp, driven }
+    this.onRoad = { prog: 0, idx: 0, lap: 0, cp: 0 };
+    this.zones = this.stuntZones();
     this.place(this.startIdx - (opts.startBack ?? 1));
   }
 
-  place(idx, speed = 0) {
-    const L = this.env.track.line;
+  // onLine: auf die Ideallinie setzen (Reset mitten im Rennen) statt auf die Fahrbahnmitte (Start)
+  place(idx, speed = 0, onLine = false) {
+    const L = onLine && this.env.ideal ? this.env.ideal : this.env.track.line;
     idx = Math.max(0, Math.min(L.n - 1, idx));
     this.car.place([L.px[idx], L.py[idx], L.pz[idx]], [L.tx[idx], L.ty[idx], L.tz[idx]], [L.nx[idx], L.ny[idx], L.nz[idx]], speed);
     this.tracker.reset(idx);
@@ -110,13 +129,37 @@ export class Race {
     const idx = this.ap.tr.idx;
     const stunt = L.loop[idx] || L.tube[idx] || L.air[idx] || this.isJumpZone(idx);
     let steer = input.steer, thr = input.throttle, brk = input.brake;
+    this.hud = null;
     if (this.autopilotOnly) { steer = ap.steer; thr = ap.throttle; brk = ap.brake; }
     else if (A.steerPull > 0) {
       const pull = stunt && A.stuntPull ? A.stuntPull : A.steerPull;
-      if (A.autoStunts && stunt) { steer = ap.steer; }
-      else steer = ap.steer * pull + steer * (1 - pull) + (pull > 0.5 && !A.stuntPull ? steer * 0.25 : 0);
+      const zone = A.free ? this.freeSteer(dt, input, idx) : null;
+      // Leicht: im Stunt und auf den letzten ~1,2 s davor lenkt allein der Autopilot (sauber ausgerichtet)
+      const lead = zone && !zone.inside && zone.dist < Math.max(20, car.fwdSpeed() * 1.2);
+      if (A.autoStunts && (stunt || lead)) { steer = ap.steer; }
+      else {
+        // Rückführung nach freiem Lenken: Autopilot mit voller Kraft (sonst max. 82 %)
+        const p = this.back ? 1 : pull;
+        steer = ap.steer * p + steer * (1 - pull) + (pull > 0.5 && !A.stuntPull ? steer * 0.25 : 0);
+        if (A.free) steer = steer * (1 - this.own) + input.steer * this.own;   // Spieler hat Vorrang
+      }
       steer = Math.max(-1, Math.min(1, steer));
-      if (A.autoSpeed) { thr = ap.throttle; brk = ap.brake; if (input.brake > 0.5) { thr = 0; brk = Math.max(brk, input.brake * 0.6); } }
+      // Rückführung ohne Ruck: Lenkänderung höchstens 4/s (wie eine ruhige Hand an der Tastatur)
+      if (this.calmT > 0 && !this.manual) { const d = 4 * dt; steer = Math.max(this.lastInput.steer - d, Math.min(this.lastInput.steer + d, steer)); }
+      if (zone) this.hud = { kind: 'stunt', text: `${zone.name}${zone.inside ? '' : ' voraus'} – Autopilot lenkt` };
+      if (A.autoSpeed) {
+        thr = ap.throttle; brk = ap.brake;
+        // neben der Fahrbahn gemäßigt
+        const ti = this.tracker.idx;
+        if (A.free && !stunt && this.tracker.dist > L.hw[ti] + 0.5) {
+          // beim Zurückführen mit großem Kurswinkel erst langsamer werden (engerer Bogen auf der Wiese)
+          const vOff = this.back && Math.abs(this.ap.psi || 0) > 0.5 ? FREE.offV * 0.65 : FREE.offV;
+          const over = car.fwdSpeed() - vOff;
+          if (over > 0) { thr = 0; brk = Math.max(brk, Math.min(0.6, 0.15 + over * 0.08)); } else thr = Math.min(thr, 0.8);
+        }
+        // die Bremse des Spielers geht immer vor
+        if (input.brake > 0.05) { thr = 0; brk = Math.max(brk, input.brake); }
+      }
       else if (A.brakeAssist) {
         const vt = this.env.prof.vt[idx];
         const v = car.fwdSpeed();
@@ -148,11 +191,19 @@ export class Race {
     } else if ((L.closed && this.tracker.lap >= 1 && ti >= this.startIdx) || (!L.closed && ti >= L.n - 2)) {
       this.finish();
     }
-    // Abseits: zu weit weg von der Linie
+    // Abseits: zu weit weg von der Linie (großzügig: 30 m, 4 s); ab 18 m Hinweis im HUD
     if (this.tracker.dist > 30) { this.offT += dt; if (this.offT > 4) { this.car.setCrash('Abseits'); } } else this.offT = 0;
-    // Festgefahren: 5 s ohne nennenswerten Fortschritt
+    if (this.tracker.dist > 18 && !this.autopilotOnly) this.hud = { kind: 'off', text: 'Zurück zur Strecke ↺' };
+    // Abkürzen lohnt nicht (alle Stufen)
+    if (this.checkShortcut(dt, prog, ti)) return;
+    // Festgefahren: 5 s ohne nennenswerten Fortschritt. Wer frei durchs Gelände fährt (in Bewegung, selbst
+    // lenkend), darf das – dort greift erst nach 20 s ohne Fortschritt die Sicherung (sonst die Abseits-Regel).
     if (prog > this.stuckProg + 2) { this.stuckProg = prog; this.stuckT = 0; }
-    else { this.stuckT = (this.stuckT || 0) + dt; if (this.stuckT > 5) { this.stuckT = 0; this.stuckProg = prog; this.car.setCrash('Festgefahren'); } }
+    else {
+      const roam = Math.abs(car.fwdSpeed()) > 3 && (this.manual || this.own > 0 || (!A.autoSpeed && !this.autopilotOnly));
+      this.stuckT = (this.stuckT || 0) + dt;
+      if (this.stuckT > (roam ? 20 : 5)) { this.stuckT = 0; this.stuckProg = prog; this.car.setCrash('Festgefahren'); }
+    }
     // Rückspul-Puffer (10 Hz, 8 s)
     this.snapT += dt;
     if (this.snapT >= 0.1) {
@@ -162,6 +213,104 @@ export class Race {
     }
     this.record(dt);
     if (car.crash) this.onCrash();
+  }
+
+  // Stunt-Zonen der Linie (dort lenkt auf Leicht der Autopilot): zusammenhängende Stücke mit Looping,
+  // Röhre, Luft oder Sprung-Anlauf/-Landung, mit Namen fürs HUD. [{ i0, i1, s0, s1, name }]
+  stuntZones() {
+    const L = this.env.track.line, T = this.env.track, out = [];
+    const kindAt = (i) => {
+      if (this.isJumpZone(i) || L.air[i]) return 'jump';
+      if (L.tube[i]) return 'tube';
+      if (L.loop[i]) { const pc = T.pieces[L.piece[i]]; return pc && /cork/.test(pc.type) ? 'cork' : 'loop'; }
+      return null;
+    };
+    let cur = null;
+    for (let i = 0; i < L.n; i++) {
+      const k = kindAt(i);
+      if (k && cur && i === cur.i1 + 1) { cur.i1 = i; cur.s1 = L.s[i]; if (!cur.kinds.includes(k)) cur.kinds.push(k); continue; }
+      if (k) { cur = { i0: i, i1: i, s0: L.s[i], s1: L.s[i], kinds: [k] }; out.push(cur); }
+    }
+    for (const z of out) z.name = STUNT_NAMES[z.kinds.includes('loop') ? 'loop' : z.kinds.includes('cork') ? 'cork' : z.kinds.includes('tube') ? 'tube' : 'jump'];
+    return out;
+  }
+
+  // Nächste Stunt-Zone, in der das Auto ist oder die innerhalb von dist Metern beginnt
+  zoneAhead(idx, dist) {
+    const L = this.env.track.line, s = L.s[idx];
+    for (const z of this.zones) {
+      if (idx >= z.i0 && idx <= z.i1) return { ...z, inside: true, dist: 0 };
+      let d = z.s0 - s;
+      if (d < 0 && L.closed) d += L.total;
+      if (d >= 0 && d <= dist) return { ...z, inside: false, dist: d };
+    }
+    return null;
+  }
+
+  // Leicht: Spieler-Vorrang. Aktualisiert own (Anteil Spieler) und die Rückführung des Autopiloten.
+  // Liefert die Stunt-Zone, falls der Autopilot gerade (oder gleich) lenkt.
+  freeSteer(dt, input, idx) {
+    const v = this.car.fwdSpeed(), a = Math.abs(input.steer);
+    const zone = this.zoneAhead(idx, Math.max(FREE.preMin, v * FREE.pre));
+    if (a > FREE.in) this.holdT += dt; else this.holdT = 0;
+    if (zone) this.manual = false;
+    else if (this.holdT >= FREE.hold) { this.manual = true; this.relT = 0; }
+    else if (this.manual) {
+      if (a <= FREE.keep) { this.relT += dt; if (this.relT >= FREE.rel) this.manual = false; } else this.relT = 0;
+    }
+    const ap = this.ap;
+    // Lenk-Glättung läuft von der Übernahme bis 2 s nach Ende der Rückführung
+    this.calmT = this.manual || this.back || this.own > 0 || Math.abs(ap.lat) > 1 ? 1.5 : Math.max(0, (this.calmT || 0) - dt);
+    if (this.manual) {
+      this.own = Math.min(1, this.own + dt / FREE.fadeOut);
+      ap.shift = ap.lat; this.back = null;    // Ziel des Autopiloten = da, wo das Auto gerade ist
+    } else {
+      this.own = Math.max(0, this.own - dt / (zone ? 0.6 : FREE.fadeIn));
+      if (ap.shift && !this.back) {
+        // weich zurück: Versatz fällt mit glattem Verlauf (Anfang und Ende ohne Querbewegung) auf 0
+        let T = Math.max(FREE.back[0], Math.min(FREE.back[1], Math.abs(ap.shift) * 0.2));
+        if (zone) T = Math.max(0.6, Math.min(T, (zone.dist / Math.max(v, 5)) * 0.7));
+        this.back = { s0: ap.shift, t: 0, T };
+      }
+      if (this.back) {
+        const B = this.back;
+        if (zone && !B.zone) { B.zone = true; B.T = Math.max(0.6, Math.min(B.T - B.t, (zone.dist / Math.max(v, 5)) * 0.7)) + B.t; }
+        B.t += dt;
+        const u = Math.min(1, B.t / B.T);
+        // Ziel höchstens 5 m seitlich vor dem Auto: flacher Anfahrwinkel statt steil zurück
+        ap.shift = Math.max(ap.lat - 5, Math.min(ap.lat + 5, B.s0 * (1 - u * u * (3 - 2 * u))));
+        if (u >= 1 && Math.abs(ap.shift) < 0.05) { ap.shift = 0; this.back = null; }
+      }
+    }
+    return zone;
+  }
+
+  // Abkürzung? Neben der Fahrbahn (Wagenmitte > 1 m hinter der Kante) Fortschritt entlang der Strecke gegen
+  // die tatsächlich gefahrene Strecke rechnen; spart der Ausflug mehr als die Toleranz → zurück an die Stelle,
+  // an der das Auto die Fahrbahn verlassen hat. Herumfahren im Gelände (ohne Streckengewinn) bleibt erlaubt.
+  checkShortcut(dt, prog, ti) {
+    if (this.noCutRule) return false;     // nur für Tests (Vergleich „was brächte die Abkürzung“)
+    const L = this.env.track.line;
+    const off = this.tracker.dist > L.hw[ti] + 1.0 && !L.air[ti];
+    if (!off) {
+      this.shortcut = null;
+      this.onRoad.prog = prog; this.onRoad.idx = ti; this.onRoad.lap = this.tracker.lap; this.onRoad.cp = this.cpNext;
+      return false;
+    }
+    if (!this.shortcut) this.shortcut = { ...this.onRoad, driven: 0 };
+    const S = this.shortcut;
+    S.driven += this.car.speed() * dt;
+    const gain = prog - S.prog - S.driven;
+    if (!(gain <= this.maxGain)) this.maxGain = gain;   // nur Diagnose (Tests)
+    if (gain <= CUT_TOL + 0.15 * S.driven) return false;
+    // zurücksetzen: auf die Linie an der Ausfahrt-Stelle, Checkpoints/Runde wie dort
+    const j = S.idx;
+    this.place(j, Math.min(this.env.prof.vt[j] || 12, 15), true);
+    this.tracker.lap = S.lap; this.cpNext = S.cp;
+    this.shortcuts = (this.shortcuts || 0) + 1;
+    this.afterJump();
+    this.emit('shortcut', { gain, driven: S.driven, prog: prog - S.prog });
+    return true;
   }
 
   isJumpZone(idx) {
@@ -233,7 +382,7 @@ export class Race {
     let lap = this.tracker.lap;
     if (L.closed && j >= L.n) { j -= L.n - 1; lap++; }
     j = Math.min(L.n - 3, j);
-    this.place(j, Math.min(this.env.prof.vt[j] || 12, 18));
+    this.place(j, Math.min(this.env.prof.vt[j] || 12, 18), true);
     this.tracker.lap = lap;
     this.failN = 0; this.failS = this.tracker.progress();
     this.skips = (this.skips || 0) + 1;
@@ -259,7 +408,7 @@ export class Race {
     // nicht vor den Start zurück (Checkpoints/Runde bleiben gültig)
     const v = Math.min(this.env.prof.vt[j] || 10, 26) * 0.95;
     const lap = this.tracker.lap - (j > this.tracker.idx ? 1 : 0);
-    this.place(j, v);
+    this.place(j, v, true);
     this.tracker.lap = lap;
     this.afterJump();
     this.emit('reset');
@@ -269,6 +418,7 @@ export class Race {
   afterJump() {
     this.cuts.push({ f: this.recFrames() });
     this.offT = 0; this.stuckT = 0; this.stuckProg = this.tracker.progress(); this.wrongT = 0;
+    this.freeReset();
     // Rückspul-Puffer leeren (sonst spult ⏪ vor den Reset zurück in den Crash)
     if (!this.wreckOn) this.snaps.length = 0;
     this.state = 'running';
@@ -294,9 +444,17 @@ export class Race {
     if (keepClock) this.cuts.push({ f: this.recFrames() });
     else { this.time = sn.time; this.rec.length = Math.min(this.rec.length, sn.recLen); }
     this.offT = 0; this.stuckT = 0; this.stuckProg = this.tracker.progress();
+    this.freeReset();
     this.state = 'running';
     this.rewinds++;
     this.emit('rewind', { keepClock });
+  }
+
+  // nach Versetzen/Rückspulen: Hilfe wieder voll, keine Rückführung, kein laufender Ausflug
+  freeReset() {
+    this.own = 0; this.manual = false; this.holdT = 0; this.back = null; this.ap.shift = 0; this.shortcut = null; this.calmT = 0;
+    const t = this.tracker;
+    this.onRoad = { prog: t.progress(), idx: t.idx, lap: t.lap, cp: this.cpNext };
   }
 
   requestRewind() {

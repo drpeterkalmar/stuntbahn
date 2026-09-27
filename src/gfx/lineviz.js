@@ -1,5 +1,7 @@
 // Farbige Ideallinie (Fahrhilfe Mittel/Leicht): grün = Gas, gelb = vom Gas, rot = bremsen, blau = Luft.
 // Ein Band knapp über der Fahrbahn; Farbe aus dem Tempo-Profil (Ziel vs. erreichbares Tempo).
+// Scheitelpunkte (I.apex): flacher Keil von der Linie zum Innenrand, in Linienfarbe – zeigt, wo die Linie
+// die Kurve innen berührt. Teil desselben Meshes, folgt also Sichtbarkeit und Stufe der Linie.
 // Anzeige-Stufe (Einstellung „Ideallinie“): Aus / Dezent / Kräftig. Breite, Deckkraft, weicher Rand und
 // Ausblenden in der Ferne sind Uniforms – ein Stufenwechsel baut nichts neu.
 import * as THREE from 'three';
@@ -73,11 +75,17 @@ export class LineViz {
       for (let s = 0; s < 2; s++) col.set(c, (i * 2 + s) * 3);
       if (i < n - 1 && !L.air[i] && !L.air[i + 1]) { const a = i * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
     }
+    const W = this.apexWedges(L, track, col);
+    const P2 = new Float32Array(pos.length + W.pos.length), B2 = new Float32Array(bin.length + W.pos.length);
+    const C2 = new Float32Array(col.length + W.col.length), S2 = new Float32Array(side.length + W.pos.length / 3);
+    P2.set(pos); P2.set(W.pos, pos.length); B2.set(bin); C2.set(col); C2.set(W.col, col.length); S2.set(side);
+    for (let k = 0; k < W.pos.length / 3; k++) idx.push(n * 2 + k);   // side = 0: keine Bandverbreiterung
+    this.apexCount = W.pos.length / 9;
     const g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-    g.setAttribute('bin', new THREE.BufferAttribute(bin, 3));
-    g.setAttribute('lcol', new THREE.BufferAttribute(col, 3));
-    g.setAttribute('side', new THREE.BufferAttribute(side, 1));
+    g.setAttribute('position', new THREE.BufferAttribute(P2, 3));
+    g.setAttribute('bin', new THREE.BufferAttribute(B2, 3));
+    g.setAttribute('lcol', new THREE.BufferAttribute(C2, 3));
+    g.setAttribute('side', new THREE.BufferAttribute(S2, 1));
     g.setIndex(idx);
     g.computeBoundingSphere();
     g.boundingSphere.radius += 1;   // Bandbreite kommt erst im Shader dazu
@@ -86,6 +94,26 @@ export class LineViz {
     this.mesh.renderOrder = 2;
     this.mesh.visible = false;
     this.scene.add(this.mesh);
+  }
+  // Keil je Scheitel: Spitze kurz vor dem Innenrand, Basis (2,8 m lang) auf der Linie; leicht angehoben
+  apexWedges(I, track, col) {
+    const pos = [], cl = [];
+    const B = track && track.line;
+    if (!B || !I.apex) return { pos: new Float32Array(0), col: new Float32Array(0) };
+    const lift = 0.06;
+    for (const { i, side: sg } of I.apex) {
+      const hw = B.hw[i], edge = sg * (hw - 0.25);     // Innenrand (Fahrbahnkante) relativ zur Basislinie
+      const nx = I.nx[i] * lift, ny = I.ny[i] * lift, nz = I.nz[i] * lift;
+      const lx = I.px[i] + nx, ly = I.py[i] + ny, lz = I.pz[i] + nz;
+      const tip = [B.px[i] + B.bx[i] * edge + nx, B.py[i] + B.by[i] * edge + ny, B.pz[i] + B.bz[i] * edge + nz];
+      const a = 1.4;
+      const v0 = [lx + I.tx[i] * a, ly + I.ty[i] * a, lz + I.tz[i] * a], v1 = [lx - I.tx[i] * a, ly - I.ty[i] * a, lz - I.tz[i] * a];
+      // Umlaufsinn egal (DoubleSide)
+      pos.push(...v0, ...v1, ...tip);
+      const c = [col[i * 6], col[i * 6 + 1], col[i * 6 + 2]];
+      cl.push(...c, ...c, ...c);
+    }
+    return { pos: new Float32Array(pos), col: new Float32Array(cl) };
   }
   setLevel(level) {
     if (level === this.level) return;

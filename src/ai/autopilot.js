@@ -8,11 +8,17 @@ export class Tracker {
   reset(i) { this.idx = i; }
   update(px, py, pz, global = false) {
     const L = this.L, n = L.n;
-    let best = this.idx, bd = 1e18;
+    let best = this.idx, bd = 1e18, bdist = 1e18;
+    const s0 = L.s[this.idx], half = L.total / 2;
     const scan = (i) => {
       const dx = L.px[i] - px, dy = L.py[i] - py, dz = L.pz[i] - pz;
       const d = dx * dx + dy * dy * 1.5 + dz * dz;
-      if (d < bd) { bd = d; best = i; }
+      // Sprünge entlang der Linie kosten etwas: an Kreuzungen liegt der andere Durchgang sonst manchmal
+      // näher (seit die Ideallinie dort nicht mehr in der Mitte fährt)
+      let ds = Math.abs(L.s[i] - s0);
+      if (L.closed && ds > half) ds = L.total - ds;
+      const q = global ? d : d + (ds * 0.1) * (ds * 0.1);
+      if (q < bd) { bd = q; best = i; bdist = d; }
     };
     if (global) for (let i = 0; i < n; i++) scan(i);
     else for (let k = -25; k <= 70; k++) {
@@ -24,7 +30,7 @@ export class Tracker {
     if (L.closed && this.idx > n * 0.8 && best < n * 0.2) this.lap++;
     if (L.closed && this.idx < n * 0.2 && best > n * 0.8) this.lap--;
     this.idx = best;
-    this.dist = Math.sqrt(bd);
+    this.dist = Math.sqrt(bdist);
     return best;
   }
   // Gesamtfortschritt in Metern (inkl. Runden)
@@ -37,6 +43,8 @@ export class Autopilot {
     this.tr = new Tracker(L);
     this.out = { steer: 0, throttle: 0, brake: 0 };
     this.offset = null; // optionale seitliche Versätze (Racing-Line), Float32Array
+    this.shift = 0;     // zusätzlicher Seitenversatz des Ziels (m): sanftes Zurückführen nach freiem Lenken
+    this.lat = 0;       // Seitenlage der Vorderachse zur (unverschobenen) Linie, m
     this.speedScale = 1;
     this.lastTarget = [0, 0, 0];
   }
@@ -57,7 +65,7 @@ export class Autopilot {
     // Stanley-Regler im Rahmen der Fahrlinie (funktioniert auch kopfüber im Looping):
     // Lenkwinkel = −Kursfehler − atan(k·Querfehler/v) + Vorsteuerung aus der Linienkrümmung
     const ja = this.ahead(i, Math.max(1.2, Math.abs(v) * 0.12));
-    const off = this.offset ? this.offset[ja] : 0;
+    const off = (this.offset ? this.offset[ja] : 0) + this.shift;
     let px = L.px[ja] + L.bx[ja] * off, py = L.py[ja] + L.by[ja] * off, pz = L.pz[ja] + L.bz[ja] * off;
     this.lastTarget[0] = px; this.lastTarget[1] = py; this.lastTarget[2] = pz;
     // Querfehler am Vorderachs-Bezugspunkt
@@ -70,7 +78,7 @@ export class Autopilot {
     const psi = Math.atan2(fpx * L.bx[ja] + fpy * L.by[ja] + fpz * L.bz[ja], fpx * L.tx[ja] + fpy * L.ty[ja] + fpz * L.tz[ja]);
     const jf = this.ahead(i, 1.2 + Math.abs(v) * 0.06);
     const ff = Math.atan(2.72 * (this.P.kA ? this.P.kA[jf] : 0));
-    this.psi = psi; this.cross = e;
+    this.psi = psi; this.cross = e; this.lat = e + this.shift;
     let delta = -psi - Math.atan2(2.4 * e, Math.abs(v) + 3) + ff;
     // Gierraten-Dämpfung (verhindert Pendeln bei hohem Tempo)
     const yaw = car.w.x * F.u.x + car.w.y * F.u.y + car.w.z * F.u.z;

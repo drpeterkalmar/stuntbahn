@@ -36,6 +36,7 @@ export class UI {
       <div id="hud">
         <div class="tl"><div class="time">0:00,00</div><div class="pen"></div><div class="best"></div></div>
         <div class="tc"><div class="cp"></div></div>
+        <div class="hint2" aria-live="polite"></div>
         <div class="tr">
           <button class="rb line" data-a="linetoggle" aria-label="Ideallinie ein/aus" title="Ideallinie ein/aus (L)"><svg viewBox="0 0 24 24" aria-hidden="true"><defs><linearGradient id="lg" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#3bdc55"/><stop offset=".55" stop-color="#ffd21a"/><stop offset="1" stop-color="#ff4a2a"/></linearGradient></defs><path d="M4 21C6 13 18 15 20 3" fill="none" stroke="url(#lg)" stroke-width="3.2" stroke-linecap="round"/><path class="x" d="M4 4L20 20" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/></svg></button>
           <button class="rb" data-a="rewind" aria-label="Zurückspulen" title="Zurückspulen (R)">⏪</button>
@@ -164,7 +165,7 @@ export class UI {
       ? { easy: 'Crash? Wrack, dann automatisch 3 s zurück.', medium: 'Crash heißt Wrack, dann 3 s zurück.', original: 'Crash heißt Wrack.' }[k]
       : `Crash? Sofort zurück auf die Fahrbahn, +${PENALTY} s.`;
     return {
-      easy: 'Gas, Bremse und Stunts macht das Auto selbst. Du lenkst grob – die Linie zieht dich. ',
+      easy: 'Gas und Stunts macht das Auto selbst, deine Bremse geht immer vor. Lässt du los, fährt es allein auf der Linie; lenkst du deutlich, hast du Vorrang – auch quer durchs Gelände. Loslassen führt sanft zurück. Abkürzen zählt nicht (zurück an die Stelle). ',
       medium: 'Bremsassistent, leichter Zug zur Linie, farbige Ideallinie (grün Gas, gelb vom Gas, rot bremsen), Rückspul-Knopf. ',
       original: 'Keine Hilfen – wie 1990. ',
     }[k] + crash;
@@ -288,7 +289,7 @@ export class UI {
       ${this.lineSeg()}
       <p class="hint">${S.assist === 'original'
         ? 'Auf <b>Original</b> gibt es keine Ideallinie – die Einstellung gilt für Leicht und Mittel.'
-        : 'Farbiges Band auf der Fahrbahn (grün Gas, gelb vom Gas, rot bremsen, blau Luft). Nur die Anzeige – die Lenkhilfe bleibt gleich.'}
+        : 'Farbiges Band auf der Fahrbahn (grün Gas, gelb vom Gas, rot bremsen, blau Luft): außen anfahren, innen am Scheitel, außen raus. Keile am Innenrand markieren die Scheitelpunkte. Nur die Anzeige – die Lenkhilfe bleibt gleich.'}
       Im Rennen umschalten: Knopf oben rechts, <span class="desk">Taste <b>L</b>, </span>Gamepad <b>Back</b>.</p>
       <div class="lbl">Lackfarbe</div>
       <div class="row">${PAINTS.map((p, i) => `<button data-a="paint" data-v="${i}" class="sw ${S.paint === p.color ? 'on' : ''}" style="--c:#${p.color.toString(16).padStart(6, '0')}">${p.name}</button>`).join('')}</div>
@@ -297,13 +298,15 @@ export class UI {
   }
   showHelp() {
     this.sheet('Steuerung', `
-      <p><b>Handy (quer halten):</b> Fahrhilfe <i>Leicht</i>: linke/rechte Bildschirmhälfte halten zum Lenken – Gas und Bremse macht das Auto. Oder in den Optionen „Lenken durch Neigen“.</p>
+      <p><b>Handy (quer halten):</b> Fahrhilfe <i>Leicht</i>: linke/rechte Bildschirmhälfte halten zum Lenken – Gas macht das Auto. Oder in den Optionen „Lenken durch Neigen“.</p>
+      <p><b>Leicht:</b> Ohne Lenken fährt das Auto allein auf der Ideallinie. Lenkst du deutlich (kurz halten), hast <b>du Vorrang</b>: Die Hilfe lässt los, du kannst die Fahrbahn verlassen und durchs Gelände fahren. Loslassen – die Hilfe blendet weich ein und führt dich sanft zurück. Deine Bremse geht immer vor. Loopings, Röhren, Korkenzieher und Sprünge lenkt weiter das Auto; vorher steht oben „… voraus – Autopilot lenkt“. Gilt für Tastatur, Gamepad, Touch und Neigen.</p>
       <p><i>Mittel/Original</i>: links ◀ ▶ lenken, rechts GAS und BREMSE. Bremse im Stand = Rückwärtsgang.</p>
       <p><b>Tastatur:</b> Pfeile oder WASD, Leertaste bremsen, <b>R</b> zurückspulen, <b>C</b> Kamera (Verfolger, Cockpit, Hubschrauber, Stoßstange, Strecke), <b>L</b> Ideallinie ein/aus, <b>Esc</b> Pause.</p>
       <p><b>Gamepad:</b> linker Stick lenken, RT/A Gas, LT/X Bremse, Y zurückspulen, LB Kamera, Back Ideallinie, Start Pause.</p>
       <p><b>Crash:</b> Standardmäßig kein Totalschaden – das Auto steht sofort wieder auf der Fahrbahn vor dem Stunt, mit Schwung, und du bekommst <b>+${PENALTY} s</b> auf die Zeit. Klappt ein Stunt mehrmals nicht, wirst du dahinter gesetzt (auch dann je +${PENALTY} s). Wer es hart mag: Optionen → <b>💥 Totalschaden</b> (Wrack wie im Original).</p>
       <p><b>⏪ Zurückspulen</b> (Leicht/Mittel): 3 s zurück, um einen Crash zu vermeiden. Ohne Totalschaden läuft die Uhr dabei weiter – es kostet die Zeit, die du neu fährst, aber keine Strafe.</p>
-      <p><b>Ziel:</b> Alle Checkpoints der Reihe nach, dann über die Ziellinie. Bestzeiten und Geisterautos gibt es getrennt je Fahrhilfe und Totalschaden-Einstellung.</p>`);
+      <p><b>Ziel:</b> Alle Checkpoints der Reihe nach, dann über die Ziellinie. Bestzeiten und Geisterautos gibt es getrennt je Fahrhilfe und Totalschaden-Einstellung.</p>
+      <p><b>Abkürzen</b> lohnt nicht (alle Stufen): Wer quer durchs Gelände Strecke spart, wird an die Stelle zurückgesetzt, an der er die Fahrbahn verlassen hat – die Uhr läuft weiter. Herumfahren im Gelände ist erlaubt; wer sich zu weit entfernt, sieht „Zurück zur Strecke ↺“ und wird nach einigen Sekunden zurückgesetzt.</p>`);
   }
   showCredits() {
     this.sheet('Credits', `
@@ -334,6 +337,14 @@ export class UI {
     this.lastCd = null;
   }
   hud(race, env, ghost) {
+    // Hinweis-Zeile: Stunt-Ansage (Leicht: „Looping voraus – Autopilot lenkt“) bzw. „Zurück zur Strecke ↺“
+    const hd = race.state === 'running' && race.hud ? race.hud : null, ht = hd ? hd.text : '';
+    if (ht !== this._hint) {
+      this._hint = ht;
+      const E = $('#hud .hint2');
+      if (ht) E.textContent = (hd.kind === 'stunt' ? '🤖 ' : '') + ht;
+      E.className = 'hint2' + (ht ? ' show ' + hd.kind : '');
+    }
     const t = race.state === 'countdown' ? 0 : race.time;
     if (this._ht !== Math.floor(t * 20)) {
       this._ht = Math.floor(t * 20);
@@ -360,6 +371,7 @@ export class UI {
     else if (e.type === 'rewind') { this.toast(e.keepClock ? '⏪ Zurückgespult – Uhr läuft weiter' : '⏪ Zurückgespult'); if (e.keepClock) this.flash(); }
     else if (e.type === 'reset') { this.wipe(false); if (!race.wreckOn) return; this.toast('Zurück auf die Strecke'); }
     else if (e.type === 'skip') { this.wipe(false); this.toast('⏭ Stelle übersprungen', 1800); }
+    else if (e.type === 'shortcut') { this.wipe(false); this.big('Abkürzung ↺<small>zurück an die Stelle, wo du die Strecke verlassen hast</small>', 'crash', 1800); }
   }
   // Fahrhilfe im Rennen gewechselt: HUD + Touch-Modus anpassen
   assistChanged() {

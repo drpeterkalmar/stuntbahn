@@ -13,7 +13,7 @@ const DT = 1 / 120;
 export function prepare(layout, opt = {}) {
   const track = buildTrack(layout, opt);
   const world = new CollisionWorld(track);
-  const ideal = computeIdeal(track.line);
+  const ideal = computeIdeal(track.line, { track });
   const prof = computeProfile(ideal, { jumps: track.jumps, startIdx: track.start.idx });
   return { track, world, ideal, prof, layout };
 }
