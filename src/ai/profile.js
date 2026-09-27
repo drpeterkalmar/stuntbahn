@@ -33,9 +33,57 @@ export function jumpWindow() {
   return { vmin, vmax, vbest };
 }
 
+// Sprung über eine Lücke (Import): Tempo-Fenster ballistisch aus der echten Geometrie.
+// Abwurf am letzten Punkt vor der Luftstrecke (Richtung = Linientangente), Landung auf den folgenden
+// Linienpunkten; gültig, wenn die Flugbahn nicht vor der Landefläche aufschlägt und der Aufprall
+// senkrecht zur Fläche < 9 m/s bleibt. Liefert { vmin, vmax, vbest } oder null.
+export function genericJumpWindow(L, lip, land) {
+  // Bahn der Radaufstandspunkte (Fahrbahnhöhe an der Lippe)
+  const p0x = L.px[lip], p0y = L.py[lip], p0z = L.pz[lip];
+  const hl = Math.hypot(L.tx[lip], L.tz[lip]) || 1;
+  const dx0 = L.tx[lip] / hl, dz0 = L.tz[lip] / hl, th = Math.atan2(L.ty[lip], hl);
+  const pts = [];
+  for (let i = land; i < L.n && pts.length < 300; i++) {
+    if (L.air[i]) continue;
+    const dx = L.px[i] - p0x, dz = L.pz[i] - p0z;
+    const x = dx * dx0 + dz * dz0, lat = -dx * dz0 + dz * dx0;
+    if (Math.abs(lat) > 6) break;               // Linie biegt ab: weiter hinten keine Landung
+    pts.push({ x, y: L.py[i], i });
+    if (x > 140) break;
+  }
+  if (pts.length < 3) return null;
+  const ok = [];
+  for (let v = 8; v <= 48; v += 0.25) {
+    const vx = v * Math.cos(th), vy0 = v * Math.sin(th);
+    const traj = (x) => p0y + x * Math.tan(th) - G * x * x / (2 * vx * vx);
+    // Vorder- und Hinterachse (2,7 m dahinter) müssen die Landekante sicher überfliegen
+    if (traj(pts[0].x) < pts[0].y + 0.35 || traj(pts[0].x - 2.7) < pts[0].y + 0.1) continue;
+    let hit = -1;
+    for (let k = 1; k < pts.length; k++) if (traj(pts[k].x) <= pts[k].y + 0.05) { hit = k; break; }
+    if (hit < 1) continue;
+    const a = pts[hit - 1], b = pts[hit];
+    const sl = (b.y - a.y) / Math.max(0.05, b.x - a.x);
+    const t = b.x / vx, vy = vy0 - G * t;
+    const imp = (vy - sl * vx) / Math.sqrt(1 + sl * sl);
+    const along = b.x - pts[0].x;
+    if (imp < -8 || along < 3) continue;
+    ok.push(v);
+  }
+  if (!ok.length) return null;
+  // längstes zusammenhängendes Fenster; Ziel im unteren Drittel (sicher erreichbar, kurzer Flug)
+  let best = [ok[0]], cur = [ok[0]];
+  for (let k = 1; k < ok.length; k++) {
+    if (ok[k] - ok[k - 1] < 0.3) cur.push(ok[k]); else cur = [ok[k]];
+    if (cur.length > best.length) best = cur.slice();
+  }
+  const vmin = best[0], vmax = best[best.length - 1];
+  return { vmin, vmax, vbest: Math.min(vmax, vmin + Math.max(1.2, 0.3 * (vmax - vmin))) };
+}
+
 export function computeProfile(L, opts = {}) {
   const n = L.n;
-  const mu = opts.mu ?? 1.25 * 0.82;
+  const muBase = opts.mu ?? 1.25 * 0.82;
+  const muAt = (i) => (L.grip ? L.grip[i] * 0.82 : muBase);
   const Nmin = opts.nmin ?? 0.45 * G;
   const Nmax = opts.nmax ?? 6.2 * G;
   const vTop = opts.vtop ?? 68;
@@ -47,8 +95,9 @@ export function computeProfile(L, opts = {}) {
   // Krümmung über ±~2.5 m Basis
   for (let i = 0; i < n; i++) {
     let a = i, b = i;
-    while (b < i + 40 && Math.abs(sAt(L, idx(b + 1), i, closed) - L.s[i]) < 2.5 && (closed || b < n - 1)) b++;
-    while (a > i - 40 && Math.abs(L.s[i] - sAt(L, idx(a - 1), i, closed)) < 2.5 && (closed || a > 0)) a--;
+    // Fenster nicht über Luftstrecken ziehen (Schanzenlippe/Landung sonst als scharfe Kuppe gewertet)
+    while (b < i + 40 && Math.abs(sAt(L, idx(b + 1), i, closed) - L.s[i]) < 2.5 && (closed || b < n - 1) && !L.air[idx(b + 1)]) b++;
+    while (a > i - 40 && Math.abs(L.s[i] - sAt(L, idx(a - 1), i, closed)) < 2.5 && (closed || a > 0) && !L.air[idx(a - 1)]) a--;
     if (a === b) continue;
     const ia = idx(a), ib = idx(b);
     const ds = sAt(L, ib, i, closed) - sAt(L, ia, i, closed);
@@ -59,7 +108,7 @@ export function computeProfile(L, opts = {}) {
   }
   for (let i = 0; i < n; i++) {
     if (L.air[i]) continue;
-    const A = kA[i], C = kC[i], gB = G * L.by[i], gN = G * L.ny[i];
+    const A = kA[i], C = kC[i], gB = G * L.by[i], gN = G * L.ny[i], mu = muAt(i);
     let lo = 0, hi = vTop * vTop;
     const cons = (c, r) => { // c*x <= r
       if (Math.abs(c) < 1e-7) { return; }
@@ -76,11 +125,15 @@ export function computeProfile(L, opts = {}) {
   // Sprünge: Tempo an der Lippe festlegen
   const jw = jumpWindow();
   const jumpsIdx = opts.jumps || [];
+  const windows = [];
   for (const j of jumpsIdx) {
     const li = j.lipIdx;
-    // Rampe hoch bis Lippe: Zieltempo vbest, Mindesttempo vmin
-    for (let i = li; i >= 0 && L.s[li] - L.s[i] < TILE; i--) { vmax[i] = Math.min(vmax[i], jw.vbest + 0.6); vmin[i] = Math.max(vmin[i], jw.vmin + 0.6); }
-    for (let i = li + 1; i < n && L.air[i]; i++) { vmax[i] = Math.max(jw.vbest, 10); vmin[i] = 0; }
+    const w = j.gen ? genericJumpWindow(L, li, j.landIdx) : jw;
+    windows.push(w);
+    if (!w) continue;
+    // Anlauf bis zur Lippe: Zieltempo vbest, Mindesttempo vmin
+    for (let i = li; i >= 0 && L.s[li] - L.s[i] < TILE; i--) { vmax[i] = Math.min(vmax[i], w.vbest + 0.6); vmin[i] = Math.max(vmin[i], w.vmin + 0.6); }
+    for (let i = li + 1; i < n && L.air[i]; i++) { vmax[i] = Math.max(w.vbest, 10); vmin[i] = 0; }
   }
   // Rückwärtslauf (Bremsen)
   const aBrake = opts.abrake ?? 8.0;
@@ -91,7 +144,9 @@ export function computeProfile(L, opts = {}) {
       const i = idx(k), j = idx(k + 1);
       if (L.air[i]) continue;
       const ds = Math.max(0, sAt(L, j, i, closed) - L.s[i]);
-      const lim = Math.sqrt(vt[j] * vt[j] + 2 * aBrake * ds);
+      // Bremsverzögerung je Belag (Eis/Schotter bremsen schlechter; Asphalt = aBrake)
+      const ab = L.grip ? Math.min(aBrake, aBrake * L.grip[i] / 1.25) : aBrake;
+      const lim = Math.sqrt(vt[j] * vt[j] + 2 * ab * ds);
       if (vt[i] > lim) vt[i] = lim;
     }
   }
@@ -113,7 +168,7 @@ export function computeProfile(L, opts = {}) {
     vf[j] = v2;
     if (vmin[j] > 0 && v2 + 0.5 < vmin[j] && !L.air[j]) infeasible.push(j);
   }
-  return { vmax, vmin, vt, vf, kA, kC, jump: jw, infeasible };
+  return { vmax, vmin, vt, vf, kA, kC, jump: jw, windows, infeasible };
 }
 
 // Bogenlänge von j relativ zu i auf geschlossenen Linien (nächste Umrundung)

@@ -86,6 +86,9 @@ export function makeLine(L, off) {
     let a = i - 1, b = i + 1;
     if (a < 0) a = L.closed ? n - 2 : 0;
     if (b >= n) b = L.closed ? 1 : n - 1;
+    // an Luftstrecken einseitig (Schanzenlippe/Landung behalten ihre echte Neigung)
+    if (L.air[a] !== L.air[i]) a = i;
+    if (L.air[b] !== L.air[i]) b = i;
     let tx = I.px[b] - I.px[a], ty = I.py[b] - I.py[a], tz = I.pz[b] - I.pz[a];
     let l = Math.hypot(tx, ty, tz);
     if (l < 1e-6) { tx = L.tx[i]; ty = L.ty[i]; tz = L.tz[i]; l = 1; }

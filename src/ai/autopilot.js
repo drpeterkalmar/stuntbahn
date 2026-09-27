@@ -1,5 +1,6 @@
 // Autopilot: Pure Pursuit auf der Ideallinie + Tempo-Regler auf das Profil.
 // Wird für Lösbarkeitsprüfung (Generator), Fahrhilfen (Mischung Spieler/Autopilot) und Demo genutzt.
+import { GRIP } from '../track/defs.js';
 
 export class Tracker {
   // Fortschritt entlang der Linie (nächster Linienpunkt, lokal gesucht → kein Springen bei Kreuzungen)
@@ -87,6 +88,14 @@ export class Autopilot {
     if (ev > -0.4) { o.throttle = Math.max(0, Math.min(1, 0.35 + ev * 0.45)); o.brake = 0; }
     else { o.throttle = 0; o.brake = Math.max(0, Math.min(1, -ev * 0.3)); }
     if (v < 3 && vt > 5) { o.throttle = 1; o.brake = 0; }
+    // Traktionskontrolle auf rutschigem Belag (Eis/Schotter): Gas nur, soweit Seitenhaftung übrig bleibt
+    let gs = 0, gn = 0;
+    for (const w of car.wheels) if (w.contact) { gs += GRIP[w.mat] ?? 1; gn++; }
+    const grip = gn ? gs / gn : 1.25;
+    if (grip < 1.05) {
+      const k = (1.05 - grip) / 0.55;               // 0 (Schotter) … 1 (Eis)
+      o.throttle = Math.min(o.throttle, Math.max(0.2, 1 - (0.6 + 0.8 * k) * Math.abs(o.steer)));
+    }
     return o;
   }
 }

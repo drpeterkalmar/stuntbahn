@@ -80,3 +80,13 @@ export function verifySync(layout, maxFix = 6) {
   }
   return { env, layout, apTime: null, fixes, ok: false };
 }
+
+// Probefahrt importierter Strecken: Autopilot ohne Hilfen, ohne Entschärfen (die Strecke bleibt, wie sie
+// ist). Liefert Referenzzeit oder die Stelle, an der der Autopilot scheitert.
+export async function probeLap(env, onProgress) {
+  const lim = Math.max(90, env.track.line.total / 7);
+  const ev = evaluate(env, await runLap(env, lim, onProgress));
+  if (ev.ok) return { ok: true, time: ev.time };
+  const pc = env.layout.pieces[ev.piece];
+  return { ok: false, time: null, reason: ev.reason, kind: pc ? pc.kind : '' };
+}

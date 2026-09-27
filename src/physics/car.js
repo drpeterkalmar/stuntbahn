@@ -354,9 +354,17 @@ export class Car {
   }
 
   _airAssist(dt) {
-    // Fahrhilfe im Flug: dreht das Auto sanft waagrecht (Drehachse u × Welt-Oben = (−u.z, 0, u.x))
+    // Fahrhilfe im Flug: Dach nach oben, Nase folgt der Flugbahn (landet parallel zu Landerampen).
+    // Ziel-Oben = Welt-Oben ohne Anteil in Flugrichtung; Drehachse u × Ziel.
     const F = this.frame, a = this.assist.air;
-    const cx = -F.u.z, cz = F.u.x, k = 6 * a;
+    let tx = 0, ty = 1, tz = 0;
+    const sp = Math.hypot(this.v.x, this.v.y, this.v.z);
+    if (sp > 6) {
+      const vx = this.v.x / sp, vy = this.v.y / sp, vz = this.v.z / sp;
+      tx = -vy * vx; ty = 1 - vy * vy; tz = -vy * vz;
+      const l = Math.hypot(tx, ty, tz) || 1; tx /= l; ty /= l; tz /= l;
+    }
+    const cx = F.u.y * tz - F.u.z * ty, cz = F.u.x * ty - F.u.y * tx, k = 6 * a;
     this.w.x += (cx * k - this.w.x * 2.5 * a) * dt;
     this.w.z += (cz * k - this.w.z * 2.5 * a) * dt;
   }

@@ -25,9 +25,16 @@ export const MAT = {
   GRASS: 8,     // Gelände (Physik)
   WATER: 9,     // Wasser (Absturz)
   BANNER: 10,   // Banner/Portale (Grafik)
+  DIRT: 11,     // Schotterstraße (Import)
+  ICE: 12,      // Eisstraße (Import)
+  PAINT: 13,    // Szenerie mit Vertexfarben (Häuser, Palmen …)
+  GLASS: 14,    // Fenster/Glas (Szenerie)
 };
+// Fahrbahn-Materialien (bekommen Markierungs-Attribut aRoad)
+export const ROAD_MATS = new Set([MAT.ROAD, MAT.DIRT, MAT.ICE]);
+export const SURF_MAT = { paved: MAT.ROAD, dirt: MAT.DIRT, icy: MAT.ICE };
 
 // Haftung je Oberfläche (Reifen)
-export const GRIP = { 0: 1.25, 1: 1.1, 2: 1.05, 3: 1.0, 4: 0.9, 5: 1.0, 6: 1.25, 7: 0.9, 8: 0.72, 9: 0.2, 10: 1 };
+export const GRIP = { 0: 1.25, 1: 1.1, 2: 1.05, 3: 1.0, 4: 0.9, 5: 1.0, 6: 1.25, 7: 0.9, 8: 0.72, 9: 0.2, 10: 1, 11: 0.95, 12: 0.5, 13: 0.9, 14: 0.9 };
 // Rollwiderstand je Oberfläche
-export const ROLL = { 0: 0.015, 1: 0.02, 2: 0.016, 3: 0.018, 4: 0.02, 5: 0.02, 6: 0.015, 7: 0.02, 8: 0.09, 9: 0.5, 10: 0.02 };
+export const ROLL = { 0: 0.015, 1: 0.02, 2: 0.016, 3: 0.018, 4: 0.02, 5: 0.02, 6: 0.015, 7: 0.02, 8: 0.09, 9: 0.5, 10: 0.02, 11: 0.03, 12: 0.012, 13: 0.02, 14: 0.02 };

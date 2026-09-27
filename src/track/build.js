@@ -2,8 +2,11 @@
 // Fahrlinie mit Rahmen (Tangente/Normale/Rechts), Render-Geometrie (je Material + Chunk),
 // Kollisionsdreiecke (identisch zur Render-Geometrie), Gelände-Höhenfeld, Bäume, Checkpoints.
 // Reines JS ohne DOM/three.js → läuft auch in Node (Tests, Generator-Prüfung).
-import { TILE, LEVEL_H, ROAD_HW, ROAD_Y, GRID, DIRS, tileX, tileZ, MAT } from './defs.js';
-import { PIECES, JUMP, LOOP } from './pieces.js';
+import { TILE, LEVEL_H, ROAD_HW, ROAD_Y, GRID, DIRS, tileX, tileZ, MAT, ROAD_MATS, SURF_MAT, GRIP } from './defs.js';
+import { PIECES, JUMP, LOOP, pieceCells } from './pieces.js';
+import './pieces_trk.js';
+import { buildTrkTerrain, carveUnderRoads } from './trkterrain.js';
+import { buildScenery } from './scenery.js';
 import { clamp, smoothstep, makeNoise2, rng } from '../core/util.js';
 
 const CHUNK = 100;
@@ -17,10 +20,11 @@ const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a
 const norm = (a) => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
 
 class Batch {
-  constructor(mat, road) { this.mat = mat; this.pos = []; this.nrm = []; this.uv = []; this.road = road ? [] : null; this.idx = []; this.nv = 0; }
-  v(p, n, u, v, rd) {
+  constructor(mat, road) { this.mat = mat; this.pos = []; this.nrm = []; this.uv = []; this.road = road ? [] : null; this.col = mat === MAT.PAINT ? [] : null; this.idx = []; this.nv = 0; }
+  v(p, n, u, v, rd, col) {
     this.pos.push(p[0], p[1], p[2]); this.nrm.push(n[0], n[1], n[2]); this.uv.push(u, v);
     if (this.road) this.road.push(...(rd || [0, 0, 0, 999]));
+    if (this.col) this.col.push(...(col || [0.8, 0.8, 0.8]));
     return this.nv++;
   }
 }
@@ -120,6 +124,24 @@ const PROFILES = {
     ];
     return inner.concat(outer);
   },
+  causeway(s) {
+    // Straße auf Damm (über Wasser/Senke) ohne Brüstung: kreuzende Spuren behindern sich nicht
+    const hw = s.hw, bot = -Math.max(0.6, s.hg + 0.4);
+    return [
+      { a: [-hw, 0], b: [hw, 0], mat: MAT.ROAD, col: 1, road: 1 },
+      { a: [hw, 0], b: [hw + 0.6, bot], mat: MAT.CONCRETE, col: 1 },
+      { a: [-hw - 0.6, bot], b: [-hw, 0], mat: MAT.CONCRETE, col: 1 },
+    ];
+  },
+  hump(s) {
+    // Buckel im Röhrenboden: Fahrbahn oben, Seiten bis unter den Boden
+    const hw = s.hw;
+    return [
+      { a: [-hw, 0], b: [hw, 0], mat: MAT.ROAD, col: 1, road: 1 },
+      { a: [hw, 0], b: [hw, -1.3], mat: MAT.CONCRETE, col: 1 },
+      { a: [-hw, -1.3], b: [-hw, 0], mat: MAT.CONCRETE, col: 1 },
+    ];
+  },
   ramp(s) {
     const hw = s.hw, bot = -Math.max(0.3, s.hg + 0.3);
     return [
@@ -132,6 +154,16 @@ const PROFILES = {
 
 // ---------- Hauptfunktion ----------
 export function buildTrack(layout, opt = {}) {
+  const LH = layout.levelH ?? LEVEL_H;
+  // Importierte Strecke: Gelände steht vorher fest (Pfeiler/Dämme reichen bis zum Boden)
+  let trkTerr = null;
+  if (layout.trk) {
+    const occ = new Uint8Array(GRID * GRID);
+    for (const pc of [...layout.pieces, ...(layout.decor || [])]) for (const [ci, cj] of pieceCells(pc.type, pc.i, pc.j, pc.d, pc.m || 1).cells) if (ci >= 0 && cj >= 0 && ci < GRID && cj < GRID) occ[cj * GRID + ci] = 1;
+    for (const sc of layout.scenery || []) occ[sc.j * GRID + sc.i] = 1;
+    trkTerr = buildTrkTerrain(layout.trk, LH, layout.seed || 1, occ);
+  }
+  const groundAt = trkTerr ? (x, z) => trkTerr.heightFn(x, z) : () => 0;
   const batches = new Map();
   const colPos = [], colNrm = [], colMat = [];
   const line = [];           // Samples der Fahrlinie (Welt)
@@ -146,7 +178,7 @@ export function buildTrack(layout, opt = {}) {
   const batch = (chunk, mat) => {
     const k = chunk + '|' + mat;
     let b = batches.get(k);
-    if (!b) { b = new Batch(mat, mat === MAT.ROAD); b.chunk = chunk; batches.set(k, b); }
+    if (!b) { b = new Batch(mat, ROAD_MATS.has(mat)); b.chunk = chunk; batches.set(k, b); }
     return b;
   };
   const chunkOf = (x, z) => Math.floor((x + 1000) / CHUNK) + ',' + Math.floor((z + 1000) / CHUNK);
@@ -156,14 +188,17 @@ export function buildTrack(layout, opt = {}) {
     colMat.push(mat);
   };
 
-  layout.pieces.forEach((pc, pidx) => {
+  // Deko-Stücke (nicht befahrene Teile importierter Strecken): Geometrie ohne Fahrlinie
+  const buildPiece = (pc, pidx, decor) => {
     const P = PIECES[pc.type];
     if (!P) throw new Error('Unbekanntes Element ' + pc.type);
     const m = pc.m || 1, lvl = pc.lvl || 0, d = pc.d;
     const F = [DIRS[d][0], 0, DIRS[d][1]];
     const R = [DIRS[(d + 1) % 4][0], 0, DIRS[(d + 1) % 4][1]];
     const E = [tileX(pc.i) - F[0] * TILE / 2, 0, tileZ(pc.j) - F[2] * TILE / 2];
-    const base = lvl * LEVEL_H + ROAD_Y;
+    // abgesenkte Deko-Spur (Kreuzung/Abzweig unter der befahrenen Spur) gegen Z-Fighting
+    const base = lvl * LH + ROAD_Y - (pc.sub ? 0.025 : 0);
+    const surfMat = pc.surf ? SURF_MAT[pc.surf] : null;
     const W = (f, y, r) => [E[0] + F[0] * f + R[0] * r, y + base, E[2] + F[2] * f + R[2] * r];
     const Wv = (v) => [F[0] * v[0] + R[0] * v[2], v[1], F[2] * v[0] + R[2] * v[2]];
     const nd = (d + (P.turn ? (m > 0 ? 1 : 3) : 0)) % 4;
@@ -173,7 +208,7 @@ export function buildTrack(layout, opt = {}) {
     const ctr = W(TILE / 2, 0, 0);
     const chunk = chunkOf(ctr[0], ctr[2]);
     const info = { type: pc.type, idx: pidx, lineStart: line.length, lineEnd: -1, cells, chunk, stunt: !!P.stunt };
-    pieceInfo.push(info);
+    if (!decor) pieceInfo.push(info);
 
     // ----- Box (Quader) in lokalen Achsen -----
     const addBox = (f, y, r, lf, ly, lr, mat, o = {}) => {
@@ -210,15 +245,18 @@ export function buildTrack(layout, opt = {}) {
         return {
           p, up: s.up ? norm(Wv(s.up)) : [0, 1, 0], bank: s.bank || 0, hw: s.hw ?? o.hw ?? ROAD_HW,
           surf: s.surf ?? 1, air: s.air || 0, loop: s.loop || 0, tube: s.tube || 0, f: s.f,
-          hg: s.y + lvl * LEVEL_H, prof: s.prof || (o.profile === 'loop' ? (s.loop ? 'loopLane' : 'road') : o.profile === 'tube' ? (s.tube ? 'tube' : 'road') : o.profile),
-          lo: s.lo, hi: s.hi,
+          hg: s.y + lvl * LH - (trkTerr ? groundAt(p[0], p[2]) : 0), prof: s.prof || (o.profile === 'loop' ? (s.loop ? 'loopLane' : 'road') : o.profile === 'tube' ? (s.tube ? 'tube' : 'road') : o.profile),
+          lo: s.lo, hi: s.hi, bankH: s.bankH,
         };
       });
+      // Randtangenten exakt waagrecht in Ein-/Ausfahrtsrichtung (glatte Übergänge) – außer das Stück
+      // beginnt/endet geneigt (Schanzenlippe, Landerampe): dann aus den Nachbarpunkten
+      const sloped = (a, b) => { const d = sub(S[b].p, S[a].p); return Math.abs(d[1]) > 0.06 * Math.hypot(d[0], d[2]); };
       for (let i = 0; i < n; i++) {
         const s = S[i];
         let T;
-        if (i === 0) T = F.slice();
-        else if (i === n - 1) T = exitDir.slice();
+        if (i === 0) T = n > 1 && sloped(0, 1) ? norm(sub(S[1].p, S[0].p)) : F.slice();
+        else if (i === n - 1) T = sloped(n - 2, n - 1) ? norm(sub(S[n - 1].p, S[n - 2].p)) : exitDir.slice();
         else T = norm(sub(S[i + 1].p, S[i - 1].p));
         let N = norm(sub(s.up, mul(T, dot(s.up, T))));
         let B = cross(T, N);
@@ -229,8 +267,9 @@ export function buildTrack(layout, opt = {}) {
         }
         s.T = T; s.N = N; s.B = B;
       }
-      // in die globale Linie übernehmen
-      for (let i = 0; i < n; i++) {
+      // in die globale Linie übernehmen (Deko: keine Fahrlinie)
+      const grip = GRIP[o.surfMat ?? surfMat ?? MAT.ROAD] ?? 1.25;
+      for (let i = 0; i < n && !decor; i++) {
         const s = S[i];
         if (line.length && i === 0) {
           const last = line[line.length - 1];
@@ -239,7 +278,7 @@ export function buildTrack(layout, opt = {}) {
         const M = 1.3;
         let lo = s.lo ?? (-s.hw + M), hi = s.hi ?? (s.hw - M);
         if (lo > hi) lo = hi = (lo + hi) / 2;
-        line.push({ p: s.p, T: s.T, N: s.N, B: s.B, hw: s.hw, lo, hi, air: s.air, loop: s.loop, tube: s.tube, piece: pidx, f: s.f, surf: s.surf, kind: o.kind || '' });
+        line.push({ p: s.p, T: s.T, N: s.N, B: s.B, hw: s.hw, lo, hi, air: s.air, loop: s.loop, tube: s.tube, piece: pidx, f: s.f, surf: s.surf, kind: o.kind || '', grip });
       }
       // Läufe gleicher Oberfläche/Profil bauen
       let i0 = 0;
@@ -281,9 +320,11 @@ export function buildTrack(layout, opt = {}) {
       const sAlong = [0];
       for (let i = 1; i < S.length; i++) sAlong.push(sAlong[i - 1] + Math.hypot(...sub(S[i].p, S[i - 1].p)));
       const sBase = (info.sBase || 0);
+      const sm = o.surfMat ?? surfMat;
       for (let k = 0; k < nseg; k++) {
         const seg0 = profs[0][k];
-        const b = batch(chunk, seg0.mat);
+        const smat = seg0.road && sm != null ? sm : seg0.mat;
+        const b = batch(chunk, smat);
         let prevA = -1, prevB = -1, prevPA, prevPB, prevNA, prevNB;
         let uOff = 0;
         for (let i = 0; i < S.length; i++) {
@@ -311,8 +352,8 @@ export function buildTrack(layout, opt = {}) {
           if (i > 0) {
             b.idx.push(prevA, prevB, ia, prevB, ib, ia);
             if (sg.col) {
-              addColTri(prevPA, prevPB, pa, prevNA, prevNB, nA, sg.kerb ? MAT.KERB : seg0.mat);
-              addColTri(prevPB, pbb, pa, prevNB, nB, nA, sg.kerb ? MAT.KERB : seg0.mat);
+              addColTri(prevPA, prevPB, pa, prevNA, prevNB, nA, sg.kerb ? MAT.KERB : smat);
+              addColTri(prevPB, pbb, pa, prevNB, nB, nA, sg.kerb ? MAT.KERB : smat);
             }
           }
           prevA = ia; prevB = ib; prevPA = pa; prevPB = pbb; prevNA = nA; prevNB = nB;
@@ -322,20 +363,51 @@ export function buildTrack(layout, opt = {}) {
     };
 
     const addRibbon = (samples, o) => {
-      const S = samples.map((s) => ({ p: W(s.f, s.y, s.r), up: [0, 1, 0], bank: 0, hw: s.hw ?? ROAD_HW, surf: 1, f: s.f, hg: s.y + lvl * LEVEL_H, prof: o.profile }));
+      const S = samples.map((s) => { const p = W(s.f, s.y, s.r); return { p, up: [0, 1, 0], bank: 0, hw: s.hw ?? ROAD_HW, surf: 1, f: s.f, hg: s.y + lvl * LH - (trkTerr ? groundAt(p[0], p[2]) : 0), prof: o.profile }; });
       for (let i = 0; i < S.length; i++) {
         const T = i === 0 ? norm(sub(S[1].p, S[0].p)) : i === S.length - 1 ? norm(sub(S[i].p, S[i - 1].p)) : norm(sub(S[i + 1].p, S[i - 1].p));
         S[i].T = T; S[i].N = [0, 1, 0]; S[i].B = cross(T, [0, 1, 0]);
       }
       buildRun(S, o.profile, o);
     };
+    // Quader in Weltlage (Mittelpunkt c, Achsen ax[3] normiert, halbe Kantenlängen hs[3])
+    const wbox = (c, ax, hs, mat, collide, col) => {
+      const b = batch(chunk, mat);
+      for (let a0 = 0; a0 < 3; a0++) for (const sg of [-1, 1]) {
+        const a1 = (a0 + 1) % 3, a2 = (a0 + 2) % 3;
+        const n = mul(ax[a0], sg);
+        const cF = add(c, mul(ax[a0], sg * hs[a0]));
+        const u = mul(ax[a1], hs[a1]), v = mul(ax[a2], hs[a2]);
+        const q = [add(add(cF, mul(u, -1)), mul(v, -1)), add(add(cF, u), mul(v, -1)), add(add(cF, u), v), add(add(cF, mul(u, -1)), v)];
+        const ul = 2 * hs[a1], vl = 2 * hs[a2];
+        const ii = [b.v(q[0], n, 0, 0, null, col), b.v(q[1], n, ul, 0, null, col), b.v(q[2], n, ul, vl, null, col), b.v(q[3], n, 0, vl, null, col)];
+        const fn = cross(sub(q[1], q[0]), sub(q[2], q[0]));
+        const ok = dot(fn, n) > 0;
+        if (ok) b.idx.push(ii[0], ii[1], ii[2], ii[0], ii[2], ii[3]); else b.idx.push(ii[0], ii[2], ii[1], ii[0], ii[3], ii[2]);
+        if (collide) {
+          if (ok) { addColTri(q[0], q[1], q[2], n, n, n, mat); addColTri(q[0], q[2], q[3], n, n, n, mat); }
+          else { addColTri(q[0], q[2], q[1], n, n, n, mat); addColTri(q[0], q[3], q[2], n, n, n, mat); }
+        }
+      }
+    };
     const pb = {
-      m, lvl,
+      m, lvl, pc, LH, decor, T: TILE, base, F, R, E,
+      W, Wv, wbox,
+      ground: (f, r) => { const q = W(f, 0, r); return groundAt(q[0], q[2]); },
+      lastLine: () => line[line.length - 1],
+      tri: (p0, p1, p2, mat, collide, col) => {
+        const b = batch(chunk, mat);
+        const nrm = norm(cross(sub(p1, p0), sub(p2, p0)));
+        const uvs = [[p0[0] + p0[2], p0[1]], [p1[0] + p1[2], p1[1]], [p2[0] + p2[2], p2[1]]];
+        const ii = [p0, p1, p2].map((p, k) => b.v(p, nrm, uvs[k][0] * 0.5, uvs[k][1] * 0.5, null, col));
+        b.idx.push(ii[0], ii[1], ii[2]);
+        if (collide) addColTri(p0, p1, p2, nrm, nrm, nrm, mat);
+      },
       path: addPath,
       ribbon: addRibbon,
       box: addBox,
-      startLine: (f) => { startMark = { piece: pidx, f }; },
-      checkpoint: (f) => { cpMarks.push({ piece: pidx, f }); },
+      startLine: (f) => { if (!decor) startMark = { piece: pidx, f }; },
+      checkpoint: (f) => { if (!decor) cpMarks.push({ piece: pidx, f }); },
       gate: (type, f) => {
         const c = W(f, 0, 0);
         decals.push({ type, p: c, F, R, lvl });
@@ -391,8 +463,8 @@ export function buildTrack(layout, opt = {}) {
         }
         addBox(fc, top + 0.2, 0, 1.0, 0.6, 2 * off + 0.6, MAT.STEEL, {});
       },
-      jumpInfo: (j) => { jumps.push({ piece: pidx, ...j, E, F, R, base }); },
-      portal: (f) => {
+      jumpInfo: (j) => { if (!decor) jumps.push({ piece: pidx, ...j, E, F, R, base }); },
+      portal: (f, facingOpt) => {
         // Betonfassade um die Röhrenöffnung (Ring zwischen Innenkontur und Rechteck)
         const b0 = 2.2, R0 = 3.5, Wx = 7.2, Yb = -0.5, Yt = 2 * R0 + 1.4, n = 10;
         const pts = [];
@@ -407,7 +479,7 @@ export function buildTrack(layout, opt = {}) {
           if (dy > 1e-6) t = Math.min(t, (Yt - R0) / dy); if (dy < -1e-6) t = Math.min(t, (Yb - R0) / dy);
           return [dx * t, R0 + dy * t];
         };
-        const facing = f < TILE ? -1 : 1;
+        const facing = facingOpt ?? (f < TILE ? -1 : 1);
         const nrm = mul(F, facing);
         const bt = batch(chunk, MAT.CONCRETE);
         const toW = (q) => W(f, q[1], q[0]);
@@ -430,7 +502,19 @@ export function buildTrack(layout, opt = {}) {
     P.build(pb);
     info.lineEnd = line.length - 1;
     info.exitDir = exitDir;
-  });
+    // Checkpoint importierter Strecken: Mitte des Stücks
+    if (pc.cp && !decor && info.lineEnd >= info.lineStart) {
+      const mid = line[(info.lineStart + info.lineEnd) >> 1];
+      cpMarks.push({ piece: pidx, f: mid.f });
+    }
+  };
+  layout.pieces.forEach((pc, k) => buildPiece(pc, k, false));
+  (layout.decor || []).forEach((pc, k) => buildPiece(pc, -1 - k, true));
+  // Szenerie (Häuser, Bäume, Windmühle …) importierter Strecken
+  const sceneryTrees = [];
+  if (layout.scenery && layout.scenery.length) {
+    buildScenery(layout.scenery, { batch, chunkOf, addColTri, groundAt, LH, trees: sceneryTrees, decals });
+  }
 
   // ----- Linie: Bogenlänge, Arrays -----
   const n = line.length;
@@ -440,7 +524,7 @@ export function buildTrack(layout, opt = {}) {
     nx: new Float32Array(n), ny: new Float32Array(n), nz: new Float32Array(n),
     bx: new Float32Array(n), by: new Float32Array(n), bz: new Float32Array(n),
     s: new Float32Array(n), hw: new Float32Array(n), lo: new Float32Array(n), hi: new Float32Array(n), air: new Uint8Array(n), loop: new Uint8Array(n), tube: new Uint8Array(n),
-    piece: new Uint16Array(n), total: 0, closed: false,
+    piece: new Uint16Array(n), grip: new Float32Array(n), total: 0, closed: false,
   };
   let acc = 0;
   for (let i = 0; i < n; i++) {
@@ -450,7 +534,7 @@ export function buildTrack(layout, opt = {}) {
     L.tx[i] = q.T[0]; L.ty[i] = q.T[1]; L.tz[i] = q.T[2];
     L.nx[i] = q.N[0]; L.ny[i] = q.N[1]; L.nz[i] = q.N[2];
     L.bx[i] = q.B[0]; L.by[i] = q.B[1]; L.bz[i] = q.B[2];
-    L.s[i] = acc; L.hw[i] = q.hw; L.lo[i] = q.lo; L.hi[i] = q.hi; L.air[i] = q.air; L.loop[i] = q.loop; L.tube[i] = q.tube; L.piece[i] = q.piece;
+    L.s[i] = acc; L.hw[i] = q.hw; L.lo[i] = q.lo; L.hi[i] = q.hi; L.air[i] = q.air; L.loop[i] = q.loop; L.tube[i] = q.tube; L.piece[i] = q.piece; L.grip[i] = q.grip ?? 1.25;
   }
   L.total = acc;
   // Rundkurs? (Ende == Anfang)
@@ -467,14 +551,21 @@ export function buildTrack(layout, opt = {}) {
   const checkpoints = cpMarks.map((c) => ({ idx: idxAt(c.piece, c.f) }));
   const start = startMark ? { idx: idxAt(startMark.piece, startMark.f) } : { idx: 0 };
   for (const j of jumps) {
+    if (j.gen) {
+      // Sprung über Lücke (Import): Lippe = letzter Punkt vor der Luftstrecke, Landung = erster danach
+      const pi = pieceInfo[j.piece];
+      j.lipIdx = Math.max(0, pi.lineStart - 1);
+      j.landIdx = Math.min(line.length - 1, pi.lineEnd + 1);
+      continue;
+    }
     j.lipIdx = idxAt(j.piece, j.lipF);
     j.landIdx = idxAt(j.piece, j.landF);
   }
 
   // ----- Gelände -----
-  const terrain = buildTerrain(occupied, shapes, layout.seed || 1);
-  // ----- Bäume -----
-  const trees = placeTrees(terrain, layout.seed || 1, opt.treeCount ?? 520);
+  const terrain = trkTerr || buildTerrain(occupied, shapes, layout.seed || 1);
+  // ----- Bäume ----- (Import: Tannen aus der Szenerie + Wald außerhalb des Rasters)
+  const trees = trkTerr ? sceneryTrees.concat(placeTrees(terrain, layout.seed || 1, opt.treeCount ?? 420, GRID * TILE / 2 + 25)) : placeTrees(terrain, layout.seed || 1, opt.treeCount ?? 520);
 
   // ----- Batches finalisieren -----
   const outBatches = [];
@@ -484,9 +575,11 @@ export function buildTrack(layout, opt = {}) {
       mat: b.mat, chunk: b.chunk,
       pos: new Float32Array(b.pos), nrm: new Float32Array(b.nrm), uv: new Float32Array(b.uv),
       road: b.road ? new Float32Array(b.road) : null,
+      col: b.col ? new Float32Array(b.col) : null,
       idx: b.nv > 65535 ? new Uint32Array(b.idx) : new Uint16Array(b.idx),
     });
   }
+  if (trkTerr) carveUnderRoads(trkTerr, outBatches, (m) => ROAD_MATS.has(m));
   let minX = 1e9, maxX = -1e9, minZ = 1e9, maxZ = -1e9, maxY = 0;
   for (let i = 0; i < colPos.length; i += 3) {
     minX = Math.min(minX, colPos[i]); maxX = Math.max(maxX, colPos[i]);
@@ -586,7 +679,7 @@ export function buildTerrain(occupied, shapes, seed) {
   return { ext, step, nx, H, height, heightFn, distTiles, waters };
 }
 
-function placeTrees(terrain, seed, count) {
+function placeTrees(terrain, seed, count, keepOut = 0) {
   const r = rng(seed * 13 + 5);
   const noise = makeNoise2(seed * 3 + 1);
   const out = [];
@@ -594,6 +687,7 @@ function placeTrees(terrain, seed, count) {
   while (out.length < count && tries < count * 30) {
     tries++;
     const x = r.range(-560, 560), z = r.range(-560, 560);
+    if (keepOut && Math.abs(x) < keepOut && Math.abs(z) < keepOut) continue;
     const dt = terrain.distTiles(x, z);
     if (dt < 1.35) continue;
     const dens = noise.fbm(x / 140, z / 140, 3) * 0.5 + 0.5;
