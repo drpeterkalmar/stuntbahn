@@ -9,6 +9,19 @@ export class Store {
     this.settings = Object.assign({ assist: 'easy', paint: 0xa3120e, sound: true, ghost: true, touch: 'auto', tilt: false, quality: 'auto', diff: 2, lastSeed: null, seenHelp: false }, d.settings || {});
     this.best = d.best || {};      // key|assist -> { time, date, name }
     this.ghostIndex = d.ghostIndex || []; // Reihenfolge für LRU
+    try { this.verified = JSON.parse(localStorage.getItem(KEY + '.verified') || '{}'); } catch { this.verified = {}; }
+  }
+  // Geprüfte Strecken (Autopilot) cachen: Layout nach Entschärfen + Referenzzeit
+  getVerified(key, build) {
+    const v = this.verified[key];
+    if (!v || v.b !== build) return null;
+    return { pieces: v.p.map(([type, i, j, d, m, lvl]) => ({ type, i, j, d, m, lvl })), ap: v.ap, fixes: v.f };
+  }
+  setVerified(key, build, pieces, ap, fixes) {
+    this.verified[key] = { b: build, p: pieces.map((q) => [q.type, q.i, q.j, q.d, q.m || 1, q.lvl || 0]), ap, f: fixes };
+    const keys = Object.keys(this.verified);
+    if (keys.length > 60) delete this.verified[keys[0]];
+    try { localStorage.setItem(KEY + '.verified', JSON.stringify(this.verified)); } catch { /* voll */ }
   }
   save() {
     try { localStorage.setItem(KEY, JSON.stringify({ settings: this.settings, best: this.best, ghostIndex: this.ghostIndex })); } catch { /* voll */ }
