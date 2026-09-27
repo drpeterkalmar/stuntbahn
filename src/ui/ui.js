@@ -1,6 +1,6 @@
 // Bedienoberfläche (DOM): Laden, Menü, HUD, Touch-Steuerung, Pause, Ergebnis, Replay, Credits.
 import { fmtTime, daySeed } from '../core/util.js';
-import { ASSISTS } from '../game/race.js';
+import { ASSISTS, PENALTY } from '../game/race.js';
 import { DIFFS } from '../track/generator.js';
 import { PAINTS } from '../gfx/carmesh.js';
 import { PIECES } from '../track/pieces.js';
@@ -33,7 +33,7 @@ export class UI {
       <div id="loading" class="screen show"><div class="logo">STUNT<b>BAHN</b></div><div class="bar"><i></i></div><p>Laden …</p></div>
       <div id="menu" class="screen"></div>
       <div id="hud">
-        <div class="tl"><div class="time">0:00,00</div><div class="best"></div></div>
+        <div class="tl"><div class="time">0:00,00</div><div class="pen"></div><div class="best"></div></div>
         <div class="tc"><div class="cp"></div></div>
         <div class="tr">
           <button class="rb" data-a="rewind" aria-label="Zurückspulen" title="Zurückspulen (R)">⏪</button>
@@ -43,6 +43,7 @@ export class UI {
         <div class="speed"><b>0</b><span>km/h</span><i class="gear">1</i></div>
         <div class="assistTag"></div>
       </div>
+      <div id="wipe"></div>
       <div id="big"></div>
       <div id="toast"></div>
       <div id="touch">
@@ -52,7 +53,7 @@ export class UI {
       </div>
       <div id="pause" class="screen"></div>
       <div id="result" class="screen"></div>
-      <div id="replayui"><div class="bar"><i></i></div><div class="btns"></div></div>
+      <div id="replayui"><div class="rinfo"></div><div class="bar"><i></i></div><div class="btns"></div></div>
       <div id="sheet" class="screen"></div>
       <div id="drop"><div>📂 Strecken hier ablegen<small>.TRK, .RPL oder .ZIP</small></div></div>`;
     // Datei-Auswahl (Handy + Desktop); wird per Knopf im Nutzer-Klick geöffnet
@@ -94,6 +95,12 @@ export class UI {
     const B = $('#big'); B.innerHTML = t; B.className = 'show ' + cls;
     clearTimeout(this._bt); this._bt = setTimeout(() => { B.className = ''; }, ms);
   }
+  // Aufblitzen/Wisch-Überblendung beim Fahrbahn-Reset: an beim Crash, aus beim Versetzen
+  wipe(on) {
+    const W = $('#wipe'); W.style.opacity = ''; W.style.transition = '';
+    W.classList.toggle('in', !!on);
+  }
+  flash() { this.wipe(true); clearTimeout(this._wt); this._wt = setTimeout(() => this.wipe(false), 90); }
   // ---------- Menü ----------
   showMenu(env) {
     this.env = env;
@@ -121,7 +128,7 @@ export class UI {
           <div class="tmeta">${metaLine}</div>
           <div class="stunts">${stuntsHtml || 'ohne Stunts'}</div>
           ${apLine}
-          <div class="bests">${bests}</div>
+          <div class="bests">${bests}<span class="bmode">${S.wreck ? '💥 mit Totalschaden' : '↺ Reset +' + PENALTY + ' s'}</span></div>
         </div>
         <button class="big go" data-a="start">▶ Losfahren</button>
       </div>
@@ -144,16 +151,21 @@ export class UI {
         </div>
       </div>`;
     this.show('menu');
+    this.wipe(false);
     this.setTouchMode(false);
     $('#hud').classList.remove('show');
     $('#replayui').classList.remove('show');
   }
   assistHint(k) {
+    const wreck = this.store.settings.wreck;
+    const crash = wreck
+      ? { easy: 'Crash? Wrack, dann automatisch 3 s zurück.', medium: 'Crash heißt Wrack, dann 3 s zurück.', original: 'Crash heißt Wrack.' }[k]
+      : `Crash? Sofort zurück auf die Fahrbahn, +${PENALTY} s.`;
     return {
-      easy: 'Gas, Bremse und Stunts macht das Auto selbst. Du lenkst grob – die Linie zieht dich. Crash? Automatisch 3 s zurück.',
-      medium: 'Bremsassistent, leichter Zug zur Linie, farbige Ideallinie (grün Gas, gelb vom Gas, rot bremsen), Rückspul-Knopf.',
-      original: 'Keine Hilfen – wie 1990. Crash heißt Wrack.',
-    }[k];
+      easy: 'Gas, Bremse und Stunts macht das Auto selbst. Du lenkst grob – die Linie zieht dich. ',
+      medium: 'Bremsassistent, leichter Zug zur Linie, farbige Ideallinie (grün Gas, gelb vom Gas, rot bremsen), Rückspul-Knopf. ',
+      original: 'Keine Hilfen – wie 1990. ',
+    }[k] + crash;
   }
   refresh() { if (this.screen === 'menu' && this.env) this.showMenu(this.env); }
   action(a, v) {
@@ -253,6 +265,12 @@ export class UI {
     const onoff = (k, label) => `<button data-a="toggle" data-v="${k}" class="${S[k] ? 'on' : ''}">${S[k] ? '✅' : '⬜'} ${label}</button>`;
     this.sheet('Optionen', `
       <div class="row">${onoff('sound', 'Ton')}${onoff('ghost', 'Geisterauto')}${onoff('tilt', 'Lenken durch Neigen')}</div>
+      <div class="lbl">Crash</div>
+      <div class="row">${onoff('wreck', '💥 Totalschaden')}</div>
+      <p class="hint">${S.wreck
+        ? '<b>An:</b> Crash heißt Wrack wie im Original (Leicht/Mittel: danach 3 s zurückgespult).'
+        : `<b>Aus</b> (empfohlen): Crash → sofort zurück auf die Fahrbahn vor dem Stunt, mit Schwung, <b>+${PENALTY} s</b> Zeitstrafe.`}
+      Gilt für alle Fahrhilfen; Bestzeiten und Geisterautos werden getrennt gezählt.</p>
       <div class="lbl">Lackfarbe</div>
       <div class="row">${PAINTS.map((p, i) => `<button data-a="paint" data-v="${i}" class="sw ${S.paint === p.color ? 'on' : ''}" style="--c:#${p.color.toString(16).padStart(6, '0')}">${p.name}</button>`).join('')}</div>
       <div class="lbl">Grafik</div>
@@ -264,7 +282,9 @@ export class UI {
       <p><i>Mittel/Original</i>: links ◀ ▶ lenken, rechts GAS und BREMSE. Bremse im Stand = Rückwärtsgang.</p>
       <p><b>Tastatur:</b> Pfeile oder WASD, Leertaste bremsen, <b>R</b> zurückspulen, <b>C</b> Kamera, <b>Esc</b> Pause.</p>
       <p><b>Gamepad:</b> linker Stick lenken, RT/A Gas, LT/X Bremse, Y zurückspulen, LB Kamera, Start Pause.</p>
-      <p><b>Ziel:</b> Alle Checkpoints der Reihe nach, dann über die Ziellinie. Bestzeiten und Geisterautos gibt es getrennt je Fahrhilfe.</p>`);
+      <p><b>Crash:</b> Standardmäßig kein Totalschaden – das Auto steht sofort wieder auf der Fahrbahn vor dem Stunt, mit Schwung, und du bekommst <b>+${PENALTY} s</b> auf die Zeit. Klappt ein Stunt mehrmals nicht, wirst du dahinter gesetzt (auch dann je +${PENALTY} s). Wer es hart mag: Optionen → <b>💥 Totalschaden</b> (Wrack wie im Original).</p>
+      <p><b>⏪ Zurückspulen</b> (Leicht/Mittel): 3 s zurück, um einen Crash zu vermeiden. Ohne Totalschaden läuft die Uhr dabei weiter – es kostet die Zeit, die du neu fährst, aber keine Strafe.</p>
+      <p><b>Ziel:</b> Alle Checkpoints der Reihe nach, dann über die Ziellinie. Bestzeiten und Geisterautos gibt es getrennt je Fahrhilfe und Totalschaden-Einstellung.</p>`);
   }
   showCredits() {
     this.sheet('Credits', `
@@ -285,8 +305,11 @@ export class UI {
     const A = ASSISTS[this.store.settings.assist];
     $('#hud .assistTag').textContent = A.icon + ' ' + A.name;
     $('#hud [data-a=rewind]').style.display = this.store.settings.assist === 'original' ? 'none' : '';
-    const b = this.store.bestFor(env.meta.key, this.store.settings.assist);
+    const b = this.store.bestFor(env.meta.key, this.store.settings.assist, race.wreckOn);
     $('#hud .best').textContent = b ? 'Beste ' + fmtTime(b.time) : '';
+    $('#hud .pen').textContent = '';
+    this._pen = 0;
+    this.wipe(false);
     this.setTouchMode(true);
     this.lastCd = null;
   }
@@ -300,6 +323,10 @@ export class UI {
       $('#hud .gear').textContent = race.car.fwdSpeed() < -0.5 ? 'R' : race.car.gear;
       $('#hud .cp').textContent = race.cps.length ? `CP ${Math.min(race.cpNext, race.cps.length)}/${race.cps.length}` : '';
     }
+    if (this._pen !== race.penalties) {
+      this._pen = race.penalties;
+      $('#hud .pen').textContent = race.penalties ? `inkl. +${race.penalties * PENALTY} s Strafe` : '';
+    }
     if (race.state === 'countdown') {
       const n = Math.ceil(race.countdown);
       if (n !== this.lastCd && n <= 3 && n > 0) { this.lastCd = n; this.big(String(n), 'count', 800); }
@@ -308,10 +335,11 @@ export class UI {
   event(e, race) {
     if (e.type === 'go') this.big('LOS!', 'go', 800);
     else if (e.type === 'checkpoint') this.big(`Checkpoint ${e.n}/${e.of}<small>${fmtTime(e.t)}</small>`, 'cp', 1100);
+    else if (e.type === 'crash' && e.penalty) { this.big(`+${e.penalty} s<small>💥 ${e.reason}</small>`, 'pen', 1600); this.wipe(true); }
     else if (e.type === 'crash') this.big(`💥 ${e.reason}`, 'crash', 1400);
-    else if (e.type === 'rewind') this.toast('⏪ Zurückgespult');
-    else if (e.type === 'reset') this.toast('Zurück auf die Strecke');
-    else if (e.type === 'skip') this.toast('⏭ Stelle übersprungen', 1800);
+    else if (e.type === 'rewind') { this.toast(e.keepClock ? '⏪ Zurückgespult – Uhr läuft weiter' : '⏪ Zurückgespult'); if (e.keepClock) this.flash(); }
+    else if (e.type === 'reset') { this.wipe(false); if (!race.wreckOn) return; this.toast('Zurück auf die Strecke'); }
+    else if (e.type === 'skip') { this.wipe(false); this.toast('⏭ Stelle übersprungen', 1800); }
   }
   // Fahrhilfe im Rennen gewechselt: HUD + Touch-Modus anpassen
   assistChanged() {
@@ -337,10 +365,12 @@ export class UI {
     $('#hud').classList.remove('show');
     $('#replayui').classList.remove('show');
     const A = ASSISTS[race.assistKey];
+    this.wipe(false);
+    const pen = race.penalties ? `<div class="rpen">💥 ${race.penalties} Strafe${race.penalties > 1 ? 'n' : ''} × ${PENALTY} s = +${race.penalties * PENALTY} s</div>` : (race.wreckOn ? '' : '<div class="rpen ok">✨ Ohne Crash – keine Strafzeit</div>');
     const best = res.isBest ? '<div class="rec">🏆 Neue Bestzeit!</div>' : (res.prev ? `<div class="prev">Bestzeit ${fmtTime(res.prev)} (${(res.time - res.prev >= 0 ? '+' : '') + (res.time - res.prev).toFixed(2).replace('.', ',')} s)</div>` : '');
     $('#result').innerHTML = `<div class="card"><h2>🏁 Ziel!</h2>
-      <div class="rtime">${fmtTime(res.time)}</div>${best}
-      <div class="rmeta">${A.icon} ${A.name} · ${env.meta.name} (${env.meta.key}) · Crashs ${race.crashes} · Rückspulen ${race.rewinds}</div>
+      <div class="rtime">${fmtTime(res.time)}</div>${pen}${best}
+      <div class="rmeta">${A.icon} ${A.name} · ${race.wreckOn ? '💥 Totalschaden an' : 'Totalschaden aus'} · ${env.meta.name} (${env.meta.key}) · Crashs ${race.crashes}${race.rewinds ? ' · Rückspulen ' + race.rewinds : ''}</div>
       <div class="row"><button class="big go" data-a="retry">🔁 Nochmal</button><button data-a="replay">🎬 Replay</button></div>
       <div class="row"><button data-a="next">🎲 Neue Strecke</button><button data-a="menu">☰ Menü</button></div></div>`;
     this.show('result');
@@ -352,11 +382,22 @@ export class UI {
     $('#hud').classList.remove('show');
     const R = $('#replayui');
     R.classList.add('show');
+    this._rpen = 0; this._rsec = 0; this._rtxt = '';
     $('.btns', R).innerHTML = [['chase', '🚗 Verfolger'], ['far', '🚁 Hubschrauber'], ['track', '📹 Strecke'], ['bumper', '🎯 Stoßstange']]
       .map(([m, n]) => `<button data-a="rcam" data-v="${m}">${n}</button>`).join('') + '<button data-a="rplay">⏯</button><button data-a="rslow">🐢</button><button data-a="rend">✕</button>';
   }
   replayCam(m) { window.__game.cam(m); for (const b of document.querySelectorAll('#replayui [data-a=rcam]')) b.classList.toggle('on', b.dataset.v === m); }
-  replayHud(r) { $('#replayui .bar i').style.width = (100 * r.t / r.duration).toFixed(1) + '%'; }
+  replayHud(r) {
+    $('#replayui .bar i').style.width = (100 * r.t / r.duration).toFixed(1) + '%';
+    // Schnitt beim Fahrbahn-Reset: Überblendung statt Sprung
+    const W = $('#wipe'), f = r.fade();
+    W.style.transition = 'none'; W.style.opacity = f > 0 ? Math.min(1, f * 1.4).toFixed(2) : '0';
+    const P = r.penaltiesSoFar();
+    if (P.n > (this._rpen ?? 0)) this.big(`+${P.sec - (this._rsec || 0)} s<small>Strafe</small>`, 'pen', 1200);
+    this._rpen = P.n; this._rsec = P.sec;
+    const txt = `⏱ ${fmtTime(r.raceTime())}${P.n ? ` · 💥 ${P.n}× +${PENALTY} s` : ''}`;
+    if (txt !== this._rtxt) { this._rtxt = txt; $('#replayui .rinfo').textContent = txt; }
+  }
   // ---------- Touch ----------
   setTouchMode(on) {
     const T = $('#touch');

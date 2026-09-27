@@ -1,13 +1,22 @@
-// Speicher (localStorage): Einstellungen, Bestzeiten + Geisterautos getrennt je Strecke UND Fahrhilfe.
+// Speicher (localStorage): Einstellungen, Bestzeiten + Geisterautos getrennt je Strecke, Fahrhilfe
+// UND Totalschaden-Einstellung.
 const KEY = 'stuntbahn.v1';
 const GHOST_MAX = 40;
+
+// Wertungsklasse aus Fahrhilfe + Totalschaden. Migration ohne Umkopieren: die bisherigen Schlüssel
+// (nur Fahrhilfe) behalten ihre Bedeutung – Leicht fuhr bisher ohne Wrack (→ Totalschaden aus),
+// Mittel/Original mit Wrack (→ Totalschaden an). Nur die jeweils andere Variante bekommt einen Zusatz.
+export function modeKey(assist, wreck) {
+  const legacy = assist === 'easy' ? !wreck : !!wreck;
+  return legacy ? assist : assist + (wreck ? '+wrack' : '+reset');
+}
 
 export class Store {
   constructor() {
     let d = {};
     try { d = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch { d = {}; }
-    this.settings = Object.assign({ assist: 'easy', paint: 0xa3120e, sound: true, ghost: true, touch: 'auto', tilt: false, quality: 'auto', diff: 2, lastSeed: null, seenHelp: false }, d.settings || {});
-    this.best = d.best || {};      // key|assist -> { time, date, name }
+    this.settings = Object.assign({ assist: 'easy', paint: 0xa3120e, sound: true, ghost: true, touch: 'auto', tilt: false, wreck: false, quality: 'auto', diff: 2, lastSeed: null, seenHelp: false }, d.settings || {});
+    this.best = d.best || {};      // key|modeKey -> { time, date, name, pen }
     this.ghostIndex = d.ghostIndex || []; // Reihenfolge für LRU
     try { this.verified = JSON.parse(localStorage.getItem(KEY + '.verified') || '{}'); } catch { this.verified = {}; }
   }
@@ -26,14 +35,14 @@ export class Store {
   save() {
     try { localStorage.setItem(KEY, JSON.stringify({ settings: this.settings, best: this.best, ghostIndex: this.ghostIndex })); } catch { /* voll */ }
   }
-  bestFor(key, assist) { return this.best[key + '|' + assist] || null; }
-  // Rennen beendet: Bestzeit prüfen, Geist speichern
-  submit(key, assist, time, rec, meta = {}) {
-    const k = key + '|' + assist;
+  bestFor(key, assist, wreck = this.settings.wreck) { return this.best[key + '|' + modeKey(assist, wreck)] || null; }
+  // Rennen beendet: Bestzeit prüfen, Geist speichern (rec inkl. Strafzeit-Stillstand, Race.ghostRec)
+  submit(key, assist, wreck, time, rec, meta = {}) {
+    const k = key + '|' + modeKey(assist, wreck);
     const prev = this.best[k];
     const isBest = !prev || time < prev.time;
     if (isBest) {
-      this.best[k] = { time, date: new Date().toISOString().slice(0, 10), name: meta.name || '' };
+      this.best[k] = { time, date: new Date().toISOString().slice(0, 10), name: meta.name || '', pen: meta.penalties || 0 };
       this.saveGhost(k, rec);
     }
     this.save();
@@ -61,8 +70,8 @@ export class Store {
       while (this.ghostIndex.length > GHOST_MAX) localStorage.removeItem('stuntbahn.ghost.' + this.ghostIndex.shift());
     } catch { /* Speicher voll: Geist verwerfen */ }
   }
-  loadGhost(key, assist) {
-    const s = localStorage.getItem('stuntbahn.ghost.' + key + '|' + assist);
+  loadGhost(key, assist, wreck = this.settings.wreck) {
+    const s = localStorage.getItem('stuntbahn.ghost.' + key + '|' + modeKey(assist, wreck));
     if (!s) return null;
     try {
       const bin = atob(s), u8 = new Uint8Array(bin.length);

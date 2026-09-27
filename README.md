@@ -13,7 +13,9 @@ spielbar am Handy (quer), mit Gamepad oder Tastatur. Als App installierbar (PWA)
 - Schwierigkeit **Sanft / Sportlich / Irre** steuert Länge, Kurvenradien, Stunt-Dichte und -Arten.
 - Jede generierte Strecke fährt vorab ein **Autopilot probe** – wo er crasht, wird entschärft.
   Seine Rundenzeit steht als „Autopilot-Referenz“ im Menü.
-- **Bestzeiten und Geisterautos** werden je Strecke *und* je Fahrhilfe getrennt gespeichert.
+- **Crash = kein Totalschaden** (Standard): das Auto steht sofort wieder auf der Fahrbahn vor dem Stunt,
+  mit Schwung, **+5 s** auf die Rennzeit. Wer es wie früher mag: Optionen → **💥 Totalschaden** (Wrack).
+- **Bestzeiten und Geisterautos** werden je Strecke, je Fahrhilfe *und* je Totalschaden-Einstellung getrennt gespeichert.
 - **Replay** der letzten Fahrt mit Verfolger-, Hubschrauber-, Strecken- und Stoßstangenkamera.
 
 ## Strecken des Stunt-Klassikers laden (.TRK)
@@ -32,11 +34,17 @@ spielbar am Handy (quer), mit Gamepad oder Tastatur. Als App installierbar (PWA)
 ## Fahrhilfen
 | Stufe | Was hilft |
 |---|---|
-| 🟢 **Leicht** | Gas und Bremse automatisch, Lenkung wird stark zur Ideallinie gezogen, Stunts fährt das Auto selbst. Crash → automatisch 3 s zurückspulen. Handy: linke/rechte Bildschirmhälfte halten (oder Neigen). |
+| 🟢 **Leicht** | Gas und Bremse automatisch, Lenkung wird stark zur Ideallinie gezogen, Stunts fährt das Auto selbst. Handy: linke/rechte Bildschirmhälfte halten (oder Neigen). |
 | 🟡 **Mittel** | Bremsassistent, leichter Zug zur Linie (in Stunts stärker), Stabilitätshilfe, farbige Ideallinie (grün = Gas, gelb = vom Gas, rot = bremsen), Rückspul-Knopf. |
-| 🔴 **Original** | Keine Hilfen, echte Wracks – so tricky wie damals. |
+| 🔴 **Original** | Keine Hilfen – so tricky wie damals. |
 
 Die Fahrhilfe ist jederzeit im Pause-Menü umschaltbar.
+
+**Crash** (Option „💥 Totalschaden“, gilt für alle Stufen):
+- **Aus (Standard):** kurzes Aufblitzen → Fahrbahn-Reset vor das Element mit Profil-Tempo, **+5 s** (groß angezeigt,
+  im HUD, Ergebnis und Replay). Die Uhr läuft durch. Am selben Element wiederholt gescheitert → dahinter gesetzt
+  (Leicht beim 2., sonst beim 3. Crash; jeder Crash kostet +5 s). ⏪ Rückspulen spult nur das Auto zurück, nicht die Uhr.
+- **An:** Wrack wie früher; Leicht/Mittel spulen danach 3 s zurück (samt Uhr), Original setzt vor das Element.
 
 ## Steuerung
 - **Handy (quer halten):** Leicht – Bildschirmhälften halten; Mittel/Original – links ◀ ▶, rechts GAS und BREMSE
@@ -70,9 +78,11 @@ python3 tests/test_trk_ui.py              # Import-Oberfläche: Datei-Auswahl, Z
 node tests/node/test_loop_gate.mjs        # Physik-Gate: Ebene → Schanze → Steilkurve → Looping → Röhre
 node tests/node/test_verify_batch.mjs 10  # Generator: 10 Seeds × 3 Stufen per Autopilot lösbar
 node tests/node/test_assists.mjs          # Fahrhilfen mit simulierten Spielern
+node tests/node/test_reset.mjs            # Crash in Looping/Sprung/Wand: Reset +5 s bzw. Wrack; nie Endlosschleife
 python3 tests/smoke.py                    # Browser (Playwright, Pixel 7 quer), Screenshots nach tests/shots/
 python3 tests/test_race.py                # Rennen, Bestzeit nach Reload, Geist, Replay
 python3 tests/test_touch.py               # Touch-Steuerung, Knopfgrößen ≥ 48 px
+python3 tests/test_reset_ui.py            # Totalschalter, „+5 s“, Strafen in Ergebnis/Replay, Bestzeit-Wertungen
 ```
 Nützliche URL-Parameter: `?seed=4711&d=3`, `?demo`, `?gallery` (alle Bausteine), `?trk=demo-rundkurs`
 (Beispielstrecke im .TRK-Format), `?speed=1` (Originaltempo statt 1,25×), `?q=0|1|2` (Grafikstufe), `?nosw`.

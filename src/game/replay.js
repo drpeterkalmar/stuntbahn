@@ -1,18 +1,35 @@
 // Replay der letzten Fahrt (60 Hz aufgezeichnet), mit Pause/Zeitlupe und wählbaren Kameras.
+// Fahrbahn-Resets erscheinen als Schnitt mit Überblendung (kein Teleport-Ruckler), Zeitstrafen im Overlay.
 import { REC_HZ, REC_STRIDE } from './race.js';
 
 export class Replay {
-  constructor(rec, env) {
+  constructor(rec, env, marks = {}) {
     this.rec = Float32Array.from(rec); this.env = env;
     this.frames = Math.floor(rec.length / REC_STRIDE);
     this.t = 0; this.speedMul = 1; this.paused = false;
     this.duration = this.frames / REC_HZ;
+    // Schnitte: erster Frame nach dem Versetzen; Strafen: Frame + Sekunden
+    this.cutF = new Set((marks.cuts || []).map((c) => c.f));
+    this.cutT = (marks.cuts || []).map((c) => c.f / REC_HZ);
+    this.pens = (marks.pens || []).map((p) => ({ t: p.f / REC_HZ, sec: p.sec }));
+    this.jumped = false;
     const mk = () => ({ comp: 0, steer: 0, spin: 0 });
     this.fake = { wheels: [mk(), mk(), mk(), mk()] };
     this.P = { pos: { x: 0, y: 0, z: 0 }, q: { x: 0, y: 0, z: 0, w: 1 }, frame: { f: { x: 0, y: 0, z: -1 }, u: { x: 0, y: 1, z: 0 }, r: { x: 1, y: 0, z: 0 } } };
   }
-  advance(dt) { if (!this.paused) this.t += dt * this.speedMul; if (this.t >= this.duration) this.t = 0; }
-  _i() { const f = this.t * REC_HZ; const i = Math.min(this.frames - 2, Math.max(0, Math.floor(f))); return [i, Math.min(1, f - i)]; }
+  advance(dt) {
+    const t0 = this.t;
+    if (!this.paused) this.t += dt * this.speedMul;
+    if (this.t >= this.duration) { this.t = 0; this.jumped = true; }
+    for (const tc of this.cutT) if (t0 < tc && this.t >= tc) this.jumped = true;
+  }
+  // über einen Schnitt hinweg nicht interpolieren (sonst fliegt das Auto ein Bild lang quer durchs Bild)
+  _i() { const f = this.t * REC_HZ; const i = Math.min(this.frames - 2, Math.max(0, Math.floor(f))); return [i, this.cutF.has(i + 1) ? 0 : Math.min(1, f - i)]; }
+  // Überblendung um jeden Schnitt: 0 … 1 (1 genau am Schnitt), ±0,3 s
+  fade() { let a = 0; for (const tc of this.cutT) a = Math.max(a, 1 - Math.abs(this.t - tc) / 0.3); return a; }
+  // Strafen bis zur aktuellen Stelle + Rennzeit (Aufzeichnungszeit + Strafen)
+  penaltiesSoFar() { let n = 0, sec = 0; for (const p of this.pens) if (p.t <= this.t) { n++; sec += p.sec; } return { n, sec }; }
+  raceTime() { return this.t + this.penaltiesSoFar().sec; }
   pose() {
     const [i, a] = this._i(), r = this.rec, o = i * REC_STRIDE, p = o + REC_STRIDE;
     const P = this.P;

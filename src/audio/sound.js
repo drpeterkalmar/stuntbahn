@@ -99,6 +99,13 @@ async function makeBank() {
     const lp = ctx.createBiquadFilter(); lp.frequency.value = 900; const ng = ctx.createGain(); ng.gain.setValueAtTime(0.35, 0); ng.gain.exponentialRampToValueAtTime(0.001, 0.2);
     n.connect(lp).connect(ng).connect(ctx.destination); n.start();
   });
+  // Fahrbahn-Reset (Totalschaden aus): kurzes „Wusch“ – Rauschen mit fallendem Bandpass, 0,4 s
+  bank.whoosh = await renderOffline(0.45, (ctx) => {
+    const n = ctx.createBufferSource(); const nb = ctx.createBuffer(1, SR / 2, SR); nb.copyToChannel(noise(SR / 2, 13), 0); n.buffer = nb;
+    const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 1.4; bp.frequency.setValueAtTime(3200, 0); bp.frequency.exponentialRampToValueAtTime(420, 0.4);
+    const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, 0); g.gain.exponentialRampToValueAtTime(0.7, 0.06); g.gain.exponentialRampToValueAtTime(0.001, 0.42);
+    n.connect(bp).connect(g).connect(ctx.destination); n.start();
+  });
   const beep = (f, d, type = 'square') => renderOffline(d + 0.05, (ctx) => {
     const o = ctx.createOscillator(); o.type = type; o.frequency.value = f;
     const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, 0); g.gain.exponentialRampToValueAtTime(0.25, 0.01); g.gain.setValueAtTime(0.25, d - 0.03); g.gain.exponentialRampToValueAtTime(0.0001, d);
@@ -184,6 +191,7 @@ export class Sound {
     if (e.type === 'count') this.shot(this.bank.beep, 0.7);
     else if (e.type === 'go') this.shot(this.bank.go, 0.8);
     else if (e.type === 'checkpoint') this.shot(this.bank.cp, 0.8);
+    else if (e.type === 'crash' && e.penalty) { this.shot(this.bank.thump, 0.9); this.shot(this.bank.whoosh, 0.9); }
     else if (e.type === 'crash') this.shot(this.bank.crash, 1);
     else if (e.type === 'finish') this.shot(this.bank.finish, 0.9);
     else if (e.type === 'land') this.shot(this.bank.thump, Math.min(1, e.v / 8));

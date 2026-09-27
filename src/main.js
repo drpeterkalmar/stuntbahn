@@ -17,7 +17,7 @@ import { trkToLayout } from './track/trkimport.js';
 import { KIND_NAMES } from './track/trkelems.js';
 import { TrkLib, unzipTracks } from './game/trklib.js';
 import { SHOWCASE, showcaseBytes } from './track/showcase.js';
-import { Store } from './game/store.js';
+import { Store, modeKey } from './game/store.js';
 import { Ghost } from './game/ghost.js';
 import { Replay } from './game/replay.js';
 import { Quality } from './gfx/quality.js';
@@ -208,7 +208,7 @@ async function importFiles(files) {
 function deleteImported(id) {
   trkLib.remove(id);
   for (const k of Object.keys(store.best)) if (k.startsWith(id + '|')) delete store.best[k];
-  for (const a of Object.keys(ASSISTS)) { try { localStorage.removeItem('stuntbahn.ghost.' + id + '|' + a); } catch { /* egal */ } }
+  for (const a of Object.keys(ASSISTS)) for (const w of [false, true]) { try { localStorage.removeItem('stuntbahn.ghost.' + id + '|' + modeKey(a, w)); } catch { /* egal */ } }
   store.save();
   ui.showLibrary();
 }
@@ -277,8 +277,8 @@ async function loadTrack(layout, meta = {}, pre = null) {
 function startRace(opts = {}) {
   replay = null;
   if (fx) fx.reset();
-  race = new Race(env, { assist: store.settings.assist, autopilot: !!opts.autopilot });
-  ghost = new Ghost(store.loadGhost(env.meta.key, store.settings.assist));
+  race = new Race(env, { assist: store.settings.assist, wreck: store.settings.wreck, autopilot: !!opts.autopilot });
+  ghost = new Ghost(store.loadGhost(env.meta.key, store.settings.assist, race.wreckOn));
   ghostVis.root.visible = !!ghost.data && store.settings.ghost;
   rig.init = false;
   mode = 'race';
@@ -300,7 +300,7 @@ function setPaint(c) { store.settings.paint = c; store.save(); carVis.setPaint(c
 function toMenu() { mode = 'menu'; replay = null; sound.stop(); race = new Race(env, { assist: store.settings.assist, countdown: 1e9 }); ui.showMenu(env); }
 function startReplay() {
   if (!race || !race.rec.length) return;
-  replay = new Replay(race.rec, env);
+  replay = new Replay(race.rec, env, { cuts: race.cuts, pens: race.pens });
   mode = 'replay';
   rig.mode = 'chase'; rig.init = false;
   ui.showReplay(replay);
@@ -333,6 +333,7 @@ function frame(now) {
     handleEvents();
   } else if (mode === 'replay' && replay) {
     replay.advance(rdt * timeScale);
+    if (replay.jumped) { replay.jumped = false; rig.init = false; } // Schnitt: Kamera neu ansetzen statt schwenken
   }
   render(rdt);
 }
@@ -341,8 +342,10 @@ function handleEvents() {
   for (const e of race.events) {
     ui.event(e, race);
     sound.event(e);
+    // Auto versetzt (Reset/Überspringen/Rückspulen): Kamera neu ansetzen, keine Zwischenbild-Interpolation
+    if (e.type === 'reset' || e.type === 'skip' || e.type === 'rewind') { rig.init = false; prevPose = null; }
     if (e.type === 'finish') {
-      const res = store.submit(env.meta.key, race.assistKey, race.finalTime, race.rec, env.meta);
+      const res = store.submit(env.meta.key, race.assistKey, race.wreckOn, race.finalTime, race.ghostRec(), { ...env.meta, penalties: race.penalties });
       ui.showResult(race, res, env);
       sound.stop();
     }
@@ -405,7 +408,7 @@ window.__game = {
   info() { const i = renderer.info; return { calls: i.render.calls, tris: i.render.triangles, geometries: i.memory.geometries, textures: i.memory.textures, programs: i.programs ? i.programs.length : 0, pixelRatio: renderer.getPixelRatio(), tier: quality.tier, fps: quality.fps }; },
   state() {
     const c = race && race.car;
-    return { mode, state: race && race.state, time: race && race.time, speed: c && c.speed(), pos: c && [c.pos.x, c.pos.y, c.pos.z], up: c && c.frame.u.y, cp: race && race.cpNext, cps: race && race.cps.length, lap: race && race.tracker.lap, idx: race && race.tracker.idx, n: env && env.track.line.n, crashes: race && race.crashes, rewinds: race && race.rewinds, crash: c && c.crash, assist: store.settings.assist, seed: env && env.meta.seed, diff: env && env.meta.diff, key: env && env.meta.key, frames: app.frames };
+    return { mode, state: race && race.state, time: race && race.time, speed: c && c.speed(), pos: c && [c.pos.x, c.pos.y, c.pos.z], up: c && c.frame.u.y, cp: race && race.cpNext, cps: race && race.cps.length, lap: race && race.tracker.lap, idx: race && race.tracker.idx, n: env && env.track.line.n, crashes: race && race.crashes, rewinds: race && race.rewinds, penalties: race && race.penalties, wreck: race && race.wreckOn, crash: c && c.crash, assist: store.settings.assist, seed: env && env.meta.seed, diff: env && env.meta.diff, key: env && env.meta.key, frames: app.frames };
   },
   start: (o) => startRace(o || {}),
   newTrack: (s, d) => newTrack(s, d),

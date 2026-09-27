@@ -58,6 +58,14 @@ button.go { background: linear-gradient(180deg, #ff7a36, #e24e10); border-color:
 #big.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
 #big small { display: block; font-size: .42em; font-style: normal; opacity: .9; }
 #big.go { color: #7dff7a; } #big.crash { color: #ff7a5a; font-size: clamp(26px, 5vw, 48px); } #big.cp { color: #ffd23d; font-size: clamp(26px, 5vw, 46px); }
+#big.pen { color: #ffcf3d; font-size: clamp(44px, 10vw, 92px); } #big.pen small { color: #ffb49a; font-size: .38em; font-style: italic; }
+#wipe { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .35s ease-out; background: radial-gradient(ellipse at 50% 45%, #fffdf4 0%, #e4f0ff 55%, #9fb6d4 100%); }
+#wipe.in { opacity: .92; transition: opacity .18s ease-in; }
+#hud .pen { font-size: 15px; font-weight: 800; color: #ffcf3d; }
+.rpen { text-align: center; color: #ffcf3d; font-weight: 800; font-size: 18px; }
+.rpen.ok { color: #9dffa0; font-weight: 700; font-size: 15px; }
+.track .bests .bmode { opacity: .7; font-size: 12px; align-self: center; }
+#replayui .rinfo { text-align: center; font-weight: 800; font-size: 16px; font-variant-numeric: tabular-nums; margin-bottom: 6px; text-shadow: 0 2px 4px #000c; }
 #toast { position: absolute; bottom: 22%; left: 50%; transform: translateX(-50%); background: #000b; padding: 8px 14px; border-radius: 10px; opacity: 0; transition: opacity .2s; font-weight: 600; }
 #toast.show { opacity: 1; }
 

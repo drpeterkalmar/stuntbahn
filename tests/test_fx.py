@@ -1,4 +1,4 @@
-# Effekte: Bremsspuren beim Driften, Wrack-Rauch in Original
+# Effekte: Bremsspuren beim Driften, Wrack-Rauch in Original (Totalschaden an)
 import sys, time, json
 sys.path.insert(0, 'tests')
 from util import *
@@ -6,6 +6,7 @@ with Server() as srv, sync_playwright() as pw:
     s = Session(pw, srv.base)
     s.open('?nosw&seed=1000&d=1')
     s.ev("__game.setAssist('original')")
+    s.ev("__game.store.settings.wreck = true")  # Wrack-Rauch gibt es nur mit Totalschaden an
     s.tap('button[data-a=start]')
     s.ev("__game.sim(3.2)")
     # Vollgas geradeaus, dann hart einlenken + bremsen → Driften/Spuren

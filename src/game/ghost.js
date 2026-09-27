@@ -4,7 +4,7 @@ const qa = new THREE.Quaternion(), qb = new THREE.Quaternion();
 
 export class Ghost {
   constructor(data) { this.data = data; this.t = 0; this.pose = { pos: { x: 0, y: 0, z: 0 }, q: { x: 0, y: 0, z: 0, w: 1 } }; }
-  advance(dt, race) { if (race.state === 'running' || race.state === 'wreck' || race.state === 'finished') this.t = race.time; }
+  advance(dt, race) { if (race.state === 'running' || race.state === 'wreck' || race.state === 'reset' || race.state === 'finished') this.t = race.time; }
   sample(t) {
     const D = this.data; if (!D) return null;
     const f = t * D.hz, i = Math.min(D.frames - 2, Math.max(0, Math.floor(f))), a = Math.min(1, Math.max(0, f - i));

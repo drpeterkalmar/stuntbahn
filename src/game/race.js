@@ -1,13 +1,19 @@
-// Renn-Logik: Countdown, Zeit, Checkpoints, Crash/Wrack/Rückspulen, Fahrhilfen (Mischung
-// Spieler/Autopilot), Aufzeichnung für Replay + Geisterauto. Reines JS (auch in Node lauffähig).
+// Renn-Logik: Countdown, Zeit, Checkpoints, Crash (Fahrbahn-Reset mit Zeitstrafe oder Wrack),
+// Rückspulen, Fahrhilfen (Mischung Spieler/Autopilot), Aufzeichnung für Replay + Geisterauto.
+// Reines JS (auch in Node lauffähig).
 import { Car } from '../physics/car.js';
 import { Autopilot, Tracker } from '../ai/autopilot.js';
 
 export const ASSISTS = {
-  easy: { name: 'Leicht', icon: '🟢', steerPull: 0.82, autoSpeed: true, autoStunts: true, magnet: 1, air: 1, autoRewind: true, wreck: false, showLine: true },
-  medium: { name: 'Mittel', icon: '🟡', steerPull: 0.28, stuntPull: 0.6, autoSpeed: false, brakeAssist: true, autoStunts: false, magnet: 0.35, air: 0.4, autoRewind: true, wreck: true, showLine: true },
-  original: { name: 'Original', icon: '🔴', steerPull: 0, autoSpeed: false, autoStunts: false, magnet: 0, air: 0, autoRewind: false, wreck: true, showLine: false },
+  easy: { name: 'Leicht', icon: '🟢', steerPull: 0.82, autoSpeed: true, autoStunts: true, magnet: 1, air: 1, autoRewind: true, showLine: true },
+  medium: { name: 'Mittel', icon: '🟡', steerPull: 0.28, stuntPull: 0.6, autoSpeed: false, brakeAssist: true, autoStunts: false, magnet: 0.35, air: 0.4, autoRewind: true, showLine: true },
+  original: { name: 'Original', icon: '🔴', steerPull: 0, autoSpeed: false, autoStunts: false, magnet: 0, air: 0, autoRewind: false, showLine: false },
 };
+
+// Totalschaden ist eine eigene Option (Standard aus, Peter 27.09.): aus → jeder Crash = Fahrbahn-Reset
+// vor das Element mit fliegendem Neustart und PENALTY Sekunden Zeitstrafe; an → Wrack wie bisher.
+export const PENALTY = 5;
+export const RESET_DELAY = 0.35; // kurzes Aufblitzen zwischen Crash und Reset (Spielzeit, s)
 
 export const REC_HZ = 60;
 export const REC_STRIDE = 16; // floats pro Frame
@@ -17,6 +23,7 @@ export class Race {
     this.env = env; // { track, world, ideal, prof }
     this.assistKey = opts.assist || 'medium';
     this.assist = ASSISTS[this.assistKey];
+    this.wreckOn = !!opts.wreck; // Totalschaden an/aus (gilt für alle Fahrhilfe-Stufen)
     this.car = new Car();
     this.ap = new Autopilot(env.ideal, env.prof);
     this.tracker = new Tracker(env.track.line);
@@ -35,6 +42,9 @@ export class Race {
     this.crashT = 0;
     this.crashes = 0;
     this.rewinds = 0;
+    this.penalties = 0;
+    this.pens = [];  // Zeitstrafen { f: Aufzeichnungs-Frame, sec }
+    this.cuts = [];  // Schnitte (Auto versetzt) { f } – fürs Replay
     this.autopilotOnly = !!opts.autopilot;
     this.maxProgress = 0;
     this.offT = 0;
@@ -80,7 +90,18 @@ export class Race {
       car.step(dt, this.env.world);
       this.time += dt;
       this.crashT += dt;
+      this.record(dt);
       if (this.crashT > (this.assist.autoRewind ? 1.4 : 2.6)) this.recover();
+      return;
+    }
+    if (this.state === 'reset') {
+      // Totalschaden aus: kurz aufblitzen (Uhr läuft weiter), dann zurück auf die Fahrbahn
+      car.input.steer = 0; car.input.throttle = 0; car.input.brake = 0.4; car.input.hold = true;
+      car.step(dt, this.env.world);
+      this.time += dt;
+      this.crashT += dt;
+      this.record(dt);
+      if (this.crashT >= RESET_DELAY) this.recover();
       return;
     }
     // ---- Rennen läuft ----
@@ -164,18 +185,37 @@ export class Race {
 
   onCrash() {
     this.crashes++;
-    this.emit('crash', { reason: this.car.crash.reason });
-    if (this.assist.wreck) { this.state = 'wreck'; this.crashT = 0; }
-    else this.recover();
+    this.crashT = 0;
+    if (this.wreckOn) {
+      this.emit('crash', { reason: this.car.crash.reason });
+      this.state = 'wreck';
+      return;
+    }
+    // Totalschaden aus: +5 s sofort auf die Uhr, kurzer Effekt, dann Fahrbahn-Reset (recover)
+    this.time += PENALTY;
+    this.penalties++;
+    this.pens.push({ f: this.recFrames(), sec: PENALTY });
+    this.emit('crash', { reason: this.car.crash.reason, penalty: PENALTY });
+    this.state = 'reset';
   }
 
-  // Zurück: Rückspulen (3 s) oder bei Original: vor das Element setzen (fliegender Neustart)
+  recFrames() { return this.rec.length / REC_STRIDE; }
+
+  // Zurück auf die Strecke. Totalschaden aus: immer vor das Element (fliegender Neustart).
+  // Totalschaden an: Rückspulen (3 s) bzw. bei Original vor das Element.
   recover() {
     const again = this.simTime - (this.lastRecoverT ?? -99) < 6;
     this.lastRecoverT = this.simTime;
-    // Fahrhilfe: dreimal an derselben Stelle gescheitert → hinter das Hindernis setzen (nie festhängen)
+    // Mehrfach an derselben Stelle gescheitert → hinter das Hindernis setzen (nie festhängen).
+    // Totalschaden aus: auf Leicht schon beim 2. Mal (der Autopilot fährt die Stunts, ein zweiter
+    // Crash dort ist kein Spielerfehler), sonst beim 3. Mal – jede Runde kostet trotzdem +5 s.
     const prog = this.tracker.progress();
     if (Math.abs(prog - (this.failS ?? -1e9)) < 80) this.failN = (this.failN || 0) + 1; else { this.failS = prog; this.failN = 1; }
+    if (!this.wreckOn) {
+      if (this.failN >= (this.assistKey === 'easy' ? 2 : 3)) this.skipAhead();
+      else this.safeReset();
+      return;
+    }
     if (this.assist.autoRewind && this.failN >= 3) { this.skipAhead(); return; }
     if (this.assist.autoRewind && !again) { this.rewind(3); return; }
     this.safeReset();
@@ -197,7 +237,7 @@ export class Race {
     this.tracker.lap = lap;
     this.failN = 0; this.failS = this.tracker.progress();
     this.skips = (this.skips || 0) + 1;
-    this.state = 'running';
+    this.afterJump();
     this.emit('skip');
   }
 
@@ -221,30 +261,64 @@ export class Race {
     const lap = this.tracker.lap - (j > this.tracker.idx ? 1 : 0);
     this.place(j, v);
     this.tracker.lap = lap;
-    this.state = 'running';
+    this.afterJump();
     this.emit('reset');
   }
 
+  // Nach dem Versetzen: Schnitt fürs Replay merken, Wächter zurücksetzen, weiterfahren
+  afterJump() {
+    this.cuts.push({ f: this.recFrames() });
+    this.offT = 0; this.stuckT = 0; this.stuckProg = this.tracker.progress(); this.wrongT = 0;
+    // Rückspul-Puffer leeren (sonst spult ⏪ vor den Reset zurück in den Crash)
+    if (!this.wreckOn) this.snaps.length = 0;
+    this.state = 'running';
+  }
+
+  // Rückspulen. Totalschaden an (bisheriges Verhalten): Uhr und Aufzeichnung werden mit zurückgedreht.
+  // Totalschaden aus: die Uhr läuft weiter – das Rückspulen kostet genau die Zeit, die man neu fährt,
+  // bringt also nie Zeit; die Aufzeichnung läuft weiter (Replay zeigt einen Schnitt, Geist bleibt synchron).
   rewind(sec = 3) {
-    if (!this.snaps.length) { this.place(this.startIdx - 1); this.state = 'running'; return; }
+    const keepClock = !this.wreckOn;
+    if (!this.snaps.length) {
+      if (keepClock) return;
+      this.place(this.startIdx - 1); this.state = 'running'; return;
+    }
     let k = this.snaps.length - 1 - Math.round(sec * 10);
     k = Math.max(0, k);
-    // nicht in einen Crash zurückspulen: weiter zurück, wenn Auto dort schon unruhig war
     const sn = this.snaps[k];
     this.snaps.length = k + 1;
     this.car.restore(sn.s);
-    this.time = sn.time;
     this.cpNext = sn.cp;
     this.tracker.lap = sn.lap; this.tracker.reset(sn.idx);
     this.ap.tr.reset(sn.apIdx);
-    this.rec.length = Math.min(this.rec.length, sn.recLen);
+    if (keepClock) this.cuts.push({ f: this.recFrames() });
+    else { this.time = sn.time; this.rec.length = Math.min(this.rec.length, sn.recLen); }
+    this.offT = 0; this.stuckT = 0; this.stuckProg = this.tracker.progress();
     this.state = 'running';
     this.rewinds++;
-    this.emit('rewind');
+    this.emit('rewind', { keepClock });
   }
 
   requestRewind() {
     if (this.state === 'running' || this.state === 'wreck') { this.rewind(3); }
+  }
+
+  // Aufzeichnung fürs Geisterauto: jede Zeitstrafe als Stillstand an der Crash-Stelle einfügen,
+  // damit Geist und Uhr zusammenpassen (Rennzeit = Aufzeichnungszeit + Strafen).
+  ghostRec() {
+    if (!this.pens.length) return this.rec;
+    const R = this.rec, out = [];
+    let from = 0;
+    for (const p of this.pens) {
+      const o = Math.min(p.f * REC_STRIDE, R.length);
+      for (let i = from; i < o; i++) out.push(R[i]);
+      from = o;
+      const src = Math.max(0, o - REC_STRIDE);
+      if (src + REC_STRIDE > R.length) continue;
+      for (let k = Math.round(p.sec * REC_HZ); k > 0; k--) for (let q = 0; q < REC_STRIDE; q++) out.push(R[src + q]);
+    }
+    for (let i = from; i < R.length; i++) out.push(R[i]);
+    return out;
   }
 
   record(dt) {
