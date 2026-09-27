@@ -62,7 +62,9 @@ let env = null;          // aktuelle Strecke { track, world, ideal, prof, layout
 let worldGroup = null;
 let race = null, ghost = null, replay = null, lineViz = null, fx = null;
 let mode = 'menu';       // menu | race | replay
-let acc = 0, last = performance.now(), frozen = false, timeScale = 1;
+// Spieltempo: 1.25 = 25 % schneller als Echtzeit (Peter 27.09.); ?speed=1 für Originaltempo
+const GAME_SPEED = +(params.get('speed') || 1.25);
+let acc = 0, last = performance.now(), frozen = false, timeScale = GAME_SPEED;
 let prevPose = null;
 
 async function boot() {
