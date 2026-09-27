@@ -32,6 +32,7 @@ function bannerTexture(text, bg, fg) {
 }
 
 export function buildWorld(track, M, opts = {}) {
+  const colWorld = opts.world || null;
   const root = new THREE.Group();
   root.name = 'world';
   const add = (mesh, caster = true) => {
@@ -72,6 +73,23 @@ export function buildWorld(track, M, opts = {}) {
     g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
     g.setIndex(new THREE.BufferAttribute(idx, 1));
     g.computeVertexNormals();
+    // Vorberechnete Umgebungsverdeckung (AO) nahe der Strecke: kurze Halbkugel-Strahlen gegen Bauwerke
+    const col = new Float32Array(nx * nx * 3).fill(1);
+    let aoRays = 0;
+    if (colWorld) {
+      const dirs = [];
+      for (let k = 0; k < 10; k++) { const a = k * 2.39996, z = 0.25 + 0.7 * (k + 0.5) / 10, r = Math.sqrt(1 - z * z); dirs.push([Math.cos(a) * r, z, Math.sin(a) * r]); }
+      for (let k = 0; k < nx * nx; k++) {
+        const x = pos[k * 3], y = pos[k * 3 + 1], z = pos[k * 3 + 2];
+        if (T.distTiles(x, z) > 1.25) continue;
+        let occ = 0;
+        for (const d of dirs) { aoRays++; if (colWorld.rayTrack(x, y + 0.15, z, d[0], d[1], d[2], 9, false)) occ++; }
+        const ao = 1 - 0.55 * Math.pow(occ / dirs.length, 0.8);
+        col[k * 3] = col[k * 3 + 1] = col[k * 3 + 2] = ao;
+      }
+    }
+    g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    stats.aoRays = aoRays;
     const mesh = new THREE.Mesh(g, M.grass);
     mesh.name = 'terrain-near';
     add(mesh, true);
@@ -100,6 +118,7 @@ export function buildWorld(track, M, opts = {}) {
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
     g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+    g.setAttribute('color', new THREE.Float32BufferAttribute(new Float32Array(pos.length).fill(1), 3));
     g.setIndex(idx);
     g.computeVertexNormals();
     const mesh = new THREE.Mesh(g, M.grass);

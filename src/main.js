@@ -18,6 +18,7 @@ import { Replay } from './game/replay.js';
 import { Quality } from './gfx/quality.js';
 import { LineViz } from './gfx/lineviz.js';
 import { Sound } from './audio/sound.js';
+import { CarFX } from './gfx/fx.js';
 import { daySeed } from './core/util.js';
 
 const DT = 1 / 120;
@@ -59,7 +60,7 @@ window.__soundRef = sound;
 
 let env = null;          // aktuelle Strecke { track, world, ideal, prof, layout, meta }
 let worldGroup = null;
-let race = null, ghost = null, replay = null, lineViz = null;
+let race = null, ghost = null, replay = null, lineViz = null, fx = null;
 let mode = 'menu';       // menu | race | replay
 let acc = 0, last = performance.now(), frozen = false, timeScale = 1;
 let prevPose = null;
@@ -100,6 +101,7 @@ async function boot() {
   ghostVis.root.visible = false;
   scene.add(ghostVis.root);
   lineViz = new LineViz(scene);
+  fx = new CarFX(scene);
   ui.loading(0.8, 'Strecke bauen …');
   const q = params.get('seed');
   if (params.has('demo')) await loadTrack(demoLayout(), { name: 'Teststrecke' });
@@ -135,12 +137,13 @@ async function loadTrack(layout, meta = {}, pre = null) {
   const P = pre || prepare(layout);
   const { track, world, ideal, prof } = P;
   env = { track, world, ideal, prof, layout, meta: { ...layout.meta, ...meta } };
-  worldGroup = buildWorld(track, M);
+  worldGroup = buildWorld(track, M, { world });
   scene.add(worldGroup);
   bakeStaticShadow(renderer, scene, sun.userData.dir, track.bounds, quality.staticShadowSize());
   rig.setTrackCams(track);
   lineViz.build(ideal, prof, track);
   env.buildMs = performance.now() - t0;
+  try { if (renderer.compileAsync) await renderer.compileAsync(scene, camera); } catch { /* optional */ }
   // Vorschau: Auto an den Start
   race = new Race(env, { assist: store.settings.assist, countdown: 1e9 });
   prevPose = null;
@@ -149,6 +152,7 @@ async function loadTrack(layout, meta = {}, pre = null) {
 
 function startRace(opts = {}) {
   replay = null;
+  if (fx) fx.reset();
   race = new Race(env, { assist: store.settings.assist, autopilot: !!opts.autopilot });
   ghost = new Ghost(store.loadGhost(env.meta.key, store.settings.assist));
   ghostVis.root.visible = !!ghost.data && store.settings.ghost;
@@ -198,6 +202,7 @@ function frame(now) {
       prevPose = race.car.snapshot();
       race.step(DT, inp);
       if (ghost) ghost.advance(DT, race);
+      if (fx) fx.step(DT, race.car, race.state);
       acc -= DT; steps++;
     }
     if (steps >= 14) acc = 0;
@@ -259,6 +264,7 @@ function render(rdt) {
     sun.target.updateMatrixWorld();
   }
   if (ghost && ghostVis.root.visible && mode === 'race') ghost.sync(ghostVis);
+  if (fx && mode === 'race' && !frozen) fx.update(rdt, camera);
   if (lineViz) lineViz.update(camera, race, store.settings.assist, mode);
   sky.position.copy(camera.position);
   if (mode === 'race' && race) { ui.hud(race, env, ghost); sound.update(race.car, rdt, race.state); }
@@ -286,7 +292,7 @@ window.__game = {
   sim(seconds, inp = null) {
     const I = inp || { steer: 0, throttle: 0, brake: 0 };
     const n = Math.round(seconds / DT);
-    for (let k = 0; k < n; k++) { prevPose = race.car.snapshot(); race.step(DT, I); if (ghost) ghost.advance(DT, race); if (race.state === 'finished') break; }
+    for (let k = 0; k < n; k++) { prevPose = race.car.snapshot(); race.step(DT, I); if (ghost) ghost.advance(DT, race); if (fx) fx.step(DT, race.car, race.state); if (race.state === 'finished') break; }
     handleEvents();
     return this.state();
   },

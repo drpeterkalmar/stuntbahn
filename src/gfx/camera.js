@@ -44,13 +44,15 @@ export class CameraRig {
     const u = this._u.set(P.frame.u.x, P.frame.u.y, P.frame.u.z);
     if (crashed) { u.set(0, 1, 0); }
     if (!this.init) { this.fwd.copy(f); this.up.copy(u); this.init = true; this.pos.copy(cp).addScaledVector(f, -8).addScaledVector(u, 3); }
-    const kf = 1 - Math.exp(-dt * (crashed ? 1.5 : 7));
+    const kf = 1 - Math.exp(-dt * 7);
     const ku = 1 - Math.exp(-dt * 3.2);
-    this.fwd.lerp(f, kf).normalize();
+    // Im Crash: Richtung von vor dem Unfall halten (Kamera dreht nicht mit dem Wrack), nur Oben → Welt
+    if (!crashed) this.fwd.lerp(f, kf).normalize();
+    else { this.fwd.y *= 0.9; this.fwd.normalize(); }
     this.up.lerp(u, ku).normalize();
     let targetFov = 62 + Math.min(14, speed * 0.16);
     if (this.mode === 'chase' || this.mode === 'far') {
-      const dist = this.mode === 'far' ? 11.5 : 6.8, h = this.mode === 'far' ? 3.8 : 2.15;
+      const dist = this.mode === 'far' ? 11.5 : crashed ? 9.5 : 6.8, h = this.mode === 'far' ? 3.8 : crashed ? 3.5 : 2.15;
       const want = V().copy(cp).addScaledVector(this.fwd, -dist).addScaledVector(this.up, h);
       // Kamera nicht durch Bauwerke: Strahl vom Auto zur Wunschposition
       if (world) {
