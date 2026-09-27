@@ -8,3 +8,8 @@ tests/out/
 __pycache__/
 *.pyc
 .DS_Store
+
+# Fremde Stunts-Strecken (.TRK) NUR lokal – nie ins Repo (Recht!)
+trk_local/
+*.trk
+*.TRK
