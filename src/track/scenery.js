@@ -120,8 +120,9 @@ function kit(ctx, x0, y0, z0, d) {
 }
 
 const MODELS = {
-  palm(k, s) {
-    const h = 8.5 * s, lean = 0.9 * s;
+  palm(k, s, low) {
+    // Unter Sprunglücken niedrig (wie die übrigen Modelle), sonst streift die höhere Flugbahn den Stamm
+    const h = (low ? 4.2 : 8.5) * s, lean = 0.9 * s;
     const N = 5;
     for (let q = 0; q < N; q++) {
       const t0 = q / N, t1 = (q + 1) / N;
@@ -129,7 +130,7 @@ const MODELS = {
       k.cyl(lean * t0 * t0, h * t0, 0, r0, r1, h / N + 0.05, 7, MAT.PAINT, C.bark, false, false);
     }
     k.colBox(0.3, h / 2, 0, 0.8, h, 0.8);
-    for (let q = 0; q < 9; q++) k.frond(lean, h, 0, q * 2 * PI / 9 + 0.3, 4.2 * s, 1.5, q % 2 ? C.leaf : C.leafDark);
+    for (let q = 0; q < 9; q++) k.frond(lean, h, 0, q * 2 * PI / 9 + 0.3, (low ? 3.2 : 4.2) * s, 1.5, q % 2 ? C.leaf : C.leafDark);
     k.box(lean, h - 0.3, 0, 0.6, 0.5, 0.6, MAT.PAINT, C.wood);
   },
   cactus(k, s) {

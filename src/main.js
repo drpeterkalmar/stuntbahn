@@ -379,6 +379,7 @@ function render(rdt) {
       tmpQ.slerp(tmpQ2, a);
       pose.q = { x: tmpQ.x, y: tmpQ.y, z: tmpQ.z, w: tmpQ.w };
     } else pose = { pos: c.pos, q: c.q, frame: c.frame };
+    pose.air = c.onGround === 0 && !c.surfaceKind && !c.crash;
     carVis.sync(c, 1, pose);
   }
   if (pose && mode === 'menu' && !app.freezeCam) {

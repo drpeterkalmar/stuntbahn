@@ -3,6 +3,7 @@
 // Eigene Mini-Mathematik (keine Abhängigkeiten) → deterministisch, läuft in Node und im Browser.
 // Körperachsen: x = rechts, y = oben, z = hinten (vorwärts = −z).
 import { GRIP, ROLL, MAT } from '../track/defs.js';
+import { G as GRAV, gravStep } from './air.js';
 
 export const CAR_DEF = {
   mass: 1300,
@@ -59,6 +60,7 @@ export class Car {
     this.crash = null;
     this.onGround = 0;
     this.airTime = 0;
+    this.gScale = 1; // Schwerkraft-Anteil (Luft-Faktor, air.js)
     this.gear = 1; this.rpm = def.idle;
     this.time = 0;
     this.maxG = 0;
@@ -94,7 +96,7 @@ export class Car {
     this.pos.x = p[0] + ux * h; this.pos.y = p[1] + uy * h; this.pos.z = p[2] + uz * h;
     this.v.x = fw[0] * speed; this.v.y = fw[1] * speed; this.v.z = fw[2] * speed;
     this.w.x = this.w.y = this.w.z = 0;
-    this.steerAng = 0; this.crash = null; this.upsideT = 0; this.airTime = 0;
+    this.steerAng = 0; this.crash = null; this.upsideT = 0; this.airTime = 0; this.gScale = 1;
     for (const w of this.wheels) { w.comp = w.prevComp = d.mass * 9.81 / 4 / d.k; w.contact = true; w.spinV = speed / d.wheelR; }
     this.updateFrame();
   }
@@ -156,7 +158,9 @@ export class Car {
     this.steerAng += Math.max(-ds, Math.min(ds, target - this.steerAng));
     this.steerAng = Math.max(-maxSteer, Math.min(maxSteer, this.steerAng));
 
-    let fx = 0, fy = -9.81 * m, fz = 0, tx = 0, ty = 0, tz = 0;
+    // Schwerkraft: im Flug nur AIR.factor (bis 27.09.2026 fest −9.81·m), Anteil aus dem letzten Schritt
+    const gm = GRAV * this.gScale * m;
+    let fx = 0, fy = -gm, fz = 0, tx = 0, ty = 0, tz = 0;
     const addForce = (px, py, pz, ax, ay, az) => {
       fx += ax; fy += ay; fz += az;
       const rx = px - this.pos.x, ry = py - this.pos.y, rz = pz - this.pos.z;
@@ -229,6 +233,8 @@ export class Car {
     }
     this.onGround = contacts;
     if (contacts) this.airTime = 0; else this.airTime += dt;
+    // Luft-Faktor nur, wenn alle Räder frei sind und das Auto nicht in Looping/Röhre steckt
+    this.gScale = gravStep(this.gScale, contacts === 0 && !this.surfaceKind, dt, this.airTime);
 
     // Aerodynamik
     fx -= d.dragK * sp * this.v.x; fy -= d.dragK * sp * this.v.y; fz -= d.dragK * sp * this.v.z;
@@ -251,7 +257,7 @@ export class Car {
     this.v.x += fx / m * dt; this.v.y += fy / m * dt; this.v.z += fz / m * dt;
     const dw = this._invI(tx, ty, tz, { x: 0, y: 0, z: 0 });
     this.w.x += dw.x * dt; this.w.y += dw.y * dt; this.w.z += dw.z * dt;
-    const g = Math.hypot(fx, fy + 9.81 * m, fz) / m / 9.81;
+    const g = Math.hypot(fx, fy + gm, fz) / m / 9.81;
     if (contacts) this.maxG = Math.max(this.maxG * 0.999, g);
 
     // Kontakte: Federbein-Anschläge + Karosserie
@@ -384,7 +390,7 @@ export class Car {
     this.w.x = s.w[0]; this.w.y = s.w[1]; this.w.z = s.w[2];
     this.steerAng = s.s;
     this.wheels.forEach((w, i) => { w.comp = w.prevComp = s.c[i]; });
-    this.crash = null; this.upsideT = 0;
+    this.crash = null; this.upsideT = 0; this.gScale = 1;
     this.updateFrame();
   }
 }

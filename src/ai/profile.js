@@ -1,37 +1,12 @@
 // Ideallinie + Tempo-Profil entlang der Fahrlinie.
 // Grenzen aus der Geometrie: Querhaftung (inkl. Überhöhung), Mindest-Anpressdruck im Looping,
 // maximale Last, Sprung-Fenster (ballistisch gelöst). Danach Brems-Rückwärtslauf.
-import { JUMP, landY } from '../track/pieces.js';
+import { jumpWindow } from '../track/pieces.js';
+import { G, flightPath, pathAt } from '../physics/air.js';
+import { CAR_DEF } from '../physics/car.js';
 import { TILE } from '../track/defs.js';
 
-const G = 9.81;
-
-export function jumpWindow() {
-  // Tempo-Fenster für die Standard-Schanze (Lippe bei f=T, Landung ab f=2T)
-  const th = JUMP.lipDeg * Math.PI / 180, lipY = JUMP.lipH;
-  // Flugbahn der Radaufstandspunkte ab der Lippe (x = Abstand hinter der Lippe)
-  const traj = (v, x) => lipY + x * Math.tan(th) - G * x * x / (2 * v * v * Math.cos(th) ** 2);
-  const landAt = (v) => {
-    for (let x = 0.2; x < 90; x += 0.1) {
-      const fl = x - TILE;             // Position relativ zur Vorderkante der Landung
-      const y = traj(v, x);
-      if (fl < 0) { if (y < 0) return { fail: 'kurz' }; continue; }
-      if (fl < 0.6 && y < JUMP.landH + 0.55) return { fail: 'Kante' };
-      if (y <= landY(fl)) return { fl };
-    }
-    return { fl: 90 };
-  };
-  let vmin = 0, vmax = 0, vbest = 0, bestErr = 1e9;
-  const target = JUMP.landLen * 0.45;
-  for (let v = 12; v <= 40; v += 0.1) {
-    const r = landAt(v);
-    const ok = !r.fail && r.fl > 1.5 && r.fl < JUMP.landLen + 8;
-    if (ok && !vmin) vmin = v;
-    if (ok) vmax = v;
-    if (ok && Math.abs(r.fl - target) < bestErr) { bestErr = Math.abs(r.fl - target); vbest = v; }
-  }
-  return { vmin, vmax, vbest };
-}
+export { jumpWindow }; // Standard-Schanze: Tempo-Fenster in pieces.js (gleiche Luft-Physik wie das Auto)
 
 // Sprung über eine Lücke (Import): Tempo-Fenster ballistisch aus der echten Geometrie.
 // Abwurf am letzten Punkt vor der Luftstrecke (Richtung = Linientangente), Landung auf den folgenden
@@ -53,9 +28,11 @@ export function genericJumpWindow(L, lip, land) {
   }
   if (pts.length < 3) return null;
   const ok = [];
+  const xMax = pts[pts.length - 1].x + 2, drag = CAR_DEF.dragK / CAR_DEF.mass;
   for (let v = 8; v <= 48; v += 0.25) {
-    const vx = v * Math.cos(th), vy0 = v * Math.sin(th);
-    const traj = (x) => p0y + x * Math.tan(th) - G * x * x / (2 * vx * vx);
+    // Flugbahn mit derselben Luft-Physik wie das Auto (bis 27.09.2026: Parabel mit voller Schwerkraft)
+    const P = flightPath(p0y, th, v, { xMax, yMin: p0y - 60, drag });
+    const traj = (x) => pathAt(P, x).y;
     // Vorder- und Hinterachse (2,7 m dahinter) müssen die Landekante sicher überfliegen
     if (traj(pts[0].x) < pts[0].y + 0.35 || traj(pts[0].x - 2.7) < pts[0].y + 0.1) continue;
     let hit = -1;
@@ -63,7 +40,7 @@ export function genericJumpWindow(L, lip, land) {
     if (hit < 1) continue;
     const a = pts[hit - 1], b = pts[hit];
     const sl = (b.y - a.y) / Math.max(0.05, b.x - a.x);
-    const t = b.x / vx, vy = vy0 - G * t;
+    const { vx, vy } = pathAt(P, b.x);
     const imp = (vy - sl * vx) / Math.sqrt(1 + sl * sl);
     const along = b.x - pts[0].x;
     if (imp < -8 || along < 3) continue;

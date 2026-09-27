@@ -41,6 +41,8 @@ export class Replay {
     // Rahmen aus Quaternion
     const rot = (x, y, z, out) => { const tx = 2 * (qy * z - qz * y), ty = 2 * (qz * x - qx * z), tz = 2 * (qx * y - qy * x); out.x = x + qw * tx + (qy * tz - qz * ty); out.y = y + qw * ty + (qz * tx - qx * tz); out.z = z + qw * tz + (qx * ty - qy * tx); };
     rot(0, 0, -1, P.frame.f); rot(0, 1, 0, P.frame.u); rot(1, 0, 0, P.frame.r);
+    // im Flug = kein Rad eingefedert (für die Kamera)
+    P.air = r[o + 10] === 0 && r[o + 11] === 0 && r[o + 12] === 0 && r[o + 13] === 0;
     return P;
   }
   phys() {

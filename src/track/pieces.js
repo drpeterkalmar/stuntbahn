@@ -4,6 +4,8 @@
 // baut Fahrlinie + Geometrie über den Piece-Builder (pb, siehe build.js).
 import { TILE, LEVEL_H, ROAD_HW, MAT } from './defs.js';
 import { smoothstep, smootherstep, clamp } from '../core/util.js';
+import { AIR, flightPath } from '../physics/air.js';
+import { CAR_DEF } from '../physics/car.js';
 
 const T = TILE;
 const PI = Math.PI;
@@ -32,9 +34,26 @@ export const LOOP = (() => {
 })();
 
 // ---------- Sprung: Schanze (Feld 1), Lücke (Feld 2..), Landung (letztes Feld) ----------
+// Höhere Sprünge (27.09.2026, Original-Stunts-Gefühl): steilere Lippe + Luft-Faktor (physics/air.js),
+// Landerampe so hoch wie die Lippe (Rampe → Lücke → Rampe wie im Original) und über das ganze Feld,
+// Ziel weiter hinten → Scheitel ~2×, Flugzeit ~+65 %, Weite ~+15 % (Messung: tools/jump_measure.mjs).
+// Bis dahin: { kickStart: 4, lipH: 2.1, lipDeg: 15, landH: 2.5, landLen: 18 }, Landung landH·u²,
+// Ziel 45 % der Landung, Anzeige-Parabel fest −0.012·x².
+// URL: ?lip=… Lippenwinkel; ≤ 18° zusätzlich die alte Landerampe → ?lip=15&air=1 = exakt der alte Sprung.
+const OLD_LAND = { landH: 2.5, landLen: 18, aim: 0.45, landShape: 'quad' };
 export const JUMP = {
-  kickStart: 4, lipH: 2.1, lipDeg: 15, landH: 2.5, landLen: 18,
+  kickStart: 4, lipDeg: 28, landH: 3.5, landLen: 20, aim: 0.85, landShape: 'smooth',
+  get lipH() { return kickerY(T).y; }, // Lippenhöhe folgt aus dem Kreisbogen (15° → 2.1 m, 28° → 3.8 m)
 };
+export function setLip(deg) {
+  JUMP.lipDeg = Math.max(8, Math.min(35, deg));
+  if (deg <= 18) Object.assign(JUMP, OLD_LAND);
+}
+{
+  const q = globalThis.location && globalThis.location.search;
+  const v = q ? +new URLSearchParams(q).get('lip') : 0;
+  if (v >= 8 && v <= 35) setLip(v);
+}
 function kickerY(f) { // Kreisbogen von Steigung 0 bis lipDeg, endet bei f = T
   const L = T - JUMP.kickStart, th = JUMP.lipDeg * PI / 180, R = L / th;
   if (f <= JUMP.kickStart) return { y: 0, slope: 0 };
@@ -42,12 +61,45 @@ function kickerY(f) { // Kreisbogen von Steigung 0 bis lipDeg, endet bei f = T
   const s = Math.min(a, th);
   return { y: R * (1 - Math.cos(s)), slope: Math.tan(s) };
 }
-export function landY(x) { // x ab Vorderkante der Landung; oben ~15° Gefälle, unten flach
+export function landY(x) { // x ab Vorderkante der Landung; 'smooth': oben/unten flach, Mitte ~15°
   const L = JUMP.landLen;
   if (x <= 0) return JUMP.landH;
   if (x >= L) return 0;
   const u = 1 - x / L;
-  return JUMP.landH * u * u;
+  return JUMP.landH * (JUMP.landShape === 'smooth' ? u * u * (3 - 2 * u) : u * u);
+}
+
+// Tempo-Fenster der Standard-Schanze (Lippe bei f=T, Landung ab f=2T): Flugbahn der Radaufstandspunkte
+// mit derselben Luft-Physik wie das Auto (flightPath). vbest landet bei JUMP.aim der Landerampe.
+const AIR_DRAG = CAR_DEF.dragK / CAR_DEF.mass;
+const jwCache = new Map();
+export function jumpWindow() {
+  const key = `${AIR.factor}|${JUMP.lipDeg}|${JUMP.landH}|${JUMP.landLen}|${JUMP.aim}|${JUMP.landShape}`;
+  if (jwCache.has(key)) return jwCache.get(key);
+  const th = JUMP.lipDeg * PI / 180, lipY = JUMP.lipH;
+  const landAt = (v) => {
+    const P = flightPath(lipY, th, v, { xMax: 90, yMin: -1, drag: AIR_DRAG });
+    for (let k = 1; k < P.x.length; k++) {
+      const x = P.x[k], y = P.y[k];
+      const fl = x - T;             // Position relativ zur Vorderkante der Landung
+      if (fl < 0) { if (y < 0) return { fail: 'kurz' }; continue; }
+      if (fl < 0.6 && y < JUMP.landH + 0.55) return { fail: 'Kante' };
+      if (y <= landY(fl)) return { fl, t: P.t[k], apex: Math.max(...P.y) - lipY };
+    }
+    return { fl: 90 };
+  };
+  let vmin = 0, vmax = 0, vbest = 0, bestErr = 1e9, best = null;
+  const target = JUMP.landLen * JUMP.aim;
+  for (let v = 10; v <= 40; v += 0.1) {
+    const r = landAt(v);
+    const ok = !r.fail && r.fl > 1.5 && r.fl < JUMP.landLen + 8;
+    if (ok && !vmin) vmin = v;
+    if (ok) vmax = v;
+    if (ok && Math.abs(r.fl - target) < bestErr) { bestErr = Math.abs(r.fl - target); vbest = v; best = r; }
+  }
+  const w = { vmin, vmax, vbest, air: best ? best.t : 0, apex: best ? best.apex : 0, fl: best ? best.fl : 0 };
+  jwCache.set(key, w);
+  return w;
 }
 
 // Hilfen
@@ -179,12 +231,14 @@ export const PIECES = {
       const s = [];
       const fix = (f) => (f < 2 ? {} : { lo: -0.15, hi: 0.15 });
       for (const f of lin(0, T, 40)) { const k = kickerY(f); s.push({ f, y: k.y, r: 0, surf: 1, prof: f < JUMP.kickStart ? 'road' : 'ramp', ...fix(f) }); }
-      // Flugphase: Linie ohne Fahrbahn (Parabel nur für Kamera/Anzeige, Physik fliegt frei)
+      // Flugphase: Linie ohne Fahrbahn (Flugbahn bei vbest nur für Kamera/Anzeige, Physik fliegt frei)
       const lip = kickerY(T);
-      const x1 = 2 * T;
-      for (const f of lin(T, x1, 10).slice(1, -1)) {
+      const P = flightPath(lip.y, Math.atan(lip.slope), jumpWindow().vbest, { xMax: T + 1, drag: AIR_DRAG });
+      for (const f of lin(T, 2 * T, 10).slice(1, -1)) {
         const x = f - T;
-        s.push({ f, y: lip.y + x * lip.slope - 0.012 * x * x, r: 0, surf: 0, air: 1, lo: 0, hi: 0 });
+        let k = 1; while (k < P.x.length - 1 && P.x[k] < x) k++;
+        const u = (x - P.x[k - 1]) / Math.max(1e-6, P.x[k] - P.x[k - 1]);
+        s.push({ f, y: Math.max(landY(0), P.y[k - 1] + (P.y[k] - P.y[k - 1]) * u), r: 0, surf: 0, air: 1, lo: 0, hi: 0 });
       }
       for (const f of lin(2 * T, 3 * T, 30)) s.push({ f, y: landY(f - 2 * T), r: 0, surf: 1, prof: f - 2 * T < JUMP.landLen ? 'ramp' : 'road', ...(f - 2 * T < 12 ? { lo: -0.6, hi: 0.6 } : {}) });
       pb.path(s, { profile: 'ramp', kind: 'jump' });

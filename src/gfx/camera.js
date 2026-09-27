@@ -14,7 +14,8 @@ export class CameraRig {
     this.trackCams = [];
     this.tcIdx = 0;
     this.fov = 62;
-    this._t = V(); this._d = V(); this._u = V();
+    this._t = V(); this._d = V(); this._u = V(); this._h = V();
+    this.airT = 0; this.airK = 0; this.baseY = 0;
   }
   setTrackCams(track) {
     // Masten neben der Strecke an Stunt-Elementen und alle ~120 m
@@ -43,18 +44,31 @@ export class CameraRig {
     const f = this._d.set(P.frame.f.x, P.frame.f.y, P.frame.f.z);
     const u = this._u.set(P.frame.u.x, P.frame.u.y, P.frame.u.z);
     if (crashed) { u.set(0, 1, 0); }
-    if (!this.init) { this.fwd.copy(f); this.up.copy(u); this.init = true; this.pos.copy(cp).addScaledVector(f, -6).addScaledVector(u, 2.3); }
+    if (!this.init) { this.fwd.copy(f); this.up.copy(u); this.init = true; this.pos.copy(cp).addScaledVector(f, -6).addScaledVector(u, 2.3); this.baseY = cp.y; this.airK = 0; }
+    // Flug (alle Räder frei, nicht in Looping/Röhre): Verfolger zieht nicht mit hoch, sondern bleibt auf
+    // Absprunghöhe, etwas weiter hinten und waagrecht → der Sprung wirkt sichtbar hoch. airK blendet weich.
+    this.airT = P.air && !crashed ? this.airT + dt : 0;
+    const airOn = this.airT > 0.12 ? 1 : 0;
+    this.airK += (airOn - this.airK) * (1 - Math.exp(-dt * (airOn ? 3.5 : 2.2)));
+    if (this.airK < 0.02 && !airOn) this.baseY = cp.y;       // am Boden: Bezugshöhe = Auto
+    else this.baseY = Math.min(cp.y, this.baseY + dt * 0.4); // im Flug: bleibt unten, folgt nur abwärts
     const kf = 1 - Math.exp(-dt * 7);
     const ku = 1 - Math.exp(-dt * 3.2);
     // Im Crash: Richtung von vor dem Unfall halten (Kamera dreht nicht mit dem Wrack), nur Oben → Welt
     if (!crashed) this.fwd.lerp(f, kf).normalize();
     else { this.fwd.y *= 0.9; this.fwd.normalize(); }
+    // im Flug: Oben → Welt-Oben (Kamera kippt nicht mit der Nase des Autos)
+    if (this.airK > 0.01 && (this.mode === 'chase' || this.mode === 'far')) u.lerp(this._h.set(0, 1, 0), this.airK).normalize();
     this.up.lerp(u, ku).normalize();
     let targetFov = 62 + Math.min(14, speed * 0.16);
     if (this.mode === 'chase' || this.mode === 'far') {
       // Verfolger näher am Auto (Peter 27.09.: vorher 6.8 m / 2.15 m)
       const dist = this.mode === 'far' ? 11.5 : crashed ? 8 : 5.0, h = this.mode === 'far' ? 3.8 : crashed ? 3.0 : 1.75;
-      const want = V().copy(cp).addScaledVector(this.fwd, -dist).addScaledVector(this.up, h);
+      // Flug: Blickrichtung waagrecht, 1,5 m weiter zurück, Höhe bleibt bei der Absprunghöhe (85 %)
+      const a = this.airK, back = this._h.copy(this.fwd);
+      if (a > 0) { back.y *= 1 - a; back.normalize(); }
+      const want = V().copy(cp).addScaledVector(back, -(dist + 1.5 * a)).addScaledVector(this.up, h);
+      if (a > 0) want.y -= a * 0.85 * Math.max(0, cp.y - this.baseY);
       // Kamera nicht durch Bauwerke: Strahl vom Auto zur Wunschposition
       if (world) {
         const o = V().copy(cp).addScaledVector(this.up, 1.2);
