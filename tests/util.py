@@ -16,12 +16,16 @@ class Quiet(SimpleHTTPRequestHandler):
         self.send_header('Cache-Control', 'no-store')
         super().end_headers()
 
+class BigQueueServer(ThreadingHTTPServer):
+    request_queue_size = 128   # Standard 5 → Verbindungsabbrüche bei vielen parallelen Texturen
+    daemon_threads = True
+
 class Server:
     def __init__(self, root=ROOT):
         self.root = root
     def __enter__(self):
         s = socket.socket(); s.bind(('127.0.0.1', 0)); port = s.getsockname()[1]; s.close()
-        self.httpd = ThreadingHTTPServer(('127.0.0.1', port), functools.partial(Quiet, directory=self.root))
+        self.httpd = BigQueueServer(('127.0.0.1', port), functools.partial(Quiet, directory=self.root))
         self.t = threading.Thread(target=self.httpd.serve_forever, daemon=True); self.t.start()
         self.base = f'http://127.0.0.1:{port}/'
         return self
