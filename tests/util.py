@@ -1,6 +1,6 @@
 # Test-Helfer: eingebauter HTTP-Server (Thread, endet mit dem Skript), Playwright mit
 # Pixel-7-Emulation im Querformat, WebGL über die GPU (ANGLE/Metal), Fehler-Sammlung, Screenshots.
-import os, time, json, threading, socket, functools
+import os, sys, time, json, threading, socket, functools
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from playwright.sync_api import sync_playwright
 
@@ -8,7 +8,16 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PIXEL7_LAND = dict(viewport={"width": 915, "height": 412}, device_scale_factor=2.625, is_mobile=True, has_touch=True,
                    user_agent="Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36")
 DESKTOP = dict(viewport={"width": 1280, "height": 720}, device_scale_factor=1)
-ARGS = ["--use-angle=metal", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist", "--enable-webgl"]   # WebGL über die GPU (Metal)
+# WebGL headless über die echte GPU (ANGLE/Metal) statt SwiftShader (CPU-Emulation): 27.09.2026 an der
+# Schmetterlingswiese gemessen 60 statt 5 fps und 0,2 statt 3 CPU-Kerne bei gleichem Bild.
+# --enable-unsafe-swiftshader bleibt nur als Rückfall, falls Metal einmal fehlt (dann warnt _check_gl).
+# SwiftShader erzwingen: WEBGL=swiftshader python3 tests/<test>.py
+GPU_ARGS = ["--use-angle=metal", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist", "--enable-webgl"]
+SWIFT_ARGS = ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist", "--enable-webgl"]
+ARGS = SWIFT_ARGS if os.environ.get('WEBGL') == 'swiftshader' else GPU_ARGS
+GL_RENDERER = """() => { const gl = document.createElement('canvas').getContext('webgl2'); if (!gl) return 'kein WebGL2';
+  const e = gl.getExtension('WEBGL_debug_renderer_info'); return e ? gl.getParameter(e.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER); }"""
+_gl_checked = False
 
 class Quiet(SimpleHTTPRequestHandler):
     def log_message(self, *a): pass
@@ -58,6 +67,16 @@ class Session:
                     print('BOOT TIMEOUT', self.errors[:5]); raise
                 print('  … lädt noch', round(time.time() - t0), 's, frames', self.ev("window.__app ? window.__app.frames : -1"), flush=True)
         self.boot_s = time.time() - t0
+        self._check_gl()
+    def _check_gl(self):
+        # einmal pro Testlauf: meldet, falls statt der GPU die CPU-Emulation rendert (still langsam)
+        global _gl_checked
+        if _gl_checked: return
+        _gl_checked = True
+        try: r = self.ev(GL_RENDERER)
+        except Exception as e: r = 'unbekannt (' + str(e)[:80] + ')'
+        if ARGS is GPU_ARGS and 'Metal' not in str(r):
+            print('WARNUNG WebGL läuft nicht auf der GPU:', r, file=sys.stderr, flush=True)
     def ev(self, js, arg=None):
         return self.pg.evaluate(js, arg) if arg is not None else self.pg.evaluate(js)
     def shot(self, name, sub=''):

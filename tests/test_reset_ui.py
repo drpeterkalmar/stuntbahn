@@ -39,7 +39,7 @@ with Server() as srv, sync_playwright() as pw:
 
     # Rennen (Autopilot fährt), Crash im Looping erzwingen
     s.ev("__game.start({ autopilot: true })")
-    s.frames(8)  # Rendering warmlaufen lassen (SwiftShader kompiliert beim ersten Rennbild ~2 s)
+    s.frames(8)  # Rendering warmlaufen lassen (Shader werden beim ersten Rennbild kompiliert)
     s.ev("__game.sim(4)")
     s.ev(LOOP_CRASH)
     st = None
