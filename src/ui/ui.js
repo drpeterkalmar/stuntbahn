@@ -4,6 +4,7 @@ import { ASSISTS, PENALTY } from '../game/race.js';
 import { DIFFS } from '../track/generator.js';
 import { PAINTS } from '../gfx/carmesh.js';
 import { PIECES } from '../track/pieces.js';
+import { LINE_LEVELS } from '../gfx/lineviz.js';
 import { parseTrk } from '../track/trk.js';
 import { trkToLayout } from '../track/trkimport.js';
 import { drawMinimap } from './minimap.js';
@@ -36,6 +37,7 @@ export class UI {
         <div class="tl"><div class="time">0:00,00</div><div class="pen"></div><div class="best"></div></div>
         <div class="tc"><div class="cp"></div></div>
         <div class="tr">
+          <button class="rb line" data-a="linetoggle" aria-label="Ideallinie ein/aus" title="Ideallinie ein/aus (L)"><svg viewBox="0 0 24 24" aria-hidden="true"><defs><linearGradient id="lg" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#3bdc55"/><stop offset=".55" stop-color="#ffd21a"/><stop offset="1" stop-color="#ff4a2a"/></linearGradient></defs><path d="M4 21C6 13 18 15 20 3" fill="none" stroke="url(#lg)" stroke-width="3.2" stroke-linecap="round"/><path class="x" d="M4 4L20 20" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/></svg></button>
           <button class="rb" data-a="rewind" aria-label="Zurückspulen" title="Zurückspulen (R)">⏪</button>
           <button class="rb" data-a="cam" aria-label="Kamera wechseln" title="Kamera (C)">🎥</button>
           <button class="rb" data-a="pause" aria-label="Pause" title="Pause (Esc)">⏸</button>
@@ -196,6 +198,8 @@ export class UI {
       case 'toggle': S[v] = !S[v]; this.store.save(); if (v === 'sound' && S.sound) A.sound.unlock(); if (v === 'sound' && !S.sound) A.sound.stop(); if (v === 'tilt') A.input.enableTilt(S.tilt); this.showSettings(); break;
       case 'paint': A.setPaint(PAINTS[+v].color); this.showSettings(); break;
       case 'rewind': A.rewind(); break;
+      case 'linetoggle': A.toggleLine(); break;
+      case 'line': if (S.assist !== 'original') A.setLine(v); if (this.screen === 'pause') this.showPause(true); else this.showSettings(); break;
       case 'cam': A.cycleCam(); break;
       case 'pause': A.pause(); break;
       case 'resume': A.pause(); break;
@@ -280,6 +284,12 @@ export class UI {
         ? '<b>An:</b> Crash heißt Wrack wie im Original (Leicht/Mittel: danach 3 s zurückgespult).'
         : `<b>Aus</b> (empfohlen): Crash → sofort zurück auf die Fahrbahn vor dem Stunt, mit Schwung, <b>+${PENALTY} s</b> Zeitstrafe.`}
       Gilt für alle Fahrhilfen; Bestzeiten und Geisterautos werden getrennt gezählt.</p>
+      <div class="lbl">Ideallinie</div>
+      ${this.lineSeg()}
+      <p class="hint">${S.assist === 'original'
+        ? 'Auf <b>Original</b> gibt es keine Ideallinie – die Einstellung gilt für Leicht und Mittel.'
+        : 'Farbiges Band auf der Fahrbahn (grün Gas, gelb vom Gas, rot bremsen, blau Luft). Nur die Anzeige – die Lenkhilfe bleibt gleich.'}
+      Im Rennen umschalten: Knopf oben rechts, <span class="desk">Taste <b>L</b>, </span>Gamepad <b>Back</b>.</p>
       <div class="lbl">Lackfarbe</div>
       <div class="row">${PAINTS.map((p, i) => `<button data-a="paint" data-v="${i}" class="sw ${S.paint === p.color ? 'on' : ''}" style="--c:#${p.color.toString(16).padStart(6, '0')}">${p.name}</button>`).join('')}</div>
       <div class="lbl">Grafik</div>
@@ -289,8 +299,8 @@ export class UI {
     this.sheet('Steuerung', `
       <p><b>Handy (quer halten):</b> Fahrhilfe <i>Leicht</i>: linke/rechte Bildschirmhälfte halten zum Lenken – Gas und Bremse macht das Auto. Oder in den Optionen „Lenken durch Neigen“.</p>
       <p><i>Mittel/Original</i>: links ◀ ▶ lenken, rechts GAS und BREMSE. Bremse im Stand = Rückwärtsgang.</p>
-      <p><b>Tastatur:</b> Pfeile oder WASD, Leertaste bremsen, <b>R</b> zurückspulen, <b>C</b> Kamera, <b>Esc</b> Pause.</p>
-      <p><b>Gamepad:</b> linker Stick lenken, RT/A Gas, LT/X Bremse, Y zurückspulen, LB Kamera, Start Pause.</p>
+      <p><b>Tastatur:</b> Pfeile oder WASD, Leertaste bremsen, <b>R</b> zurückspulen, <b>C</b> Kamera, <b>L</b> Ideallinie ein/aus, <b>Esc</b> Pause.</p>
+      <p><b>Gamepad:</b> linker Stick lenken, RT/A Gas, LT/X Bremse, Y zurückspulen, LB Kamera, Back Ideallinie, Start Pause.</p>
       <p><b>Crash:</b> Standardmäßig kein Totalschaden – das Auto steht sofort wieder auf der Fahrbahn vor dem Stunt, mit Schwung, und du bekommst <b>+${PENALTY} s</b> auf die Zeit. Klappt ein Stunt mehrmals nicht, wirst du dahinter gesetzt (auch dann je +${PENALTY} s). Wer es hart mag: Optionen → <b>💥 Totalschaden</b> (Wrack wie im Original).</p>
       <p><b>⏪ Zurückspulen</b> (Leicht/Mittel): 3 s zurück, um einen Crash zu vermeiden. Ohne Totalschaden läuft die Uhr dabei weiter – es kostet die Zeit, die du neu fährst, aber keine Strafe.</p>
       <p><b>Ziel:</b> Alle Checkpoints der Reihe nach, dann über die Ziellinie. Bestzeiten und Geisterautos gibt es getrennt je Fahrhilfe und Totalschaden-Einstellung.</p>`);
@@ -314,6 +324,7 @@ export class UI {
     const A = ASSISTS[this.store.settings.assist];
     $('#hud .assistTag').textContent = A.icon + ' ' + A.name;
     $('#hud [data-a=rewind]').style.display = this.store.settings.assist === 'original' ? 'none' : '';
+    this.lineChanged();
     const b = this.store.bestFor(env.meta.key, this.store.settings.assist, race.wreckOn);
     $('#hud .best').textContent = b ? 'Beste ' + fmtTime(b.time) : '';
     $('#hud .pen').textContent = '';
@@ -355,7 +366,20 @@ export class UI {
     const k = this.store.settings.assist, A = ASSISTS[k];
     $('#hud .assistTag').textContent = A.icon + ' ' + A.name;
     $('#hud [data-a=rewind]').style.display = k === 'original' ? 'none' : '';
+    this.lineChanged();
     if (document.body.dataset.mode === 'race') this.setTouchMode(true);
+  }
+  // Auswahl „Ideallinie“ (Optionen + Pause); auf Original ausgegraut
+  lineSeg() {
+    const S = this.store.settings, off = S.assist === 'original';
+    return `<div class="seg${off ? ' dis' : ''}" data-g="line">${Object.entries(LINE_LEVELS).map(([k, L]) => `<button data-a="line" data-v="${k}" class="${S.line === k ? 'on' : ''}"${off ? ' disabled' : ''}>${L.name}</button>`).join('')}</div>`;
+  }
+  // HUD-Knopf: auf Original weg, sonst „an/aus“ nach aktueller Stufe
+  lineChanged() {
+    const S = this.store.settings, B = $('#hud [data-a=linetoggle]');
+    B.style.display = S.assist === 'original' ? 'none' : '';
+    B.classList.toggle('off', S.line === 'off');
+    B.setAttribute('aria-pressed', S.line === 'off' ? 'false' : 'true');
   }
   showPause(on) {
     if (!on) { this.show(null); return; }
@@ -364,6 +388,8 @@ export class UI {
       <button class="big go" data-a="resume">▶ Weiter</button>
       <div class="lbl">Fahrhilfe (wirkt sofort)</div>
       <div class="seg">${Object.entries(ASSISTS).map(([k, A]) => `<button data-a="assist" data-v="${k}" class="${S.assist === k ? 'on' : ''}">${A.icon} ${A.name}</button>`).join('')}</div>
+      <div class="lbl">Ideallinie${S.assist === 'original' ? ' (nicht auf Original)' : ''}</div>
+      ${this.lineSeg()}
       <div class="row"><button data-a="restart">🔁 Neustart</button><button data-a="menu">☰ Menü</button></div></div>`;
     this.show('pause');
   }

@@ -40,6 +40,10 @@ spielbar am Handy (quer), mit Gamepad oder Tastatur. Als App installierbar (PWA)
 
 Die Fahrhilfe ist jederzeit im Pause-Menü umschaltbar.
 
+**Ideallinie** (Optionen/Pause, Leicht und Mittel): Aus / **Dezent** (Standard: schmaler, 28 % Deckkraft, weicher Rand,
+blendet ab ~60 m vor/hinter dem Auto aus) / Kräftig (bisheriger Look). Im Rennen schaltet der Knopf oben rechts, `L` oder
+Gamepad-Back zwischen Aus und der gewählten Stufe um. Nur Anzeige – die Lenkhilfe bleibt gleich.
+
 **Crash** (Option „💥 Totalschaden“, gilt für alle Stufen):
 - **Aus (Standard):** kurzes Aufblitzen → Fahrbahn-Reset vor das Element mit Profil-Tempo, **+5 s** (groß angezeigt,
   im HUD, Ergebnis und Replay). Die Uhr läuft durch. Am selben Element wiederholt gescheitert → dahinter gesetzt
@@ -49,8 +53,8 @@ Die Fahrhilfe ist jederzeit im Pause-Menü umschaltbar.
 ## Steuerung
 - **Handy (quer halten):** Leicht – Bildschirmhälften halten; Mittel/Original – links ◀ ▶, rechts GAS und BREMSE
   (Bremse im Stand = rückwärts). Optional „Lenken durch Neigen“. Keine Wischgesten.
-- **Tastatur:** Pfeile/WASD, Leertaste bremsen, `R` zurückspulen, `C` Kamera, `Esc` Pause.
-- **Gamepad:** linker Stick lenken, RT/A Gas, LT/X Bremse, Y zurückspulen, LB Kamera, Start Pause.
+- **Tastatur:** Pfeile/WASD, Leertaste bremsen, `R` zurückspulen, `C` Kamera, `L` Ideallinie, `Esc` Pause.
+- **Gamepad:** linker Stick lenken, RT/A Gas, LT/X Bremse, Y zurückspulen, LB Kamera, Back Ideallinie, Start Pause.
 
 ## Technik
 - three.js r186 als ES-Module mit Import-Map, **kein Build-Schritt**; GitHub Pages; PWA mit Service-Worker

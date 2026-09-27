@@ -21,7 +21,7 @@ import { Store, modeKey } from './game/store.js';
 import { Ghost } from './game/ghost.js';
 import { Replay } from './game/replay.js';
 import { Quality } from './gfx/quality.js';
-import { LineViz } from './gfx/lineviz.js';
+import { LineViz, LINE_LEVELS } from './gfx/lineviz.js';
 import { Sound } from './audio/sound.js';
 import { CarFX } from './gfx/fx.js';
 import { daySeed } from './core/util.js';
@@ -119,7 +119,7 @@ async function boot() {
   else await loadGenerated(q ? +q : daySeed(), +(params.get('d') || 2));
   ui.loading(1, 'Fertig');
   app.ready = true;
-  ui.bind({ startRace, newTrack, setAssist, toMenu, retry, startReplay, cycleCam, rewind: () => race && race.requestRewind(), pause: togglePause, setPaint, sound, input, quality, importFiles, playImported, deleteImported, trkLib, showcase: SHOWCASE, showcaseBytes, store });
+  ui.bind({ startRace, newTrack, setAssist, toMenu, retry, startReplay, cycleCam, rewind: () => race && race.requestRewind(), pause: togglePause, setLine, toggleLine, setPaint, sound, input, quality, importFiles, playImported, deleteImported, trkLib, showcase: SHOWCASE, showcaseBytes, store });
   initDrop();
   ui.showMenu(env);
   mode = params.has('race') ? 'race' : 'menu';
@@ -305,6 +305,15 @@ function startReplay() {
   rig.mode = 'chase'; rig.init = false;
   ui.showReplay(replay);
 }
+// Ideallinie: Stufe setzen (Optionen/Pause) bzw. im Rennen zwischen Aus und der gewählten Stufe umschalten
+function setLine(v) { const S = store.settings; S.line = v; if (v !== 'off') S.lineLast = v; store.save(); ui.lineChanged(); }
+function toggleLine() {
+  if (store.settings.assist === 'original') return;
+  const S = store.settings;
+  setLine(S.line === 'off' ? (S.lineLast || 'soft') : 'off');
+  ui.toast('Ideallinie: ' + LINE_LEVELS[S.line].name);
+  if (ui.screen === 'pause') ui.showPause(true);
+}
 function cycleCam() { const m = rig.cycle(); ui.toast({ chase: 'Verfolger', far: 'Hubschrauber', bumper: 'Stoßstange', track: 'Streckenkamera' }[m]); }
 function togglePause() { if (mode !== 'race') return; frozen = !frozen; ui.showPause(frozen); if (frozen) sound.stop(); else sound.start(); }
 
@@ -318,6 +327,7 @@ function frame(now) {
   const inp = input.update(rdt);
   if (input.consume('Escape') || input.consume('KeyP')) { if (mode === 'race') togglePause(); }
   if (input.consume('KeyC')) cycleCam();
+  if (input.consume('KeyL') && mode === 'race') toggleLine();
   if (input.consume('KeyR') && mode === 'race' && race.assist.autoRewind !== undefined && store.settings.assist !== 'original') race.requestRewind();
   if (!frozen && mode === 'race') {
     acc += rdt * timeScale;
@@ -392,7 +402,7 @@ function render(rdt) {
   }
   if (ghost && ghostVis.root.visible && mode === 'race') ghost.sync(ghostVis);
   if (fx && mode === 'race' && !frozen) fx.update(rdt, camera);
-  if (lineViz) lineViz.update(camera, race, store.settings.assist, mode);
+  if (lineViz) lineViz.update(camera, race, store.settings.assist, mode, store.settings.line);
   sky.position.copy(camera.position);
   if (mode === 'race' && race) { ui.hud(race, env, ghost); sound.update(race.car, rdt, race.state); }
   if (mode === 'replay' && replay) ui.replayHud(replay);
@@ -413,6 +423,8 @@ window.__game = {
   start: (o) => startRace(o || {}),
   newTrack: (s, d) => newTrack(s, d),
   setAssist,
+  setLine,
+  toggleLine,
   replay: startReplay,
   toMenu,
   freeze(on = true) { frozen = on; },

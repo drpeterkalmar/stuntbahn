@@ -1,5 +1,5 @@
 // Eingabe: Tastatur, Gamepad, Touch (Tasten-Zonen bzw. Bildschirmhälften, optional Neigen).
-// Liefert Rohwerte steer (−1..1), throttle/brake (0..1) + Knöpfe (rewind, pause, cam).
+// Liefert Rohwerte steer (−1..1), throttle/brake (0..1) + Knöpfe (rewind, pause, cam, Ideallinie).
 
 export class Input {
   constructor() {
@@ -46,10 +46,11 @@ export class Input {
     this.pad.brake = Math.max(lt, b);
     this.pad.active = Math.abs(dz) > 0 || this.pad.throttle > 0 || this.pad.brake > 0;
     const was = this._padBtn || {};
-    const now = { y: p.buttons[3]?.pressed, x: p.buttons[1]?.pressed, start: p.buttons[9]?.pressed, lb: p.buttons[4]?.pressed };
+    const now = { y: p.buttons[3]?.pressed, x: p.buttons[1]?.pressed, start: p.buttons[9]?.pressed, lb: p.buttons[4]?.pressed, back: p.buttons[8]?.pressed };
     if (now.y && !was.y) this.pressed.add('KeyR');
     if (now.start && !was.start) this.pressed.add('Escape');
     if (now.lb && !was.lb) this.pressed.add('KeyC');
+    if (now.back && !was.back) this.pressed.add('KeyL');
     this._padBtn = now;
   }
   update(dt) {
