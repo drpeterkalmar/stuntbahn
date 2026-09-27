@@ -16,6 +16,19 @@ spielbar am Handy (quer), mit Gamepad oder Tastatur. Als App installierbar (PWA)
 - **Bestzeiten und Geisterautos** werden je Strecke *und* je Fahrhilfe getrennt gespeichert.
 - **Replay** der letzten Fahrt mit Verfolger-, Hubschrauber-, Strecken- und Stoßstangenkamera.
 
+## Strecken des Stunt-Klassikers laden (.TRK)
+- Menü → **📂 Strecke laden (.TRK)** → Datei wählen (Handy) oder Dateien ins Fenster ziehen (Desktop).
+  Geht mit einzelnen `.TRK`-Strecken, Replays (`.RPL`, enthalten die Strecke) und ganzen **ZIP-Archiven**.
+- Woher? z. B. **zak.stunts.hu** → Downloads (Track-Pack, Wettbewerbs-Archiv) oder archive.org („stunts tracks“).
+  Die Strecken bleiben **nur im eigenen Browser** (nichts wird hochgeladen, nichts davon liegt im Repo).
+- Alle 151 Strecken- und 28 Szenerie-Elemente werden nachgebaut: Hochstraße, Rampen und Sprünge über
+  Lücken, Korkenzieher (Rolle und Wendel), Röhre, Tunnel, Autobahn, Slalom, Steilkurven, Schikanen, Abzweige,
+  Kreuzungen, Schotter und Eis, Hügel, Hänge und Wasser, Häuser, Windmühlen, Schiffe …
+- Beim ersten Laden fährt der Autopilot die Strecke probe → Ideallinie, Tempo-Profil und alle drei Fahrhilfen
+  funktionieren sofort; Bestzeiten und Geisterautos je Strecke und Fahrhilfe.
+- Getestet an 3603 Archiv-Strecken: 99,5 % lesbar, 99,5 % davon Rundkurs; Autopilot auf „Leicht“ bei
+  96,5 % einer Stichprobe von 200 im Ziel (Details: `NACHT2_BERICHT.md`).
+
 ## Fahrhilfen
 | Stufe | Was hilft |
 |---|---|
@@ -49,6 +62,11 @@ Die Fahrhilfe ist jederzeit im Pause-Menü umschaltbar.
 
 ## Entwicklung & Tests
 ```bash
+npm run test:node                         # alle Node-Tests (Parser, Import, Physik, Generator, Fahrhilfen)
+node tests/node/test_trk_parser.mjs       # .TRK-Parser + Elementtabelle (Byte-Layout, alle Codes)
+node tests/node/test_trk_import.mjs       # jedes Element baubar, Wegverfolgung, Gelände, Beispielstrecke
+node tests/node/test_trk_corpus.mjs 200   # nur lokal: Archiv-Strecken in trk_local/ (nicht im Repo)
+python3 tests/test_trk_ui.py              # Import-Oberfläche: Datei-Auswahl, ZIP, Drag & Drop, Ziel, Löschen
 node tests/node/test_loop_gate.mjs        # Physik-Gate: Ebene → Schanze → Steilkurve → Looping → Röhre
 node tests/node/test_verify_batch.mjs 10  # Generator: 10 Seeds × 3 Stufen per Autopilot lösbar
 node tests/node/test_assists.mjs          # Fahrhilfen mit simulierten Spielern
@@ -56,7 +74,8 @@ python3 tests/smoke.py                    # Browser (Playwright, Pixel 7 quer), 
 python3 tests/test_race.py                # Rennen, Bestzeit nach Reload, Geist, Replay
 python3 tests/test_touch.py               # Touch-Steuerung, Knopfgrößen ≥ 48 px
 ```
-Nützliche URL-Parameter: `?seed=4711&d=3`, `?demo`, `?gallery` (alle Bausteine), `?q=0|1|2` (Grafikstufe), `?nosw`.
+Nützliche URL-Parameter: `?seed=4711&d=3`, `?demo`, `?gallery` (alle Bausteine), `?trk=demo-rundkurs`
+(Beispielstrecke im .TRK-Format), `?speed=1` (Originaltempo statt 1,25×), `?q=0|1|2` (Grafikstufe), `?nosw`.
 
 ## Credits
 - **Auto:** „Fictional supercar – V12 Goblin“ von **Olli Teittinen (ollitei)**, CC-BY 4.0 (Sketchfab), für das Spiel optimiert.

@@ -187,6 +187,8 @@ export function trkToLayout(trk, opt = {}) {
     for (let q = 0; q < k; q++) gapCells.add((pc.i + DIRS[pc.d][0] * q) + ',' + (pc.j + DIRS[pc.d][1] * q));
   }
   for (const sc of scenery) if (gapCells.has(sc.i + ',' + sc.j)) sc.low = 1;
+  // Elemente unter einer Sprunglücke: hohe Deko (Stahlbügel, Portale) weglassen
+  const under = (pc) => pieceCells(pc.type, pc.i, pc.j, pc.d, pc.m || 1).cells.some(([ci, cj]) => gapCells.has(ci + ',' + cj));
   // Checkpoints: bei 1/4, 2/4, 3/4 der Strecke, bevorzugt auf geraden Straßen
   const cum = [];
   let acc = 0;
@@ -214,6 +216,7 @@ export function trkToLayout(trk, opt = {}) {
       decor.push(pc);
     }
   }
+  for (const pc of [...pieces, ...decor]) if (!pc.type.startsWith('tr_gap') && under(pc)) pc.underJump = 1;
   const counts = {};
   for (const pc of pieces) if (pc.kind) counts[pc.kind] = (counts[pc.kind] || 0) + 1;
   const key = 'trk-' + trkHash(trk.bytes);

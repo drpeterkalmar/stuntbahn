@@ -111,16 +111,14 @@ function buildStraight(pb, L) {
   const lipH = pc.lipEnd && Math.abs(heightAt(pc, pb.LH, L, L)) < 0.01 ? 0.9 : 0, lipL = 7;
   const lip = (f) => (lipH && f > L - lipL ? lipH * (1 - Math.cos(PI * 0.5 * (f - L + lipL) / lipL)) : 0);
   const S = lin(0, L, n).map((f) => ({ f, y: heightAt(pc, pb.LH, f, L) + lip(f), r: 0 }));
-  // Slalom: zwei Betonblöcke auf gegenüberliegenden Spuren, Linie weicht aus
+  // Slalom: zwei Betonblöcke auf gegenüberliegenden Spuren (rechts zuerst, links weiter hinten). Wie im
+  // Original bleibt in der Mitte genau Platz für ein gerade ausgerichtetes Auto: die Linie fährt mittig durch.
   if (pc.deco === 'slalom') {
-    const A = [3, 5.6], B = [L - 5.6, L - 3];
-    for (const s of S) {
-      if (s.f > A[0] - 2.5 && s.f < A[1] + 1.5) s.hi = -0.3;
-      if (s.f > B[0] - 1.5 && s.f < B[1] + 2.5) s.lo = 0.3;
-    }
+    const A = [4, 6.6], B = [L - 6.6, L - 4], gap = 1.3;
+    for (const s of S) if (s.f > A[0] - 3 && s.f < B[1] + 3) { s.lo = -0.25; s.hi = 0.25; }
     if (!pc.sub) {
-      pb.box((A[0] + A[1]) / 2, 0.65, (0.95 + HW) / 2, A[1] - A[0], 1.3, HW - 0.95, MAT.WALL, { collide: true });
-      pb.box((B[0] + B[1]) / 2, 0.65, -(0.95 + HW) / 2, B[1] - B[0], 1.3, HW - 0.95, MAT.WALL, { collide: true });
+      pb.box((A[0] + A[1]) / 2, 0.65, (gap + HW) / 2, A[1] - A[0], 1.3, HW - gap, MAT.WALL, { collide: true });
+      pb.box((B[0] + B[1]) / 2, 0.65, -(gap + HW) / 2, B[1] - B[0], 1.3, HW - gap, MAT.WALL, { collide: true });
     }
   }
   const start = pb.pc.start && pb.pc.type === 'tr_sf';
@@ -265,9 +263,9 @@ function buildCorkLR(pb) {
   const wa = [f0 + 2, -HW + 0.4], wb = [f1 - 2, HW - 0.4];
   const wl = Math.hypot(wb[0] - wa[0], wb[1] - wa[1]);
   pb.box((wa[0] + wb[0]) / 2, 0.6, (wa[1] + wb[1]) / 2, wl, 1.2, 0.4, MAT.WALL, { collide: true, rotY: Math.atan2(wb[1] - wa[1], wb[0] - wa[0]) });
-  // Stahlbügel um die Rolle
-  const fc = (f0 + f1) / 2, top = 2 * R + 1.6;
-  for (const fq of [fc - 9, fc + 9]) {
+  // Stahlbügel um die Rolle (nicht unter Sprüngen – dort fliegt man darüber)
+  const fc = (f0 + f1) / 2, top = 2 * R + 0.8;
+  if (!pb.pc.underJump) for (const fq of [fc - 9, fc + 9]) {
     for (const sg of [-1, 1]) pb.box(fq, top / 2, sg * 8.4, 0.5, top, 0.5, MAT.STEEL, { collide: true });
     pb.box(fq, top, 0, 0.5, 0.5, 17.3, MAT.STEEL, {});
   }
