@@ -274,3 +274,18 @@ export function demoLayout() {
   }
   return { pieces, seed: 0, diff: 2, meta: { seed: 0, diff: 2, key: 'demo', name: 'Teststrecke', diffName: 'Sportlich' } };
 }
+
+// Baustein-Galerie (offen): jedes Element einmal, für Sichtprüfung/Tests
+export function galleryLayout() {
+  const list = ['start', 'straight', 'bumps', 'straight', 'crest', ['chicane', 1], 'straight', 'loop', 'straight', 'jump', 'straight', ['turnL', 1],
+    'straight', 'rampUp', 'bridge', 'rampDown', 'straight', ['bank', 1], 'straight', 'tube', 'straight', ['turnS', -1], 'straight', ['turnS', 1], 'checkpoint', 'straight', 'straight'];
+  let i = 2, j = 4, d = 0, lvl = 0;
+  const pieces = [];
+  for (const it of list) {
+    const [type, m = 1] = Array.isArray(it) ? it : [it];
+    pieces.push({ type, i, j, d, m, lvl });
+    [i, j, d] = pieceCells(type, i, j, d, m).next;
+    lvl += type === 'rampUp' ? 1 : type === 'rampDown' ? -1 : 0;
+  }
+  return { pieces, seed: 1, diff: 3, meta: { seed: 1, diff: 3, key: 'galerie', name: 'Baustein-Galerie', diffName: 'Irre' } };
+}

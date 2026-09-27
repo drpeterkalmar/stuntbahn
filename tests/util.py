@@ -41,9 +41,18 @@ class Session:
         self.pg.on("pageerror", lambda e: self.errors.append("PAGEERROR " + str(e)))
         self.pg.on("requestfailed", lambda r: self.errors.append("REQFAIL " + r.url + " " + str(r.failure)))
         self.pg.on("console", lambda m: (self.console.append(m.type + ": " + m.text), self.errors.append("CONSOLE " + m.text) if m.type == "error" else None))
-    def open(self, q='?nosw', timeout=180000):
+    def open(self, q='?nosw', timeout=400000):
+        t0 = time.time()
         self.pg.goto(self.base + 'index.html' + q)
-        self.pg.wait_for_function("window.__app && window.__app.ready && window.__app.frames > 3", timeout=timeout)
+        while True:
+            try:
+                self.pg.wait_for_function("window.__app && window.__app.ready && window.__app.frames > 3", timeout=20000)
+                break
+            except Exception:
+                if (time.time() - t0) * 1000 > timeout:
+                    print('BOOT TIMEOUT', self.errors[:5]); raise
+                print('  … lädt noch', round(time.time() - t0), 's, frames', self.ev("window.__app ? window.__app.frames : -1"), flush=True)
+        self.boot_s = time.time() - t0
     def ev(self, js, arg=None):
         return self.pg.evaluate(js, arg) if arg is not None else self.pg.evaluate(js)
     def shot(self, name, sub=''):

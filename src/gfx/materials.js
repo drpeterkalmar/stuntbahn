@@ -173,10 +173,12 @@ export function makeMaterials(renderer, q = {}) {
   patchRoad(M[MAT.ROAD]);
   const kt = kerbTexture();
   M[MAT.KERB] = new THREE.MeshStandardMaterial({ map: kt, normalMap: tex('assets/tex/concrete_nor.webp', false, 1 / 3, aniso), roughness: 0.62, metalness: 0 });
-  M[MAT.CONCRETE] = new THREE.MeshStandardMaterial({ ...set('concrete', 1 / 3.5), roughness: 1, metalness: 0, color: 0xd8d6d0, aoMapIntensity: 0.5 });
-  M[MAT.WALL] = new THREE.MeshStandardMaterial({ ...set('concrete', 1 / 2.5), roughness: 1, metalness: 0, color: 0xf2f0ea, aoMapIntensity: 0.5 });
-  M[MAT.PAD] = new THREE.MeshStandardMaterial({ ...set('pad', 1 / 4), roughness: 1, metalness: 0, color: 0xc8c6c0, aoMapIntensity: 0.6 });
-  M[MAT.METAL] = new THREE.MeshStandardMaterial({ ...set('metal', 1 / 2.2), roughness: 0.85, metalness: 0.45, color: 0xe8ecf0, envMapIntensity: 1.3 });
+  // Albedo-Faktoren: Poly-Haven-Beton hat ~10 % Albedo → auf realistische ~28 % (Beton) anheben
+  const lin = (r, g, b) => new THREE.Color().setRGB(r, g, b, THREE.LinearSRGBColorSpace);
+  M[MAT.CONCRETE] = new THREE.MeshStandardMaterial({ ...set('concrete', 1 / 3.5), roughness: 1, metalness: 0, color: lin(2.7, 2.65, 2.55), aoMapIntensity: 0.5 });
+  M[MAT.WALL] = new THREE.MeshStandardMaterial({ ...set('concrete', 1 / 2.5), roughness: 1, metalness: 0, color: lin(3.4, 3.35, 3.25), aoMapIntensity: 0.5 });
+  M[MAT.PAD] = new THREE.MeshStandardMaterial({ ...set('pad', 1 / 4), roughness: 1, metalness: 0, color: lin(1.15, 1.15, 1.12), aoMapIntensity: 0.6 });
+  M[MAT.METAL] = new THREE.MeshStandardMaterial({ ...set('metal', 1 / 2.2), roughness: 0.8, metalness: 0.35, color: lin(4.2, 5.4, 7.2), envMapIntensity: 1.2 });
   M[MAT.STEEL] = new THREE.MeshStandardMaterial({ color: 0x9aa3ad, roughness: 0.35, metalness: 0.9 });
   M[MAT.BANNER] = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6 });
   M.grass = new THREE.MeshStandardMaterial({ ...set('grass', 1 / 3.2), roughness: 1, metalness: 0, color: 0xffffff, aoMapIntensity: 0.7, normalScale: new THREE.Vector2(0.9, 0.9) });
