@@ -9,12 +9,10 @@ os.makedirs(SRC, exist_ok=True)
 
 TEXTURES = {  # Poly-Haven-ID: benötigte Karten
     'asphalt_02': ['Diffuse', 'nor_gl', 'arm'],
-    'asphalt_track': ['Diffuse', 'nor_gl', 'arm'],
     'leafy_grass': ['Diffuse', 'nor_gl', 'arm'],
     'gravel_concrete_03': ['Diffuse', 'nor_gl', 'arm'],
     'concrete_floor_02': ['Diffuse', 'nor_gl', 'arm'],
     'metal_plate': ['Diffuse', 'nor_gl', 'arm'],
-    'gravelly_sand': ['Diffuse', 'nor_gl', 'arm'],
 }
 TREE = ('fir_tree_01', ['twig_diff', 'twig_alpha', 'twig_nor_gl', 'bark_diff', 'bark_nor_gl'])
 HDRI = ('kloofendal_48d_partly_cloudy_puresky', ['1k', '4k'])

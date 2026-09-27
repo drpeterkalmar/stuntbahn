@@ -16,8 +16,8 @@ const args = process.argv.slice(2);
 const all = args.length === 0;
 
 const TEX = {
-  asphalt: 'asphalt_02', track: 'asphalt_track', grass: 'leafy_grass', concrete: 'gravel_concrete_03',
-  pad: 'concrete_floor_02', metal: 'metal_plate', sand: 'gravelly_sand',
+  asphalt: 'asphalt_02', grass: 'leafy_grass', concrete: 'gravel_concrete_03',
+  pad: 'concrete_floor_02', metal: 'metal_plate',
 };
 const MAPS = { Diffuse: ['diff', 80], nor_gl: ['nor', 88], arm: ['arm', 80] };
 

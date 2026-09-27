@@ -193,8 +193,8 @@ export class UI {
     this.sheet('Credits', `
       <p><b>Stuntbahn</b> – ein Stunt-Rennspiel als Hommage an die Klassiker der frühen 90er. Eigener Code, eigene Strecken-Bausteine.</p>
       <p><b>Auto:</b> „Fictional supercar – V12 Goblin“ von <b>Olli Teittinen (ollitei)</b>, Lizenz <b>CC-BY 4.0</b>, sketchfab.com/3d-models/fictional-supercar-v12-goblin-0a20e49ad5774d778567cb5c3f345786 (für das Spiel optimiert: Materialien umgewandelt, Geometrie vereinfacht).</p>
-      <p><b>Himmel & Licht:</b> „Kloofendal 48d Partly Cloudy (Pure Sky)“ – Poly Haven, CC0.</p>
-      <p><b>Texturen (Poly Haven, CC0):</b> asphalt_02, leafy_grass, gravel_concrete_03, concrete_floor_02, metal_plate, gravelly_sand, fir_tree_01 (Zweige/Rinde → Baumkarten).</p>
+      <p><b>Himmel & Licht:</b> „Kloofendal 48d Partly Cloudy (Pure Sky)“ von Greg Zaal & Jarod Guest – Poly Haven, CC0.</p>
+      <p><b>Texturen (Poly Haven, CC0):</b> Asphalt 02, Concrete Floor 02, Metal Plate (Rob Tuytel) · Leafy Grass, Gravel Concrete 03 (Charlotte Baglioni) · Fir Tree 01 (Rob Tuytel, Rico Cilliers) → daraus zusammengesetzte Baumkarten.</p>
       <p><b>Technik:</b> three.js (MIT). Physik, Strecken, Generator, Ton: eigener Code.</p>
       <p>Build ${this.app.build}</p>`);
   }
@@ -295,7 +295,7 @@ export class UI {
       const t = window.__touchState || (window.__touchState = { steer: 0, throttle: 0, brake: 0, active: false });
       let L = 0, R = 0, G = 0, B = 0;
       for (const v of this.touchIds.values()) { if (v === 'L') L = 1; if (v === 'R') R = 1; if (v === 'G') G = 1; if (v === 'B') B = 1; }
-      t.steer = R - L; t.throttle = G; t.brake = B; t.active = this.touchIds.size > 0 || T.classList.contains('show');
+      t.steer = R - L; t.throttle = G; t.brake = B; t.active = this.touchIds.size > 0;
       for (const el of T.querySelectorAll('[data-t]')) el.classList.toggle('down', [...this.touchIds.values()].includes(el.dataset.t));
       if (this.a.input) Object.assign(this.a.input.touch, t);
     };

@@ -37,9 +37,12 @@ const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(62, 1, 0.25, 4000);
 camera.layers.enable(STATIC_LAYER);
 const quality = new Quality(renderer, params.get('q'));
+let sun, skyInfo, envMap, M, carVis, ghostVis, sky;
+
 function resize() {
   const w = innerWidth, h = innerHeight;
   renderer.setPixelRatio(quality.pixelRatio());
+  if (sun) quality.apply(sun, renderer);
   renderer.setSize(w, h, false);
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
@@ -52,8 +55,8 @@ const store = new Store();
 const ui = new UI(app, store);
 const rig = new CameraRig(camera);
 const sound = new Sound(store);
+window.__soundRef = sound;
 
-let sun, skyInfo, envMap, M, carVis, ghostVis, sky;
 let env = null;          // aktuelle Strecke { track, world, ideal, prof, layout, meta }
 let worldGroup = null;
 let race = null, ghost = null, replay = null, lineViz = null;
@@ -82,6 +85,7 @@ async function boot() {
   sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.02;
   sun.userData.dir = sunDir.clone();
   scene.add(sun, sun.target);
+  quality.apply(sun, renderer);
   M = makeMaterials(renderer);
   ui.loading(0.6, 'Auto lackieren …');
   carVis = await makeCar({ color: store.settings.paint });
@@ -235,7 +239,17 @@ function render(rdt) {
     } else pose = { pos: c.pos, q: c.q, frame: c.frame };
     carVis.sync(c, 1, pose);
   }
-  if (pose) {
+  if (pose && mode === 'menu' && !app.freezeCam) {
+    // Menü: langsame Kamerafahrt um das Auto am Start
+    const t = performance.now() / 1000 * 0.12;
+    const r = 7.5;
+    camera.position.set(pose.pos.x + Math.cos(t) * r, pose.pos.y + 2.2, pose.pos.z + Math.sin(t) * r);
+    camera.up.set(0, 1, 0);
+    camera.lookAt(pose.pos.x, pose.pos.y + 0.4, pose.pos.z);
+    sun.target.position.set(pose.pos.x, pose.pos.y, pose.pos.z);
+    sun.position.copy(sun.target.position).addScaledVector(sun.userData.dir, 60);
+    sun.target.updateMatrixWorld();
+  } else if (pose) {
     const crashed = race && (race.state === 'wreck');
     const sp = mode === 'replay' ? Math.abs(replay.speed()) : race ? race.car.speed() : 0;
     if (!frozen || !app.freezeCam) rig.update(rdt, pose, crashed, env && env.world, sp);

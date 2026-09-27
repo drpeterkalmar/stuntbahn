@@ -184,7 +184,6 @@ export function makeMaterials(renderer, q = {}) {
   M.grass = new THREE.MeshStandardMaterial({ ...set('grass', 1 / 3.2), roughness: 1, metalness: 0, color: 0xffffff, aoMapIntensity: 0.7, normalScale: new THREE.Vector2(0.9, 0.9) });
   patchGrass(M.grass);
   M.water = new THREE.MeshStandardMaterial({ color: 0x1d3a3a, roughness: 0.04, metalness: 0.1, transparent: true, opacity: 0.88 });
-  M.sand = new THREE.MeshStandardMaterial({ ...set('sand', 1 / 3), roughness: 1, metalness: 0 });
   M.tree = [0, 1].map((v) => {
     const m = new THREE.MeshStandardMaterial({ map: tex(`assets/tex/fir_card_${v}.webp`, true, 1, aniso), alphaTest: 0.42, alphaToCoverage: true, side: THREE.DoubleSide, roughness: 0.95, metalness: 0, color: 0xd8f0c8, emissive: 0x0b1406 });
     m.map.wrapS = m.map.wrapT = THREE.ClampToEdgeWrapping;

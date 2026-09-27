@@ -14,6 +14,13 @@ export class Quality {
     return Math.max(0.6, Math.min(dpr, cap) * this.scale);
   }
   staticShadowSize() { return [1024, 2048, 4096][this.tier]; }
+  carShadowSize() { return [0, 1024, 2048][this.tier]; }
+  // Stufe auf Szene anwenden (Echtzeit-Schatten nur fürs Auto; Stufe 0 ohne)
+  apply(sun, renderer) {
+    const sz = this.carShadowSize();
+    sun.castShadow = sz > 0;
+    if (sz && sun.shadow.mapSize.x !== sz) { sun.shadow.mapSize.set(sz, sz); if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; } }
+  }
   sample(dt, onChange) {
     if (dt <= 0 || dt > 0.5) return;
     this.acc += dt; this.n++;

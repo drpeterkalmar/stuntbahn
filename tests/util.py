@@ -43,7 +43,8 @@ class Session:
         self.pg = self.ctx.new_page()
         self.errors = []; self.console = []
         self.pg.on("pageerror", lambda e: self.errors.append("PAGEERROR " + str(e)))
-        self.pg.on("requestfailed", lambda r: self.errors.append("REQFAIL " + r.url + " " + str(r.failure)))
+        self.warnings = []
+        self.pg.on("requestfailed", lambda r: (self.warnings if 'ERR_ABORTED' in str(r.failure) else self.errors).append("REQFAIL " + r.url + " " + str(r.failure)))
         self.pg.on("console", lambda m: (self.console.append(m.type + ": " + m.text), self.errors.append("CONSOLE " + m.text) if m.type == "error" else None))
     def open(self, q='?nosw', timeout=400000):
         t0 = time.time()

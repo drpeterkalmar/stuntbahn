@@ -1,5 +1,5 @@
 // Service-Worker: offline spielbar, Cache-Busting über Inhalts-Hash (tools/update_sw.py)
-const VERSION = '7b1534c12f';
+const VERSION = '661e0ab53b';
 const CACHE = 'stuntbahn-' + VERSION;
 const ASSETS = [
   './',
@@ -24,12 +24,6 @@ const ASSETS = [
   'assets/tex/pad_arm.webp',
   'assets/tex/pad_diff.webp',
   'assets/tex/pad_nor.webp',
-  'assets/tex/sand_arm.webp',
-  'assets/tex/sand_diff.webp',
-  'assets/tex/sand_nor.webp',
-  'assets/tex/track_arm.webp',
-  'assets/tex/track_diff.webp',
-  'assets/tex/track_nor.webp',
   'css/style.css',
   'icons/apple-touch-icon.png',
   'icons/icon-192.png',
