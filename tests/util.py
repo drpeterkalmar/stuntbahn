@@ -73,7 +73,10 @@ class Session:
         el = self.pg.locator(sel).first
         el.wait_for(state='visible', timeout=20000)
         box = el.bounding_box()
-        self.pg.touchscreen.tap(box['x'] + box['width'] / 2, box['y'] + box['height'] / 2)
+        try:
+            self.pg.touchscreen.tap(box['x'] + box['width'] / 2, box['y'] + box['height'] / 2)
+        except Exception:   # Desktop-Kontext ohne Touch: Mausklick
+            self.pg.mouse.click(box['x'] + box['width'] / 2, box['y'] + box['height'] / 2)
         time.sleep(0.2)
     def state(self):
         return self.ev("__game.state()")

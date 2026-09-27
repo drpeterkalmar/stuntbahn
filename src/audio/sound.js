@@ -80,10 +80,10 @@ async function makeBank() {
   bank.crash = await renderOffline(1.6, (ctx) => {
     const n = ctx.createBufferSource(); const nb = ctx.createBuffer(1, SR * 2, SR); nb.copyToChannel(noise(SR * 2, 3), 0); n.buffer = nb;
     const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.setValueAtTime(5000, 0); lp.frequency.exponentialRampToValueAtTime(300, 1.2);
-    const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, 0); g.gain.exponentialRampToValueAtTime(1.0, 0.01); g.gain.exponentialRampToValueAtTime(0.001, 1.5);
+    const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, 0); g.gain.exponentialRampToValueAtTime(0.5, 0.01); g.gain.exponentialRampToValueAtTime(0.001, 1.5);
     n.connect(lp).connect(g).connect(ctx.destination); n.start();
     const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.setValueAtTime(90, 0); o.frequency.exponentialRampToValueAtTime(35, 0.4);
-    const og = ctx.createGain(); og.gain.setValueAtTime(0.9, 0); og.gain.exponentialRampToValueAtTime(0.001, 0.5);
+    const og = ctx.createGain(); og.gain.setValueAtTime(0.5, 0); og.gain.exponentialRampToValueAtTime(0.001, 0.5);
     o.connect(og).connect(ctx.destination); o.start(); o.stop(0.6);
     for (const [f, t0] of [[1830, 0.05], [2710, 0.12], [1240, 0.3], [3300, 0.45]]) {
       const m = ctx.createOscillator(); m.type = 'triangle'; m.frequency.value = f;
@@ -93,7 +93,7 @@ async function makeBank() {
   });
   bank.thump = await renderOffline(0.4, (ctx) => {
     const o = ctx.createOscillator(); o.frequency.setValueAtTime(70, 0); o.frequency.exponentialRampToValueAtTime(40, 0.25);
-    const g = ctx.createGain(); g.gain.setValueAtTime(0.9, 0); g.gain.exponentialRampToValueAtTime(0.001, 0.35);
+    const g = ctx.createGain(); g.gain.setValueAtTime(0.62, 0); g.gain.exponentialRampToValueAtTime(0.001, 0.35);
     o.connect(g).connect(ctx.destination); o.start(); o.stop(0.4);
     const n = ctx.createBufferSource(); const nb = ctx.createBuffer(1, SR / 2, SR); nb.copyToChannel(noise(SR / 2, 5), 0); n.buffer = nb;
     const lp = ctx.createBiquadFilter(); lp.frequency.value = 900; const ng = ctx.createGain(); ng.gain.setValueAtTime(0.35, 0); ng.gain.exponentialRampToValueAtTime(0.001, 0.2);
