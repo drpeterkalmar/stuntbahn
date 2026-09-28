@@ -186,15 +186,18 @@ console.log('--- D: ⏪ ohne Totalschaden ---');
 // ---- E: Wertungs-Schlüssel (Bestzeiten/Geister getrennt, alte Schlüssel behalten ihre Bedeutung) ----
 console.log('--- E: Bestzeiten-Schlüssel ---');
 {
-  const keys = [], old = [], mid = [];
-  for (const a of ['easy', 'medium', 'original']) for (const w of [false, true]) { keys.push(modeKey(a, w)); old.push(modeKey(a, w, 1, '')); mid.push(modeKey(a, w, 2, '')); }
-  const ok = new Set(old).size === 6 && modeKey('easy', false, 1, '') === 'easy' && modeKey('medium', true, 1, '') === 'medium' && modeKey('original', true, 1, '') === 'original';
+  // Schlüssel ohne Extras (Option „Hüpfer & Nitro“ aus) = die bisherigen Listen; mit Extras kommt „@x“ dazu
+  const keys = [], old = [], mid = [], xk = [];
+  for (const a of ['easy', 'medium', 'original']) for (const w of [false, true]) { keys.push(modeKey(a, w, undefined, undefined, false)); old.push(modeKey(a, w, 1, '', false)); mid.push(modeKey(a, w, 2, '', false)); xk.push(modeKey(a, w)); }
+  const ok = new Set(old).size === 6 && modeKey('easy', false, 1, '', false) === 'easy' && modeKey('medium', true, 1, '', false) === 'medium' && modeKey('original', true, 1, '', false) === 'original';
   check(ok, `6 getrennte Wertungen (alte Physik): ${old.join(', ')} (bisherige Schlüssel easy/medium/original = Leicht aus, Mittel/Original an)`);
   // Tempo-Umbau 27.09.: neue Physik wertet getrennt (Zusatz @t2), alte Einträge bleiben unberührt
   check(new Set([...mid, ...old]).size === 12 && mid.every((k, i) => k === old[i] + '@t2'), `neue Physik eigene Wertungen: ${mid.join(', ')}`);
   // Weltmaßstab 27.09. (n12): neue Welt wertet nochmals getrennt (Zusatz WORLD_TAG, z. B. @w2); Maßstab 1 = alte Schlüssel
   check(WORLD_TAG === '' ? keys.every((k, i) => k === mid[i]) : new Set([...keys, ...mid, ...old]).size === 18 && keys.every((k, i) => k === mid[i] + WORLD_TAG),
     `neue Welt eigene Wertungen (${WORLD_TAG || 'Maßstab 1: keine'}): ${keys.join(', ')}`);
+  // Extras 28.09.: mit Hüpfer & Nitro eigene Liste (Standard), die bisherigen Zeiten = Liste „ohne Extras“
+  check(new Set([...xk, ...keys, ...mid, ...old]).size === 24 && xk.every((k, i) => k === keys[i] + '@x'), `Extras eigene Wertungen (@x): ${xk.join(', ')}`);
 }
 
 console.log(fails ? `${fails} Fehlschläge` : 'Reset mit Zeitstrafe + Totalschaden-Option ok');

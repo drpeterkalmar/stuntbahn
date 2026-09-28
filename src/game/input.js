@@ -1,5 +1,5 @@
 // Eingabe: Tastatur, Gamepad, Touch (Tasten-Zonen bzw. Bildschirmhälften, optional Neigen).
-// Liefert Rohwerte steer (−1..1), throttle/brake (0..1) + Knöpfe (rewind, pause, cam, Ideallinie).
+// Liefert Rohwerte steer (−1..1), throttle/brake (0..1) + Knöpfe (rewind, pause, cam, Ideallinie, Hüpfer, Nitro).
 
 // Neigen → Lenkwinkel in Grad (> 0 = rechts), für jede Bildschirm-Ausrichtung (0 hoch, 90/270 bzw. −90 quer,
 // 180 kopfüber). Aus beta/gamma wird die Richtung „oben“ im Geräte-System berechnet und auf die waagrechte
@@ -59,7 +59,10 @@ export class Input {
     this.pad.brake = Math.max(lt, b);
     this.pad.active = Math.abs(dz) > 0 || this.pad.throttle > 0 || this.pad.brake > 0;
     const was = this._padBtn || {};
-    const now = { y: p.buttons[3]?.pressed, x: p.buttons[1]?.pressed, start: p.buttons[9]?.pressed, lb: p.buttons[4]?.pressed, back: p.buttons[8]?.pressed };
+    // B (1) = Hüpfer, RB (5) = Nitro – A/X (Gas/Bremse), Y, LB, Back, Start bleiben wie bisher
+    const now = { y: p.buttons[3]?.pressed, b: p.buttons[1]?.pressed, rb: p.buttons[5]?.pressed, start: p.buttons[9]?.pressed, lb: p.buttons[4]?.pressed, back: p.buttons[8]?.pressed };
+    if (now.b && !was.b) this.pressed.add('Space');
+    if (now.rb && !was.rb) this.pressed.add('KeyN');
     if (now.y && !was.y) this.pressed.add('KeyR');
     if (now.start && !was.start) this.pressed.add('Escape');
     if (now.lb && !was.lb) this.pressed.add('KeyC');
@@ -71,7 +74,8 @@ export class Input {
     const k = this.keys;
     let steer = 0, thr = 0, brk = 0, src = 'none';
     const kl = k.has('ArrowLeft') || k.has('KeyA'), kr = k.has('ArrowRight') || k.has('KeyD');
-    const ku = k.has('ArrowUp') || k.has('KeyW'), kd = k.has('ArrowDown') || k.has('KeyS') || k.has('Space');
+    // Leertaste = Hüpfer (Extras, 28.09.2026; bis dahin Bremse) – Bremse: Pfeil runter / S
+    const ku = k.has('ArrowUp') || k.has('KeyW'), kd = k.has('ArrowDown') || k.has('KeyS');
     if (kl || kr || ku || kd) {
       src = 'keys';
       const target = (kr ? 1 : 0) - (kl ? 1 : 0);

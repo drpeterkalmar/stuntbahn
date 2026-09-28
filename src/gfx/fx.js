@@ -145,6 +145,13 @@ export class CarFX {
       this.parts.spawn(this.p, this.v.set((Math.random() - 0.5), 1.8 + Math.random(), (Math.random() - 0.5)), 1.0, 4.5, 2.4, 0x2a2a2a, 0.7);
       if (Math.random() < 0.3) this.parts.spawn(this.p, this.v.set((Math.random() - 0.5) * 2, 2.5, (Math.random() - 0.5) * 2), 0.5, 1.0, 0.5, 0xff8a2a, 0.9);
     }
+    // Hüpfer: Staubwolke unter den Rädern beim Absprung (erster Schritt nach dem Auslösen)
+    if (car.hopUp && car.hopT > 0 && car.hopT <= dt * 1.01) {
+      for (const w of car.wheels) {
+        this.p.set(w.hx || car.pos.x, (w.hy || car.pos.y - 0.5) + 0.1, w.hz || car.pos.z);
+        for (let i = 0; i < 3; i++) this.parts.spawn(this.p, this.v.set((Math.random() - 0.5) * 3 + car.v.x * 0.15, 0.5 + Math.random(), (Math.random() - 0.5) * 3 + car.v.z * 0.15), 0.7, 3.2, 1.1, 0xcfc6b4, 0.45);
+      }
+    }
     if (car.lastImpact > 6) {
       for (let i = 0; i < 6; i++) this.parts.spawn(this.p.set(car.pos.x, car.pos.y, car.pos.z), this.v.set((Math.random() - 0.5) * 6, Math.random() * 4, (Math.random() - 0.5) * 6), 0.18, 0.1, 0.35, 0xffc060, 1);
     }

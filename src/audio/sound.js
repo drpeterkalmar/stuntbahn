@@ -106,6 +106,38 @@ async function makeBank() {
     const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, 0); g.gain.exponentialRampToValueAtTime(0.7, 0.06); g.gain.exponentialRampToValueAtTime(0.001, 0.42);
     n.connect(bp).connect(g).connect(ctx.destination); n.start();
   });
+  // Nitro (Extras): Zünden = scharfes Zischen mit Knall, danach Schleife aus Fauchen (hochpass-Rauschen) und
+  // tiefem Grollen, Lautstärke folgt der Nitro-Stärke
+  bank.nitroGo = await renderOffline(0.9, (ctx) => {
+    const n = ctx.createBufferSource(); const nb = ctx.createBuffer(1, SR, SR); nb.copyToChannel(noise(SR, 17), 0); n.buffer = nb;
+    const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.setValueAtTime(600, 0); hp.frequency.exponentialRampToValueAtTime(2600, 0.5);
+    const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, 0); g.gain.exponentialRampToValueAtTime(0.9, 0.02); g.gain.exponentialRampToValueAtTime(0.25, 0.3); g.gain.exponentialRampToValueAtTime(0.001, 0.85);
+    n.connect(hp).connect(g).connect(ctx.destination); n.start();
+    const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.setValueAtTime(55, 0); o.frequency.exponentialRampToValueAtTime(110, 0.4);
+    const lp = ctx.createBiquadFilter(); lp.frequency.value = 400;
+    const og = ctx.createGain(); og.gain.setValueAtTime(0.5, 0); og.gain.exponentialRampToValueAtTime(0.001, 0.6);
+    o.connect(lp).connect(og).connect(ctx.destination); o.start(); o.stop(0.7);
+  });
+  bank.nitroLoop = await renderOffline(2.0, (ctx) => {
+    const n = ctx.createBufferSource(); const nb = ctx.createBuffer(1, SR * 2, SR); nb.copyToChannel(noise(SR * 2, 19), 0); n.buffer = nb;
+    const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 2200; bp.Q.value = 0.7;
+    const g = ctx.createGain(); g.gain.value = 0.55;
+    n.connect(bp).connect(g).connect(ctx.destination); n.start();
+    const n2 = ctx.createBufferSource(); const nb2 = ctx.createBuffer(1, SR * 2, SR); nb2.copyToChannel(noise(SR * 2, 23), 0); n2.buffer = nb2;
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 160;
+    const g2 = ctx.createGain(); g2.gain.value = 2.2;
+    n2.connect(lp).connect(g2).connect(ctx.destination); n2.start();
+  });
+  // Hüpfer: pneumatisches „Pfump“ – kurzer tiefer Stoß mit fallender Tonhöhe und Luftzischen
+  bank.hop = await renderOffline(0.5, (ctx) => {
+    const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.setValueAtTime(180, 0); o.frequency.exponentialRampToValueAtTime(60, 0.25);
+    const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, 0); g.gain.exponentialRampToValueAtTime(0.7, 0.01); g.gain.exponentialRampToValueAtTime(0.001, 0.3);
+    o.connect(g).connect(ctx.destination); o.start(); o.stop(0.35);
+    const n = ctx.createBufferSource(); const nb = ctx.createBuffer(1, SR / 2, SR); nb.copyToChannel(noise(SR / 2, 29), 0); n.buffer = nb;
+    const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.setValueAtTime(900, 0); bp.frequency.exponentialRampToValueAtTime(3000, 0.3); bp.Q.value = 1.2;
+    const ng = ctx.createGain(); ng.gain.setValueAtTime(0.0001, 0); ng.gain.exponentialRampToValueAtTime(0.35, 0.02); ng.gain.exponentialRampToValueAtTime(0.001, 0.4);
+    n.connect(bp).connect(ng).connect(ctx.destination); n.start();
+  });
   const beep = (f, d, type = 'square') => renderOffline(d + 0.05, (ctx) => {
     const o = ctx.createOscillator(); o.type = type; o.frequency.value = f;
     const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, 0); g.gain.exponentialRampToValueAtTime(0.25, 0.01); g.gain.setValueAtTime(0.25, d - 0.03); g.gain.exponentialRampToValueAtTime(0.0001, d);
@@ -170,13 +202,14 @@ export class Sound {
     const eng = this.bank.engine.map((e) => { const l = this.loop(e.buf, 0); l.g.connect(lp); return { ...l, rpm: e.rpm }; });
     const tire = this.loop(this.bank.tire, 0); tire.g.connect(this.master);
     const wind = this.loop(this.bank.wind, 0); wind.g.connect(this.master);
-    this.nodes = { eng, tire, wind, lp };
+    const nitro = this.loop(this.bank.nitroLoop, 0); nitro.g.connect(this.master);
+    this.nodes = { eng, tire, wind, lp, nitro };
   }
   stop() {
     this.wantRunning = false;
     if (!this.running || !this.nodes) return;
     const t = this.ctx.currentTime;
-    const all = [...this.nodes.eng, this.nodes.tire, this.nodes.wind];
+    const all = [...this.nodes.eng, this.nodes.tire, this.nodes.wind, this.nodes.nitro];
     for (const n of all) { n.g.gain.setTargetAtTime(0, t, 0.05); n.s.stop(t + 0.3); }
     this.running = false; this.nodes = null;
   }
@@ -195,6 +228,9 @@ export class Sound {
     else if (e.type === 'crash') this.shot(this.bank.crash, 1);
     else if (e.type === 'finish') this.shot(this.bank.finish, 0.9);
     else if (e.type === 'land') this.shot(this.bank.thump, Math.min(1, e.v / 8));
+    else if (e.type === 'nitro') this.shot(this.bank.nitroGo, 0.9);
+    else if (e.type === 'hop') this.shot(this.bank.hop, 0.9);
+    else if (e.type === 'refill') this.shot(this.bank.cp, 0.5);
   }
   update(car, dt, state) {
     if (!this.running || !this.nodes) return;
@@ -211,6 +247,10 @@ export class Sound {
       e.s.playbackRate.setTargetAtTime(rpm / e.rpm, t, 0.03);
     });
     N.lp.frequency.setTargetAtTime(900 + 3200 * (0.3 + 0.7 * thr) * Math.min(1, rpm / 6000), t, 0.05);
+    // Nitro: Fauchen/Grollen mit der Nitro-Stärke, Motor dabei heller
+    const nb = state === 'running' ? car.boost || 0 : 0;
+    N.nitro.g.gain.setTargetAtTime(0.5 * nb * (0.4 + 0.6 * thr), t, 0.06);
+    N.nitro.s.playbackRate.setTargetAtTime(0.9 + 0.25 * nb, t, 0.1);
     let slip = 0;
     for (const w of car.wheels) if (w.contact) slip = Math.max(slip, Math.abs(w.slip));
     const sp = car.speed();

@@ -14,16 +14,19 @@ const GHOST_MAX = 40;
 // wird gelöscht oder umgeschrieben; mit ?auto=alt (PHYS 1) gelten wieder die alten Schlüssel.
 // Weltmaßstab (27.09.2026, n12): neue Welt = neue Wertung, Zusatz „@w2“ (defs.js WORLD_TAG). Die Zeiten der
 // alten Welt bleiben unverändert und erscheinen im Menü als „alte Welt“; ?welt=1 wertet wieder dort.
-export function modeKey(assist, wreck, phys = PHYS, world = WORLD_TAG) {
+// Extras (28.09.2026, Hüpfer + Nitro): Zeiten mit Extras bekommen „@x“ – eine eigene Liste. Die bisherigen
+// Zeiten (ohne Extras gefahren) bleiben unverändert und sind genau die Liste mit ausgeschalteten Extras
+// (Option „Hüpfer & Nitro“ aus, für Puristen); das Menü zeigt sie als „ohne Extras“.
+export function modeKey(assist, wreck, phys = PHYS, world = WORLD_TAG, extras = true) {
   const legacy = assist === 'easy' ? !wreck : !!wreck;
-  return (legacy ? assist : assist + (wreck ? '+wrack' : '+reset')) + (phys >= 2 ? '@t' + phys : '') + world;
+  return (legacy ? assist : assist + (wreck ? '+wrack' : '+reset')) + (phys >= 2 ? '@t' + phys : '') + world + (extras ? '@x' : '');
 }
 
 export class Store {
   constructor() {
     let d = {};
     try { d = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch { d = {}; }
-    this.settings = Object.assign({ assist: 'easy', paint: 0xa3120e, sound: true, ghost: true, touch: 'auto', tilt: false, wreck: false, line: 'soft', lineLast: 'soft', cam: 'chase', quality: 'auto', diff: 2, lastSeed: null, seenHelp: false }, d.settings || {});
+    this.settings = Object.assign({ assist: 'easy', paint: 0xa3120e, sound: true, ghost: true, touch: 'auto', tilt: false, wreck: false, line: 'soft', lineLast: 'soft', cam: 'chase', quality: 'auto', diff: 2, lastSeed: null, seenHelp: false, extras: true, autoExtras: true }, d.settings || {});
     this.best = d.best || {};      // key|modeKey -> { time, date, name, pen }
     this.ghostIndex = d.ghostIndex || []; // Reihenfolge für LRU
     try { this.verified = JSON.parse(localStorage.getItem(KEY + '.verified') || '{}'); } catch { this.verified = {}; }
@@ -43,18 +46,22 @@ export class Store {
   save() {
     try { localStorage.setItem(KEY, JSON.stringify({ settings: this.settings, best: this.best, ghostIndex: this.ghostIndex })); } catch { /* voll */ }
   }
-  bestFor(key, assist, wreck = this.settings.wreck) { return this.best[key + '|' + modeKey(assist, wreck)] || null; }
-  // Bestzeit derselben Wertung mit der alten Physik (bis 27.09.2026, alte Welt) – nur zur Anzeige, nicht vergleichbar
-  oldBestFor(key, assist, wreck = this.settings.wreck) { return PHYS >= 2 ? this.best[key + '|' + modeKey(assist, wreck, 1, '')] || null : null; }
-  // Bestzeit derselben Wertung und Physik in der alten Welt (Maßstab 1, bis 27.09.2026) – nur zur Anzeige
-  oldWorldBestFor(key, assist, wreck = this.settings.wreck) { return WORLD_TAG ? this.best[key + '|' + modeKey(assist, wreck, PHYS, '')] || null : null; }
+  bestFor(key, assist, wreck = this.settings.wreck, extras = this.settings.extras) { return this.best[key + '|' + modeKey(assist, wreck, PHYS, WORLD_TAG, extras)] || null; }
+  // Bestzeit derselben Wertung mit der jeweils anderen Extras-Einstellung (nur Anzeige: „ohne/mit Extras“)
+  otherExtrasBestFor(key, assist, wreck = this.settings.wreck) { return this.bestFor(key, assist, wreck, !this.settings.extras); }
+  // Bestzeit derselben Wertung mit der alten Physik (bis 27.09.2026, alte Welt, ohne Extras) – nur zur Anzeige, nicht vergleichbar
+  oldBestFor(key, assist, wreck = this.settings.wreck) { return PHYS >= 2 ? this.best[key + '|' + modeKey(assist, wreck, 1, '', false)] || null : null; }
+  // Bestzeit derselben Wertung und Physik in der alten Welt (Maßstab 1, bis 27.09.2026, ohne Extras) – nur zur Anzeige
+  oldWorldBestFor(key, assist, wreck = this.settings.wreck) { return WORLD_TAG ? this.best[key + '|' + modeKey(assist, wreck, PHYS, '', false)] || null : null; }
   // Rennen beendet: Bestzeit prüfen, Geist speichern (rec inkl. Strafzeit-Stillstand, Race.ghostRec)
   submit(key, assist, wreck, time, rec, meta = {}) {
-    const k = key + '|' + modeKey(assist, wreck);
+    const k = key + '|' + modeKey(assist, wreck, PHYS, WORLD_TAG, meta.extras !== false);
     const prev = this.best[k];
     const isBest = !prev || time < prev.time;
     if (isBest) {
       this.best[k] = { time, date: new Date().toISOString().slice(0, 10), name: meta.name || '', pen: meta.penalties || 0 };
+      // Nitro-Zeiten (Rennuhr) für die Flammen des Geisterautos
+      if (meta.nitro && meta.nitro.length) this.best[k].nx = meta.nitro.map(([a, b]) => [+a.toFixed(2), +b.toFixed(2)]);
       this.saveGhost(k, rec);
     }
     this.save();
@@ -82,9 +89,11 @@ export class Store {
       while (this.ghostIndex.length > GHOST_MAX) localStorage.removeItem('stuntbahn.ghost.' + this.ghostIndex.shift());
     } catch { /* Speicher voll: Geist verwerfen */ }
   }
-  loadGhost(key, assist, wreck = this.settings.wreck) {
-    const s = localStorage.getItem('stuntbahn.ghost.' + key + '|' + modeKey(assist, wreck));
+  loadGhost(key, assist, wreck = this.settings.wreck, extras = this.settings.extras) {
+    const k = key + '|' + modeKey(assist, wreck, PHYS, WORLD_TAG, extras);
+    const s = localStorage.getItem('stuntbahn.ghost.' + k);
     if (!s) return null;
+    const nitro = (this.best[k] && this.best[k].nx) || [];
     try {
       const bin = atob(s), u8 = new Uint8Array(bin.length);
       for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
@@ -97,7 +106,7 @@ export class Store {
         for (let q = 0; q < 4; q++) out[i * 8 + 3 + q] = dv.getInt16(b + 12 + q * 2, true) / 32767;
         out[i * 8 + 7] = dv.getInt16(b + 20, true) / 100;
       }
-      return { hz: 15, frames: n, data: out };
+      return { hz: 15, frames: n, data: out, nitro };
     } catch { return null; }
   }
 }

@@ -77,7 +77,7 @@ JS_CHECK = r"""(groups) => {
   // Cockpit: Rundinstrumente im Bild, über der Gestenleiste, nicht unter Knöpfen/Pfeilen/HUD
   if ((groups || []).includes('cockpit') && window.__game.rig.view === 'cockpit') {
     const px = window.__game.cockpit.readout().px;
-    const others = [...document.querySelectorAll('#touch.show .half span, #touch.show .tb, #hud.show .speed, #hud.show .tl, #hud.show .tr, #replayui.show .btns, #replayui.show .rinfo')].filter(vis);
+    const others = [...document.querySelectorAll('#touch.show .half span, #touch.show .tb, #hud.show .speed, #hud.show .tl, #hud.show .tr, #hud.show .xb, #replayui.show .btns, #replayui.show .rinfo')].filter(vis);
     for (const gx of px.xs) {
       const c = [gx - px.gd / 2, px.yc - px.gd / 2, gx + px.gd / 2, px.yc + px.gd / 2];
       if (c[0] < -1 || c[2] > W + 1 || c[3] > H - sa.b + 1 || c[1] < 0) out.push('Instrument ' + c.map(Math.round));

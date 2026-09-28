@@ -1,5 +1,6 @@
 // Geisterauto: spielt die gespeicherte Bestfahrt (15 Hz, interpoliert) zeitgleich zum Rennen ab.
 import * as THREE from 'three';
+import { nitroLevel } from '../physics/extras.js';
 const qa = new THREE.Quaternion(), qb = new THREE.Quaternion();
 
 export class Ghost {
@@ -16,6 +17,13 @@ export class Ghost {
     P.q.x = qa.x; P.q.y = qa.y; P.q.z = qa.z; P.q.w = qa.w;
     P.done = f >= D.frames - 1;
     return P;
+  }
+  // Nitro-Stärke des Geists jetzt (gespeicherte Zünd-Zeiten, gleiche Hüllkurve wie im Rennen)
+  nitro() {
+    const N = this.data && this.data.nitro;
+    if (!N || !N.length) return 0;
+    for (const [a, b] of N) if (this.t >= a && this.t < b) return nitroLevel(this.t - a);
+    return 0;
   }
   sync(vis) {
     const P = this.sample(this.t);

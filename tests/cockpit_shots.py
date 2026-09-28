@@ -100,9 +100,9 @@ with Server() as srv, sync_playwright() as pw:
         s.ev("() => { const G = window.__game; for (let i = 0; i < 60 && G.race.state !== 'running'; i++) G.sim(0.1); }")
         s.ev("() => window.__game.sim(2.5, { steer: 0.4, throttle: 0, brake: 1 })")
         # Eingabe während der Wartezeit halten (Tastatur), sonst rollt es aus
-        s.pg.keyboard.down('Space')
+        s.pg.keyboard.down('ArrowDown')   # Bremse (Leertaste ist seit 28.09. der Hüpfer)
         settle(s); shot('rueckwaerts'); check(s, 'rueckwaerts', out)
-        s.pg.keyboard.up('Space')
+        s.pg.keyboard.up('ArrowDown')
         # Wrack/Crash: Totalschaden an → Verfolger, danach zurück ins Cockpit
     print('info', s.ev("__game.info()"))
     print('errors', s.errors[:10])

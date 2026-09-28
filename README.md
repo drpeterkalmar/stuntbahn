@@ -22,6 +22,11 @@ spielbar am Handy (quer oder hochkant), mit Gamepad oder Tastatur. Als App insta
   (0–8 ×1000, rot ab 7000, Zeiger schwingt leicht nach), Schaltkulisse mit Knauf (R, 1–6), Lenkrad dreht mit.
   Die Kamerawahl bleibt gespeichert. Beim Wrack kurz Verfolger, dann wieder Cockpit (Details: `COCKPIT_BERICHT.md`).
 - **Replay** der letzten Fahrt mit Verfolger-, Cockpit-, Hubschrauber-, Strecken- und Stoßstangenkamera.
+- **Extras je Runde (seit 28.09.2026): 1× Hüpfer 🦘 und 1× Nitro 🔥**, an Start/Ziel wieder voll. Hüpfer: ~3,5 m hoch aus der
+  Fahrt, Auto bleibt waagrecht, nur mit Bodenkontakt, in Looping/Röhre/Korkenzieher und an Schanzen gesperrt. Nitro: 3 s
+  +70–80 % Beschleunigung (Vmax ~700 statt 586 km/h), dann 0,7 s weich zurück, mit Flammen, Tempo-Streifen, weiterem
+  Sichtfeld und Fauchen. Auf Leicht nutzt der Autopilot sie auf Wunsch selbst („Extras automatisch“). Abschaltbar
+  (Optionen → „Hüpfer & Nitro“); Bestzeiten mit und ohne Extras getrennt (Details: `EXTRAS_BERICHT.md`).
 
 ## Strecken des Stunt-Klassikers laden (.TRK)
 - Menü → **📂 Strecke laden (.TRK)** → Datei wählen (Handy) oder Dateien ins Fenster ziehen (Desktop).
@@ -63,10 +68,12 @@ zurückgesetzt, an der er die Fahrbahn verlassen hat (Uhr läuft weiter). Ab 18 
 
 ## Steuerung
 - **Handy (quer oder hochkant):** Leicht – Bildschirmhälften halten; Mittel/Original – links ◀ ▶, rechts GAS und BREMSE
-  (Bremse im Stand = rückwärts; hochkant alle vier Tasten unten in einer Reihe). Optional „Lenken durch Neigen“
+  (Bremse im Stand = rückwärts; hochkant alle vier Tasten unten in einer Reihe). Runde Knöpfe darüber: links 🦘 Hüpfer,
+  rechts 🔥 Nitro. Optional „Lenken durch Neigen“
   (hochkant: seitlich kippen oder wie ein Lenkrad drehen). Keine Wischgesten. Drehen im Rennen → kurze Pause mit „▶ Weiter“.
-- **Tastatur:** Pfeile/WASD, Leertaste bremsen, `R` zurückspulen, `C` Kamera, `L` Ideallinie, `Esc` Pause.
-- **Gamepad:** linker Stick lenken, RT/A Gas, LT/X Bremse, Y zurückspulen, LB Kamera, Back Ideallinie, Start Pause.
+- **Tastatur:** Pfeile/WASD (bremsen ↓/S), **Leertaste Hüpfer**, **Shift oder `N` Nitro**, `R` zurückspulen, `C` Kamera,
+  `L` Ideallinie, `Esc` Pause. (Bis 28.09.2026 bremste die Leertaste.)
+- **Gamepad:** linker Stick lenken, RT/A Gas, LT/X Bremse, **B Hüpfer, RB Nitro**, Y zurückspulen, LB Kamera, Back Ideallinie, Start Pause.
 
 ## Technik
 - three.js r186 als ES-Module mit Import-Map, **kein Build-Schritt**; GitHub Pages; PWA mit Service-Worker
@@ -116,6 +123,12 @@ node tools/jump_easy_batch.mjs 10         # Generator-Strecken auf „Leicht“:
 python3 tests/jump_shots.py               # Fotos am Sprung-Scheitel (neu gegen alt) nach tests/shots/sprung/
 node tools/tempo_measure.mjs --laps      # Tempo: Vmax, 0–200/0–400, Bremswege alt/neu, Autopilot-Runden aller Stufen
 python3 tests/tempo_shots.py              # Fotos bei Vollgas (Verfolger, Cockpit) + HUD/Tacho/Kamera-Prüfung
+node tests/node/test_extras.mjs           # Extras: Ladungen, Auffüllen, Sperren, Physik, Replay/Geist, Leicht-Automatik 30 Strecken
+node tools/extras_measure.mjs             # Hüpfer (Scheitel/Flugzeit/Neigung) + Nitro (Beschleunigung, Vmax) auf der Ebene
+node tools/extras_batch.mjs 40            # Leicht ohne/mit „Extras automatisch“: im Ziel, Crashs, Rundenzeit
+node tests/node/test_trk_corpus.mjs 200 --assist=easy --extras   # Korpus mit „Extras automatisch“
+python3 tests/test_extras_ui.py           # Knöpfe quer/hoch/Desktop, Touch/Tastatur, Cockpit, Replay-Flammen, Option aus
+python3 tests/extras_shots.py             # Fotos: Knöpfe voll/leer, Nitro-Flammen, Hüpfer von der Seite
 ```
 Nützliche URL-Parameter: `?seed=4711&d=3`, `?demo`, `?gallery` (alle Bausteine), `?trk=demo-rundkurs`
 (Beispielstrecke im .TRK-Format), `?speed=1` (Originaltempo statt 1,25×), `?q=0|1|2` (Grafikstufe), `?nosw`,

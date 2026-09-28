@@ -149,6 +149,8 @@ export class CameraRig {
     const pk = portraitK(cam.aspect), PT = PORTRAIT;
     let targetFov = 62 + pk * (PT.vfov - 62) + (1 - pk * PT.speedFov) * (Math.min(14, speed * 0.16) + 6 * Math.max(0, Math.min(1, (speed - 70) / 85)));
     if (pk > 0) targetFov = Math.min(targetFov, 62 + pk * (PT.vfov + 8 - 62) + 14 * (1 - pk));   // hochkant höchstens ~96°
+    // Nitro: Sichtfeld etwas weiter (quer +8°, hochkant +4°) – nicht im Cockpit (festes Sichtfeld gegen Übelkeit)
+    targetFov += (this.boost || 0) * (8 - 4 * pk);
     // Drehen (quer ↔ hoch): Sichtfeld sofort umstellen statt langsam nachzuziehen
     if (this.aspect !== cam.aspect) { if (this.aspect != null && Math.abs(portraitK(this.aspect) - pk) > 0.05) this.fov = targetFov; this.aspect = cam.aspect; }
     // Cockpit beim Wrack: kurz in den Verfolger (wie im Original), danach wieder zurück ins Cockpit

@@ -2,6 +2,7 @@
 // Fahrbahn-Resets erscheinen als Schnitt mit Überblendung (kein Teleport-Ruckler), Zeitstrafen im Overlay.
 import { REC_HZ, REC_STRIDE } from './race.js';
 import { gearTrack, displayGear } from '../gfx/gauges.js';
+import { nitroLevel } from '../physics/extras.js';
 
 export class Replay {
   constructor(rec, env, marks = {}) {
@@ -13,6 +14,8 @@ export class Replay {
     this.cutF = new Set((marks.cuts || []).map((c) => c.f));
     this.cutT = (marks.cuts || []).map((c) => c.f / REC_HZ);
     this.pens = (marks.pens || []).map((p) => ({ t: p.f / REC_HZ, sec: p.sec }));
+    // Extras: Nitro-Zündungen (Frame bis Ende bzw. Abbruch) → Flammen im Replay
+    this.nitros = (marks.xev || []).filter((e) => e.k === 'nitro').map((e) => ({ t0: e.f / REC_HZ, t1: e.end != null ? e.end / REC_HZ : Infinity }));
     this.jumped = false;
     const mk = () => ({ comp: 0, steer: 0, spin: 0 });
     this.fake = { wheels: [mk(), mk(), mk(), mk()] };
@@ -57,6 +60,11 @@ export class Replay {
     w[0].spin = w[1].spin = r[o + 8]; w[2].spin = w[3].spin = r[o + 9];
     for (let k = 0; k < 4; k++) w[k].comp = r[o + 10 + k];
     return this.fake;
+  }
+  // Nitro-Stärke an der aktuellen Stelle (Hüllkurve wie im Rennen; abgebrochen = sofort aus)
+  nitro() {
+    for (const n of this.nitros) if (this.t >= n.t0 && this.t < n.t1) return nitroLevel(this.t - n.t0);
+    return 0;
   }
   speed() { const [i] = this._i(); return this.rec[i * REC_STRIDE + 14]; }
   rpm() { const [i] = this._i(); return this.rec[i * REC_STRIDE + 15]; }

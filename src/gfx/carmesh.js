@@ -62,6 +62,84 @@ export const PAINTS = [
   { name: 'Silber', color: 0x9aa0a6 },
 ];
 
+// Nitro-Flammen (Extras, 28.09.2026): zwei Endrohre neben dem Kennzeichen (Auto-Koordinaten, z = hinten).
+// Je Rohr ein Kegel (außen orange, innen heller Kern) + Leuchtscheibe, additiv, ohne Tiefe schreiben; Länge,
+// Flackern und Helligkeit folgen der Nitro-Stärke. Kein Licht (keine neuen Shader-Varianten der Welt).
+export const EXHAUST = [[-0.25, 0.13, 2.2], [0.25, 0.13, 2.2]];
+function flameMaterial(core) {
+  return new THREE.ShaderMaterial({
+    uniforms: { uT: { value: 0 }, uL: { value: 0 }, uCore: { value: core ? 1 : 0 } },
+    vertexShader: `varying float vY; varying vec3 vN; varying vec3 vV; uniform float uT; uniform float uCore;
+      void main() {
+        vY = uv.y;
+        vec3 p = position;
+        float w = 1.0 + (0.2 + 0.25 * vY) * sin(uT * 53.0 + vY * 11.0 + uCore * 2.0) + 0.12 * sin(uT * 91.0 + vY * 27.0);
+        p.xy *= w;
+        vec4 mv = modelViewMatrix * vec4(p, 1.0);
+        vN = normalize(normalMatrix * normal); vV = normalize(-mv.xyz);
+        gl_Position = projectionMatrix * mv;
+      }`,
+    fragmentShader: `varying float vY; varying vec3 vN; varying vec3 vV; uniform float uL; uniform float uCore; uniform float uT;
+      void main() {
+        float e = pow(abs(dot(normalize(vN), normalize(vV))), 1.3);
+        float along = pow(1.0 - vY, 1.1);
+        float flick = 0.85 + 0.15 * sin(uT * 70.0 + vY * 30.0);
+        vec3 hot = uCore > 0.5 ? vec3(0.75, 0.85, 1.0) : vec3(1.0, 0.72, 0.25);
+        vec3 tip = uCore > 0.5 ? vec3(0.35, 0.55, 1.0) : vec3(1.0, 0.25, 0.04);
+        vec3 c = mix(tip, hot, along) * (uCore > 0.5 ? 2.2 : 1.6);
+        gl_FragColor = vec4(c * e * along * flick * uL, 1.0);
+      }`,
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, toneMapped: false,
+  });
+}
+function glowTexture() {
+  const c = document.createElement('canvas'); c.width = c.height = 64;
+  const g = c.getContext('2d'), gr = g.createRadialGradient(32, 32, 1, 32, 32, 31);
+  gr.addColorStop(0, 'rgba(255,240,210,1)'); gr.addColorStop(0.3, 'rgba(255,150,60,0.55)'); gr.addColorStop(1, 'rgba(255,90,20,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+let glowTex = null;
+function makeFlames() {
+  const grp = new THREE.Group();
+  grp.name = 'nitro';
+  grp.visible = false;
+  const outer = new THREE.ConeGeometry(0.11, 1, 14, 6, true).rotateX(Math.PI / 2).translate(0, 0, 0.5);
+  const inner = new THREE.ConeGeometry(0.055, 1, 10, 4, true).rotateX(Math.PI / 2).translate(0, 0, 0.5);
+  const mO = flameMaterial(false), mI = flameMaterial(true);
+  if (!glowTex && typeof document !== 'undefined') glowTex = glowTexture();
+  const mG = new THREE.SpriteMaterial({ map: glowTex, color: 0xffb070, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, toneMapped: false });
+  const parts = [];
+  for (const [x, y, z] of EXHAUST) {
+    const o = new THREE.Mesh(outer, mO), i = new THREE.Mesh(inner, mI), g = new THREE.Sprite(mG);
+    for (const m of [o, i, g]) { m.position.set(x, y, z); m.userData.fx = true; m.renderOrder = 4; m.frustumCulled = false; grp.add(m); }
+    g.position.z += 0.08;
+    parts.push({ o, i, g });
+  }
+  let t = 0;
+  return {
+    grp,
+    // level 0 … 1 (Nitro-Stärke), dt: Zeitschritt fürs Flackern
+    set(level, dt) {
+      grp.visible = level > 0.01;
+      if (!grp.visible) return;
+      t += dt;
+      mO.uniforms.uT.value = mI.uniforms.uT.value = t;
+      mO.uniforms.uL.value = mI.uniforms.uL.value = Math.min(1, level * 1.3);
+      const fl = 0.9 + 0.1 * Math.sin(t * 61) + 0.06 * Math.sin(t * 137);
+      for (const p of parts) {
+        const len = (0.35 + 1.1 * level) * fl;
+        p.o.scale.set(0.6 + 0.5 * level, 0.6 + 0.5 * level, len);
+        p.i.scale.set(0.8, 0.8, len * 0.65);
+        const gs = (0.22 + 0.3 * level) * fl;
+        p.g.scale.set(gs, gs, gs);
+      }
+      mG.opacity = Math.min(1, level * 1.2);
+    },
+  };
+}
+
 export async function makeCar(opts = {}) {
   const gltf = await loadCarModel();
   const src = gltf.scene;
@@ -202,9 +280,12 @@ export async function makeCar(opts = {}) {
   all.forEach((m) => { if (!m.userData.sbPatched) { patchStaticShadow(m); m.userData.sbPatched = true; } });
   // Physik-Zuordnung der Räder (Reihenfolge wie CAR_DEF.wheels: FL, FR, BL(RL), BR(RR))
   const order = ['FL', 'FR', 'BL', 'BR'];
+  const flames = makeFlames();
+  root.add(flames.grp);
   const car = {
-    root, body, wheels, mats, rVis, tris,
+    root, body, wheels, mats, rVis, tris, flames,
     setPaint(c) { paint.color.set(c); },
+    setNitro(level, dt = 1 / 60) { flames.set(level, dt); },
     // aus Physik-Zustand aktualisieren
     sync(phys, alpha = 1, pose = null) {
       const P = pose || phys;

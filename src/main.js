@@ -121,7 +121,7 @@ async function boot() {
   scene.add(carVis.root);
   ghostVis = await makeCar({ color: 0xffffff });
   ghostVis.root.traverse((o) => {
-    if (o.isMesh) {
+    if (o.isMesh && !o.userData.fx) {   // Nitro-Flammen des Geists bleiben Flammen
       o.castShadow = false; o.receiveShadow = false;
       o.material = new THREE.MeshBasicMaterial({ color: 0x9fe0ff, transparent: true, opacity: 0.28, depthWrite: false });
     }
@@ -139,7 +139,8 @@ async function boot() {
   else await loadGenerated(q ? +q : daySeed(), +(params.get('d') || 2));
   ui.loading(1, 'Fertig');
   app.ready = true;
-  ui.bind({ startRace, newTrack, setAssist, toMenu, retry, startReplay, cycleCam, rewind: () => race && race.requestRewind(), pause: togglePause, setLine, toggleLine, setPaint, sound, input, quality, importFiles, playImported, deleteImported, trkLib, showcase: SHOWCASE, showcaseBytes, store });
+  ui.bind({ startRace, newTrack, setAssist, toMenu, retry, startReplay, cycleCam, rewind: () => race && race.requestRewind(), pause: togglePause,
+    hop: () => { if (mode === 'race' && race && !frozen) race.requestHop(); }, nitro: () => { if (mode === 'race' && race && !frozen) race.requestNitro(); }, setLine, toggleLine, setPaint, sound, input, quality, importFiles, playImported, deleteImported, trkLib, showcase: SHOWCASE, showcaseBytes, store });
   initDrop();
   ui.showMenu(env);
   mode = params.has('race') ? 'race' : 'menu';
@@ -298,8 +299,9 @@ async function loadTrack(layout, meta = {}, pre = null) {
 function startRace(opts = {}) {
   replay = null;
   if (fx) fx.reset();
-  race = new Race(env, { assist: store.settings.assist, wreck: store.settings.wreck, autopilot: !!opts.autopilot });
-  ghost = new Ghost(store.loadGhost(env.meta.key, store.settings.assist, race.wreckOn));
+  const S = store.settings;
+  race = new Race(env, { assist: S.assist, wreck: S.wreck, autopilot: !!opts.autopilot, extras: S.extras, autoExtras: S.autoExtras });
+  ghost = new Ghost(store.loadGhost(env.meta.key, S.assist, race.wreckOn, race.extrasOn));
   ghostVis.root.visible = !!ghost.data && store.settings.ghost;
   rig.mode = CAM_MODES.includes(store.settings.cam) ? store.settings.cam : 'chase';
   rig.init = false;
@@ -322,7 +324,7 @@ function setPaint(c) { store.settings.paint = c; store.save(); carVis.setPaint(c
 function toMenu() { mode = 'menu'; replay = null; sound.stop(); race = new Race(env, { assist: store.settings.assist, countdown: 1e9 }); ui.showMenu(env); }
 function startReplay() {
   if (!race || !race.rec.length) return;
-  replay = new Replay(race.rec, env, { cuts: race.cuts, pens: race.pens });
+  replay = new Replay(race.rec, env, { cuts: race.cuts, pens: race.pens, xev: race.xev });
   mode = 'replay';
   rig.mode = 'chase'; rig.init = false;
   ui.showReplay(replay);
@@ -369,6 +371,9 @@ function frame(now) {
   if (input.consume('KeyC')) cycleCam();
   if (input.consume('KeyL') && mode === 'race') toggleLine();
   if (input.consume('KeyR') && mode === 'race' && race.assist.autoRewind !== undefined && store.settings.assist !== 'original') race.requestRewind();
+  // Extras: Leertaste (Gamepad B) = Hüpfer, Shift/N (Gamepad RB) = Nitro
+  if (input.consume('Space') && mode === 'race' && !frozen) race.requestHop();
+  if ((input.consume('KeyN') | input.consume('ShiftLeft') | input.consume('ShiftRight')) && mode === 'race' && !frozen) race.requestNitro();
   if (!frozen && mode === 'race') {
     acc += rdt * timeScale;
     let steps = 0;
@@ -395,7 +400,7 @@ function handleEvents() {
     // Auto versetzt (Reset/Überspringen/Rückspulen): Kamera neu ansetzen, keine Zwischenbild-Interpolation
     if (e.type === 'reset' || e.type === 'skip' || e.type === 'rewind') { rig.init = false; prevPose = null; }
     if (e.type === 'finish') {
-      const res = store.submit(env.meta.key, race.assistKey, race.wreckOn, race.finalTime, race.ghostRec(), { ...env.meta, penalties: race.penalties });
+      const res = store.submit(env.meta.key, race.assistKey, race.wreckOn, race.finalTime, race.ghostRec(), { ...env.meta, penalties: race.penalties, extras: race.extrasOn, nitro: race.nitroLog });
       ui.showResult(race, res, env);
       sound.stop();
     }
@@ -413,7 +418,9 @@ function cockpitZone() {
   const W = innerWidth, H = innerHeight;
   const half = Math.min(0.47 * W, 0.55 * H);
   let zl = W / 2 - half, zr = W / 2 + half, bottom = ui.safeBottom();
-  const rects = [...document.querySelectorAll('#touch.show.pads .pad')].map((p) => p.getBoundingClientRect()).filter((r) => r.width);
+  // Touch-Tasten und (am Touch-Gerät) die Extras-Knöpfe über den Daumen halten die Instrumente frei
+  const touch = document.body.dataset.touch && document.body.dataset.touch !== 'none';
+  const rects = [...document.querySelectorAll('#touch.show.pads .pad' + (touch ? ', #hud.show .xb' : ''))].map((p) => p.getBoundingClientRect()).filter((r) => r.width);
   let gl = zl, gr = zr;
   for (const r of rects) { if (r.left < W / 2) gl = Math.max(gl, r.right + 12); else gr = Math.min(gr, r.left - 12); }
   // Lücke zwischen den Tasten zu schmal für die Instrumente (Hochformat) → Instrumente über die Tasten
@@ -434,12 +441,15 @@ const tmpQ = new THREE.Quaternion(), tmpQ2 = new THREE.Quaternion();
 function render(rdt) {
   let pose = null;
   renderer.info.reset();
+  let boost = 0;
   if (mode === 'replay' && replay) {
     pose = replay.pose();
     const ph = replay.phys();
     pose.wheels = ph.wheels;
     carVis.sync(ph, 1, pose);
+    boost = replay.nitro();
   } else if (race) {
+    boost = mode === 'race' ? race.car.boost : 0;
     const c = race.car;
     const a = acc / DT;
     if (prevPose && !frozen) {
@@ -466,13 +476,16 @@ function render(rdt) {
   } else if (pose) {
     const crashed = race && (race.state === 'wreck');
     const sp = mode === 'replay' ? Math.abs(replay.speed()) : race ? race.car.speed() : 0;
+    rig.boost = boost;
     if (!frozen || !app.freezeCam) rig.update(rdt, pose, crashed, env && env.world, sp);
     // Sonne mit Schattenkamera folgt dem Auto
     sun.target.position.set(pose.pos.x, pose.pos.y, pose.pos.z);
     sun.position.copy(sun.target.position).addScaledVector(sun.userData.dir, 60);
     sun.target.updateMatrixWorld();
   }
-  if (ghost && ghostVis.root.visible && mode === 'race') ghost.sync(ghostVis);
+  carVis.setNitro(boost, frozen || (replay && replay.paused) ? 0 : rdt);
+  ui.boost(mode === 'menu' ? 0 : boost);
+  if (ghost && ghostVis.root.visible && mode === 'race') { ghost.sync(ghostVis); ghostVis.setNitro(ghost.nitro(), frozen ? 0 : rdt); }
   if (fx && mode === 'race' && !frozen) fx.update(rdt, camera);
   if (lineViz) lineViz.update(camera, race, store.settings.assist, mode, store.settings.line);
   sky.position.copy(camera.position);
@@ -501,7 +514,8 @@ window.__game = {
   info() { const i = renderer.info; return { calls: i.render.calls, tris: i.render.triangles, geometries: i.memory.geometries, textures: i.memory.textures, programs: i.programs ? i.programs.length : 0, pixelRatio: renderer.getPixelRatio(), tier: quality.tier, fps: quality.fps }; },
   state() {
     const c = race && race.car;
-    return { mode, state: race && race.state, time: race && race.time, speed: c && c.speed(), pos: c && [c.pos.x, c.pos.y, c.pos.z], up: c && c.frame.u.y, cp: race && race.cpNext, cps: race && race.cps.length, lap: race && race.tracker.lap, idx: race && race.tracker.idx, n: env && env.track.line.n, crashes: race && race.crashes, rewinds: race && race.rewinds, penalties: race && race.penalties, wreck: race && race.wreckOn, crash: c && c.crash, assist: store.settings.assist, seed: env && env.meta.seed, diff: env && env.meta.diff, key: env && env.meta.key, frames: app.frames };
+    return { mode, state: race && race.state, time: race && race.time, speed: c && c.speed(), pos: c && [c.pos.x, c.pos.y, c.pos.z], up: c && c.frame.u.y, cp: race && race.cpNext, cps: race && race.cps.length, lap: race && race.tracker.lap, idx: race && race.tracker.idx, n: env && env.track.line.n, crashes: race && race.crashes, rewinds: race && race.rewinds, penalties: race && race.penalties, wreck: race && race.wreckOn, crash: c && c.crash, assist: store.settings.assist, seed: env && env.meta.seed, diff: env && env.meta.diff, key: env && env.meta.key, frames: app.frames,
+      charges: race && { ...race.charges }, used: race && { ...race.used }, x: race && race.xstate(), onGround: c && c.onGround, extras: race && race.extrasOn };
   },
   start: (o) => startRace(o || {}),
   newTrack: (s, d) => newTrack(s, d),
@@ -514,6 +528,7 @@ window.__game = {
   setTimeScale(s) { timeScale = s; },
   cam(m) { rig.mode = m; rig.init = false; },
   get cockpit() { return cockpit; },
+  get carVis() { return carVis; }, get ghostVis() { return ghostVis; }, get ghost() { return ghost; },
   // Physik ohne Rendering vorspulen (Headless: schneller als Echtzeit)
   sim(seconds, inp = null) {
     const I = inp || { steer: 0, throttle: 0, brake: 0 };
@@ -523,6 +538,7 @@ window.__game = {
     return this.state();
   },
   teleport(idx, speed = 20) { race.place(idx, speed); prevPose = null; },
+  hop() { race.requestHop(); }, nitro() { race.requestNitro(); },
 };
 
 boot().catch((e) => { console.error(e); window.__errors && window.__errors.push(String(e && e.stack || e)); ui.fatal(e); });

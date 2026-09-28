@@ -5,6 +5,7 @@ import { DIFFS } from '../track/generator.js';
 import { PAINTS } from '../gfx/carmesh.js';
 import { PIECES } from '../track/pieces.js';
 import { LINE_LEVELS } from '../gfx/lineviz.js';
+import { NITRO } from '../physics/extras.js';
 import { parseTrk } from '../track/trk.js';
 import { trkToLayout } from '../track/trkimport.js';
 import { drawMinimap } from './minimap.js';
@@ -44,7 +45,10 @@ export class UI {
           <button class="rb" data-a="pause" aria-label="Pause" title="Pause (Esc)">⏸</button>
         </div><div class="assistTag"></div></div>
         <div class="speed"><b>0</b><span>km/h</span><i class="gear">1</i></div>
+        <button class="xb hop" data-x="hop" aria-label="Hüpfer" title="Hüpfer (Leertaste, Gamepad B)"><i>🦘</i><kbd>Leer</kbd></button>
+        <button class="xb nitro" data-x="nitro" aria-label="Nitro" title="Nitro (Shift oder N, Gamepad RB)"><i>🔥</i><kbd>N</kbd></button>
       </div>
+      <div id="boostfx"><i></i></div>
       <div id="wipe"></div>
       <div id="big"></div>
       <div id="toast"></div>
@@ -64,6 +68,15 @@ export class UI {
     this.fileInput.style.display = 'none';
     this.fileInput.addEventListener('change', () => { const f = [...this.fileInput.files]; this.fileInput.value = ''; if (f.length && this.a.importFiles) this.a.importFiles(f); });
     document.body.appendChild(this.fileInput);
+    // Extras-Knöpfe: sofort beim Antippen (pointerdown), nicht erst beim Loslassen – auch mit der Maus
+    this.root.addEventListener('pointerdown', (e) => {
+      const b = e.target.closest('[data-x]');
+      if (!b) return;
+      e.preventDefault();
+      if (b.dataset.x === 'hop' && this.a.hop) this.a.hop();
+      if (b.dataset.x === 'nitro' && this.a.nitro) this.a.nitro();
+      b.classList.add('press'); setTimeout(() => b.classList.remove('press'), 160);
+    });
     this.root.addEventListener('click', (e) => {
       const b = e.target.closest('[data-a]');
       if (!b) return;
@@ -112,7 +125,9 @@ export class UI {
       const l = ks.map((k) => [k, fn(k)]).filter(([, b]) => b);
       return l.length ? `<span class="oldp" title="${title}">${label}: ${l.map(([k, b]) => ASSISTS[k].icon + ' ' + fmtTime(b.time)).join(' ')}</span>` : '';
     };
-    const old = row((k) => this.store.oldWorldBestFor(id, k), 'alte Welt', 'Bestzeiten in der alten, kleineren Welt (bis 27.09.2026)')
+    const xOn = this.store.settings.extras;
+    const old = row((k) => this.store.otherExtrasBestFor(id, k), xOn ? 'ohne Extras' : 'mit Extras', xOn ? 'Bestzeiten ohne Hüpfer & Nitro (eigene Liste, Option aus)' : 'Bestzeiten mit Hüpfer & Nitro (eigene Liste)')
+      + row((k) => this.store.oldWorldBestFor(id, k), 'alte Welt', 'Bestzeiten in der alten, kleineren Welt (bis 27.09.2026)')
       + row((k) => this.store.oldBestFor(id, k), 'alte Physik', 'Bestzeiten mit der alten, langsameren Physik (bis 27.09.2026)');
     return { now, old };
   }
@@ -143,7 +158,7 @@ export class UI {
           <div class="tmeta">${metaLine}</div>
           <div class="stunts">${stuntsHtml || 'ohne Stunts'}</div>
           ${apLine}
-          <div class="bests">${bests.now}<span class="bmode">${S.wreck ? '💥 mit Totalschaden' : '↺ Reset +' + PENALTY + ' s'}</span>${bests.old}</div>
+          <div class="bests">${bests.now}<span class="bmode">${S.wreck ? '💥 mit Totalschaden' : '↺ Reset +' + PENALTY + ' s'}${S.extras ? ' · 🦘🔥 mit Extras' : ' · ohne Extras'}</span>${bests.old}</div>
         </div>
         <button class="big go" data-a="start">▶ Losfahren</button>
       </div>
@@ -291,6 +306,11 @@ export class UI {
     const onoff = (k, label) => `<button data-a="toggle" data-v="${k}" class="${S[k] ? 'on' : ''}">${S[k] ? '✅' : '⬜'} ${label}</button>`;
     this.sheet('Optionen', `
       <div class="row">${onoff('sound', 'Ton')}${onoff('ghost', 'Geisterauto')}${onoff('tilt', 'Lenken durch Neigen')}</div>
+      <div class="lbl">Extras</div>
+      <div class="row">${onoff('extras', '🦘🔥 Hüpfer & Nitro')}${S.extras ? onoff('autoExtras', '🤖 Extras automatisch (Leicht)') : ''}</div>
+      <p class="hint">${S.extras
+        ? `Je Runde <b>1× Hüpfer</b> (🦘, ~3,5 m hoch, nur mit Bodenkontakt, nicht in Looping/Röhre/Korkenzieher/an Schanzen) und <b>1× Nitro</b> (🔥, ${NITRO.dur} s kräftiger Schub). An Start/Ziel wieder voll. <span class="desk">Leertaste / Shift oder N, </span>Gamepad B / RB.${S.autoExtras ? ' Auf <b>Leicht</b> zündet der Autopilot den Nitro auf der längsten Geraden und hüpft nur, wo es sicher ist (über Bodenwellen) – du kannst jederzeit selbst drücken.' : ''}`
+        : '<b>Aus:</b> ohne Hüpfer und Nitro wie im Original. Bestzeiten mit und ohne Extras werden getrennt gezählt.'}</p>
       <div class="lbl">Crash</div>
       <div class="row">${onoff('wreck', '💥 Totalschaden')}</div>
       <p class="hint">${S.wreck
@@ -313,8 +333,9 @@ export class UI {
       <p><b>Handy (quer oder hochkant):</b> Fahrhilfe <i>Leicht</i>: linke/rechte Bildschirmhälfte halten zum Lenken – Gas macht das Auto. Oder in den Optionen „Lenken durch Neigen“ (hochkant: seitlich kippen oder wie ein Lenkrad drehen). Drehst du das Handy im Rennen, pausiert es kurz – weiter mit „▶ Weiter“.</p>
       <p><b>Leicht:</b> Ohne Lenken fährt das Auto allein auf der Ideallinie. Lenkst du deutlich (kurz halten), hast <b>du Vorrang</b>: Die Hilfe lässt los, du kannst die Fahrbahn verlassen und durchs Gelände fahren. Loslassen – die Hilfe blendet weich ein und führt dich sanft zurück. Deine Bremse geht immer vor. Loopings, Röhren, Korkenzieher und Sprünge lenkt weiter das Auto; vorher steht oben „… voraus – Autopilot lenkt“. Gilt für Tastatur, Gamepad, Touch und Neigen.</p>
       <p><i>Mittel/Original</i>: links ◀ ▶ lenken, rechts GAS und BREMSE (hochkant alle unten in einer Reihe). Bremse im Stand = Rückwärtsgang.</p>
-      <p><b>Tastatur:</b> Pfeile oder WASD, Leertaste bremsen, <b>R</b> zurückspulen, <b>C</b> Kamera (Verfolger, Cockpit, Hubschrauber, Stoßstange, Strecke), <b>L</b> Ideallinie ein/aus, <b>Esc</b> Pause.</p>
-      <p><b>Gamepad:</b> linker Stick lenken, RT/A Gas, LT/X Bremse, Y zurückspulen, LB Kamera, Back Ideallinie, Start Pause.</p>
+      <p><b>Tastatur:</b> Pfeile oder WASD (bremsen: Pfeil runter/S), <b>Leertaste</b> Hüpfer, <b>Shift</b> oder <b>N</b> Nitro, <b>R</b> zurückspulen, <b>C</b> Kamera (Verfolger, Cockpit, Hubschrauber, Stoßstange, Strecke), <b>L</b> Ideallinie ein/aus, <b>Esc</b> Pause.</p>
+      <p><b>Gamepad:</b> linker Stick lenken, RT/A Gas, LT/X Bremse, <b>B</b> Hüpfer, <b>RB</b> Nitro, Y zurückspulen, LB Kamera, Back Ideallinie, Start Pause.</p>
+      <p><b>Extras 🦘 🔥</b> (je 1 pro Runde, an Start/Ziel wieder voll): <b>Hüpfer</b> – das Auto springt aus der Fahrt ~3,5 m hoch und bleibt dabei waagrecht; nur mit Bodenkontakt, in Looping, Röhre, Korkenzieher und an Schanzen gesperrt (Knopf ausgegraut). <b>Nitro</b> – ${NITRO.dur} s lang deutlich mehr Schub (+70–80 % Beschleunigung, bis ~700 km/h), danach sanft zurück. Handy: runde Knöpfe über den Daumen (links 🦘, rechts 🔥). Abschaltbar in den Optionen.</p>
       <p><b>Crash:</b> Standardmäßig kein Totalschaden – das Auto steht sofort wieder auf der Fahrbahn vor dem Stunt, mit Schwung, und du bekommst <b>+${PENALTY} s</b> auf die Zeit. Klappt ein Stunt mehrmals nicht, wirst du dahinter gesetzt (auch dann je +${PENALTY} s). Wer es hart mag: Optionen → <b>💥 Totalschaden</b> (Wrack wie im Original).</p>
       <p><b>⏪ Zurückspulen</b> (Leicht/Mittel): 3 s zurück, um einen Crash zu vermeiden. Ohne Totalschaden läuft die Uhr dabei weiter – es kostet die Zeit, die du neu fährst, aber keine Strafe.</p>
       <p><b>Ziel:</b> Alle Checkpoints der Reihe nach, dann über die Ziellinie. Bestzeiten und Geisterautos gibt es getrennt je Fahrhilfe und Totalschaden-Einstellung.</p>
@@ -344,6 +365,8 @@ export class UI {
     $('#hud .best').textContent = b ? 'Beste ' + fmtTime(b.time) : '';
     $('#hud .pen').textContent = '';
     this._pen = 0;
+    this._x = null;
+    $('#hud').classList.toggle('noextras', !race.extrasOn);
     this.wipe(false);
     this.setTouchMode(true);
     this.lastCd = null;
@@ -366,6 +389,19 @@ export class UI {
       $('#hud .gear').textContent = race.car.fwdSpeed() < -0.5 ? 'R' : race.car.gear;
       $('#hud .cp').textContent = race.cps.length ? `CP ${Math.min(race.cpNext, race.cps.length)}/${race.cps.length}` : '';
     }
+    // Extras-Knöpfe: voll / verbraucht (grau) / gerade gesperrt (grau) / Nitro brennt (Ring = Restzeit)
+    const X = race.xstate();
+    const hs = X.hop === 'off' ? 'off' : X.hop === 'empty' ? 'empty' : X.hop && X.hop !== 'wait' ? 'lock' : 'ok';
+    const key = hs + '|' + X.nitro + '|' + (X.nitro === 'on' ? Math.round(X.left * 40) : 0);
+    if (key !== this._x) {
+      this._x = key;
+      const H = $('#hud .xb.hop'), N = $('#hud .xb.nitro');
+      H.className = 'xb hop ' + hs + (H.classList.contains('glow') ? ' glow' : '') + (H.classList.contains('press') ? ' press' : '');
+      N.className = 'xb nitro ' + X.nitro + (N.classList.contains('glow') ? ' glow' : '') + (N.classList.contains('press') ? ' press' : '');
+      N.style.setProperty('--p', X.nitro === 'on' ? X.left.toFixed(3) : '0');
+      H.setAttribute('aria-disabled', hs === 'ok' ? 'false' : 'true');
+      N.setAttribute('aria-disabled', X.nitro === 'ok' ? 'false' : 'true');
+    }
     if (this._pen !== race.penalties) {
       this._pen = race.penalties;
       $('#hud .pen').textContent = race.penalties ? `inkl. +${race.penalties * PENALTY} s Strafe` : '';
@@ -384,6 +420,27 @@ export class UI {
     else if (e.type === 'reset') { this.wipe(false); if (!race.wreckOn) return; this.toast('Zurück auf die Strecke'); }
     else if (e.type === 'skip') { this.wipe(false); this.toast('⏭ Stelle übersprungen', 1800); }
     else if (e.type === 'shortcut') { this.wipe(false); this.big('Abkürzung ↺<small>zurück an die Stelle, wo du die Strecke verlassen hast</small>', 'crash', 1800); }
+    else if (e.type === 'nitro') this.big('🔥 NITRO', 'nitro', 900);
+    else if (e.type === 'refill') {
+      this.toast('🦘 🔥 wieder voll');
+      for (const b of document.querySelectorAll('#hud .xb')) { b.classList.remove('glow'); void b.offsetWidth; b.classList.add('glow'); }
+      clearTimeout(this._gt); this._gt = setTimeout(() => { for (const b of document.querySelectorAll('#hud .xb')) b.classList.remove('glow'); this._x = null; }, 1300);
+    } else if (e.type === 'xdenied') {
+      const T = {
+        empty: e.k === 'hop' ? '🦘 Hüpfer verbraucht – an Start/Ziel wieder voll' : '🔥 Nitro verbraucht – an Start/Ziel wieder voll',
+        lock: '🦘 Nicht in Looping, Röhre, Korkenzieher oder an der Schanze', air: '🦘 Hüpfer nur mit Bodenkontakt', roof: '🦘 Zu wenig Platz nach oben', tilt: '🦘 Fahrbahn zu schräg',
+      };
+      if (T[e.why]) this.toast(T[e.why], 1600);
+    }
+  }
+  // Nitro-Effekt über dem Bild (Tempo-Streifen statt teurer Bewegungsunschärfe), 0 … 1
+  boost(level) {
+    const v = level > 0.01 ? Math.round(level * 20) / 20 : 0;
+    if (v === this._boost) return;
+    this._boost = v;
+    const B = $('#boostfx');
+    B.style.opacity = (v * 0.85).toFixed(2);
+    B.classList.toggle('on', v > 0);
   }
   // Fahrhilfe im Rennen gewechselt: HUD + Touch-Modus anpassen
   assistChanged() {
@@ -429,7 +486,7 @@ export class UI {
     const best = res.isBest ? '<div class="rec">🏆 Neue Bestzeit!</div>' : (res.prev ? `<div class="prev">Bestzeit ${fmtTime(res.prev)} (${(res.time - res.prev >= 0 ? '+' : '') + (res.time - res.prev).toFixed(2).replace('.', ',')} s)</div>` : '');
     $('#result').innerHTML = `<div class="card"><h2>🏁 Ziel!</h2>
       <div class="rtime">${fmtTime(res.time)}</div>${pen}${best}
-      <div class="rmeta">${A.icon} ${A.name} · ${race.wreckOn ? '💥 Totalschaden an' : 'Totalschaden aus'} · ${env.meta.name} (${env.meta.key}) · Crashs ${race.crashes}${race.rewinds ? ' · Rückspulen ' + race.rewinds : ''}</div>
+      <div class="rmeta">${A.icon} ${A.name} · ${race.wreckOn ? '💥 Totalschaden an' : 'Totalschaden aus'} · ${race.extrasOn ? `Extras: 🦘 ${race.used.hop ? '✓' : '–'} 🔥 ${race.used.nitro ? '✓' : '–'}` : 'ohne Extras'} · ${env.meta.name} (${env.meta.key}) · Crashs ${race.crashes}${race.rewinds ? ' · Rückspulen ' + race.rewinds : ''}</div>
       <div class="row"><button class="big go" data-a="retry">🔁 Nochmal</button><button data-a="replay">🎬 Replay</button></div>
       <div class="row"><button data-a="next">🎲 Neue Strecke</button><button data-a="menu">☰ Menü</button></div></div>`;
     this.show('result');

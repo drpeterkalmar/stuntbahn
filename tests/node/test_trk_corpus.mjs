@@ -24,6 +24,8 @@ const jsonOut = (args.find((a) => a.startsWith('--json=')) || '').slice(7);
 const allParse = args.includes('--all-parse');
 const listFile = (args.find((a) => a.startsWith('--list=')) || '').slice(7);
 const assists = (args.find((a) => a.startsWith('--assist=')) || '--assist=easy,strict').slice(9).split(',');
+// --extras: „Leicht“ mit „Extras automatisch“ (Autopilot zündet Nitro, hüpft nur wo sicher), 28.09.2026
+const autoExtras = args.includes('--extras');
 // --auto=alt: Vergleich mit der Abstimmung bis 27.09.2026 (Vmax 286 km/h)
 if (args.includes('--auto=alt')) Object.assign(CAR_DEF, CAR_DEF_ALT);
 
@@ -43,7 +45,7 @@ function pick(list, n) {
 
 const DT = 1 / 120;
 function lap(env, assist) {
-  const race = new Race(env, assist === 'strict' ? { assist: 'original', autopilot: true, countdown: 0.05 } : { assist: 'easy', countdown: 0.05 });
+  const race = new Race(env, assist === 'strict' ? { assist: 'original', autopilot: true, countdown: 0.05 } : { assist: 'easy', countdown: 0.05, autoExtras });
   const L = env.track.line;
   const maxT = Math.max(90, L.total / 7);
   let t = 0, firstCrash = null, vtop = 0;
@@ -75,7 +77,7 @@ function lap(env, assist) {
     const pc = env.layout.pieces[L.piece[idx]];
     fail = firstCrash || { reason: 'Zeitlimit', kind: pc ? pc.kind : '?', type: pc ? pc.type : '?', s: Math.round(L.s[idx]) };
   }
-  return { ok, vtop: vtop * 3.6, time: ok ? race.finalTime : null, crashes: race.crashes, rewinds: race.rewinds, fail, progress: race.tracker.progress() / L.total };
+  return { ok, vtop: vtop * 3.6, time: ok ? race.finalTime : null, crashes: race.crashes, rewinds: race.rewinds, fail, progress: race.tracker.progress() / L.total, hops: race.used.hop, nitros: race.used.nitro };
 }
 
 const res = [];

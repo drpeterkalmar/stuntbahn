@@ -4,6 +4,7 @@
 // Körperachsen: x = rechts, y = oben, z = hinten (vorwärts = −z).
 import { GRIP, ROLL, MAT, WORLD_SCALE } from '../track/defs.js';
 import { G as GRAV, gravStep } from './air.js';
+import { NITRO } from './extras.js';
 
 // „Verirrt“: so weit draußen liegt nur noch der Bergkranz (wächst mit dem Weltmaßstab; bis 27.09.2026 950 m)
 const LOST = 950 * WORLD_SCALE;
@@ -107,6 +108,10 @@ export class Car {
     this.onGround = 0;
     this.airTime = 0;
     this.gScale = 1; // Schwerkraft-Anteil (Luft-Faktor, air.js)
+    // Extras (extras.js): Nitro-Stärke 0 … 1 (setzt die Rennlogik je Schritt), Hüpfer-Lage (Fahrbahn-Oben beim
+    // Absprung; bis zur Landung gehalten)
+    this.boost = 0;
+    this.hopUp = null; this.hopT = 0;
     this.gear = 1; this.rpm = def.idle;
     this.time = 0;
     this.maxG = 0;
@@ -142,7 +147,7 @@ export class Car {
     this.pos.x = p[0] + ux * h; this.pos.y = p[1] + uy * h; this.pos.z = p[2] + uz * h;
     this.v.x = fw[0] * speed; this.v.y = fw[1] * speed; this.v.z = fw[2] * speed;
     this.w.x = this.w.y = this.w.z = 0;
-    this.steerAng = 0; this.crash = null; this.upsideT = 0; this.airTime = 0; this.gScale = 1;
+    this.steerAng = 0; this.crash = null; this.upsideT = 0; this.airTime = 0; this.gScale = 1; this.hopUp = null;
     for (const w of this.wheels) { w.comp = w.prevComp = d.mass * 9.81 / 4 / d.k; w.contact = true; w.spinV = speed / d.wheelR; }
     this.updateFrame();
   }
@@ -279,6 +284,13 @@ export class Car {
       w.spin += w.spinV * dt;
     }
     this.onGround = contacts;
+    // Nitro: Zusatzschub am Schwerpunkt längs Auto-Vorwärts, anteilig zum Gas, nur mit Radkontakt
+    if (this.boost > 0 && thr > 0.01 && contacts && !wrecked) {
+      const fn = this.boost * NITRO.k * thr * Math.min(d.maxDrive * aero, d.power / Math.max(Math.abs(vF), 1));
+      fx += F.f.x * fn; fy += F.f.y * fn; fz += F.f.z * fn;
+    }
+    // Hüpfer: bis zur Landung (erster Radkontakt nach dem Abheben) Lage halten
+    if (this.hopUp) { this.hopT += dt; if (contacts && this.hopT > 0.25) this.hopUp = null; }
     if (contacts) this.airTime = 0; else this.airTime += dt;
     // Luft-Faktor nur, wenn alle Räder frei sind und das Auto nicht in Looping/Röhre steckt
     this.gScale = gravStep(this.gScale, contacts === 0 && !this.surfaceKind, dt, this.airTime);
@@ -297,7 +309,8 @@ export class Car {
     if (!contacts) {
       const ad = 0.25 * dt;
       this.w.x *= 1 - ad; this.w.y *= 1 - ad; this.w.z *= 1 - ad;
-      if (this.assist.air > 0 && !wrecked) this._airAssist(dt);
+      if (this.hopUp && !wrecked) this._hopHold(dt);
+      else if (this.assist.air > 0 && !wrecked) this._airAssist(dt);
     }
 
     // Integration der Geschwindigkeiten
@@ -406,6 +419,30 @@ export class Car {
     }
   }
 
+  // Hüpfer auslösen: Tempo senkrecht zur Fahrbahn (Mittel der Rad-Normalen) auf lift m/s, Vorwärtstempo bleibt.
+  // Nick-/Rolldrehung weg (nur Gieren bleibt), danach hält _hopHold die Lage bis zur Landung.
+  hop(lift) {
+    let nx = 0, ny = 0, nz = 0;
+    for (const w of this.wheels) if (w.contact) { nx += w.nx; ny += w.ny; nz += w.nz; }
+    let l = Math.hypot(nx, ny, nz);
+    if (l < 1e-6) { const u = this.frame.u; nx = u.x; ny = u.y; nz = u.z; l = 1; }
+    nx /= l; ny /= l; nz /= l;
+    const v = this.v, vn = v.x * nx + v.y * ny + v.z * nz;
+    const dv = lift - Math.max(0, vn);
+    v.x += nx * dv; v.y += ny * dv; v.z += nz * dv;
+    const w = this.w, wn = w.x * nx + w.y * ny + w.z * nz;
+    w.x = nx * wn; w.y = ny * wn; w.z = nz * wn;
+    this.hopUp = { x: nx, y: ny, z: nz }; this.hopT = 0;
+  }
+  // Im Hüpfer: Dach zeigt weiter senkrecht zur Absprung-Fahrbahn, Nick-/Rollrate gedämpft (Gieren bleibt)
+  _hopHold(dt) {
+    const F = this.frame, T = this.hopUp, w = this.w;
+    const cx = F.u.y * T.z - F.u.z * T.y, cy = F.u.z * T.x - F.u.x * T.z, cz = F.u.x * T.y - F.u.y * T.x;
+    const wt = w.x * T.x + w.y * T.y + w.z * T.z;
+    const px = w.x - T.x * wt, py = w.y - T.y * wt, pz = w.z - T.z * wt;
+    w.x += (cx * 10 - px * 5) * dt; w.y += (cy * 10 - py * 5) * dt; w.z += (cz * 10 - pz * 5) * dt;
+  }
+
   _airAssist(dt) {
     // Fahrhilfe im Flug: Dach nach oben, Nase folgt der Flugbahn (landet parallel zu Landerampen).
     // Ziel-Oben = Welt-Oben ohne Anteil in Flugrichtung; Drehachse u × Ziel.
@@ -437,7 +474,7 @@ export class Car {
     this.w.x = s.w[0]; this.w.y = s.w[1]; this.w.z = s.w[2];
     this.steerAng = s.s;
     this.wheels.forEach((w, i) => { w.comp = w.prevComp = s.c[i]; });
-    this.crash = null; this.upsideT = 0; this.gScale = 1;
+    this.crash = null; this.upsideT = 0; this.gScale = 1; this.hopUp = null;
     this.updateFrame();
   }
 }

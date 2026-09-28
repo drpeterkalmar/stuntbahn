@@ -1,0 +1,30 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><base href="../"><style>body{margin:0;background:#888}canvas{display:block}</style>
+<script type="importmap">{ "imports": { "three": "./lib/three.module.min.js", "three/addons/": "./lib/addons/" } }</script></head>
+<body><canvas id="c" width="1000" height="600"></canvas>
+<script type="module">
+// Heck des Autos mit Nitro-Flammen (Prüfbild für die Lage der Endrohre): ?m=rear|side|top, ?n=0..1 Nitro
+import * as THREE from 'three';
+import { makeCar } from './src/gfx/carmesh.js';
+import { dummyShadowRT } from './src/gfx/materials.js';
+import { makeEnvironment } from './src/gfx/env.js';
+const q = new URLSearchParams(location.search);
+const r = new THREE.WebGLRenderer({ canvas: document.getElementById('c'), antialias: true });
+r.setSize(1000, 600, false);
+r.toneMapping = THREE.NeutralToneMapping; r.outputColorSpace = THREE.SRGBColorSpace;
+r.setRenderTarget(dummyShadowRT); r.clear(); r.setRenderTarget(null);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(q.get('bg') || 0x4a5058);
+scene.environment = await makeEnvironment(r);
+const sun = new THREE.DirectionalLight(0xffffff, 2); sun.position.set(3, 5, 4); scene.add(sun);
+const cam = new THREE.PerspectiveCamera(30, 1000 / 600, 0.05, 100);
+const car = await makeCar({ color: 0xa3120e }); scene.add(car.root);
+const bb = new THREE.Box3().setFromObject(car.body);
+window.__info = { body: [bb.min.toArray().map((v) => +v.toFixed(3)), bb.max.toArray().map((v) => +v.toFixed(3))] };
+if (car.setNitro) car.setNitro(+(q.get('n') || 0), 0.37);
+const m = q.get('m') || 'rear';
+if (m === 'rear') { cam.position.set(0.0, 0.55, 5.2); cam.lookAt(0, 0.35, 1.8); }
+else if (m === 'rearlow') { cam.position.set(1.6, 0.35, 4.2); cam.lookAt(0, 0.3, 1.9); }
+else if (m === 'side') { cam.position.set(7, 0.8, 1.5); cam.lookAt(0, 0.4, 1.0); }
+else { cam.position.set(0, 8, 1.8); cam.lookAt(0, 0, 1.8); }
+r.render(scene, cam);
+window.__done = true;
+</script></body></html>
