@@ -43,6 +43,19 @@ spielbar am Handy (quer oder hochkant), mit Gamepad oder Tastatur. Als App insta
   Abstand zu jeder Fahrbahn (auch Hochstraßen/Rampen), nie im Wasser. Dosiert nach Grafikstufe; ruckelt es, blendet die
   Automatik (nach der Unschärfe) zuerst Gras/Büsche/Wolkenschatten aus. `?deko=0` / `?wolken=0` zum Vergleich.
 
+## ⭐ Sammlung: 250 eigene Strecken (seit 28.09.2026)
+- Menü → **📂 Strecke laden (.TRK)** → Abschnitt **„⭐ Sammlung (250)“** (eingeklappt, lädt erst beim Aufklappen:
+  `assets/sammlung.bin` + `.json`, zusammen ~117 KB gzip). Oben die **Strecke des Tages** (Kalendertag mod 250, für alle gleich).
+- **Suche** nach Namen, **Filter** (Schwierigkeit, Länge kurz/mittel/lang, enthält Looping/Korkenzieher/Röhre/Sprung/Tunnel/
+  Autobahn/Steilkurve/Hochstraße/Slalom/Schikane/Kreuzung, Landschaft, „noch nie gefahren“, „mit meiner Bestzeit“) und
+  **Sortierung** (Empfohlen = Stil-Nähe, Name, Länge, Anzahl Stunts, Schwierigkeit, eigene Bestzeit, zuletzt gefahren);
+  die Auswahl bleibt gespeichert. Bestzeiten und Geister je Strecke (`sam-001` …) wie bei Importen.
+- **Eigene, generierte Strecken** im Stil der beliebtesten Stunts-Wettbewerbe (Generator `src/track/trkgen.js`). Aus den
+  Wettbewerbsstrecken wurden nur allgemeine Häufigkeiten abgeleitet (`assets/sammlung_stil.json`); keine fremde Strecke ist
+  enthalten, jede hat ein Ähnlichkeits-Tor gegen alle Vorbilder bestanden und der Autopilot ist sie auf „Leicht“ gefahren.
+  Details: `SAMMLUNG_BERICHT.md`. Die Originale lädt man weiterhin selbst (zak.stunts.hu → .TRK/.ZIP importieren).
+- Die Sammlung ist **eingefroren**: spätere Builds hängen nur an, bestehende Nummern ändern sich nie (Bestzeiten hängen daran).
+
 ## Strecken des Stunt-Klassikers laden (.TRK)
 - Menü → **📂 Strecke laden (.TRK)** → Datei wählen (Handy) oder Dateien ins Fenster ziehen (Desktop).
   Geht mit einzelnen `.TRK`-Strecken, Replays (`.RPL`, enthalten die Strecke) und ganzen **ZIP-Archiven**.
@@ -114,6 +127,10 @@ npm run test:node                         # alle Node-Tests (Parser, Import, Phy
 node tests/node/test_trk_parser.mjs       # .TRK-Parser + Elementtabelle (Byte-Layout, alle Codes)
 node tests/node/test_trk_import.mjs       # jedes Element baubar, Wegverfolgung, Gelände, Beispielstrecke
 node tests/node/test_trk_corpus.mjs 200   # nur lokal: Archiv-Strecken in trk_local/ (nicht im Repo)
+node tests/node/test_sammlung.mjs         # Sammlung: 250 lesbar + Rundkurs, 20× Autopilot Leicht, Tor/Namen (lokal), Filter/Sortierung
+python3 tests/test_sammlung_ui.py [url]   # Sammlung im Browser: aufklappen, Tages-Strecke fahren, Suche/Filter/Sortierung, 404
+node tools/sammlung_stil.mjs              # nur lokal: Stil-Modell aus den Wettbewerbsstrecken → assets/sammlung_stil.json (--kalib)
+node tools/build_sammlung.mjs             # nur lokal: Sammlung bauen/anhängen (--anzahl=N, --zeit=s; eingefroren)
 python3 tests/test_trk_ui.py              # Import-Oberfläche: Datei-Auswahl, ZIP, Drag & Drop, Ziel, Löschen
 node tests/node/test_loop_gate.mjs        # Physik-Gate: Ebene → Schanze → Steilkurve → Looping → Röhre
 node tests/node/test_verify_batch.mjs 10  # Generator: 10 Seeds × 3 Stufen per Autopilot lösbar

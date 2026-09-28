@@ -19,6 +19,7 @@ import { trkToLayout } from './track/trkimport.js';
 import { KIND_NAMES } from './track/trkelems.js';
 import { TrkLib, unzipTracks } from './game/trklib.js';
 import { SHOWCASE, showcaseBytes } from './track/showcase.js';
+import { Sammlung } from './game/sammlung.js';
 import { Store, modeKey } from './game/store.js';
 import { Ghost } from './game/ghost.js';
 import { Replay } from './game/replay.js';
@@ -83,6 +84,7 @@ const ui = new UI(app, store);
 const rig = new CameraRig(camera);
 const sound = new Sound(store);
 const trkLib = new TrkLib();
+const sammlung = new Sammlung();      // 250 eigene Strecken, lädt erst beim Aufklappen in der Bibliothek
 let parked = [];         // geparkte Autos (Szenerie „Geisterauto“ importierter Strecken)
 window.__soundRef = sound;
 
@@ -142,12 +144,12 @@ async function boot() {
   const q = params.get('seed');
   if (params.has('demo')) await loadTrack(demoLayout(), { name: 'Teststrecke' });
   else if (params.has('gallery')) await loadTrack(galleryLayout());
-  else if (params.has('trk')) await loadImported(params.get('trk'));
+  else if (params.has('trk')) await loadImported(params.get('trk')).catch((e) => { console.warn(e); return loadGenerated(daySeed(), 2); });
   else await loadGenerated(q ? +q : daySeed(), +(params.get('d') || 2));
   ui.loading(1, 'Fertig');
   app.ready = true;
   ui.bind({ startRace, newTrack, setAssist, toMenu, retry, startReplay, cycleCam, rewind: () => race && race.requestRewind(), pause: togglePause,
-    hop: () => { if (mode === 'race' && race && !frozen) race.requestHop(); }, nitro: () => { if (mode === 'race' && race && !frozen) race.requestNitro(); }, setLine, toggleLine, setPaint, sound, input, quality, importFiles, playImported, deleteImported, trkLib, showcase: SHOWCASE, showcaseBytes, store });
+    hop: () => { if (mode === 'race' && race && !frozen) race.requestHop(); }, nitro: () => { if (mode === 'race' && race && !frozen) race.requestNitro(); }, setLine, toggleLine, setPaint, sound, input, quality, importFiles, playImported, deleteImported, trkLib, showcase: SHOWCASE, showcaseBytes, store, sammlung });
   initDrop();
   ui.showMenu(env);
   mode = params.has('race') ? 'race' : 'menu';
@@ -173,18 +175,24 @@ async function loadGenerated(seed, diff) {
 // ---------- Importierte .TRK-Strecken ----------
 function importedBytes(id) {
   if (id.startsWith('demo-')) return showcaseBytes(id);
+  if (id.startsWith('sam-')) return sammlung.bytes(id);
   return trkLib.bytes(id);
 }
 async function loadImported(id) {
+  const isSam = id.startsWith('sam-');
+  if (isSam) await sammlung.load();
   const bytes = importedBytes(id);
   if (!bytes) throw new Error('Strecke nicht gefunden: ' + id);
-  const rec = trkLib.get(id) || SHOWCASE.find((x) => x.id === id) || { name: id };
+  const sam = isSam ? sammlung.get(id) : null;
+  const rec = sam || trkLib.get(id) || SHOWCASE.find((x) => x.id === id) || { name: id };
   const trk = parseTrk(bytes, rec.name + '.trk');
   trk.name = rec.name;
   const { layout, report } = trkToLayout(trk);
   layout.meta.key = id;
   layout.meta.name = rec.name;
-  let v = trkLib.getVerified(id, VBUILD) || (id.startsWith('demo-') ? store.getVerified(id + WORLD_TAG, VBUILD) : null);
+  // Sammlung: der Build hat jede Strecke mit dem Autopiloten geprüft → Referenz aus dem Paket, keine Probefahrt
+  const samV = sam ? { ap: sam.ap, ok: sam.ap != null, reason: (sam.apf || '').split('|')[0], kind: (sam.apf || '').split('|')[1] || '' } : null;
+  let v = samV || trkLib.getVerified(id, VBUILD) || (id.startsWith('demo-') ? store.getVerified(id + WORLD_TAG, VBUILD) : null);
   let pre = null;
   if (!v) {
     ui.loading(0.84, 'Strecke bauen …');
@@ -196,7 +204,8 @@ async function loadImported(id) {
     if (id.startsWith('demo-')) store.setVerified(id + WORLD_TAG, VBUILD, [], v.ap, 0); else trkLib.setVerified(id, VBUILD, v);
   }
   const apFail = v.ok === false ? `${v.reason} bei ${KIND_NAMES[v.kind] || v.kind || '?'}` : null;
-  return loadTrack(layout, { apTime: v.ap, apFail, report, imported: true }, pre);
+  const day = sam && sammlung.today();
+  return loadTrack(layout, { apTime: v.ap, apFail, report, imported: true, sam, samDay: !!(day && day.id === id) }, pre);
 }
 async function playImported(id) {
   ui.loading(0.5, 'Strecke laden …');
@@ -308,6 +317,8 @@ function startRace(opts = {}) {
   if (fx) fx.reset();
   const S = store.settings;
   race = new Race(env, { assist: S.assist, wreck: S.wreck, autopilot: !!opts.autopilot, extras: S.extras, autoExtras: S.autoExtras });
+  // Sammlung: „zuletzt gefahren“ / „noch nie gefahren“
+  if (env.meta.sam) { S.samPlayed = { ...(S.samPlayed || {}), [env.meta.key]: Date.now() }; store.save(); }
   ghost = new Ghost(store.loadGhost(env.meta.key, S.assist, race.wreckOn, race.extrasOn));
   ghostVis.root.visible = !!ghost.data && store.settings.ghost;
   rig.mode = CAM_MODES.includes(store.settings.cam) ? store.settings.cam : 'chase';
@@ -540,7 +551,7 @@ function render(rdt) {
 
 // ---------- Debug-API ----------
 window.__game = {
-  get env() { return env; }, get race() { return race; }, get mode() { return mode; }, get replayObj() { return replay; }, scene, camera, renderer, rig, store, ui, quality, trkLib,
+  get env() { return env; }, get race() { return race; }, get mode() { return mode; }, get replayObj() { return replay; }, scene, camera, renderer, rig, store, ui, quality, trkLib, sammlung,
   modeKey, worldScale: WORLD_SCALE,
   // Import (Tests): Bytes als Array → Ergebnisliste; Strecke laden
   importBytes: (arr, name) => importFiles([new File([new Uint8Array(arr)], name || 'test.trk')]),

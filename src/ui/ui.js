@@ -10,6 +10,8 @@ import { BLUR_LEVELS } from '../gfx/post.js';
 import { parseTrk } from '../track/trk.js';
 import { trkToLayout } from '../track/trkimport.js';
 import { drawMinimap } from './minimap.js';
+import { SAM_STUNTS, SAM_DIFF, SAM_SORTS, DEFAULT_VIEW, filterSort, lengthClass } from '../game/sammlung.js';
+import { HORIZONS } from '../track/trk.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const h = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
@@ -145,7 +147,9 @@ export class UI {
     const today = daySeed();
     const isDay = m.seed === today && m.diff === 2 && !m.imported;
     const km = (env.ideal.total / 1000).toFixed(2);
-    const metaLine = m.imported
+    const metaLine = m.sam
+      ? `⭐ Sammlung · ${SAM_DIFF[m.sam.d][0]} ${SAM_DIFF[m.sam.d][1]}${m.diffName ? ' · ' + m.diffName : ''} · ${(m.sam.m / 1000).toFixed(2).replace('.', ',')} km`
+      : m.imported
       ? `📂 Importiert${m.diffName ? ' · ' + m.diffName : ''} · ${km} km${m.closed === false ? ' · offen' : ''}`
       : `Code <b>${m.seed}-${m.diff}</b> · ${m.diffName || ''} · ${km} km`;
     const stuntsHtml = m.imported ? stuntSummary(lay.pieces) : stuntTxt;
@@ -155,7 +159,7 @@ export class UI {
       <div class="col left">
         <div class="logo">STUNT<b>BAHN</b></div>
         <div class="card track">
-          <div class="tname">${isDay ? '📅 Strecke des Tages<br>' : ''}${m.name || 'Strecke'}</div>
+          <div class="tname">${isDay || m.samDay ? '📅 Strecke des Tages<br>' : ''}${m.name || 'Strecke'}</div>
           <div class="tmeta">${metaLine}</div>
           <div class="stunts">${stuntsHtml || 'ohne Stunts'}</div>
           ${apLine}
@@ -216,6 +220,10 @@ export class UI {
       case 'trklib': this.showLibrary(); break;
       case 'trkpick': this.fileInput.click(); break;
       case 'trkplay': A.playImported(v); break;
+      case 'samtoggle': this.samToggle(); break;
+      case 'samchip': this.samChip(v); break;
+      case 'samfilter': this.samSave({ fo: !this.samView().fo }); this.samRender(true); break;
+      case 'samreset': { const o = this.samView(); this.store.settings.sam = { ...DEFAULT_VIEW, open: o.open, fo: o.fo, sort: o.sort }; this.store.save(); this.samRender(); break; }
       case 'trkdel': {
         const t = A.trkLib.get(v);
         if (t && confirm(`„${t.name}“ löschen? Bestzeiten und Geisterautos dieser Strecke gehen verloren.`)) A.deleteImported(v);
@@ -267,6 +275,12 @@ export class UI {
       </div>`;
     const mine = lib.list.map((t) => entry(t.id, t.name, `${esc(t.file || '')} · ${t.added}${t.meta && t.meta.author ? ' · von ' + esc(t.meta.author) : ''}`, true)).join('');
     const demos = A.showcase.map((d) => entry(d.id, d.name, 'eigene Beispielstrecke', false)).join('');
+    this._samEntry = (t) => entry(t.id, t.name, this.samSub(t), false).replace('<div class="tbests">', `<div class="tst">${this.samStunts(t)}</div><div class="tbests">`);
+    // Sammlung (eigene Strecken, eingeklappt; lädt erst beim Aufklappen). Paket fehlt → Abschnitt weg, ohne Meldung
+    const sam = A.sammlung, V = this.samView();
+    const samHtml = !sam || sam.failed ? '' : `<div class="sam" id="sam">
+        <button class="samhead" data-a="samtoggle" aria-expanded="${V.open ? 'true' : 'false'}"><span><b>⭐ Sammlung (${sam.meta ? sam.meta.count : 250})</b><small>Neue Strecken im Stil der beliebtesten Stunts-Wettbewerbe</small></span><i>${V.open ? '▾' : '▸'}</i></button>
+        <div class="sambody"${V.open ? '' : ' hidden'}></div></div>`;
     this.sheet('Strecken laden (.TRK)', `
       ${res}
       <div class="row"><button class="big go" data-a="trkpick">📂 Datei wählen …</button></div>
@@ -275,8 +289,10 @@ export class UI {
       Quellen: <b>zak.stunts.hu</b> → Downloads (Track-Pack), <b>archive.org</b> → „stunts tracks“.</p>
       <div class="lbl">Meine Strecken (${lib.list.length})</div>
       ${mine || '<p class="hint">Noch keine importiert.</p>'}
+      ${samHtml}
       <div class="lbl">Beispiele</div>
       ${demos}`);
+    if (V.open && samHtml) this.samRender();
     // nach einem Import den (ersten) neuen Eintrag zeigen
     const fresh = document.querySelector('#sheet .trk.new');
     if (fresh) fresh.scrollIntoView({ block: 'center' });
@@ -286,7 +302,7 @@ export class UI {
       cv.dataset.done = '1';
       const id = cv.dataset.mm;
       try {
-        const bytes = id.startsWith('demo-') ? A.showcaseBytes(id) : lib.bytes(id);
+        const bytes = id.startsWith('demo-') ? A.showcaseBytes(id) : id.startsWith('sam-') ? A.sammlung.bytes(id) : lib.bytes(id);
         const trk = parseTrk(bytes, id);
         drawMinimap(cv, trk, trkToLayout(trk).layout);
       } catch (e) {
@@ -295,13 +311,102 @@ export class UI {
         cv.title = e.message;
       }
     };
-    const cvs = [...document.querySelectorAll('#sheet canvas[data-mm]')];
-    if (typeof IntersectionObserver === 'undefined') cvs.forEach(draw);
-    else {
+    this._mmDraw = draw;
+    this.observeMinimaps();
+  }
+  // Minikarten erst zeichnen, wenn sie ins Bild scrollen (auch nach dem Neuaufbau der Sammlungs-Liste)
+  observeMinimaps() {
+    const cvs = [...document.querySelectorAll('#sheet canvas[data-mm]:not([data-done])')];
+    if (typeof IntersectionObserver === 'undefined') { cvs.forEach(this._mmDraw); return; }
+    if (!this._mmObs || this._mmRoot !== document.querySelector('#sheet .scroll')) {
       if (this._mmObs) this._mmObs.disconnect();
-      this._mmObs = new IntersectionObserver((es) => { for (const e of es) if (e.isIntersecting) draw(e.target); }, { root: document.querySelector('#sheet .scroll'), rootMargin: '200px' });
-      cvs.forEach((cv) => this._mmObs.observe(cv));
+      this._mmRoot = document.querySelector('#sheet .scroll');
+      this._mmObs = new IntersectionObserver((es) => { for (const e of es) if (e.isIntersecting) { this._mmDraw(e.target); this._mmObs.unobserve(e.target); } }, { root: this._mmRoot, rootMargin: '200px' });
     }
+    cvs.forEach((cv) => this._mmObs.observe(cv));
+  }
+  // ---------- Sammlung ----------
+  samView() { return { ...DEFAULT_VIEW, ...(this.store.settings.sam || {}) }; }
+  samSave(patch) { this.store.settings.sam = { ...this.samView(), ...patch }; this.store.save(); }
+  samSub(t) {
+    const m = this.a.sammlung.meta;
+    return `${SAM_DIFF[t.d][0]} ${SAM_DIFF[t.d][1]} · ${(t.m / 1000).toFixed(2).replace('.', ',')} km (${lengthClass(t.m, m.lengthBounds)}) · ${HORIZONS[t.h]}`;
+  }
+  samStunts(t) { return Object.entries(t.st || {}).filter(([k]) => SAM_STUNTS[k]).map(([k, n]) => `<span title="${SAM_STUNTS[k][1]}">${SAM_STUNTS[k][0]}${n > 1 ? '×' + n : ''}</span>`).join(' '); }
+  samCtx() {
+    const S = this.store.settings;
+    return {
+      best: (id) => this.store.bestFor(id, S.assist),
+      hasBest: (id) => Object.keys(ASSISTS).some((k) => this.store.bestFor(id, k)),
+      played: S.samPlayed || {}, lengthBounds: this.a.sammlung.meta.lengthBounds,
+    };
+  }
+  async samToggle() {
+    const open = !this.samView().open;
+    this.samSave({ open });
+    const box = document.getElementById('sam');
+    if (!box) return;
+    box.querySelector('.samhead').setAttribute('aria-expanded', open ? 'true' : 'false');
+    box.querySelector('.samhead i').textContent = open ? '▾' : '▸';
+    box.querySelector('.sambody').hidden = !open;
+    if (open) this.samRender();
+  }
+  samChip(v) {
+    const [g, x] = v.split(':');
+    const V = this.samView();
+    if (g === 'never' || g === 'mine') this.samSave({ [g]: !V[g] });
+    else {
+      const val = g === 'd' || g === 'h' ? +x : x;
+      const arr = V[g].includes(val) ? V[g].filter((y) => y !== val) : [...V[g], val];
+      this.samSave({ [g]: arr });
+    }
+    this.samRender(true);
+  }
+  // Inhalt des aufgeklappten Abschnitts (lädt das Paket beim ersten Mal); listOnly: nur Chips + Liste neu
+  async samRender(listOnly = false) {
+    const sam = this.a.sammlung, box = document.getElementById('sam');
+    if (!box) return;
+    const body = box.querySelector('.sambody');
+    if (!sam.ready) {
+      body.innerHTML = '<p class="hint">Sammlung wird geladen …</p>';
+      await sam.load();
+      if (!sam.ready) { box.remove(); return; }          // Paket fehlt: Abschnitt ausblenden, keine Meldung
+      if (!document.getElementById('sam')) return;
+      box.querySelector('.samhead b').textContent = `⭐ Sammlung (${sam.meta.count})`;
+    }
+    const V = this.samView(), ctx = this.samCtx(), meta = sam.meta;
+    const list = filterSort(sam.list, V, ctx);
+    const chip = (g, val, label, on, title = '') => `<button class="chip${on ? ' on' : ''}" data-a="samchip" data-v="${g}:${val}" aria-pressed="${on ? 'true' : 'false'}"${title ? ` title="${title}"` : ''}>${label}</button>`;
+    const km = (x) => (x / 1000).toFixed(1).replace('.', ',');
+    const hs = [...new Set(sam.list.map((t) => t.h))].sort((a, b) => a - b);
+    const nOn = V.d.length + V.len.length + V.st.length + V.h.length + (V.never ? 1 : 0) + (V.mine ? 1 : 0);
+    const head = `<div class="samcount"><button class="samfbtn${nOn ? ' on' : ''}" data-a="samfilter" aria-expanded="${V.fo ? 'true' : 'false'}">⚙️ Filter${nOn ? ` (${nOn})` : ''} ${V.fo ? '▾' : '▸'}</button><span>${list.length} von ${sam.list.length}</span>${V.q || nOn ? '<button data-a="samreset">Zurücksetzen</button>' : ''}</div>`;
+    const chips = head + `<div class="chips"${V.fo ? '' : ' hidden'}>
+        <div class="cg"><span>Schwierigkeit</span>${[1, 2, 3].map((d) => chip('d', d, SAM_DIFF[d][0] + ' ' + SAM_DIFF[d][1], V.d.includes(d))).join('')}</div>
+        <div class="cg"><span>Länge</span>${chip('len', 'kurz', 'kurz', V.len.includes('kurz'), `unter ${km(meta.lengthBounds[0])} km`)}${chip('len', 'mittel', 'mittel', V.len.includes('mittel'), `${km(meta.lengthBounds[0])}–${km(meta.lengthBounds[1])} km`)}${chip('len', 'lang', 'lang', V.len.includes('lang'), `ab ${km(meta.lengthBounds[1])} km`)}</div>
+        <div class="cg"><span>Enthält</span>${Object.entries(SAM_STUNTS).map(([k, [ic, n]]) => chip('st', k, ic + ' ' + n, V.st.includes(k))).join('')}</div>
+        <div class="cg"><span>Landschaft</span>${hs.map((h) => chip('h', h, HORIZONS[h], V.h.includes(h))).join('')}</div>
+        <div class="cg"><span>Meine</span>${chip('never', 1, 'noch nie gefahren', V.never)}${chip('mine', 1, 'mit meiner Bestzeit', V.mine)}</div>
+      </div>`;
+    const rows = list.length ? list.map(this._samEntry).join('') : '<p class="hint">Keine Strecke passt – Filter lockern.</p>';
+    if (listOnly && body.querySelector('.samres')) {
+      body.querySelector('.samres').innerHTML = chips + `<div class="samlist">${rows}</div>`;
+    } else {
+      const day = sam.today();
+      body.innerHTML = `
+        <div class="samday"><div class="lbl">📅 Strecke des Tages</div>${this._samEntry(day)}</div>
+        <p class="hint samlink">Original-Strecken der Community: auf <a href="https://zak.stunts.hu/tracks" target="_blank" rel="noopener">zak.stunts.hu</a> laden und hier importieren (.TRK oder .ZIP)</p>
+        <div class="samctl">
+          <input type="search" class="samq" placeholder="🔍 Name suchen" value="${String(V.q).replace(/"/g, '&quot;')}" enterkeyhint="search" autocomplete="off" aria-label="Sammlung nach Namen durchsuchen">
+          <label class="samsort"><span>Sortieren</span><select class="samsel" aria-label="Sortierung">${Object.entries(SAM_SORTS).map(([k, n]) => `<option value="${k}"${V.sort === k ? ' selected' : ''}>${n}</option>`).join('')}</select></label>
+        </div>
+        <div class="samres">${chips}<div class="samlist">${rows}</div></div>`;
+      const qi = body.querySelector('.samq');
+      qi.addEventListener('input', () => { this.samSave({ q: qi.value }); clearTimeout(this._samT); this._samT = setTimeout(() => this.samRender(true), 120); });
+      qi.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') qi.blur(); });
+      body.querySelector('.samsel').addEventListener('change', (e) => { this.samSave({ sort: e.target.value }); this.samRender(true); });
+    }
+    this.observeMinimaps();
   }
   showSettings() {
     const S = this.store.settings;

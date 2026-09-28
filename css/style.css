@@ -261,3 +261,34 @@ h2 { margin: 0; font-size: 24px; }
 #drop small { display: block; font-size: 16px; opacity: .8; margin-top: 6px; }
 body.dropping #drop { display: flex; }
 @media (max-height: 540px) { .sheetc .trk canvas { width: 64px; height: 64px; } .sheetc .trk { padding: 6px; } }
+
+/* Sammlung (eigene Strecken): eingeklappter Abschnitt, Strecke des Tages, Suche/Sortierung, Filter-Chips.
+   Handy zuerst: Touch-Ziele ≥ 44 px, Eingaben 16 px (kein Zoom beim Antippen unter iOS) */
+.sheetc .sam { margin: 8px 0 4px; border-radius: 14px; background: #ffffff08; border: 1px solid #ffc23d55; }
+.sheetc .samhead { width: 100%; min-height: 56px; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 12px; background: transparent; text-align: left; border-radius: 14px; }
+.sheetc .samhead span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.sheetc .samhead b { font-size: 17px; }
+.sheetc .samhead small { font-size: 13px; opacity: .8; font-weight: 400; }
+.sheetc .samhead i { font-style: normal; font-size: 22px; opacity: .8; }
+.sheetc .sambody { padding: 0 8px 8px; display: flex; flex-direction: column; gap: 8px; }
+.sheetc .sambody[hidden] { display: none; }
+.sheetc .samday .trk { border-color: #ffc23d; box-shadow: 0 0 0 1px #ffc23d44; }
+.sheetc .samlink { min-height: 0; margin: 0; }
+.sheetc .samlink a { color: #ffd9a6; font-weight: 700; }
+.sheetc .samctl { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.sheetc .samq { flex: 1 1 170px; min-width: 0; min-height: 48px; font: inherit; font-size: 16px; padding: 8px 12px; border-radius: 12px; border: 1px solid #ffffff33; background: #0d1117; color: #f3f4f6;
+  -webkit-user-select: text; user-select: text; touch-action: manipulation; }
+.sheetc .samsort { display: flex; align-items: center; gap: 6px; font-size: 14px; flex: 1 1 auto; }
+.sheetc .samsort span { opacity: .75; }
+.sheetc .samsel { flex: 1 1 auto; min-height: 48px; font: inherit; font-size: 16px; padding: 8px 10px; border-radius: 12px; border: 1px solid #ffffff33; background: #0d1117; color: #f3f4f6; touch-action: manipulation; }
+.sheetc .samcount { display: flex; align-items: center; gap: 8px; font-size: 14px; flex-wrap: wrap; }
+.sheetc .samcount span { flex: 1 1 auto; opacity: .85; }
+.sheetc .samcount button { min-height: 44px; padding: 6px 12px; border-radius: 12px; background: #ffffff14; border: 1px solid #ffffff22; font-weight: 700; font-size: 15px; }
+.sheetc .samcount button.samfbtn.on { border-color: #ff9a6a; color: #ffd9a6; }
+.sheetc .chips { display: flex; flex-direction: column; gap: 8px; }
+.sheetc .chips[hidden] { display: none; }
+.sheetc .cg { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.sheetc .cg > span { flex: 0 0 100%; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; opacity: .65; }
+.sheetc .chip { min-height: 44px; padding: 6px 12px; border-radius: 22px; background: #ffffff12; border: 1px solid #ffffff26; font-size: 15px; font-weight: 600; white-space: nowrap; }
+.sheetc .chip.on { background: #ff6a2a; border-color: #ff9a6a; color: #fff; }
+.sheetc .trk .tst { font-size: 14px; display: flex; flex-wrap: wrap; gap: 4px 8px; }
