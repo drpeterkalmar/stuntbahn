@@ -1,10 +1,11 @@
 // Service-Worker: offline spielbar, Cache-Busting über Inhalts-Hash (tools/update_sw.py)
-const VERSION = '7c2015ec03';
+const VERSION = 'd042bdaab4';
 const CACHE = 'stuntbahn-' + VERSION;
 const ASSETS = [
   './',
   'assets/car/goblin.glb',
   'assets/car/goblin_lod.glb',
+  'assets/deco/rocks.glb',
   'assets/hdr/sky_1k.hdr',
   'assets/sky/sky.jpg',
   'assets/sky/sky.json',
@@ -19,12 +20,16 @@ const ASSETS = [
   'assets/tex/grass_arm.webp',
   'assets/tex/grass_diff.webp',
   'assets/tex/grass_nor.webp',
+  'assets/tex/gravel_diff.webp',
+  'assets/tex/gravel_nor.webp',
   'assets/tex/metal_arm.webp',
   'assets/tex/metal_diff.webp',
   'assets/tex/metal_nor.webp',
   'assets/tex/pad_arm.webp',
   'assets/tex/pad_diff.webp',
   'assets/tex/pad_nor.webp',
+  'assets/tex/veg_atlas.json',
+  'assets/tex/veg_atlas.webp',
   'css/style.css',
   'icons/apple-touch-icon.png',
   'icons/icon-192.png',
@@ -54,6 +59,7 @@ const ASSETS = [
   'src/gfx/camera.js',
   'src/gfx/carmesh.js',
   'src/gfx/cockpit.js',
+  'src/gfx/deco.js',
   'src/gfx/env.js',
   'src/gfx/fx.js',
   'src/gfx/gauges.js',
@@ -68,6 +74,7 @@ const ASSETS = [
   'src/physics/collide.js',
   'src/physics/extras.js',
   'src/track/build.js',
+  'src/track/deco.js',
   'src/track/defs.js',
   'src/track/generator.js',
   'src/track/pieces.js',

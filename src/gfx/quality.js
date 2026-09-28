@@ -40,6 +40,8 @@ export class Quality {
     let changed = false;
     // Ruckeln bei aktiver Bewegungsunschärfe: zuerst die Unschärfe opfern (für diese Sitzung), erst dann Auflösung/Stufe
     if (this.fps < 45 && this.post && this.post.active && !this.post.autoOff) { this.post.autoOff = true; this.cool = 4; return; }
+    // danach: Gras/Blumen/Büsche und Wolkenschatten aus (billigster sichtbarer Verzicht), erst dann Auflösung/Stufe
+    if (this.fps < 55 && this.tier > 0 && !this.decoLite) { this.decoLite = true; this.cool = 4; onChange && onChange(); return; }
     if (this.fps < 40 && this.scale > 0.62) { this.scale = Math.max(0.6, this.scale - 0.12); changed = true; }
     else if (this.fps < 45 && this.tier > 0 && this.scale <= 0.62) { this.tier--; this.scale = 1; changed = true; }
     else if (this.fps > 58 && this.scale < 1) { this.scale = Math.min(1, this.scale + 0.06); changed = true; }

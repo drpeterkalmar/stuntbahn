@@ -3,7 +3,7 @@
 //  - Fahrbahnmarkierungen (Randlinien, Mittelstreifen, Start/Ziel-Karo, Checkpoint-Linie)
 //  - Randsteine rot/weiß, Gras mit Kachel-Brechung
 import * as THREE from 'three';
-import { MAT } from '../track/defs.js';
+import { MAT, WORLD_HALF, WORLD_SCALE } from '../track/defs.js';
 
 const loader = new THREE.TextureLoader();
 const cache = new Map();
@@ -18,7 +18,32 @@ export const shadowUniforms = {
   sbShadowOn: { value: 0 },
   sbTexel: { value: 1 / 2048 },
   sbBias: { value: 0.0009 },   // Tiefen-Versatz (Anteil der Bake-Tiefe; env.js hält ihn bei 1,26 m)
+  // Wolkenschatten (28.09.2026): wandernde Rauschtextur dämpft das Sonnenlicht; Stufe 0 aus
+  sbCloudTex: { value: cloudTexture() },
+  sbCloudOn: { value: 1 },
+  sbTime: { value: 0 },
 };
+
+// Kachelbares Wertrauschen (fbm, 256²) für die Wolkenschatten – einmal erzeugt, keine Datei
+function cloudTexture() {
+  const N = 256, out = new Uint8Array(N * N * 4);
+  let seed = 991; const R = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const oct = [[8, 0.5], [16, 0.28], [32, 0.14], [64, 0.08]].map(([g, a]) => { const v = new Float32Array(g * g); for (let i = 0; i < v.length; i++) v[i] = R(); return { g, a, v }; });
+  const sm = (t) => t * t * (3 - 2 * t);
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    let s = 0;
+    for (const { g, a, v } of oct) {
+      const fx = x / N * g, fy = y / N * g, x0 = Math.floor(fx), y0 = Math.floor(fy), tx = sm(fx - x0), ty = sm(fy - y0);
+      const V = (i, j) => v[((j % g + g) % g) * g + ((i % g + g) % g)];
+      s += a * ((V(x0, y0) * (1 - tx) + V(x0 + 1, y0) * tx) * (1 - ty) + (V(x0, y0 + 1) * (1 - tx) + V(x0 + 1, y0 + 1) * tx) * ty);
+    }
+    const k = (y * N + x) * 4; out[k] = out[k + 1] = out[k + 2] = Math.round(s / 1.0 * 255); out[k + 3] = 255;
+  }
+  const t = new THREE.DataTexture(out, N, N);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.magFilter = THREE.LinearFilter; t.minFilter = THREE.LinearMipmapLinearFilter; t.generateMipmaps = true;
+  t.needsUpdate = true;
+  return t;
+}
 
 function tex(url, srgb, repeat, aniso) {
   const key = url + '|' + repeat;
@@ -63,18 +88,28 @@ export function patchStaticShadow(mat) {
       uniform float sbShadowOn;
       uniform float sbTexel;
       uniform float sbBias;
+      uniform sampler2D sbCloudTex;
+      uniform float sbCloudOn, sbTime;
+      // Wolkenschatten: driften langsam mit dem Wind (≈ 9 m/s), dämpfen die Sonne um bis zu 55 %
+      float sbCloud() {
+        if ( sbCloudOn < 0.5 ) return 1.0;
+        vec2 p = vSbWorld.xz / 1500.0 + vec2( 0.006, 0.0025 ) * sbTime;
+        float n = texture2D( sbCloudTex, p ).r;   // ein Zugriff (4 Oktaven stecken in der Textur)
+        return 1.0 - 0.55 * smoothstep( 0.5, 0.64, n );
+      }
       float sbStatic() {
-        if ( sbShadowOn < 0.5 ) return 1.0;
+        float cl = sbCloud();
+        if ( sbShadowOn < 0.5 ) return cl;
         vec4 sc = sbShadowMat * vec4( vSbWorld, 1.0 );
         vec3 c = sc.xyz / sc.w;
-        if ( c.x <= 0.0 || c.x >= 1.0 || c.y <= 0.0 || c.y >= 1.0 || c.z >= 1.0 ) return 1.0;
+        if ( c.x <= 0.0 || c.x >= 1.0 || c.y <= 0.0 || c.y >= 1.0 || c.z >= 1.0 ) return cl;
         float z = c.z - sbBias;
         float d = sbTexel * 1.25;
         float s = texture( sbShadowMap, vec3( c.xy + vec2( -d, -d ), z ) )
                 + texture( sbShadowMap, vec3( c.xy + vec2(  d, -d ), z ) )
                 + texture( sbShadowMap, vec3( c.xy + vec2( -d,  d ), z ) )
                 + texture( sbShadowMap, vec3( c.xy + vec2(  d,  d ), z ) );
-        return s * 0.25;
+        return s * 0.25 * cl;
       }`)
       // Chunk selbst einsetzen: #include wird erst NACH onBeforeCompile aufgelöst
       .replace('#include <lights_fragment_begin>', 'float sbShadowF = sbStatic();\n' + THREE.ShaderChunk.lights_fragment_begin
@@ -140,9 +175,50 @@ function patchGrass(mat) {
         vec3 dry = vec3( 0.26, 0.27, 0.12 ) * clamp( lum * 2.0, 0.3, 1.2 );
         green = mix( green, dry, smoothstep( 0.55, 0.95, n ) * 0.55 );
         diffuseColor.rgb = mix( green, base * vec3( 0.7, 0.85, 0.5 ), 0.25 ) * mix( 0.85, 1.12, n );
+        // Optik (28.09.2026): außerhalb des Streckenrasters Felder mit Hecken (Getreide, Acker, Raps, Wiese),
+        // an den Hängen des Bergkranzes Wald – die Ferne wirkt bewirtschaftet statt einheitlich grün
+        float farD = max( abs( vGw.x ), abs( vGw.y ) ) - ${(WORLD_HALF + 70 * WORLD_SCALE).toFixed(1)};
+        float rr = length( vGw );
+        if ( farD > 0.0 ) {
+          float detail = clamp( lum / 0.16, 0.65, 1.35 );
+          float fk = smoothstep( 0.0, 90.0, farD ) * ( 1.0 - smoothstep( ${(1050 * WORLD_SCALE).toFixed(1)}, ${(1350 * WORLD_SCALE).toFixed(1)}, rr ) );
+          vec2 q = mat2( 0.955, -0.296, 0.296, 0.955 ) * vGw;
+          vec2 cs = vec2( 150.0, 95.0 ) * ${WORLD_SCALE.toFixed(2)};
+          vec2 cid = floor( q / cs ), f = fract( q / cs );
+          float h = gHash( cid ), rows = 0.5 + 0.5 * sin( ( h > 0.5 ? q.x : q.y ) * 1.4 );
+          vec3 crop = diffuseColor.rgb;
+          if ( h < 0.2 ) crop = vec3( 0.46, 0.39, 0.16 ) * ( 0.85 + 0.25 * rows ) * detail;
+          else if ( h < 0.33 ) crop = vec3( 0.19, 0.13, 0.08 ) * ( 0.75 + 0.4 * rows ) * detail;
+          else if ( h < 0.44 ) crop = vec3( 0.2, 0.33, 0.07 ) * ( 0.9 + 0.2 * rows ) * detail;
+          else if ( h < 0.5 ) crop = vec3( 0.52, 0.5, 0.1 ) * detail;
+          float edge = min( min( f.x, 1.0 - f.x ) * cs.x, min( f.y, 1.0 - f.y ) * cs.y );
+          float hedge = ( 1.0 - smoothstep( 1.5, 4.5, edge ) ) * step( 0.35, gHash( cid + 7.0 ) );
+          crop = mix( crop, vec3( 0.03, 0.065, 0.02 ) * detail, hedge );
+          diffuseColor.rgb = mix( diffuseColor.rgb, crop, fk );
+        }
+        if ( rr > ${(820 * WORLD_SCALE).toFixed(1)} ) {   // nur in der Ferne rechnen (nahe der Strecke kostet es nichts)
+          float fo = smoothstep( ${(820 * WORLD_SCALE).toFixed(1)}, ${(1150 * WORLD_SCALE).toFixed(1)}, rr ) * smoothstep( 0.42, 0.6, gNoise( vGw * 0.0035 ) * 0.75 + gNoise( vGw * 0.02 ) * 0.25 );
+          diffuseColor.rgb = mix( diffuseColor.rgb, vec3( 0.03, 0.06, 0.022 ) * ( 0.7 + 0.6 * gNoise( vGw * 0.09 ) ), fo );
+        }
       }`);
   };
   fn.tag = 'grass';
+  addPatch(mat, fn);
+}
+
+// Wasser: bewegte Wellen (Normalen aus überlagerten Sinuswellen in Weltkoordinaten) → der Himmel spiegelt sich
+// unruhig; zum Rand hin mehr Spiegelung (Fresnel über die Umgebungskarte)
+function patchWater(mat) {
+  const fn = (sh) => {
+    sh.fragmentShader = sh.fragmentShader.replace('#include <normal_fragment_begin>', `#include <normal_fragment_begin>
+      {
+        vec2 p = vSbWorld.xz; float t = sbTime;
+        float gx = 0.07 * cos( p.x * 0.9 + t * 1.3 ) + 0.05 * cos( p.x * 0.53 + p.y * 0.61 + t * 0.9 ) + 0.03 * cos( p.x * 2.1 - p.y * 1.3 + t * 2.1 );
+        float gz = 0.07 * cos( p.y * 0.8 - t * 1.1 ) + 0.05 * cos( p.y * 0.47 - p.x * 0.7 + t * 1.2 ) + 0.03 * cos( p.y * 1.9 + p.x * 1.1 - t * 1.7 );
+        normal = normalize( normal + ( viewMatrix * vec4( -gx, 0.0, -gz, 0.0 ) ).xyz );
+      }`);
+  };
+  fn.tag = 'water';
   addPatch(mat, fn);
 }
 
@@ -195,7 +271,10 @@ export function makeMaterials(renderer, q = {}) {
   // (Straßen bis ~1 km entfernt) reicht die Tiefengenauigkeit dort sonst nicht (Flimmern)
   M.grass = new THREE.MeshStandardMaterial({ ...set('grass', 1 / 3.2), roughness: 1, metalness: 0, color: 0xffffff, vertexColors: true, aoMapIntensity: 0.7, normalScale: new THREE.Vector2(0.9, 0.9), polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 2 });
   patchGrass(M.grass);
-  M.water = new THREE.MeshStandardMaterial({ color: 0x1d3a3a, roughness: 0.04, metalness: 0.1, transparent: true, opacity: 0.88 });
+  // gleicher Polygon-Offset wie das Gelände: sonst schiebt der Offset das Gelände bei flachem Blick hinter die
+  // (0,9 m tiefere) Wasserebene der .TRK-Strecken und das Raster erscheint von weitem als See
+  M.water = new THREE.MeshStandardMaterial({ color: 0x1d3a3a, roughness: 0.04, metalness: 0.1, transparent: true, opacity: 0.88, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 2 });
+  patchWater(M.water);
   M.tree = [0, 1].map((v) => {
     const m = new THREE.MeshStandardMaterial({ map: tex(`assets/tex/fir_card_${v}.webp`, true, 1, aniso), alphaTest: 0.42, alphaToCoverage: true, side: THREE.DoubleSide, roughness: 0.95, metalness: 0, color: 0xd8f0c8, emissive: 0x0b1406 });
     m.map.wrapS = m.map.wrapT = THREE.ClampToEdgeWrapping;

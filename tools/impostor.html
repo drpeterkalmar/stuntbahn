@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Impostor</title>
+<script type="importmap">{ "imports": { "three": "../lib/three.module.min.js", "three/addons/": "../lib/addons/" } }</script>
+</head><body style="margin:0;background:#000">
+<canvas id="c"></canvas>
+<script type="module">
+// Karten (Impostors) aus Poly-Haven-Modellen: Seitenansicht orthografisch, transparenter Hintergrund, weiches Licht
+// (Himmel + Sonne von vorn oben, Innenteile dunkler) → Albedo mit leichter Tiefe. Aufruf aus tools/make_impostors.py.
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+const canvas = document.getElementById('c');
+const r = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, preserveDrawingBuffer: true, premultipliedAlpha: false });
+r.outputColorSpace = THREE.SRGBColorSpace;
+r.toneMapping = THREE.NoToneMapping;
+r.setClearColor(0x000000, 0);
+const cache = new Map();
+window.render = async (url, size, yaw, opts = {}) => {
+  let g = cache.get(url);
+  if (!g) { g = await new GLTFLoader().loadAsync(url); cache.set(url, g); }
+  const scene = new THREE.Scene();
+  const root = g.scene.clone();
+  root.rotation.y = yaw;
+  if (opts.pick != null) root.traverse((o) => { if (o.isMesh) o.visible = false; }), root.traverse((o) => { if (o.isMesh && (o.name === opts.pick || o.name.startsWith(opts.pick + '_'))) o.visible = true; });
+  root.traverse((o) => { if (o.isMesh && o.material) { const m = o.material; m.side = THREE.DoubleSide; if (m.alphaMap || m.transparent || m.alphaTest > 0) { m.alphaTest = 0.5; m.transparent = false; } } });
+  scene.add(root);
+  root.updateMatrixWorld(true);
+  const box = new THREE.Box3();
+  root.traverse((o) => { if (o.isMesh && o.visible) box.expandByObject(o); });
+  const c = box.getCenter(new THREE.Vector3()), s = box.getSize(new THREE.Vector3());
+  // Breite und Höhe getrennt einpassen (Karte = Modell-Seitenverhältnis), Fußpunkt unten
+  const w = Math.max(s.x, s.z) * 1.02, h = s.y * 1.01;
+  const W = size[0], H = size[1];
+  r.setSize(W, H, false);
+  const cam = new THREE.OrthographicCamera(-w / 2, w / 2, h / 2, -h / 2, -100, 100);
+  cam.position.set(c.x, c.y, c.z + 50); cam.lookAt(c.x, c.y, c.z);
+  scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x46402f, 1.9));
+  const sun = new THREE.DirectionalLight(0xfff4e0, 1.3); sun.position.set(c.x + 3, c.y + 8, c.z + 6); scene.add(sun);
+  r.render(scene, cam);
+  return { url: canvas.toDataURL('image/png'), w: +w.toFixed(3), h: +h.toFixed(3), minY: +box.min.y.toFixed(3) };
+};
+window.meshes = async (url) => { const g = await new GLTFLoader().loadAsync(url); cache.set(url, g); const out = []; g.scene.traverse((o) => { if (o.isMesh) { const b = new THREE.Box3().setFromObject(o), s = b.getSize(new THREE.Vector3()); out.push({ name: o.name, tris: (o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3, size: [s.x, s.y, s.z].map((v) => +v.toFixed(2)) }); } }); return out; };
+window.ready = true;
+</script></body></html>

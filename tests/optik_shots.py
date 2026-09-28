@@ -55,7 +55,8 @@ with Server(root) as srv, sync_playwright() as pw:
         if only and dname != only: continue
         for tname, q in TRACKS:
             s = Session(pw, srv.base, device=dev)
-            s.open(f'?nosw&{q}{extra}')
+            qq = '' if 'q=' in extra else ('&q=2' if dname == 'desktop' else '&q=1')   # feste Stufe (Headless-Bildrate)
+            s.open(f'?nosw&{q}{qq}{extra}')
             s.ev("__game.setAssist('easy')")
             s.ev("__game.start({ autopilot: true })"); s.ev("__game.cam('chase')")
             s.frames(20); time.sleep(0.4)

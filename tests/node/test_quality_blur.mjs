@@ -32,5 +32,13 @@ r = run([[40, 6, true]]);
 ok(r.off && r.tierSame, `ohne Bezug, 40 fps mit Unschärfe: zuerst Unschärfe aus, Stufe bleibt (${JSON.stringify(r)})`);
 r = run([[60, 6, false], [30, 9, true]], '1');
 ok(!r.off, `feste Grafikstufe (Nutzerwahl): Automatik greift nicht (${JSON.stringify(r)})`);
+// Deko sparsam: nach der Unschärfe, vor Auflösung/Stufe
+{
+  const q = new Quality({}, null); q.post = { active: false, autoOff: true }; const t0 = q.tier;
+  for (let i = 0; i < 48 * 4; i++) q.sample(1 / 48, () => {});
+  ok(q.decoLite && q.tier === t0 && q.scale === 1, `48 fps ohne Unschärfe: zuerst Gras/Wolken aus, Stufe/Auflösung bleiben (${q.decoLite}, ${q.tier}, ${q.scale})`);
+  for (let i = 0; i < 38 * 12; i++) q.sample(1 / 38, () => {});
+  ok(q.scale < 1, `danach 38 fps: Auflösung sinkt (${q.scale})`);
+}
 console.log(bad ? `${bad} FEHLER` : 'alle Qualitäts-Prüfungen OK');
 process.exit(bad ? 1 : 0);

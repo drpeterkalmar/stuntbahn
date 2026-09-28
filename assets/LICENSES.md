@@ -33,6 +33,23 @@ seinem Browser. Die Beispielstrecke im Spiel ist eine eigene Strecke (`src/track
 | `tex/metal_*` | [Metal Plate](https://polyhaven.com/a/metal_plate) | Rob Tuytel | CC0 |
 | `tex/fir_card_*` (aus Zweig-/Rindentexturen zusammengesetzt) | [Fir Tree 01](https://polyhaven.com/a/fir_tree_01) | Rob Tuytel, Rico Cilliers | CC0 |
 
+### Umgebung (seit 28.09.2026, Poly Haven, CC0)
+
+| Datei(en) | Poly-Haven-Asset | Autor(en) | Lizenz | Änderungen |
+|---|---|---|---|---|
+| `tex/veg_atlas.webp` (Zellen `laub1`) | [Tree Small 02](https://polyhaven.com/a/tree_small_02) | Rico Cilliers | CC0 | Seitenansicht als Karte gerendert (Impostor), 512 px |
+| `tex/veg_atlas.webp` (`laub2`) | [Island Tree 01](https://polyhaven.com/a/island_tree_01) | Rob Tuytel, Rico Cilliers | CC0 | wie oben |
+| `tex/veg_atlas.webp` (`busch3`, `busch4`) | [Searsia Lucida](https://polyhaven.com/a/searsia_lucida) | James Ray Cock, Jenelle van Heerden | CC0 | zwei Büsche als Karten, 256 px |
+| `tex/veg_atlas.webp` (`blume3`, `blume4`) | [Celandine 01](https://polyhaven.com/a/celandine_01) | Rob Tuytel, Rico Cilliers | CC0 | als Karten, 256 px |
+| `tex/veg_atlas.webp` (`gras1`, `gras2`) | [Grass Medium 01](https://polyhaven.com/a/grass_medium_01) | Rob Tuytel, Rico Cilliers | CC0 | als Karten, 256 px |
+| `tex/veg_atlas.webp` (`blume1`, `blume2`) | [Dandelion 01](https://polyhaven.com/a/dandelion_01) | Rob Tuytel, Rico Cilliers | CC0 | als Karten, 256 px |
+| `deco/rocks.glb` | [Rock Moss Set 01](https://polyhaven.com/a/rock_moss_set_01) | Kless Gyzen | CC0 | drei Steine, vereinfacht auf ~230–280 Dreiecke, Texturen 512 px WebP, Meshopt |
+| `tex/gravel_*` | [Gravel Floor 02](https://polyhaven.com/a/gravel_floor_02) | Jenelle van Heerden, Dimitrios Savva | CC0 | 512 px WebP (Kiesbetten, Randstreifen) |
+
+Werbebanner (fiktive Marken), Bremstafeln, Zuschauer, Maschendraht, Wolkenschatten-Rauschen, Tribünen, Streckenposten,
+Masten, Reifenstapel, Leitplanken und Bauernhöfe sind eigene Arbeit (Canvas/prozedurale Geometrie).
+Reproduzierbar: `python3 tools/fetch_deco.py`, `python3 tools/make_impostors.py`, `node tools/build_deco.mjs`.
+
 Alle Texturen wurden auf 1024 px verkleinert und als WebP gespeichert (`tools/build_assets.mjs`).
 Reproduzierbar laden: `python3 tools/fetch_assets.py`, danach `python3 tools/make_sky.py`,
 `python3 tools/make_tree_card.py`, `node tools/build_assets.mjs`.

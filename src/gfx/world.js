@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { MAT, ROAD_HW, WORLD_SCALE, TILE } from '../track/defs.js';
 import { TB, triLerp } from '../track/terrgrid.js';
+import { buildDeco } from './deco.js';
 
 const STATIC_LAYER = 1;
 
@@ -235,6 +236,11 @@ export function buildWorld(track, M, opts = {}) {
       add(im, true);
       stats.tris += (g.index.count / 3) * list.length;
     }
+  }
+  // Detailliertere Umgebung (28.09.2026): Streckenrand, Kiesbetten, Pflanzen, Felsen, Höfe (gfx/deco.js)
+  if (opts.deco !== false) {
+    const ds = buildDeco(track, M, surfaceY, add, { tier: opts.tier, ideal: opts.ideal, prof: opts.prof });
+    stats.deco = ds; stats.tris += ds.tris;
   }
   root.userData.stats = stats;
   return root;

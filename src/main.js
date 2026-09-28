@@ -2,7 +2,7 @@
 // Debug-API window.__game für Headless-Tests.
 import * as THREE from 'three';
 import { BUILD } from './build.js';
-import { makeMaterials } from './gfx/materials.js';
+import { makeMaterials, shadowUniforms } from './gfx/materials.js';
 import { makeSky, makeEnvironment, loadSkyInfo, sunDirFromUV, bakeStaticShadow } from './gfx/env.js';
 import { buildWorld, STATIC_LAYER } from './gfx/world.js';
 import { makeCar, loadCarModel, parkedCarGeometry } from './gfx/carmesh.js';
@@ -27,6 +27,7 @@ import { LineViz, LINE_LEVELS } from './gfx/lineviz.js';
 import { Sound } from './audio/sound.js';
 import { CarFX } from './gfx/fx.js';
 import { Post } from './gfx/post.js';
+import { loadDecoAssets, decoUniforms } from './gfx/deco.js';
 import { daySeed } from './core/util.js';
 import { WORLD_TAG, WORLD_SCALE } from './track/defs.js';
 // Geprüfte Strecken (Autopilot, Entschärfungen) je Weltmaßstab getrennt: ?welt=1 prüft neu statt die Teile der
@@ -100,7 +101,8 @@ async function boot() {
   ui.loading(0.05, 'Himmel und Licht …');
   skyInfo = await loadSkyInfo();
   const sunDir = sunDirFromUV(skyInfo.u, skyInfo.v);
-  const [envTex] = await Promise.all([makeEnvironment(renderer), loadCarModel().then(() => ui.loading(0.45, 'Auto …'))]);
+  const [envTex] = await Promise.all([makeEnvironment(renderer), loadCarModel().then(() => ui.loading(0.45, 'Auto …')),
+    loadDecoAssets().catch((e) => console.warn('Deko nicht geladen', e))]);
   envMap = envTex;
   scene.environment = envMap;
   scene.environmentIntensity = +(params.get('env') || 1.8);
@@ -287,7 +289,7 @@ async function loadTrack(layout, meta = {}, pre = null) {
   const P = pre || prepare(layout);
   const { track, world, ideal, prof } = P;
   env = { track, world, ideal, prof, layout, meta: { ...layout.meta, ...meta } };
-  worldGroup = buildWorld(track, M, { world, tier: quality.tier });
+  worldGroup = buildWorld(track, M, { world, tier: quality.tier, ideal, prof, deco: params.get('deko') !== '0' });
   scene.add(worldGroup);
   await placeParkedCars(track);
   bakeStaticShadow(renderer, scene, sun.userData.dir, track.bounds, quality.staticShadowSize());
@@ -457,6 +459,13 @@ function carLocalBox(cv) {
 const tmpQ = new THREE.Quaternion(), tmpQ2 = new THREE.Quaternion();
 function render(rdt) {
   let pose = null;
+  decoUniforms.uTime.value = shadowUniforms.sbTime.value = performance.now() / 1000;   // Wind im Gras, Wolkenschatten, Wellen
+  shadowUniforms.sbCloudOn.value = quality.tier > 0 && !quality.decoLite && params.get('wolken') !== '0' ? 1 : 0;
+  // Automatik „Deko sparsam“: Gras/Blumen und Büsche ausblenden (Welt nicht neu bauen)
+  if (worldGroup && worldGroup.userData.lite !== !!quality.decoLite) {
+    worldGroup.userData.lite = !!quality.decoLite;
+    for (const m of worldGroup.children) if (m.name === 'deco-grass' || m.name === 'deco-bushes') m.visible = !quality.decoLite;
+  }
   renderer.info.reset();
   let boost = 0;
   if (mode === 'replay' && replay) {
@@ -563,7 +572,7 @@ window.__game = {
     return this.state();
   },
   teleport(idx, speed = 20) { race.place(idx, speed); prevPose = null; blurCut = true; },
-  post,
+  post, shadowUniforms,
   hop() { race.requestHop(); }, nitro() { race.requestNitro(); },
 };
 
