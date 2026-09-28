@@ -14,6 +14,8 @@ def check(ok, msg):
     if not ok: fails.append(msg)
 
 META = json.load(open(os.path.join(ROOT, 'assets', 'sammlung.json')))
+if 'cols' in META:   # spaltenweise gespeichert → Zeilen
+    _c = META['cols']; META['tracks'] = [{k: _c[k][i] for k in _c if _c[k][i] is not None} for i in range(len(_c['id']))]
 def day_index():
     import datetime
     d = datetime.date.today()

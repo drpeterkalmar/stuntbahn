@@ -17,6 +17,7 @@ import { prepare } from '../src/track/verify.js';
 import { Race } from '../src/game/race.js';
 import { generateTrk, trkName } from '../src/track/trkgen.js';
 import { ROOT, POP_FILE, haveCorpus, loadCorpus, calibrate, fingerprint, Gate, similarity, features, COUNT_KEYS, TOKEN } from './sammlung_stil.mjs';
+import { tracksOf, colsOf } from '../src/game/sammlung.js';
 
 const args = process.argv.slice(2);
 const arg = (k, d) => { const a = args.find((x) => x.startsWith('--' + k + '=')); return a ? a.slice(k.length + 3) : d; };
@@ -134,7 +135,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   if (!FRESH && fs.existsSync(JSN) && fs.existsSync(BIN)) {
     frozen = JSON.parse(fs.readFileSync(JSN, 'utf8'));
     const bin = new Uint8Array(fs.readFileSync(BIN));
-    tracks = frozen.tracks;
+    tracks = tracksOf(frozen);
     for (let k = 0; k < tracks.length; k++) {
       const b = bin.slice(k * TRK_BYTES, (k + 1) * TRK_BYTES);
       bins.push(b);
@@ -191,7 +192,9 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const q = (arr, p) => { const s2 = [...arr].sort((a, b) => a - b); return s2[Math.min(s2.length - 1, Math.floor(p * s2.length))]; };
   const dsc = cand.map((c) => +diffScore(c.f, c.st, c.laps, c.km).toFixed(3));
   const allM = [...tracks.map((t) => t.m), ...cand.map((c) => Math.round(c.km * 1000))], allD = [...tracks.map((t) => t.ds), ...dsc];
-  const fresh = !frozen || REBOUND;
+  // nach der Veröffentlichung (keine Rohwerte ds mehr im Paket) bleiben die Grenzen fest
+  if (REBOUND && tracks.some((t) => t.ds === undefined)) console.log('⚠️ --grenzen ignoriert: die Sammlung ist veröffentlicht, Grenzen bleiben eingefroren.');
+  const fresh = !frozen || REBOUND && !tracks.some((t) => t.ds === undefined);
   const lengthBounds = fresh ? [Math.round(q(allM, 1 / 3) / 50) * 50, Math.round(q(allM, 2 / 3) / 50) * 50] : frozen.lengthBounds;
   const diffBounds = fresh ? [+q(allD, 1 / 3).toFixed(2), +q(allD, 2 / 3).toFixed(2)] : frozen.diffBounds;
   const stage = (x) => (x < diffBounds[0] ? 1 : x < diffBounds[1] ? 2 : 3);
@@ -200,9 +203,9 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   cand.forEach((c, k) => {
     const d = stage(dsc[k]);
     tracks.push({
-      id: 'sam-' + String(first + k + 1).padStart(3, '0'), seed: c.seed, name: c.name, m: Math.round(c.km * 1000), el: c.f.elements,
-      st: c.st, d, ds: dsc[k], h: c.horizon, sn: styleScore(c.f, style),
-      tl: c.laps.l.time, tm: c.laps.m.ok ? c.laps.m.time : null, ap: c.laps.s.ok ? c.laps.s.time : null,
+      id: 'sam-' + String(first + k + 1).padStart(3, '0'), seed: c.seed, name: c.name, m: Math.round(c.km * 1000),
+      st: c.st, d, h: c.horizon, sn: styleScore(c.f, style),
+      tl: Math.round(c.laps.l.time * 10) / 10, tm: c.laps.m.ok ? Math.round(c.laps.m.time * 10) / 10 : null, ap: c.laps.s.ok ? c.laps.s.time : null,
       apf: c.laps.s.ok ? undefined : `${c.laps.s.fail.reason}|${c.laps.s.fail.kind}`,
     });
     bins.push(c.bytes);
@@ -221,7 +224,8 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     collectionMax: { jacCorpus: +mjC.toFixed(3), lcsCorpus: mlC, jacInside: +mjS.toFixed(3), lcsInside: mlS },
     seconds: Math.round((Date.now() - t0) / 1000) + (frozen && frozen.build ? frozen.build.seconds : 0),
   };
-  const out = { version: 1, count: tracks.length, bytesPer: TRK_BYTES, horizons: HORIZONS, lengthBounds, diffBounds, created: frozen ? frozen.created : build.date, build, tracks };
+  for (const t of tracks) delete t.ds;
+  const out = { version: 2, count: tracks.length, bytesPer: TRK_BYTES, horizons: HORIZONS, lengthBounds, diffBounds, created: frozen ? frozen.created : build.date, build, cols: colsOf(tracks) };
   const bin = new Uint8Array(bins.length * TRK_BYTES);
   bins.forEach((b, k) => bin.set(b, k * TRK_BYTES));
   fs.writeFileSync(BIN, bin);

@@ -15,6 +15,16 @@ export const SAM_SORTS = { rec: 'Empfohlen', name: 'Name A–Z', len: 'Länge', 
 // Ansicht (in store.settings.sam gespeichert): Suche, Filter je Gruppe (innerhalb ODER, Stunts UND), Sortierung
 export const DEFAULT_VIEW = { open: false, fo: false, q: '', d: [], len: [], st: [], h: [], never: false, mine: false, sort: 'rec' };
 
+// sammlung.json speichert die Strecken spaltenweise (je Feld ein Array: kleiner nach gzip) → Zeilen-Objekte
+export const SAM_COLS = ['id', 'seed', 'name', 'm', 'st', 'd', 'h', 'sn', 'tl', 'tm', 'ap', 'apf'];
+export function tracksOf(meta) {
+  if (meta.tracks) return meta.tracks;
+  const C = meta.cols, n = C.id.length, out = [];
+  for (let k = 0; k < n; k++) { const t = {}; for (const f of SAM_COLS) if (C[f] && C[f][k] !== null && C[f][k] !== undefined) t[f] = C[f][k]; if (!('tm' in t)) t.tm = null; if (!('ap' in t)) t.ap = null; out.push(t); }
+  return out;
+}
+export function colsOf(tracks) { const C = {}; for (const f of SAM_COLS) C[f] = tracks.map((t) => (t[f] === undefined ? null : t[f])); return C; }
+
 export function lengthClass(m, bounds) { return m < bounds[0] ? 'kurz' : m < bounds[1] ? 'mittel' : 'lang'; }
 const stuntCount = (t) => Object.values(t.st || {}).reduce((a, b) => a + b, 0);
 // Strecke des Tages: Kalendertage seit 1.1.1970 mod Anzahl – für alle gleich
@@ -69,6 +79,7 @@ export class Sammlung {
         const [j, b] = await Promise.all([fetch(this.base + 'sammlung.json'), fetch(this.base + 'sammlung.bin')]);
         if (!j.ok || !b.ok) throw new Error('Paket fehlt');
         const meta = await j.json(), bin = new Uint8Array(await b.arrayBuffer());
+        meta.tracks = tracksOf(meta);
         if (!meta.tracks || bin.length < meta.tracks.length * TRK_BYTES) throw new Error('Paket unvollständig');
         this.meta = meta; this.bin = bin;
         this.byId = new Map(meta.tracks.map((t, k) => [t.id, k]));

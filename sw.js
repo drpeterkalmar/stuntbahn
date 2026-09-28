@@ -1,5 +1,5 @@
 // Service-Worker: offline spielbar, Cache-Busting über Inhalts-Hash (tools/update_sw.py)
-const VERSION = '32c9ce00bc';
+const VERSION = '79328c5460';
 const CACHE = 'stuntbahn-' + VERSION;
 const ASSETS = [
   './',

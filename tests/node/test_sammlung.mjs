@@ -11,6 +11,7 @@ import { parseTrk, TRK_BYTES, trkHash } from '../../src/track/trk.js';
 import { trkToLayout } from '../../src/track/trkimport.js';
 import { prepare } from '../../src/track/verify.js';
 import { Race } from '../../src/game/race.js';
+import { tracksOf } from '../../src/game/sammlung.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const DT = 1 / 120;
@@ -19,7 +20,7 @@ const check = (ok, msg) => { console.log(`${ok ? 'OK  ' : 'FAIL'} ${msg}`); if (
 
 const meta = JSON.parse(fs.readFileSync(path.join(ROOT, 'assets/sammlung.json'), 'utf8'));
 const bin = new Uint8Array(fs.readFileSync(path.join(ROOT, 'assets/sammlung.bin')));
-const T = meta.tracks;
+const T = tracksOf(meta);
 check(T.length === 250 && meta.count === 250, `250 Strecken im Verzeichnis (${T.length})`);
 check(bin.length === T.length * TRK_BYTES, `Paket = ${T.length} × ${TRK_BYTES} Byte (${bin.length})`);
 const block = (k) => bin.subarray(k * TRK_BYTES, (k + 1) * TRK_BYTES);
