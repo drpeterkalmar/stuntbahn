@@ -6,8 +6,10 @@ files = ['index.html', 'manifest.webmanifest', 'css/style.css']
 for d in ['src', 'lib', 'icons', 'assets']:
     for dp, dn, fn in os.walk(os.path.join(ROOT, d)):
         for f in sorted(fn):
-            if f.endswith(('.js', '.png', '.css', '.webp', '.jpg', '.json', '.glb', '.hdr')) and not f.startswith('.'):
-                files.append(os.path.relpath(os.path.join(dp, f), ROOT))
+            rel = os.path.relpath(os.path.join(dp, f), ROOT)
+            # sammlung_stil.json: Stil-Modell nur für den Build, nicht fürs Spiel
+            if f.endswith(('.js', '.png', '.css', '.webp', '.jpg', '.json', '.glb', '.hdr', '.bin')) and not f.startswith('.') and rel != os.path.join('assets', 'sammlung_stil.json'):
+                files.append(rel)
 files = sorted(set(files))
 h = hashlib.sha256()
 for f in files:

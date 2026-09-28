@@ -1,0 +1,1059 @@
+{
+ "tracks": 306,
+ "designers": 37,
+ "weights": "Fahrer im Scoreboard (racers)",
+ "tile": 40,
+ "terrainByHorizon": {
+  "0": {
+   "hill": 0.256,
+   "water": 0.19,
+   "n": 30
+  },
+  "1": {
+   "hill": 0.223,
+   "water": 0.201,
+   "n": 89
+  },
+  "2": {
+   "hill": 0.37,
+   "water": 0.308,
+   "n": 54
+  },
+  "3": {
+   "hill": 0.268,
+   "water": 0.254,
+   "n": 51
+  },
+  "4": {
+   "hill": 0.222,
+   "water": 0.238,
+   "n": 82
+  }
+ },
+ "length": {
+  "elements": {
+   "mean": 63.237,
+   "sd": 18.449,
+   "p10": 43,
+   "p25": 51,
+   "p50": 61,
+   "p75": 72,
+   "p90": 86
+  },
+  "meters": {
+   "mean": 3329.402,
+   "sd": 912.79,
+   "p10": 2364,
+   "p25": 2746,
+   "p50": 3214,
+   "p75": 3751,
+   "p90": 4476
+  },
+  "tokens": {
+   "mean": 57.367,
+   "sd": 16.34,
+   "p10": 39,
+   "p25": 46,
+   "p50": 56,
+   "p75": 64,
+   "p90": 79
+  }
+ },
+ "shape": {
+  "cells": {
+   "mean": 156.31,
+   "sd": 95.455,
+   "p10": 77,
+   "p25": 96,
+   "p50": 124,
+   "p75": 182,
+   "p90": 265
+  },
+  "bboxW": {
+   "mean": 24.351,
+   "sd": 5.171,
+   "p10": 17,
+   "p25": 20,
+   "p50": 26,
+   "p75": 30,
+   "p90": 30
+  },
+  "bboxH": {
+   "mean": 20.021,
+   "sd": 6.229,
+   "p10": 12,
+   "p25": 15,
+   "p50": 19,
+   "p75": 25,
+   "p90": 29
+  },
+  "fill": {
+   "mean": 0.318,
+   "sd": 0.105,
+   "p10": 0.202,
+   "p25": 0.242,
+   "p50": 0.295,
+   "p75": 0.381,
+   "p90": 0.444
+  },
+  "grid": {
+   "mean": 0.174,
+   "sd": 0.106,
+   "p10": 0.086,
+   "p25": 0.107,
+   "p50": 0.138,
+   "p75": 0.202,
+   "p90": 0.294
+  }
+ },
+ "counts": {
+  "loop": {
+   "mean": 1.02,
+   "sd": 0.889,
+   "p10": 0,
+   "p25": 0,
+   "p50": 1,
+   "p75": 1,
+   "p90": 2
+  },
+  "corklr": {
+   "mean": 1.314,
+   "sd": 0.909,
+   "p10": 0,
+   "p25": 1,
+   "p50": 1,
+   "p75": 2,
+   "p90": 2
+  },
+  "corkud": {
+   "mean": 0.535,
+   "sd": 0.82,
+   "p10": 0,
+   "p25": 0,
+   "p50": 0,
+   "p75": 1,
+   "p90": 1
+  },
+  "pipe": {
+   "mean": 0.792,
+   "sd": 0.73,
+   "p10": 0,
+   "p25": 0,
+   "p50": 1,
+   "p75": 1,
+   "p90": 2
+  },
+  "tunnel": {
+   "mean": 2.666,
+   "sd": 2.418,
+   "p10": 0,
+   "p25": 1,
+   "p50": 2,
+   "p75": 4,
+   "p90": 6
+  },
+  "slalom": {
+   "mean": 1.481,
+   "sd": 1.367,
+   "p10": 0,
+   "p25": 1,
+   "p50": 1,
+   "p75": 2,
+   "p90": 3
+  },
+  "chicane": {
+   "mean": 1.655,
+   "sd": 1.98,
+   "p10": 0,
+   "p25": 0,
+   "p50": 1,
+   "p75": 2,
+   "p90": 4
+  },
+  "jump": {
+   "mean": 1.392,
+   "sd": 1.324,
+   "p10": 0,
+   "p25": 0,
+   "p50": 1,
+   "p75": 2,
+   "p90": 3
+  },
+  "hump": {
+   "mean": 1.263,
+   "sd": 1.441,
+   "p10": 0,
+   "p25": 0,
+   "p50": 1,
+   "p75": 2,
+   "p90": 3
+  },
+  "bridge": {
+   "mean": 0.988,
+   "sd": 1.043,
+   "p10": 0,
+   "p25": 0,
+   "p50": 1,
+   "p75": 2,
+   "p90": 2
+  },
+  "elev": {
+   "mean": 5.499,
+   "sd": 4.412,
+   "p10": 0,
+   "p25": 2,
+   "p50": 5,
+   "p75": 8,
+   "p90": 11
+  },
+  "hwy": {
+   "mean": 0.977,
+   "sd": 0.842,
+   "p10": 0,
+   "p25": 0,
+   "p50": 1,
+   "p75": 1,
+   "p90": 2
+  },
+  "bankC": {
+   "mean": 2.663,
+   "sd": 1.943,
+   "p10": 0,
+   "p25": 1,
+   "p50": 2,
+   "p75": 4,
+   "p90": 5
+  },
+  "bankR": {
+   "mean": 2.25,
+   "sd": 5.071,
+   "p10": 0,
+   "p25": 0,
+   "p50": 1,
+   "p75": 2,
+   "p90": 5
+  },
+  "sharp": {
+   "mean": 4.929,
+   "sd": 4.427,
+   "p10": 1,
+   "p25": 2,
+   "p50": 4,
+   "p75": 7,
+   "p90": 10
+  },
+  "large": {
+   "mean": 3.43,
+   "sd": 2.201,
+   "p10": 1,
+   "p25": 2,
+   "p50": 3,
+   "p75": 5,
+   "p90": 6
+  },
+  "elcorner": {
+   "mean": 1.814,
+   "sd": 1.548,
+   "p10": 0,
+   "p25": 0,
+   "p50": 2,
+   "p75": 3,
+   "p90": 4
+  },
+  "cross": {
+   "mean": 1.486,
+   "sd": 2.371,
+   "p10": 0,
+   "p25": 0,
+   "p50": 0,
+   "p75": 2,
+   "p90": 4
+  },
+  "overpass": {
+   "mean": 1.173,
+   "sd": 1.769,
+   "p10": 0,
+   "p25": 0,
+   "p50": 0,
+   "p75": 2,
+   "p90": 4
+  },
+  "split": {
+   "mean": 2.315,
+   "sd": 3.407,
+   "p10": 0,
+   "p25": 0,
+   "p50": 2,
+   "p75": 3,
+   "p90": 6
+  },
+  "slope": {
+   "mean": 5.481,
+   "sd": 4.423,
+   "p10": 0,
+   "p25": 2,
+   "p50": 5,
+   "p75": 8,
+   "p90": 11
+  }
+ },
+ "share": {
+  "loop": 0.698,
+  "corklr": 0.836,
+  "corkud": 0.403,
+  "pipe": 0.644,
+  "tunnel": 0.832,
+  "slalom": 0.751,
+  "chicane": 0.718,
+  "jump": 0.723,
+  "hump": 0.615,
+  "bridge": 0.614,
+  "elev": 0.875,
+  "hwy": 0.694,
+  "bankC": 0.878,
+  "bankR": 0.637,
+  "sharp": 0.93,
+  "large": 0.942,
+  "elcorner": 0.745,
+  "cross": 0.446,
+  "overpass": 0.44,
+  "split": 0.573,
+  "slope": 0.896
+ },
+ "surface": {
+  "dirt": {
+   "mean": 0.053,
+   "sd": 0.104,
+   "p10": 0,
+   "p25": 0,
+   "p50": 0,
+   "p75": 0.066,
+   "p90": 0.197
+  },
+  "icy": {
+   "mean": 0.03,
+   "sd": 0.069,
+   "p10": 0,
+   "p25": 0,
+   "p50": 0,
+   "p75": 0.025,
+   "p90": 0.103
+  },
+  "dirtShare": 0.379,
+  "icyShare": 0.289
+ },
+ "turns": {
+  "rightShare": 0.495
+ },
+ "straightRuns": [
+  0,
+  0.768,
+  0.148,
+  0.05,
+  0.021,
+  0.008,
+  0.003,
+  0.001,
+  0.002
+ ],
+ "stuntGap": [
+  0,
+  0.006,
+  0.056,
+  0.078,
+  0.059,
+  0.04,
+  0.034,
+  0.034,
+  0.036,
+  0.025,
+  0.033,
+  0.028,
+  0.021,
+  0.027,
+  0.022,
+  0.025,
+  0.029,
+  0.021,
+  0.028,
+  0.029,
+  0.37
+ ],
+ "height": {
+  "changes": {
+   "mean": 13.88,
+   "sd": 6.784,
+   "p10": 6,
+   "p25": 10,
+   "p50": 14,
+   "p75": 18,
+   "p90": 24
+  },
+  "level2Share": 0.603
+ },
+ "terrain": {
+  "hill": {
+   "mean": 0.259,
+   "sd": 0.193,
+   "p10": 0.058,
+   "p25": 0.116,
+   "p50": 0.212,
+   "p75": 0.347,
+   "p90": 0.541
+  },
+  "water": {
+   "mean": 0.237,
+   "sd": 0.202,
+   "p10": 0.031,
+   "p25": 0.086,
+   "p50": 0.174,
+   "p75": 0.346,
+   "p90": 0.538
+  },
+  "hillShare": 0.958,
+  "waterShare": 0.953
+ },
+ "horizon": [
+  0.099,
+  0.298,
+  0.179,
+  0.16,
+  0.264,
+  0
+ ],
+ "scenery": {
+  "count": {
+   "mean": 114.905,
+   "sd": 90.792,
+   "p10": 13,
+   "p25": 49,
+   "p50": 97,
+   "p75": 154,
+   "p90": 249
+  },
+  "byHorizon": {
+   "0": {
+    "palm": 0.283,
+    "cactus": 0.281,
+    "pine": 0.151,
+    "tennis": 0.025,
+    "gas": 0.032,
+    "barn": 0.025,
+    "office": 0.073,
+    "windmill": 0.035,
+    "ship": 0.062,
+    "diner": 0.033
+   },
+   "1": {
+    "palm": 0.169,
+    "cactus": 0.05,
+    "pine": 0.451,
+    "tennis": 0.024,
+    "gas": 0.014,
+    "barn": 0.07,
+    "office": 0.09,
+    "windmill": 0.043,
+    "ship": 0.068,
+    "diner": 0.022
+   },
+   "2": {
+    "palm": 0.061,
+    "cactus": 0.05,
+    "pine": 0.544,
+    "tennis": 0.035,
+    "gas": 0.018,
+    "barn": 0.034,
+    "office": 0.059,
+    "windmill": 0.06,
+    "ship": 0.123,
+    "diner": 0.016
+   },
+   "3": {
+    "palm": 0.17,
+    "cactus": 0.057,
+    "pine": 0.365,
+    "tennis": 0.029,
+    "gas": 0.025,
+    "barn": 0.034,
+    "office": 0.152,
+    "windmill": 0.04,
+    "ship": 0.105,
+    "diner": 0.023
+   },
+   "4": {
+    "palm": 0.098,
+    "cactus": 0.068,
+    "pine": 0.501,
+    "tennis": 0.034,
+    "gas": 0.026,
+    "barn": 0.042,
+    "office": 0.1,
+    "windmill": 0.041,
+    "ship": 0.05,
+    "diner": 0.04
+   }
+  }
+ },
+ "transitions": {
+  "road": {
+   "sharp": 0.142,
+   "road": 0.216,
+   "ramp": 0.141,
+   "slalom": 0.029,
+   "ssplit": 0.046,
+   "loop": 0.026,
+   "corklr": 0.028,
+   "pipeT": 0.017,
+   "bankT": 0.062,
+   "large": 0.103,
+   "tunnel": 0.044,
+   "lsplit": 0.017,
+   "cross": 0.053,
+   "chicane": 0.037,
+   "spanroad": 0.015,
+   "hwyT": 0.02,
+   "corkud": 0.005
+  },
+  "sharp": {
+   "sharp": 0.205,
+   "pipeT": 0.024,
+   "corklr": 0.049,
+   "road": 0.345,
+   "bankT": 0.023,
+   "chicane": 0.043,
+   "hwyT": 0.021,
+   "ssplit": 0.06,
+   "slalom": 0.03,
+   "tunnel": 0.062,
+   "loop": 0.023,
+   "large": 0.031,
+   "ramp": 0.047,
+   "corkud": 0.006,
+   "cross": 0.014,
+   "lsplit": 0.009,
+   "spanroad": 0.007
+  },
+  "pipeT": {
+   "pipe": 0.463,
+   "hwyT": 0.013,
+   "large": 0.079,
+   "loop": 0.02,
+   "ramp": 0.069,
+   "spanroad": 0.019,
+   "slalom": 0.024,
+   "road": 0.14,
+   "bankT": 0.054,
+   "sharp": 0.044,
+   "corklr": 0.028,
+   "tunnel": 0.014,
+   "chicane": 0.014,
+   "cross": 0.019
+  },
+  "pipe": {
+   "pipeT": 1
+  },
+  "hwyT": {
+   "hwy": 0.319,
+   "sharp": 0.051,
+   "ramp": 0.102,
+   "spanroad": 0.022,
+   "corklr": 0.026,
+   "slalom": 0.031,
+   "bankT": 0.058,
+   "large": 0.072,
+   "pipeT": 0.014,
+   "road": 0.172,
+   "ssplit": 0.016,
+   "cross": 0.031,
+   "chicane": 0.045,
+   "tunnel": 0.04
+  },
+  "hwy": {
+   "hwyT": 1
+  },
+  "corklr": {
+   "slalom": 0.068,
+   "bankT": 0.086,
+   "large": 0.088,
+   "ramp": 0.102,
+   "tunnel": 0.112,
+   "spanroad": 0.017,
+   "road": 0.223,
+   "loop": 0.025,
+   "pipeT": 0.044,
+   "cross": 0.037,
+   "lsplit": 0.028,
+   "sharp": 0.09,
+   "ssplit": 0.035,
+   "hwyT": 0.013,
+   "chicane": 0.031
+  },
+  "slalom": {
+   "road": 0.293,
+   "ramp": 0.167,
+   "sharp": 0.105,
+   "cross": 0.034,
+   "chicane": 0.026,
+   "bankT": 0.061,
+   "tunnel": 0.068,
+   "corklr": 0.034,
+   "large": 0.097,
+   "loop": 0.027,
+   "spanroad": 0.021,
+   "pipeT": 0.018,
+   "lsplit": 0.016,
+   "hwyT": 0.016,
+   "ssplit": 0.019
+  },
+  "ramp": {
+   "gap": 0.154,
+   "ramp": 0.248,
+   "sharp": 0.056,
+   "corkud": 0.026,
+   "bankT": 0.031,
+   "elcorner": 0.053,
+   "large": 0.029,
+   "tunnel": 0.032,
+   "elev": 0.082,
+   "road": 0.126,
+   "hwyT": 0.015,
+   "pipeT": 0.007,
+   "spanroad": 0.042,
+   "slalom": 0.017,
+   "corklr": 0.009,
+   "cross": 0.02,
+   "loop": 0.014,
+   "chicane": 0.017,
+   "lsplit": 0.006,
+   "ssplit": 0.014
+  },
+  "gap": {
+   "ramp": 0.758,
+   "elcorner": 0.074,
+   "corkud": 0.021,
+   "elev": 0.134,
+   "spanroad": 0.013
+  },
+  "bankT": {
+   "bankR": 0.141,
+   "bankC": 0.348,
+   "ramp": 0.08,
+   "road": 0.167,
+   "slalom": 0.025,
+   "chicane": 0.025,
+   "corklr": 0.019,
+   "sharp": 0.046,
+   "pipeT": 0.015,
+   "large": 0.019,
+   "tunnel": 0.022,
+   "spanroad": 0.011,
+   "ssplit": 0.021,
+   "hwyT": 0.017,
+   "cross": 0.022,
+   "loop": 0.012,
+   "lsplit": 0.007,
+   "corkud": 0.004
+  },
+  "bankR": {
+   "bankC": 0.618,
+   "bankT": 0.382
+  },
+  "bankC": {
+   "bankT": 0.585,
+   "bankC": 0.149,
+   "bankR": 0.266
+  },
+  "elcorner": {
+   "ramp": 0.39,
+   "elev": 0.273,
+   "elcorner": 0.274,
+   "spanroad": 0.048,
+   "corkud": 0.015
+  },
+  "corkud": {
+   "chicane": 0.105,
+   "road": 0.215,
+   "ramp": 0.243,
+   "elev": 0.068,
+   "sharp": 0.058,
+   "tunnel": 0.043,
+   "bankT": 0.053,
+   "elcorner": 0.074,
+   "corkud": 0.079,
+   "large": 0.063
+  },
+  "chicane": {
+   "pipeT": 0.023,
+   "bankT": 0.09,
+   "road": 0.252,
+   "ssplit": 0.04,
+   "large": 0.113,
+   "tunnel": 0.1,
+   "sharp": 0.111,
+   "hwyT": 0.042,
+   "ramp": 0.084,
+   "cross": 0.032,
+   "lsplit": 0.022,
+   "slalom": 0.021,
+   "corklr": 0.035,
+   "chicane": 0.012,
+   "loop": 0.022
+  },
+  "large": {
+   "loop": 0.022,
+   "bankT": 0.041,
+   "tunnel": 0.051,
+   "hwyT": 0.035,
+   "road": 0.338,
+   "ramp": 0.059,
+   "large": 0.135,
+   "ssplit": 0.032,
+   "slalom": 0.06,
+   "chicane": 0.046,
+   "sharp": 0.043,
+   "cross": 0.023,
+   "pipeT": 0.026,
+   "corklr": 0.048,
+   "spanroad": 0.018,
+   "lsplit": 0.017,
+   "corkud": 0.006
+  },
+  "loop": {
+   "road": 0.275,
+   "sharp": 0.297,
+   "large": 0.072,
+   "cross": 0.044,
+   "ramp": 0.086,
+   "tunnel": 0.035,
+   "bankT": 0.083,
+   "hwyT": 0.023,
+   "chicane": 0.037,
+   "ssplit": 0.048
+  },
+  "tunnel": {
+   "loop": 0.038,
+   "hwyT": 0.027,
+   "ssplit": 0.033,
+   "road": 0.307,
+   "large": 0.117,
+   "bankT": 0.056,
+   "sharp": 0.138,
+   "corklr": 0.036,
+   "ramp": 0.078,
+   "spanroad": 0.023,
+   "slalom": 0.032,
+   "cross": 0.046,
+   "pipeT": 0.015,
+   "chicane": 0.039,
+   "lsplit": 0.014
+  },
+  "ssplit": {
+   "chicane": 0.041,
+   "sharp": 0.152,
+   "bankT": 0.046,
+   "ramp": 0.091,
+   "road": 0.307,
+   "cross": 0.032,
+   "loop": 0.031,
+   "large": 0.077,
+   "ssplit": 0.082,
+   "corklr": 0.035,
+   "hwyT": 0.027,
+   "tunnel": 0.036,
+   "slalom": 0.019,
+   "pipeT": 0.009,
+   "lsplit": 0.013
+  },
+  "spanroad": {
+   "sharp": 0.036,
+   "ramp": 0.42,
+   "road": 0.201,
+   "tunnel": 0.033,
+   "large": 0.052,
+   "elev": 0.109,
+   "bankT": 0.031,
+   "loop": 0.032,
+   "corkud": 0.022,
+   "ssplit": 0.018,
+   "chicane": 0.019,
+   "slalom": 0.029
+  },
+  "elev": {
+   "ramp": 0.43,
+   "elcorner": 0.438,
+   "corkud": 0.017,
+   "spanroad": 0.094,
+   "gap": 0.021
+  },
+  "lsplit": {
+   "bankT": 0.083,
+   "sharp": 0.061,
+   "road": 0.288,
+   "loop": 0.035,
+   "large": 0.146,
+   "tunnel": 0.061,
+   "chicane": 0.043,
+   "lsplit": 0.093,
+   "ssplit": 0.045,
+   "ramp": 0.061,
+   "corklr": 0.035,
+   "hwyT": 0.05
+  },
+  "cross": {
+   "road": 0.388,
+   "pipeT": 0.026,
+   "hwyT": 0.016,
+   "chicane": 0.042,
+   "ssplit": 0.017,
+   "ramp": 0.148,
+   "corklr": 0.024,
+   "sharp": 0.054,
+   "tunnel": 0.045,
+   "large": 0.098,
+   "bankT": 0.068,
+   "slalom": 0.034,
+   "lsplit": 0.015,
+   "loop": 0.027
+  }
+ },
+ "transitionsDropped": 44,
+ "motifs": {
+  "sprung": {
+   "tracks": 142,
+   "designers": 27,
+   "ok": true
+  },
+  "buckel": {
+   "tracks": 185,
+   "designers": 25,
+   "ok": true
+  },
+  "roehre": {
+   "tracks": 169,
+   "designers": 29,
+   "ok": true
+  },
+  "autobahn": {
+   "tracks": 122,
+   "designers": 28,
+   "ok": true
+  },
+  "steilkurve": {
+   "tracks": 159,
+   "designers": 24,
+   "ok": true
+  },
+  "steilkurve2": {
+   "tracks": 46,
+   "designers": 12,
+   "ok": true
+  },
+  "steilkurveR": {
+   "tracks": 72,
+   "designers": 18,
+   "ok": true
+  },
+  "steilstrasse": {
+   "tracks": 24,
+   "designers": 11,
+   "ok": true
+  },
+  "hochstrasse": {
+   "tracks": 38,
+   "designers": 18,
+   "ok": true
+  },
+  "hochkurve": {
+   "tracks": 55,
+   "designers": 18,
+   "ok": true
+  },
+  "rampenkurve": {
+   "tracks": 145,
+   "designers": 25,
+   "ok": true
+  },
+  "ueberfuehrung": {
+   "tracks": 38,
+   "designers": 13,
+   "ok": true
+  },
+  "wendelHoch": {
+   "tracks": 17,
+   "designers": 10,
+   "ok": true
+  },
+  "wendelRunter": {
+   "tracks": 17,
+   "designers": 10,
+   "ok": true
+  },
+  "huegel": {
+   "tracks": 151,
+   "designers": 26,
+   "ok": true
+  },
+  "huegelRunter": {
+   "tracks": 151,
+   "designers": 26,
+   "ok": true
+  },
+  "sKurve": {
+   "tracks": 117,
+   "designers": 24,
+   "ok": true
+  },
+  "kreuzung": {
+   "tracks": 25,
+   "designers": 11,
+   "ok": true
+  }
+ },
+ "topVsRest": [
+  {
+   "name": "Elemente",
+   "top": 61.94,
+   "rest": 63.715,
+   "d": -0.102
+  },
+  {
+   "name": "Länge (m)",
+   "top": 3214.84,
+   "rest": 3361.773,
+   "d": -0.175
+  },
+  {
+   "name": "Felder belegt",
+   "top": 141.58,
+   "rest": 158.688,
+   "d": -0.195
+  },
+  {
+   "name": "Box (lange Seite)",
+   "top": 24.26,
+   "rest": 24.305,
+   "d": -0.009
+  },
+  {
+   "name": "Loopings",
+   "top": 1.2,
+   "rest": 0.957,
+   "d": 0.269
+  },
+  {
+   "name": "Korkenzieher (Rolle)",
+   "top": 1.2,
+   "rest": 1.348,
+   "d": -0.168
+  },
+  {
+   "name": "Wendel",
+   "top": 0.36,
+   "rest": 0.598,
+   "d": -0.314
+  },
+  {
+   "name": "Röhren",
+   "top": 0.78,
+   "rest": 0.793,
+   "d": -0.018
+  },
+  {
+   "name": "Sprünge",
+   "top": 1.58,
+   "rest": 1.344,
+   "d": 0.178
+  },
+  {
+   "name": "Buckel",
+   "top": 1.48,
+   "rest": 1.191,
+   "d": 0.19
+  },
+  {
+   "name": "Tunnel-Felder",
+   "top": 2.6,
+   "rest": 2.66,
+   "d": -0.026
+  },
+  {
+   "name": "Slalom",
+   "top": 1.44,
+   "rest": 1.477,
+   "d": -0.028
+  },
+  {
+   "name": "Schikanen",
+   "top": 1.28,
+   "rest": 1.688,
+   "d": -0.253
+  },
+  {
+   "name": "Steilkurven",
+   "top": 2.6,
+   "rest": 2.688,
+   "d": -0.047
+  },
+  {
+   "name": "Hochstraßen-Felder",
+   "top": 5.4,
+   "rest": 5.527,
+   "d": -0.03
+  },
+  {
+   "name": "Autobahnen",
+   "top": 0.98,
+   "rest": 0.977,
+   "d": 0.004
+  },
+  {
+   "name": "Kurven eng",
+   "top": 5.04,
+   "rest": 4.844,
+   "d": 0.049
+  },
+  {
+   "name": "Kurven weit",
+   "top": 2.92,
+   "rest": 3.563,
+   "d": -0.304
+  },
+  {
+   "name": "Kreuzungen + Überführungen",
+   "top": 2.6,
+   "rest": 2.656,
+   "d": -0.018
+  },
+  {
+   "name": "Höhenwechsel",
+   "top": 14.64,
+   "rest": 13.539,
+   "d": 0.168
+  },
+  {
+   "name": "Hügel-Anteil",
+   "top": 0.314,
+   "rest": 0.239,
+   "d": 0.391
+  },
+  {
+   "name": "Wasser-Anteil",
+   "top": 0.258,
+   "rest": 0.223,
+   "d": 0.179
+  },
+  {
+   "name": "Szenerie",
+   "top": 124.28,
+   "rest": 107.859,
+   "d": 0.185
+  },
+  {
+   "name": "Schotter/Eis-Anteil",
+   "top": 0.075,
+   "rest": 0.08,
+   "d": -0.045
+  }
+ ],
+ "created": "2026-09-28"
+}

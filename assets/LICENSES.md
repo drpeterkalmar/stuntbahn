@@ -21,6 +21,13 @@ Tankstelle, Scheune, Bürohaus, Windmühle, Schiff, Imbiss) sind eigene Arbeit (
 Es werden **keine** fremden Strecken mitgeliefert: Importe wählt der Nutzer selbst, sie bleiben nur in
 seinem Browser. Die Beispielstrecke im Spiel ist eine eigene Strecke (`src/track/showcase.js`).
 
+## Sammlung (250 eigene Strecken)
+
+Die Strecken der Sammlung sind eigene, generierte Strecken. Stil-Vorbild: die Wettbewerbsstrecken der Stunts-Community (zak.stunts.hu); daraus wurden nur allgemeine Häufigkeiten abgeleitet, keine dieser Strecken ist enthalten.
+
+(`sammlung.bin`/`sammlung.json` aus `src/track/trkgen.js` + `tools/build_sammlung.mjs`; Stil-Modell nur mit Aggregaten in
+`sammlung_stil.json`; jede Strecke hat ein Ähnlichkeits-Tor gegen alle Vorbild-Strecken bestanden, siehe `SAMMLUNG_BERICHT.md`.)
+
 ## Himmel & Texturen (Poly Haven, CC0)
 
 | Datei(en) | Poly-Haven-Asset | Autor(en) | Lizenz |
