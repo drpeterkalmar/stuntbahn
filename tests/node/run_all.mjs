@@ -7,7 +7,7 @@ import { fileURLToPath } from 'url';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const tests = [
   ['test_trk_parser.mjs'], ['test_trk_import.mjs'], ['test_loop_gate.mjs'], ['test_generator.mjs'],
-  ['test_verify_batch.mjs', '10'], ['test_assists.mjs'], ['test_reset.mjs'], ['test_cockpit.mjs'], ['test_free_steer.mjs'], ['test_tilt.mjs'], ['test_extras.mjs'],
+  ['test_verify_batch.mjs', '10'], ['test_assists.mjs'], ['test_reset.mjs'], ['test_cockpit.mjs'], ['test_free_steer.mjs'], ['test_tilt.mjs'], ['test_extras.mjs'], ['test_quality_blur.mjs'],
 ];
 if (fs.existsSync(path.join(HERE, '../../trk_local'))) tests.push(['test_trk_corpus.mjs', '20']);
 let bad = 0;

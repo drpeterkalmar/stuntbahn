@@ -26,6 +26,7 @@ import { Quality } from './gfx/quality.js';
 import { LineViz, LINE_LEVELS } from './gfx/lineviz.js';
 import { Sound } from './audio/sound.js';
 import { CarFX } from './gfx/fx.js';
+import { Post } from './gfx/post.js';
 import { daySeed } from './core/util.js';
 import { WORLD_TAG, WORLD_SCALE } from './track/defs.js';
 // Geprüfte Strecken (Autopilot, Entschärfungen) je Weltmaßstab getrennt: ?welt=1 prüft neu statt die Teile der
@@ -50,6 +51,8 @@ const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(62, 1, 0.25, 4000 * WORLD_SCALE);   // Fernring/Bergkranz wachsen mit
 camera.layers.enable(STATIC_LAYER);
 const quality = new Quality(renderer, params.get('q'));
+const post = new Post(renderer);   // Bewegungsunschärfe (nur wenn sie wirkt, sonst direktes Zeichnen)
+quality.post = post;
 let sun, skyInfo, envMap, M, carVis, ghostVis, sky, cockpit;
 
 let sizeW = 0, sizeH = 0, portrait = null;
@@ -91,6 +94,7 @@ const GAME_SPEED = +(params.get('speed') || 1.25);
 const FOG = [260 * WORLD_SCALE, 1500 * WORLD_SCALE];
 let acc = 0, last = performance.now(), frozen = false, timeScale = GAME_SPEED;
 let prevPose = null;
+let blurCut = true;      // nächstes Bild ohne Bewegungsunschärfe (Kameraschnitt)
 
 async function boot() {
   ui.loading(0.05, 'Himmel und Licht …');
@@ -119,6 +123,7 @@ async function boot() {
   ui.loading(0.6, 'Auto lackieren …');
   carVis = await makeCar({ color: store.settings.paint });
   scene.add(carVis.root);
+  post.setCarBox(carLocalBox(carVis));
   ghostVis = await makeCar({ color: 0xffffff });
   ghostVis.root.traverse((o) => {
     if (o.isMesh && !o.userData.fx) {   // Nitro-Flammen des Geists bleiben Flammen
@@ -341,6 +346,7 @@ function toggleLine() {
 // Kamera wechseln; die Wahl im Rennen bleibt gespeichert (Replay startet wie bisher im Verfolger)
 function cycleCam() {
   const m = rig.cycle();
+  blurCut = true;
   if (mode === 'replay') ui.replayCamMark(m);
   else { store.settings.cam = m; store.save(); }
   ui.toast(CAM_NAMES[m]);
@@ -388,7 +394,7 @@ function frame(now) {
     handleEvents();
   } else if (mode === 'replay' && replay) {
     replay.advance(rdt * timeScale);
-    if (replay.jumped) { replay.jumped = false; rig.init = false; } // Schnitt: Kamera neu ansetzen statt schwenken
+    if (replay.jumped) { replay.jumped = false; rig.init = false; blurCut = true; } // Schnitt: Kamera neu ansetzen statt schwenken
   }
   render(rdt);
 }
@@ -398,7 +404,7 @@ function handleEvents() {
     ui.event(e, race);
     sound.event(e);
     // Auto versetzt (Reset/Überspringen/Rückspulen): Kamera neu ansetzen, keine Zwischenbild-Interpolation
-    if (e.type === 'reset' || e.type === 'skip' || e.type === 'rewind') { rig.init = false; prevPose = null; }
+    if (e.type === 'reset' || e.type === 'skip' || e.type === 'rewind') { rig.init = false; prevPose = null; blurCut = true; }
     if (e.type === 'finish') {
       const res = store.submit(env.meta.key, race.assistKey, race.wreckOn, race.finalTime, race.ghostRec(), { ...env.meta, penalties: race.penalties, extras: race.extrasOn, nitro: race.nitroLog });
       ui.showResult(race, res, env);
@@ -435,6 +441,17 @@ function cockpitValues() {
   if (mode === 'replay' && replay) return { kmh: Math.abs(replay.speed()) * 3.6, rpm: replay.rpm(), gear: replay.gear(), steer: replay.phys().wheels[0].steer };
   const c = race.car;
   return { kmh: Math.abs(c.fwdSpeed()) * 3.6, rpm: c.rpm, gear: displayGear(c.fwdSpeed(), c.gear), steer: c.steerAng };
+}
+
+// Auto-Box in Auto-Koordinaten (Karosserie + Räder, ohne Flammen) für die Schärfe-Maske der Bewegungsunschärfe
+function carLocalBox(cv) {
+  const root = cv.root, p = root.position.clone(), q = root.quaternion.clone();
+  root.position.set(0, 0, 0); root.quaternion.identity(); root.updateMatrixWorld(true);
+  const box = new THREE.Box3();
+  root.traverse((o) => { if (o.isMesh && !o.userData.fx && o.geometry) { let fx = false; for (let a = o; a; a = a.parent) if (a === cv.flames.grp) fx = true; if (!fx) box.expandByObject(o); } });
+  root.position.copy(p); root.quaternion.copy(q); root.updateMatrixWorld(true);
+  if (box.isEmpty()) box.set(new THREE.Vector3(-1.1, -0.6, -2.5), new THREE.Vector3(1.1, 1.4, 2.5));
+  return box;
 }
 
 const tmpQ = new THREE.Quaternion(), tmpQ2 = new THREE.Quaternion();
@@ -484,7 +501,9 @@ function render(rdt) {
     sun.target.updateMatrixWorld();
   }
   carVis.setNitro(boost, frozen || (replay && replay.paused) ? 0 : rdt);
-  ui.boost(mode === 'menu' ? 0 : boost);
+  // Grafik „Sparsam“ (keine Bewegungsunschärfe): dezente Tempo-Streifen am Rand ab ~260 km/h
+  const lineSpd = mode === 'race' && race && !frozen && quality.tier === 0 && (store.settings.blur || 'light') !== 'off' ? race.car.speed() * 3.6 : 0;
+  ui.boost(mode === 'menu' ? 0 : boost, Math.max(0, Math.min(1, (lineSpd - 260) / 240)) * 0.55);
   if (ghost && ghostVis.root.visible && mode === 'race') { ghost.sync(ghostVis); ghostVis.setNitro(ghost.nitro(), frozen ? 0 : rdt); }
   if (fx && mode === 'race' && !frozen) fx.update(rdt, camera);
   if (lineViz) lineViz.update(camera, race, store.settings.assist, mode, store.settings.line);
@@ -496,7 +515,13 @@ function render(rdt) {
   carVis.root.visible = !inCockpit;
   const camTag = mode === 'menu' ? 'menu' : rig.view;
   if (document.body.dataset.cam !== camTag) document.body.dataset.cam = camTag;
-  renderer.render(scene, camera);
+  // Bewegungsunschärfe: nur im laufenden Rennen/Replay (nicht Menü, Pause, Replay-Standbild, Test-Standbild)
+  post.setting = params.get('blur') || store.settings.blur || 'light';
+  post.tier = quality.tier;
+  const running = !frozen && !app.freezeCam && ((mode === 'race' && race && race.state !== 'countdown') || (mode === 'replay' && replay && !replay.paused));
+  const spd = !pose ? 0 : mode === 'replay' && replay ? Math.abs(replay.speed()) : race ? race.car.speed() : 0;
+  if (!post.render(scene, camera, { run: running, speed: spd, boost, car: carVis.root, dt: rdt, cut: blurCut })) renderer.render(scene, camera);
+  blurCut = false;
   if (inCockpit) {
     cockpit.layout({ ...cockpitZone(), vfov: camera.fov });
     cockpit.update(frozen ? 0 : rdt * (mode === 'replay' && replay ? replay.speedMul * (replay.paused ? 0 : 1) : 1), cockpitValues(), camera, sun.userData.dir);
@@ -537,7 +562,8 @@ window.__game = {
     handleEvents();
     return this.state();
   },
-  teleport(idx, speed = 20) { race.place(idx, speed); prevPose = null; },
+  teleport(idx, speed = 20) { race.place(idx, speed); prevPose = null; blurCut = true; },
+  post,
   hop() { race.requestHop(); }, nitro() { race.requestNitro(); },
 };
 

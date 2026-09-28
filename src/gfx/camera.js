@@ -44,6 +44,24 @@ export class CameraRig {
     this.cq = new THREE.Quaternion(); this.cInit = false;
     this.bob = 0; this.bobV = 0; this.lastP = V(); this.lastV = V(); this.aUp = 0; this.hasLast = 0;
     this._q = new THREE.Quaternion(); this._q2 = new THREE.Quaternion(); this._e = new THREE.Euler();
+    // Kameraschütteln (Verfolger): Anregung aus dem Federweg der Räder (Bodenwellen), klingt schnell ab
+    this.shake = 0; this.shT = 0; this.lastComp = null; this.shakeOn = true;
+  }
+  // sehr dezent: höchstens ~4 cm, Frequenz 9–14 Hz; dazu ab ~250 km/h ein feines Tempo-Zittern (≤ 1 cm)
+  shakeOffset(dt, P, speed) {
+    const w = P.wheels;
+    let ex = 0;
+    if (w && dt > 1e-4) {
+      if (!this.lastComp) this.lastComp = w.map((x) => x.comp || 0);
+      for (let i = 0; i < w.length; i++) { const c = w[i].comp || 0; ex += Math.abs(c - this.lastComp[i]); this.lastComp[i] = c; }
+      ex /= dt;   // m/s Federweg-Geschwindigkeit (Summe der vier Räder)
+    }
+    const want = Math.min(1, Math.max(0, ex - 0.6) / 5);
+    this.shake = Math.max(this.shake * Math.exp(-dt * 7), want);
+    this.shT += dt;
+    const hi = Math.max(0, Math.min(1, (speed - 70) / 90));
+    const a = this.shakeOn ? 0.04 * this.shake + 0.008 * hi : 0, t = this.shT;
+    return [a * (Math.sin(t * 71) * 0.6 + Math.sin(t * 113) * 0.4), a * 0.6 * Math.sin(t * 89 + 1.3)];
   }
   setTrackCams(track) {
     // Masten neben der Strecke an Stunt-Bauwerken (Auto-Maßstab: ab 45 m Abstand) und sonst alle ~120 m
@@ -194,6 +212,10 @@ export class CameraRig {
       }
       this.pos.lerp(want, kp);
       cam.position.copy(this.pos);
+      if (view === 'chase' && !crashed) {
+        const [sy, sx] = this.shakeOffset(dt, P, speed);
+        cam.position.addScaledVector(this.up, sy).addScaledVector(this._v || (this._v = V()).crossVectors(this.fwd, this.up).normalize(), sx);
+      }
       cam.up.copy(this.up);
       // Blickrichtung: Fahrtrichtung, hochkant anteilig in die Kurve voraus gedreht (Neigung bleibt die des Autos)
       const dir = this._h.copy(this.fwd);

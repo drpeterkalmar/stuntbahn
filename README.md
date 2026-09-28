@@ -28,6 +28,13 @@ spielbar am Handy (quer oder hochkant), mit Gamepad oder Tastatur. Als App insta
   Sichtfeld und Fauchen. Auf Leicht nutzt der Autopilot sie auf Wunsch selbst („Extras automatisch“). Abschaltbar
   (Optionen → „Hüpfer & Nitro“); Bestzeiten mit und ohne Extras getrennt (Details: `EXTRAS_BERICHT.md`).
 
+- **Bewegungsunschärfe (seit 28.09.2026):** Optionen → Grafik → „Bewegungsunschärfe“ Aus / **Leicht** (Standard) / Stark.
+  Verwischt die Umgebung ab ~80 km/h (volle Stärke ab ~190 km/h, mit Nitro kräftiger), das Auto bleibt scharf. Kamera-
+  Bewegungsunschärfe aus Tiefe + voriger/aktueller Kamera, Drehungen nur zu 45 % (Kurven bleiben lesbar). Nicht in Menü,
+  Pause, Replay-Standbild. Grafik „Sparsam“: keine Unschärfe, nur Tempo-Streifen am Rand ab ~260 km/h. Kostet die
+  Unschärfe spürbar Bildrate (> 8 % unter der Bildrate ohne, unter 58 fps), schaltet die Automatik sie für die Sitzung ab.
+  Dazu sehr dezentes Kameraschütteln auf Bodenwellen (Verfolger). Details: `OPTIK_BERICHT.md`.
+
 ## Strecken des Stunt-Klassikers laden (.TRK)
 - Menü → **📂 Strecke laden (.TRK)** → Datei wählen (Handy) oder Dateien ins Fenster ziehen (Desktop).
   Geht mit einzelnen `.TRK`-Strecken, Replays (`.RPL`, enthalten die Strecke) und ganzen **ZIP-Archiven**.
@@ -129,10 +136,15 @@ node tools/extras_batch.mjs 40            # Leicht ohne/mit „Extras automatisc
 node tests/node/test_trk_corpus.mjs 200 --assist=easy --extras   # Korpus mit „Extras automatisch“
 python3 tests/test_extras_ui.py           # Knöpfe quer/hoch/Desktop, Touch/Tastatur, Cockpit, Replay-Flammen, Option aus
 python3 tests/extras_shots.py             # Fotos: Knöpfe voll/leer, Nitro-Flammen, Hüpfer von der Seite
+node tests/node/test_quality_blur.mjs     # Automatik: Unschärfe aus, sobald sie Bildrate kostet
+python3 tests/test_blur.py                # Unschärfe: an bei Tempo, aus in Menü/Pause/Replay-Standbild/Stufe 0, Aus/Leicht/Stark, Nitro
+python3 tests/perf_optik.py [Wurzel]      # Frame-Zeit/Draw-Calls/Dreiecke je Stufe, Unschärfe Aus/Leicht/Stark (WEBGL=swiftshader als Näherung)
+python3 tests/optik_shots.py . nachher    # Vorher/Nachher-Fotos: quer/hoch/Desktop × 3 Strecken × Start/Gerade/Kurve/Landschaft
 ```
 Nützliche URL-Parameter: `?seed=4711&d=3`, `?demo`, `?gallery` (alle Bausteine), `?trk=demo-rundkurs`
 (Beispielstrecke im .TRK-Format), `?speed=1` (Originaltempo statt 1,25×), `?q=0|1|2` (Grafikstufe), `?nosw`,
 `?air=1` (volle Schwerkraft im Flug, Standard 0.7), `?lip=15` (alte Schanze; mit `?air=1` exakt der alte Sprung).
+`?blur=off|light|strong` (Bewegungsunschärfe übersteuern).
 `?auto=alt` (alte, langsamere Abstimmung bis 27.09.2026 zum Vergleich; wertet in der alten Bestzeiten-Liste).
 `?welt=1` (alter, kleiner Weltmaßstab bis 27.09.2026 zum A/B-Vergleich, Standard 2 = Felder 40 statt 20 m;
 erlaubt 1 … 2,5; wertet in der Bestzeiten-Liste der jeweiligen Welt). In Node: `STUNT_WELT=1 node …`.

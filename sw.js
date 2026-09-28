@@ -1,5 +1,5 @@
 // Service-Worker: offline spielbar, Cache-Busting über Inhalts-Hash (tools/update_sw.py)
-const VERSION = '02679a0fe7';
+const VERSION = '7c2015ec03';
 const CACHE = 'stuntbahn-' + VERSION;
 const ASSETS = [
   './',
@@ -59,6 +59,7 @@ const ASSETS = [
   'src/gfx/gauges.js',
   'src/gfx/lineviz.js',
   'src/gfx/materials.js',
+  'src/gfx/post.js',
   'src/gfx/quality.js',
   'src/gfx/world.js',
   'src/main.js',
