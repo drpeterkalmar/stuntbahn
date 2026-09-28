@@ -21,6 +21,9 @@ with Server() as srv, sync_playwright() as pw:
     s.ev("__game.setAssist('medium')")
     # alte Bestzeit (vor dieser Änderung gespeichert: Schlüssel nur mit Fahrhilfe) → gilt als „Totalschaden an“
     s.ev(f"() => {{ __game.store.best['{key}|medium'] = {{ time: 51.23, date: '2026-09-26', name: 'alt' }}; __game.store.save(); __game.ui.refresh(); }}")
+    # Bestzeit der neuen Physik in der alten Welt (Maßstab 1, Schlüssel @t2 ohne Welt-Zusatz) → „alte Welt“
+    old_world = s.ev("__game.worldScale") != 1
+    if old_world: s.ev(f"() => {{ __game.store.best['{key}|medium@t2'] = {{ time: 44.44, date: '2026-09-27', name: 'alt' }}; __game.store.save(); __game.ui.refresh(); }}")
     menu_off = s.ev("document.querySelector('#menu .bests').textContent")
     check('0:51,23' not in menu_off and 'Reset +5 s' in menu_off, f'Menü (aus): alte Mittel-Zeit nicht gezeigt, Kennzeichnung da: {menu_off!r}')
     s.shot('reset_01_menu', 'reset')
@@ -34,6 +37,7 @@ with Server() as srv, sync_playwright() as pw:
     s.tap('#sheet [data-a=close]')
     menu_on = s.ev("document.querySelector('#menu .bests').textContent")
     check('0:51,23' in menu_on and 'Totalschaden' in menu_on and 'alte Physik' in menu_on, f'Menü (an): alte Mittel-Bestzeit erscheint (als alte Physik): {menu_on!r}')
+    if old_world: check('alte Welt' in menu_on and '0:44,44' in menu_on, f'Menü (an): Bestzeit der alten Welt erscheint (als alte Welt): {menu_on!r}')
     s.tap('button[data-a=settings]'); s.tap('#sheet [data-a=toggle][data-v=wreck]'); s.tap('#sheet [data-a=close]')
     check(s.ev("__game.store.settings.wreck") is False, 'wieder aus')
 
@@ -68,7 +72,7 @@ with Server() as srv, sync_playwright() as pw:
     meta = s.ev("document.querySelector('#result .rmeta').textContent")
     check(rp and '1 Strafe' in rp and '+5 s' in rp, f'Ergebnis mit Strafenzähler: {rp!r} / {meta!r}')
     s.shot('reset_06_ergebnis_quer', 'reset')
-    best = s.ev(f"__game.store.best['{key}|medium+reset@t2']")  # neue Physik (Tempo-Umbau 27.09.): eigene Wertung
+    best = s.ev(f"__game.store.best['{key}|' + __game.modeKey('medium', false)]")  # neue Physik + Welt: eigene Wertung
     check(best and abs(best['time'] - st['time']) < 0.01 and best.get('pen') == 1 and s.ev(f"__game.store.best['{key}|medium'].time") == 51.23,
           f'Bestzeit unter eigener Wertung gespeichert ({best}), alte bleibt unberührt')
     small = s.small_buttons()

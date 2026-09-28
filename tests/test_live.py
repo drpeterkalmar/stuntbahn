@@ -20,7 +20,7 @@ with sync_playwright() as pw:
     s.ev("__game.setAssist('easy')")
     s.tap('button[data-a=start]')
     st = None
-    for k in range(60):
+    for k in range(90):   # große Welt (27.09.2026): Runden bis ~1:40
         st = s.ev("__game.sim(2.0)")
         if st['state'] == 'finished': break
     res['rennen'] = {k: st[k] for k in ['state', 'time', 'cp', 'cps', 'crashes', 'seed', 'diff']}

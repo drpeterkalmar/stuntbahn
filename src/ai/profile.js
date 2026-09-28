@@ -1,10 +1,10 @@
 // Ideallinie + Tempo-Profil entlang der Fahrlinie.
 // Grenzen aus der Geometrie: Querhaftung (inkl. Überhöhung), Mindest-Anpressdruck im Looping,
 // maximale Last, Sprung-Fenster (ballistisch gelöst). Danach Brems-Rückwärtslauf.
-import { jumpWindow } from '../track/pieces.js';
+import { jumpWindow, JUMP_T } from '../track/pieces.js';
 import { G, flightPath, pathAt } from '../physics/air.js';
 import { CAR_DEF, driveAccel, brakeDecel, topSpeed } from '../physics/car.js';
-import { TILE } from '../track/defs.js';
+import { WORLD_SCALE, TILE, ROAD_HW } from '../track/defs.js';
 
 export { jumpWindow }; // Standard-Schanze: Tempo-Fenster in pieces.js (gleiche Luft-Physik wie das Auto)
 
@@ -22,15 +22,16 @@ export function genericJumpWindow(L, lip, land) {
     if (L.air[i]) continue;
     const dx = L.px[i] - p0x, dz = L.pz[i] - p0z;
     const x = dx * dx0 + dz * dz0, lat = -dx * dz0 + dz * dx0;
-    if (Math.abs(lat) > 6) break;               // Linie biegt ab: weiter hinten keine Landung
+    if (Math.abs(lat) > ROAD_HW + 1.5) break;   // Linie biegt ab: weiter hinten keine Landung (bis 27.09.2026: 6 m)
     pts.push({ x, y: L.py[i], i });
-    if (x > 140) break;
+    if (x > 140 * WORLD_SCALE) break;             // Lücken wachsen mit dem Feld (bis 6 Felder)
   }
   if (pts.length < 3) return null;
   const ok = [];
   let fb = null; // Notlösung ohne gültiges Fenster: Landung mit dem schwächsten Aufprall
   const xMax = pts[pts.length - 1].x + 2, drag = CAR_DEF.dragK / CAR_DEF.mass;
-  for (let v = 8; v <= 70; v += 0.25) {          // bis 27.09.2026: 8–48 m/s
+  const vHi = 70 * Math.sqrt(WORLD_SCALE);      // längere Lücken im größeren Feld brauchen mehr Tempo
+  for (let v = 8; v <= vHi; v += 0.25) {         // bis 27.09.2026: 8–48 m/s, dann 8–70
     // Flugbahn mit derselben Luft-Physik wie das Auto (bis 27.09.2026: Parabel mit voller Schwerkraft)
     const P = flightPath(p0y, th, v, { xMax, yMin: p0y - 60, drag });
     const traj = (x) => pathAt(P, x).y;
@@ -151,7 +152,9 @@ export function computeProfile(L, opts = {}) {
     windows.push(w);
     if (!w) continue;
     // Anlauf bis zur Lippe: Zieltempo vbest, Mindesttempo vmin
-    for (let i = li; i >= 0 && L.s[li] - L.s[i] < TILE; i--) { vmax[i] = Math.min(vmax[i], w.vbest + 0.6); vmin[i] = Math.max(vmin[i], w.vmin + 0.6); }
+    // Anlauf: Standard-Schanze in Auto-Maßstab (JUMP_T), Import-Rampen über ein ganzes Feld
+    const runup = j.gen ? TILE : JUMP_T;
+    for (let i = li; i >= 0 && L.s[li] - L.s[i] < runup; i--) { vmax[i] = Math.min(vmax[i], w.vbest + 0.6); vmin[i] = Math.max(vmin[i], w.vmin + 0.6); }
     for (let i = li + 1; i < n && L.air[i]; i++) { vmax[i] = Math.max(w.vbest, 10); vmin[i] = 0; }
   }
   // Rückwärtslauf (Bremsen). Verzögerung wächst mit dem Tempo (Abtrieb + Luftwiderstand, car.js brakeDecel);

@@ -121,6 +121,8 @@ Nützliche URL-Parameter: `?seed=4711&d=3`, `?demo`, `?gallery` (alle Bausteine)
 (Beispielstrecke im .TRK-Format), `?speed=1` (Originaltempo statt 1,25×), `?q=0|1|2` (Grafikstufe), `?nosw`,
 `?air=1` (volle Schwerkraft im Flug, Standard 0.7), `?lip=15` (alte Schanze; mit `?air=1` exakt der alte Sprung).
 `?auto=alt` (alte, langsamere Abstimmung bis 27.09.2026 zum Vergleich; wertet in der alten Bestzeiten-Liste).
+`?welt=1` (alter, kleiner Weltmaßstab bis 27.09.2026 zum A/B-Vergleich, Standard 2 = Felder 40 statt 20 m;
+erlaubt 1 … 2,5; wertet in der Bestzeiten-Liste der jeweiligen Welt). In Node: `STUNT_WELT=1 node …`.
 
 ## Credits
 - **Auto:** „Fictional supercar – V12 Goblin“ von **Olli Teittinen (ollitei)**, CC-BY 4.0 (Sketchfab), für das Spiel optimiert.

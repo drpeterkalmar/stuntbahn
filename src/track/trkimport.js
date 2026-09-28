@@ -175,7 +175,7 @@ export function trkToLayout(trk, opt = {}) {
     pc.nk = next && next.gap ? 'gap' : next ? inst[next.r.inst].kind : null;
     if (pc.nk === 'gap' && r.h1 > r.h0) pc.kick = 1;
     if (pc.nk === 'gap' && Math.abs(r.l1 - r.l0) < 0.01) pc.lipEnd = 1;   // waagrecht in eine Lücke: Absprungkante
-    if (pc.pk === 'gap' && r.h0 > r.h1) pc.land = 1;
+    if (pc.pk === 'gap' && r.h0 > r.h1) { pc.land = 1; pc.gapK = st.gap; }   // Länge der Lücke davor (Felder)
     pieces.push(pc);
     usedLanes.add(r.key);
     onPath.add(r.inst);

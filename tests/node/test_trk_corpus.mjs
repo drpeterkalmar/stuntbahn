@@ -2,6 +2,8 @@
 // Je Strecke: parsen → Weg verfolgen → bauen → Autopilot-Runde (a) streng ohne Hilfen,
 // (b) Fahrhilfe „Leicht" ohne Spielereingabe. Ausfälle nach Ursache/Element gruppiert.
 // Aufruf: node tests/node/test_trk_corpus.mjs [Anzahl=120] [--all-parse] [--only=Muster] [--json=out.json]
+// --list=vorher.json: genau die Dateien eines früheren --json-Laufs fahren (Vergleich vorher/nachher, auch
+// wenn in trk_local/ inzwischen Strecken dazugekommen sind)
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -20,6 +22,7 @@ const N = +(args.find((a) => /^\d+$/.test(a)) || 120);
 const only = (args.find((a) => a.startsWith('--only=')) || '').slice(7);
 const jsonOut = (args.find((a) => a.startsWith('--json=')) || '').slice(7);
 const allParse = args.includes('--all-parse');
+const listFile = (args.find((a) => a.startsWith('--list=')) || '').slice(7);
 const assists = (args.find((a) => a.startsWith('--assist=')) || '--assist=easy,strict').slice(9).split(',');
 // --auto=alt: Vergleich mit der Abstimmung bis 27.09.2026 (Vmax 286 km/h)
 if (args.includes('--auto=alt')) Object.assign(CAR_DEF, CAR_DEF_ALT);
@@ -30,6 +33,7 @@ const files = [];
 
 // Deterministische Auswahl: gleichmäßig über das sortierte Archiv verteilt (Wettbewerbe + Track-Pack)
 function pick(list, n) {
+  if (listFile) { const want = JSON.parse(fs.readFileSync(listFile, 'utf8')).map((r) => path.join(DIR, r.file)); return want.filter((f) => list.includes(f)); }
   if (only) return list.filter((f) => f.includes(only));
   if (n >= list.length) return list;
   const out = [];

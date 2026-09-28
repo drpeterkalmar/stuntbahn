@@ -1,8 +1,11 @@
 // Autopilot: Pure Pursuit auf der Ideallinie + Tempo-Regler auf das Profil.
 // Wird für Lösbarkeitsprüfung (Generator), Fahrhilfen (Mischung Spieler/Autopilot) und Demo genutzt.
-import { GRIP } from '../track/defs.js';
+import { GRIP, WORLD_SCALE } from '../track/defs.js';
 import { maxSteerAt } from '../physics/car.js';
 
+// Suchfenster des Trackers (Stützpunkte zurück/voraus, ~2 m je Punkt): wächst mit dem Weltmaßstab, damit ein
+// Auto, das quer übers Gelände zu einem entfernteren Abschnitt fährt, weiter gefunden wird (bis 27.09.2026 25/70)
+const TR_BACK = Math.round(25 * WORLD_SCALE), TR_AHEAD = Math.round(70 * WORLD_SCALE);
 export class Tracker {
   // Fortschritt entlang der Linie (nächster Linienpunkt, lokal gesucht → kein Springen bei Kreuzungen)
   constructor(L) { this.L = L; this.idx = 0; this.lap = 0; this.dist = 0; }
@@ -22,7 +25,7 @@ export class Tracker {
       if (q < bd) { bd = q; best = i; bdist = d; }
     };
     if (global) for (let i = 0; i < n; i++) scan(i);
-    else for (let k = -25; k <= 70; k++) {
+    else for (let k = -TR_BACK; k <= TR_AHEAD; k++) {
       let i = this.idx + k;
       if (L.closed) i = ((i % n) + n) % n; else if (i < 0 || i >= n) continue;
       scan(i);
@@ -33,6 +36,32 @@ export class Tracker {
     this.idx = best;
     this.dist = Math.sqrt(bdist);
     return best;
+  }
+  // Neu orten (Auto klar neben der Fahrbahn, am Boden): ganze Linie absuchen, Sprünge entlang der Linie nur
+  // schwach bestraft (50 m Abstand ≈ 1 m seitlich). Die lokale Suche verliert ein Auto, das quer übers Gelände
+  // zu einem weiter entfernten Abschnitt fährt – in der großen Welt (Maßstab 2) schon bei einer Schleife.
+  // Übernimmt den Treffer nur, wenn das Auto dort wieder auf oder dicht neben der Fahrbahn ist (≤ Kante +
+  // margin m; Herumfahren in der Wiese ortet nicht um) und er deutlich näher liegt. Rundenzähler wie lokal.
+  relocate(px, py, pz, margin = 8) {
+    const L = this.L, n = L.n, s0 = L.s[this.idx], half = L.total / 2;
+    let best = -1, bd = (this.dist * 0.7) ** 2, bdist = 0;
+    for (let i = 0; i < n; i++) {
+      const dx = L.px[i] - px, dy = L.py[i] - py, dz = L.pz[i] - pz;
+      const d = dx * dx + dy * dy * 1.5 + dz * dz;
+      if (d > (L.hw[i] + margin) ** 2) continue;
+      let ds = Math.abs(L.s[i] - s0);
+      if (L.closed && ds > half) ds = L.total - ds;
+      const q = d + (ds * 0.02) * (ds * 0.02);
+      if (q < bd) { bd = q; best = i; bdist = d; }
+    }
+    if (best < 0) return false;
+    // Runde nach Bogenlänge (wie die Wahl oben): über den Start vorwärts +1, rückwärts −1
+    const dsb = L.s[best] - L.s[this.idx];
+    if (L.closed && dsb < -half) this.lap++;
+    else if (L.closed && dsb > half) this.lap--;
+    this.idx = best;
+    this.dist = Math.sqrt(bdist);
+    return true;
   }
   // Gesamtfortschritt in Metern (inkl. Runden)
   progress() { return this.lap * this.L.total + this.L.s[this.idx]; }
@@ -91,7 +120,8 @@ export class Autopilot {
     // Tempo: Ziel = Minimum des Profils über die nächsten ~0.35 s
     const jv = this.ahead(i, Math.max(3, Math.abs(v) * 0.35));
     let vt = this.P.vt[i];
-    for (let q = i, c = 0; c < 60; c++) { vt = Math.min(vt, this.P.vt[q]); if (q === jv) break; q = q + 1 >= L.n ? (L.closed ? 1 : L.n - 1) : q + 1; }
+    // (bis 27.09.2026 höchstens 60 Punkte: bei > 57 m/s über dichten Stützpunkten, z. B. Bodenwellen, zu kurz)
+    for (let q = i, c = 0; c < 400; c++) { vt = Math.min(vt, this.P.vt[q]); if (q === jv) break; q = q + 1 >= L.n ? (L.closed ? 1 : L.n - 1) : q + 1; }
     vt *= this.speedScale;
     const ev = vt - v;
     if (ev > -0.4) { o.throttle = Math.max(0, Math.min(1, 0.35 + ev * 0.45)); o.brake = 0; }

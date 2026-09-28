@@ -17,6 +17,7 @@ export const shadowUniforms = {
   sbShadowMat: { value: new THREE.Matrix4() },
   sbShadowOn: { value: 0 },
   sbTexel: { value: 1 / 2048 },
+  sbBias: { value: 0.0009 },   // Tiefen-Versatz (Anteil der Bake-Tiefe; env.js hält ihn bei 1,26 m)
 };
 
 function tex(url, srgb, repeat, aniso) {
@@ -61,12 +62,13 @@ export function patchStaticShadow(mat) {
       uniform mat4 sbShadowMat;
       uniform float sbShadowOn;
       uniform float sbTexel;
+      uniform float sbBias;
       float sbStatic() {
         if ( sbShadowOn < 0.5 ) return 1.0;
         vec4 sc = sbShadowMat * vec4( vSbWorld, 1.0 );
         vec3 c = sc.xyz / sc.w;
         if ( c.x <= 0.0 || c.x >= 1.0 || c.y <= 0.0 || c.y >= 1.0 || c.z >= 1.0 ) return 1.0;
-        float z = c.z - 0.0009;
+        float z = c.z - sbBias;
         float d = sbTexel * 1.25;
         float s = texture( sbShadowMap, vec3( c.xy + vec2( -d, -d ), z ) )
                 + texture( sbShadowMap, vec3( c.xy + vec2(  d, -d ), z ) )
@@ -189,7 +191,9 @@ export function makeMaterials(renderer, q = {}) {
   M[MAT.PAINT] = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.78, metalness: 0.02, color: 0xffffff });
   M[MAT.GLASS] = new THREE.MeshStandardMaterial({ color: 0x1b2a38, roughness: 0.06, metalness: 0.7, envMapIntensity: 1.6 });
   M[MAT.BANNER] = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6 });
-  M.grass = new THREE.MeshStandardMaterial({ ...set('grass', 1 / 3.2), roughness: 1, metalness: 0, color: 0xffffff, vertexColors: true, aoMapIntensity: 0.7, normalScale: new THREE.Vector2(0.9, 0.9) });
+  // polygonOffset: Gelände minimal nach hinten – die Fahrbahn liegt nur 6 cm darüber, in der großen Welt
+  // (Straßen bis ~1 km entfernt) reicht die Tiefengenauigkeit dort sonst nicht (Flimmern)
+  M.grass = new THREE.MeshStandardMaterial({ ...set('grass', 1 / 3.2), roughness: 1, metalness: 0, color: 0xffffff, vertexColors: true, aoMapIntensity: 0.7, normalScale: new THREE.Vector2(0.9, 0.9), polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 2 });
   patchGrass(M.grass);
   M.water = new THREE.MeshStandardMaterial({ color: 0x1d3a3a, roughness: 0.04, metalness: 0.1, transparent: true, opacity: 0.88 });
   M.tree = [0, 1].map((v) => {

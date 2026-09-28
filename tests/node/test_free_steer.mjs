@@ -8,6 +8,7 @@ import { chain, setup } from './common.mjs';
 import { Race, FREE } from '../../src/game/race.js';
 import { generate } from '../../src/track/generator.js';
 import { verifySync } from '../../src/track/verify.js';
+import { WORLD_SCALE } from '../../src/track/defs.js';
 
 const DT = 1 / 120;
 let fails = 0;
@@ -79,14 +80,17 @@ const offLine = (race) => { const c = race.car.pos, i = race.ap.tr.idx; return M
 }
 
 // ---- C: Abkürzen ----
-// Kehre (U) und Schleife (Ω: 180 m Umweg, Abstand der Schenkel 20 m): an A die Fahrbahn verlassen, quer über
+// Kehre (U) und Schleife (Ω: 180 m Umweg, Abstand der Schenkel 20 m – beides × Weltmaßstab): an A die Fahrbahn verlassen, quer über
 // die Wiese nach B. Ohne Regel bringt die Schleife viel Zeit – mit Regel zurück an die Ausfahrt-Stelle.
 const omega = setup({ pieces: chain(3, 20, 0, ['start', 'straight', 'straight', ['turnS', -1], 'straight', 'straight', 'straight', ['turnS', -1], 'straight', ['turnS', -1], 'straight', 'straight', ['turnS', 1], 'straight', 'straight', 'straight', 'straight']).pieces, seed: 1 });
 let omegaRule = 0, omegaGain = 0;
 for (const [name, env, cheatV] of [['Kehre', envU, 9], ['Schleife', omega, 12]]) {
   const L = env.track.line;
   const T = env.track, kinks = T.pieces.filter((p) => p.type === 'turnS');
-  const iA = Math.max(0, kinks[0].lineStart - 5), iB = Math.min(L.n - 1, kinks[kinks.length - 1].lineEnd + 25);
+  // B: 50 m (× Weltmaßstab, gleiche Lage relativ zur Schleife wie im 20-m-Raster) hinter der letzten Kurve
+  const iA = Math.max(0, kinks[0].lineStart - 5);
+  let iB = kinks[kinks.length - 1].lineEnd;
+  while (iB < L.n - 1 && L.s[iB] - L.s[kinks[kinks.length - 1].lineEnd] < 50 * WORLD_SCALE) iB++;
   const sB = L.s[iB];
   const timeTo = (race, drive, lim = 60) => {
     let t = 0; const ev = [];
@@ -99,7 +103,9 @@ for (const [name, env, cheatV] of [['Kehre', envU, 9], ['Schleife', omega, 12]])
   // Mogel-Bot: ab A quer durch die Wiese direkt auf B zielen (voll einlenken, dann auf das Ziel halten)
   const cheat = (race) => {
     const c = race.car, F = c.frame;
-    if (race.tracker.idx < iA - 2 && race.tracker.progress() < L.s[iA]) return race.assistKey === 'easy' ? { steer: 0, throttle: 0, brake: 0 } : { steer: race.ap.out.steer, throttle: race.ap.out.throttle, brake: race.ap.out.brake };
+    // bis A auf der Linie; ab A lenkt der Bot selbst (auch wenn er beim Wenden wieder hinter A gerät)
+    if (!race._cheat && race.tracker.idx < iA - 2 && race.tracker.progress() < L.s[iA]) return race.assistKey === 'easy' ? { steer: 0, throttle: 0, brake: 0 } : { steer: race.ap.out.steer, throttle: race.ap.out.throttle, brake: race.ap.out.brake };
+    race._cheat = true;
     const dx = L.px[iB] - c.pos.x, dz = L.pz[iB] - c.pos.z;
     const ang = Math.atan2(dx * F.f.z - dz * F.f.x, dx * F.f.x + dz * F.f.z);   // > 0: Ziel links
     let st = Math.max(-1, Math.min(1, -ang * 2.5));

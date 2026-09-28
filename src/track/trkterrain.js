@@ -3,24 +3,29 @@
 // wird mit Kosinus-Glättung interpoliert – exakt dasselbe Profil wie Straßen/Rampen auf Hängen, damit
 // Fahrbahn und Hang zusammenpassen. Wasser: Seebett mit Uferböschung (Distanzfeld auf 1-m-Raster).
 // Außerhalb des Rasters: sanfter Übergang in Hügel und Bergkranz (wie bei generierten Strecken).
-import { TILE, GRID } from './defs.js';
+import { TILE, GRID, WORLD_SCALE, WORLD_HALF } from './defs.js';
 import { TERRAIN } from './trkelems.js';
 import { clamp, smoothstep, makeNoise2 } from '../core/util.js';
+import { adaptiveGrid, gridExt, projectCoarse, FINE_DT } from './terrgrid.js';
 
 export const WATER_Y = -0.9;     // Wasserspiegel
 const DEPTH = 2.8, SHORE = 5;    // Seetiefe, Breite der Uferböschung (m)
-const HALF = GRID * TILE / 2;
+const HALF = WORLD_HALF, WS = WORLD_SCALE;
 const cs = (t) => 0.5 - 0.5 * Math.cos(Math.PI * t);   // gleiches Profil wie Hang-Straßen
 
 export function buildTrkTerrain(trk, LH, seed = 1, occupied = null) {
   const codes = trk.terr;
   const C = (i, j) => (TERRAIN[codes[j * GRID + i]] || TERRAIN[0]);
-  // Wassermaske (1 m) + Abstand zum Land (Chamfer 3-4)
-  const R = 1, NW = Math.round(2 * HALF / R);
+  // Wassermaske + Abstand zum Land (Chamfer 3-4). Rasterweite wächst mit dem Maßstab (1 m im 20-m-Feld):
+  // gleiche Zellenzahl (Speicher/Ladezeit am Handy), Uferböschung damit 5 m × Maßstab; ohne Wasser-Felder
+  // wird gar nichts gerechnet
+  const R = WS, NW = Math.round(2 * HALF / R);
   const INF = 1e9;
-  const dist = new Float32Array(NW * NW).fill(0);
   let anyWater = false;
-  for (let y = 0; y < NW; y++) for (let x = 0; x < NW; x++) {
+  for (let k = 0; k < GRID * GRID && !anyWater; k++) if (C(k % GRID, (k / GRID) | 0).water) anyWater = true;
+  const dist = new Float32Array(anyWater ? NW * NW : 1).fill(0);
+  if (anyWater) anyWater = false;
+  for (let y = 0; y < NW && dist.length > 1; y++) for (let x = 0; x < NW; x++) {
     const px = (x + 0.5) * R, pz = (y + 0.5) * R;
     const i = Math.floor(px / TILE), j = Math.floor(pz / TILE);
     const t = C(i, j);
@@ -97,27 +102,36 @@ export function buildTrkTerrain(trk, LH, seed = 1, occupied = null) {
   };
   // Außen: Randhöhe des Rasters → sanfte Hügel + Bergkranz
   const noise = makeNoise2(seed * 7 + 3);
+  // Landschaft wächst geometrisch ähnlich mit dem Maßstab (wie bei generierten Strecken, build.js)
   const outside = (x, z) => {
-    const r = Math.hypot(x, z);
-    const hills = 13 * Math.pow(noise.fbm(x / 230 + 11, z / 230 - 7, 4) * 0.5 + 0.5, 1.6) + 5 * noise.fbm(x / 90, z / 90, 3);
-    const rim = 70 * smoothstep(420, 950, r) * (0.7 + 0.3 * noise.fbm(x / 300, z / 300, 2));
-    return Math.max(0, hills) + rim;
+    const u = x / WS, v = z / WS, r = Math.hypot(u, v);
+    const hills = 13 * Math.pow(noise.fbm(u / 230 + 11, v / 230 - 7, 4) * 0.5 + 0.5, 1.6) + 5 * noise.fbm(u / 90, v / 90, 3);
+    const rim = 70 * smoothstep(420, 950, r) * (0.7 + 0.3 * noise.fbm(u / 300, v / 300, 2));
+    return WS * (Math.max(0, hills) + rim);
   };
   const heightFn = (x, z) => {
     const ox = Math.max(Math.abs(x) - HALF, 0), oz = Math.max(Math.abs(z) - HALF, 0);
     if (!ox && !oz) return gridH(x, z) - waterDepth(x, z);
     const d = Math.hypot(ox, oz);
     const edge = gridH(clamp(x, -HALF + 0.01, HALF - 0.01), clamp(z, -HALF + 0.01, HALF - 0.01));
-    const k = smoothstep(0, 70, d);
-    return edge * (1 - k) + outside(x, z) * smoothstep(10, 90, d);
+    const k = smoothstep(0, 70 * WS, d);
+    return edge * (1 - k) + outside(x, z) * smoothstep(10 * WS, 90 * WS, d);
   };
-  // Raster für Grafik (5 m); Physik nutzt die exakte Funktion
-  const ext = HALF + 60, step = 5;
-  const nx = Math.round(2 * ext / step) + 1;
-  const H = new Float32Array(nx * nx);
-  for (let j = 0; j < nx; j++) for (let i = 0; i < nx; i++) H[j * nx + i] = heightFn(-ext + i * step, -ext + j * step);
+  // Raster für Grafik (5 m, adaptiv wie bei generierten Strecken: fein nahe der Strecke); Physik nutzt die
+  // exakte Funktion
+  const ext = gridExt(HALF + 60 * WS, 5), step = 5;
+  // Abstand in Feldern auch außerhalb des Rasters stetig: auf die Hülle der Feldmitten klemmen + Rest in Feldern
+  // (distTiles selbst blendet dort gegen 99 und hielte Randfelder schon nach wenigen Metern für weit weg)
+  const near = (x, z) => { const cx = clamp(x, -HALF + TILE / 2, HALF - TILE / 2), cz = clamp(z, -HALF + TILE / 2, HALF - TILE / 2); return distTiles(cx, cz) + Math.hypot(x - cx, z - cz) / TILE; };
+  const fineBlock = (x0, z0, x1, z1) => {
+    let m = Math.min(near(x0, z0), near(x1, z0), near(x0, z1), near(x1, z1), near((x0 + x1) / 2, (z0 + z1) / 2));
+    // Feldmitten im Block mitprüfen (Block kleiner als ein Feld)
+    for (let i = Math.ceil((x0 + HALF) / TILE - 0.5); (i + 0.5) * TILE - HALF <= x1; i++) for (let j = Math.ceil((z0 + HALF) / TILE - 0.5); (j + 0.5) * TILE - HALF <= z1; j++) m = Math.min(m, near((i + 0.5) * TILE - HALF, (j + 0.5) * TILE - HALF));
+    return m < FINE_DT;
+  };
+  const { nx, H, Hv, fine, nb } = adaptiveGrid(ext, step, heightFn, fineBlock);
   const waters = anyWater ? [{ E: [0, 0, 0], F: [1, 0, 0], R: [0, 0, 1], f0: -HALF, f1: HALF, r0: -HALF, r1: HALF, y: WATER_Y }] : [];
-  return { ext, step, nx, H, Hr: null, height: heightFn, heightFn, distTiles, waters, imported: true, LH };
+  return { ext, step, nx, H, Hv, Hr: null, height: heightFn, heightFn, distTiles, waters, imported: true, LH, fine, nb };
 }
 
 // Grafik-Raster unter Fahrbahnen absenken: das 5-m-Raster interpoliert linear und würde auf Hängen
@@ -125,7 +139,7 @@ export function buildTrkTerrain(trk, LH, seed = 1, occupied = null) {
 // das Raster gelegt, Rasterpunkte darunter auf „Fahrbahn − 0,25 m“ begrenzt (nur Grafik).
 export function carveUnderRoads(terr, batches, isRoadMat) {
   const { ext, step, nx } = terr;
-  const Hr = Float32Array.from(terr.H);
+  const Hr = Float32Array.from(terr.Hv || terr.H);
   const pad = 1.2;
   for (const b of batches) {
     if (!isRoadMat(b.mat)) continue;
@@ -152,5 +166,6 @@ export function carveUnderRoads(terr, batches, isRoadMat) {
       }
     }
   }
-  terr.Hr = Hr;
+  // Punkte an groben Blöcken wieder auf deren Kanten legen (sonst Schlitz am Übergang fein/grob)
+  terr.Hr = terr.fine ? projectCoarse(Hr, nx, terr.nb, terr.fine) : Hr;
 }

@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { HDRLoader } from 'three/addons/loaders/HDRLoader.js';
 import { shadowUniforms } from './materials.js';
+import { WORLD_SCALE } from '../track/defs.js';
 
 export async function loadSkyInfo() {
   const r = await fetch('assets/sky/sky.json');
@@ -68,10 +69,12 @@ export async function makeEnvironment(renderer) {
 // Einmal gerenderte Tiefenkarte aus Sonnenrichtung über alle statischen Objekte (Layer 1)
 export function bakeStaticShadow(renderer, scene, sunDir, bounds, size = 2048) {
   const cx = (bounds.minX + bounds.maxX) / 2, cz = (bounds.minZ + bounds.maxZ) / 2;
-  const rad = Math.hypot(bounds.maxX - bounds.minX, bounds.maxZ - bounds.minZ) / 2 + 30;
-  const cam = new THREE.OrthographicCamera(-rad, rad, rad, -rad, 1, 1400);
+  // Rand und Abstand aus dem Radius (große Welt: Importe bis ~880 m Radius – fest 700/1400 schnitt dort ab)
+  const rad = Math.hypot(bounds.maxX - bounds.minX, bounds.maxZ - bounds.minZ) / 2 + 30 * WORLD_SCALE;
+  const dist = Math.max(700, rad + bounds.maxY + 100);
+  const cam = new THREE.OrthographicCamera(-rad, rad, rad, -rad, 1, 2 * dist);
   const center = new THREE.Vector3(cx, bounds.maxY * 0.3, cz);
-  cam.position.copy(center).addScaledVector(sunDir, 700);
+  cam.position.copy(center).addScaledVector(sunDir, dist);
   cam.up.set(0, 1, 0);
   cam.lookAt(center);
   cam.updateMatrixWorld(); cam.updateProjectionMatrix();
@@ -94,6 +97,8 @@ export function bakeStaticShadow(renderer, scene, sunDir, bounds, size = 2048) {
   shadowUniforms._rt = rt;
   shadowUniforms.sbShadowMap.value = dt;
   shadowUniforms.sbTexel.value = 1 / size;
+  // Versatz 1,26 m (bisher 0,0009 × 1400 m), wächst mit dem Texel (Maßstab): sonst Streifen auf flachen Flächen
+  shadowUniforms.sbBias.value = 1.26 * WORLD_SCALE / (2 * dist);
   shadowUniforms.sbShadowOn.value = 1;
   return rt;
 }

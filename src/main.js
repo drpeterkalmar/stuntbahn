@@ -27,6 +27,10 @@ import { LineViz, LINE_LEVELS } from './gfx/lineviz.js';
 import { Sound } from './audio/sound.js';
 import { CarFX } from './gfx/fx.js';
 import { daySeed } from './core/util.js';
+import { WORLD_TAG, WORLD_SCALE } from './track/defs.js';
+// Geprüfte Strecken (Autopilot, Entschärfungen) je Weltmaßstab getrennt: ?welt=1 prüft neu statt die Teile der
+// anderen Welt zu übernehmen
+const VBUILD = BUILD + WORLD_TAG;
 
 const DT = 1 / 120;
 const params = new URLSearchParams(location.search);
@@ -43,7 +47,7 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFShadowMap;
 renderer.info.autoReset = false;   // zwei Durchgänge (Welt + Cockpit) → Zähler je Bild selbst zurücksetzen
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(62, 1, 0.25, 4000);
+const camera = new THREE.PerspectiveCamera(62, 1, 0.25, 4000 * WORLD_SCALE);   // Fernring/Bergkranz wachsen mit
 camera.layers.enable(STATIC_LAYER);
 const quality = new Quality(renderer, params.get('q'));
 let sun, skyInfo, envMap, M, carVis, ghostVis, sky, cockpit;
@@ -84,6 +88,7 @@ let race = null, ghost = null, replay = null, lineViz = null, fx = null;
 let mode = 'menu';       // menu | race | replay
 // Spieltempo: 1.25 = 25 % schneller als Echtzeit (Peter 27.09.); ?speed=1 für Originaltempo
 const GAME_SPEED = +(params.get('speed') || 1.25);
+const FOG = [260 * WORLD_SCALE, 1500 * WORLD_SCALE];
 let acc = 0, last = performance.now(), frozen = false, timeScale = GAME_SPEED;
 let prevPose = null;
 
@@ -98,7 +103,8 @@ async function boot() {
   sky = makeSky(skyInfo);
   scene.add(sky);
   const hz = new THREE.Color().setRGB(...skyInfo.horizon, THREE.SRGBColorSpace);
-  scene.fog = new THREE.Fog(hz, 260, 1500);
+  // Nebel mit dem Weltmaßstab (bis 27.09.2026: 260–1500 m): die ganze Strecke klar, der Bergkranz im Dunst
+  scene.fog = new THREE.Fog(hz, FOG[0], FOG[1]);
   sun = new THREE.DirectionalLight(0xfff1dc, +(params.get('sun') || 3.0));
   sun.position.copy(sunDir).multiplyScalar(60);
   sun.castShadow = true;
@@ -145,14 +151,14 @@ async function boot() {
 async function loadGenerated(seed, diff) {
   const lay = generate(seed, diff);
   const key = lay.meta.key;
-  const cached = store.getVerified(key, BUILD);
+  const cached = store.getVerified(key + WORLD_TAG, VBUILD);
   if (cached) {
     lay.pieces = cached.pieces;
     return loadTrack(lay, { apTime: cached.ap, fixes: cached.fixes });
   }
   ui.loading(0.82, 'Autopilot prüft die Strecke …');
   const res = await verify(lay, (p, f) => ui.loading(0.82 + 0.16 * p, `Autopilot prüft die Strecke … ${Math.round(p * 100)} %${f ? ' (entschärft: ' + f + ')' : ''}`));
-  store.setVerified(key, BUILD, res.layout.pieces, res.apTime, res.fixes);
+  store.setVerified(key + WORLD_TAG, VBUILD, res.layout.pieces, res.apTime, res.fixes);
   return loadTrack(res.layout, { apTime: res.apTime, fixes: res.fixes }, res.env);
 }
 
@@ -170,7 +176,7 @@ async function loadImported(id) {
   const { layout, report } = trkToLayout(trk);
   layout.meta.key = id;
   layout.meta.name = rec.name;
-  let v = trkLib.getVerified(id, BUILD) || (id.startsWith('demo-') ? store.getVerified(id, BUILD) : null);
+  let v = trkLib.getVerified(id, VBUILD) || (id.startsWith('demo-') ? store.getVerified(id + WORLD_TAG, VBUILD) : null);
   let pre = null;
   if (!v) {
     ui.loading(0.84, 'Strecke bauen …');
@@ -179,7 +185,7 @@ async function loadImported(id) {
     ui.loading(0.86, 'Autopilot fährt probe …');
     const r = await probeLap(pre, (p) => ui.loading(0.86 + 0.12 * p, `Autopilot fährt probe … ${Math.round(p * 100)} %`));
     v = { ap: r.time, ok: r.ok, reason: r.reason || '', kind: r.kind || '' };
-    if (id.startsWith('demo-')) store.setVerified(id, BUILD, [], v.ap, 0); else trkLib.setVerified(id, BUILD, v);
+    if (id.startsWith('demo-')) store.setVerified(id + WORLD_TAG, VBUILD, [], v.ap, 0); else trkLib.setVerified(id, VBUILD, v);
   }
   const apFail = v.ok === false ? `${v.reason} bei ${KIND_NAMES[v.kind] || v.kind || '?'}` : null;
   return loadTrack(layout, { apTime: v.ap, apFail, report, imported: true }, pre);
@@ -222,7 +228,8 @@ async function importFiles(files) {
 function deleteImported(id) {
   trkLib.remove(id);
   for (const k of Object.keys(store.best)) if (k.startsWith(id + '|')) delete store.best[k];
-  for (const a of Object.keys(ASSISTS)) for (const w of [false, true]) for (const p of [1, 2]) { try { localStorage.removeItem('stuntbahn.ghost.' + id + '|' + modeKey(a, w, p)); } catch { /* egal */ } }
+  // Geister aller Wertungen (Physik, Weltmaßstab) dieser Strecke
+  try { for (const k of Object.keys(localStorage)) if (k.startsWith('stuntbahn.ghost.' + id + '|')) localStorage.removeItem(k); } catch { /* egal */ }
   store.save();
   ui.showLibrary();
 }
@@ -274,7 +281,7 @@ async function loadTrack(layout, meta = {}, pre = null) {
   const P = pre || prepare(layout);
   const { track, world, ideal, prof } = P;
   env = { track, world, ideal, prof, layout, meta: { ...layout.meta, ...meta } };
-  worldGroup = buildWorld(track, M, { world });
+  worldGroup = buildWorld(track, M, { world, tier: quality.tier });
   scene.add(worldGroup);
   await placeParkedCars(track);
   bakeStaticShadow(renderer, scene, sun.userData.dir, track.bounds, quality.staticShadowSize());
@@ -487,6 +494,7 @@ function render(rdt) {
 // ---------- Debug-API ----------
 window.__game = {
   get env() { return env; }, get race() { return race; }, get mode() { return mode; }, get replayObj() { return replay; }, scene, camera, renderer, rig, store, ui, quality, trkLib,
+  modeKey, worldScale: WORLD_SCALE,
   // Import (Tests): Bytes als Array → Ergebnisliste; Strecke laden
   importBytes: (arr, name) => importFiles([new File([new Uint8Array(arr)], name || 'test.trk')]),
   loadImported: (id) => playImported(id),

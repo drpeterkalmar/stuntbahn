@@ -1,6 +1,7 @@
 // Szene aus den Streckendaten: Strecken-Batches, Gelände (Nah-/Fernraster), Wasser, Bäume, Banner.
 import * as THREE from 'three';
-import { MAT } from '../track/defs.js';
+import { MAT, ROAD_HW, WORLD_SCALE, TILE } from '../track/defs.js';
+import { TB, triLerp } from '../track/terrgrid.js';
 
 const STATIC_LAYER = 1;
 
@@ -53,36 +54,51 @@ export function buildWorld(track, M, opts = {}) {
     add(mesh, b.mat !== MAT.ROAD && b.mat !== MAT.KERB);
     stats.tris += b.idx.length / 3; stats.meshes++;
   }
-  // Gelände: Nahraster aus dem Physik-Höhenfeld (identisch), Fernring grob
+  // Gelände: Nahraster aus dem Physik-Höhenfeld (identisch), Fernring grob. Adaptiv (track/terrgrid.js):
+  // feine Blöcke nahe der Strecke mit allen 5-m-Punkten, grobe Blöcke nur als zwei Dreiecke über die
+  // Blockecken (die Randpunkte der feinen Nachbarn liegen genau auf deren Kanten → keine Risse)
   const T = track.terrain;
   {
-    const nx = T.nx, step = T.step, ext = T.ext;
-    const pos = new Float32Array(nx * nx * 3), uv = new Float32Array(nx * nx * 2);
-    for (let j = 0; j < nx; j++) for (let i = 0; i < nx; i++) {
-      const k = j * nx + i, x = -ext + i * step, z = -ext + j * step;
-      pos[k * 3] = x; pos[k * 3 + 1] = (T.Hr || T.H)[k]; pos[k * 3 + 2] = z;
-      uv[k * 2] = x; uv[k * 2 + 1] = z;
+    const nx = T.nx, step = T.step, ext = T.ext, HH = T.Hr || T.Hv || T.H;
+    const nb = T.fine ? T.nb : (nx - 1) / TB, fine = T.fine || new Uint8Array(nb * nb).fill(1);
+    const used = new Int32Array(nx * nx).fill(-1);
+    let nv = 0;
+    const want = (i, j) => { const k = j * nx + i; if (used[k] < 0) used[k] = nv++; };
+    for (let bj = 0; bj < nb; bj++) for (let bi = 0; bi < nb; bi++) {
+      if (fine[bj * nb + bi]) { for (let j = bj * TB; j <= (bj + 1) * TB; j++) for (let i = bi * TB; i <= (bi + 1) * TB; i++) want(i, j); }
+      else { want(bi * TB, bj * TB); want((bi + 1) * TB, bj * TB); want(bi * TB, (bj + 1) * TB); want((bi + 1) * TB, (bj + 1) * TB); }
     }
-    const idx = new Uint32Array((nx - 1) * (nx - 1) * 6);
-    let q = 0;
-    for (let j = 0; j < nx - 1; j++) for (let i = 0; i < nx - 1; i++) {
-      const a = j * nx + i, b = a + 1, c = a + nx, d = c + 1;
-      idx[q++] = a; idx[q++] = c; idx[q++] = b; idx[q++] = b; idx[q++] = c; idx[q++] = d;
+    const pos = new Float32Array(nv * 3), uv = new Float32Array(nv * 2);
+    for (let k = 0; k < nx * nx; k++) {
+      const v = used[k];
+      if (v < 0) continue;
+      const x = -ext + (k % nx) * step, z = -ext + ((k / nx) | 0) * step;
+      pos[v * 3] = x; pos[v * 3 + 1] = HH[k]; pos[v * 3 + 2] = z;
+      uv[v * 2] = x; uv[v * 2 + 1] = z;
+    }
+    const idx = [];
+    const quad = (i0, j0, s) => {
+      const a = used[j0 * nx + i0], b = used[j0 * nx + i0 + s], c = used[(j0 + s) * nx + i0], d = used[(j0 + s) * nx + i0 + s];
+      idx.push(a, c, b, b, c, d);
+    };
+    for (let bj = 0; bj < nb; bj++) for (let bi = 0; bi < nb; bi++) {
+      if (fine[bj * nb + bi]) { for (let j = bj * TB; j < (bj + 1) * TB; j++) for (let i = bi * TB; i < (bi + 1) * TB; i++) quad(i, j, 1); }
+      else quad(bi * TB, bj * TB, TB);
     }
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
-    g.setIndex(new THREE.BufferAttribute(idx, 1));
+    g.setIndex(new THREE.BufferAttribute(new Uint32Array(idx), 1));
     g.computeVertexNormals();
     // Vorberechnete Umgebungsverdeckung (AO) nahe der Strecke: kurze Halbkugel-Strahlen gegen Bauwerke
-    const col = new Float32Array(nx * nx * 3).fill(1);
+    const col = new Float32Array(nv * 3).fill(1);
     let aoRays = 0;
     if (colWorld) {
       const dirs = [];
       for (let k = 0; k < 10; k++) { const a = k * 2.39996, z = 0.25 + 0.7 * (k + 0.5) / 10, r = Math.sqrt(1 - z * z); dirs.push([Math.cos(a) * r, z, Math.sin(a) * r]); }
-      for (let k = 0; k < nx * nx; k++) {
+      for (let k = 0; k < nv; k++) {
         const x = pos[k * 3], y = pos[k * 3 + 1], z = pos[k * 3 + 2];
-        if (T.distTiles(x, z) > 1.25) continue;
+        if (T.distTiles(x, z) * TILE > 25) continue;   // AO kommt von Bauwerken (Auto-Maßstab): 25-m-Band
         let occ = 0;
         for (const d of dirs) { aoRays++; if (colWorld.rayTrack(x, y + 0.15, z, d[0], d[1], d[2], 9, false)) occ++; }
         const ao = 1 - 0.55 * Math.pow(occ / dirs.length, 0.8);
@@ -94,18 +110,38 @@ export function buildWorld(track, M, opts = {}) {
     const mesh = new THREE.Mesh(g, M.grass);
     mesh.name = 'terrain-near';
     add(mesh, true);
-    stats.tris += idx.length / 3; stats.meshes++;
+    stats.tris += idx.length / 3; stats.meshes++; stats.terrVerts = nv;
   }
+  // Fernring bis zum Bergkranz: wächst mit dem Weltmaßstab (gleich viele Dreiecke). Das Nahraster (±ext) muss
+  // genau auf dem Ring-Gitter liegen, sonst bleibt am Übergang ein Streifen ohne Gelände
+  const ringSt = T.ext / Math.round(T.ext / (40 * WORLD_SCALE)), ringE = ringSt * Math.round(1400 * WORLD_SCALE / ringSt);
+  const ringY = (x, z) => (Math.abs(x) < T.ext - 1 && Math.abs(z) < T.ext - 1 ? T.height(x, z) - 2 : T.heightFn(x, z));
+  // Höhe der gezeichneten Geländefläche (feine Zellen, grobe Blöcke, Fernring – gleiche Dreiecksteilung wie die
+  // Meshes): Bäume stehen darauf statt auf dem exakten Gelände, sonst schweben sie über groben Flächen
+  const surfaceY = (x, z) => {
+    const ext = T.ext, step = T.step, nx = T.nx, HH = T.Hr || T.Hv || T.H;
+    if (Math.abs(x) < ext && Math.abs(z) < ext) {
+      const fx = (x + ext) / step, fz = (z + ext) / step, nb = T.fine ? T.nb : (nx - 1) / TB;
+      const bi = Math.min(nb - 1, Math.floor(fx / TB)), bj = Math.min(nb - 1, Math.floor(fz / TB));
+      if (!T.fine || T.fine[bj * nb + bi]) {
+        const i = Math.min(nx - 2, Math.floor(fx)), j = Math.min(nx - 2, Math.floor(fz)), k = j * nx + i;
+        return triLerp(HH[k], HH[k + 1], HH[k + nx], HH[k + nx + 1], fx - i, fz - j);
+      }
+      const k = bj * TB * nx + bi * TB;
+      return triLerp(HH[k], HH[k + TB], HH[k + TB * nx], HH[k + TB * nx + TB], fx / TB - bi, fz / TB - bj);
+    }
+    const i = Math.floor((x + ringE) / ringSt), j = Math.floor((z + ringE) / ringSt), x0 = -ringE + i * ringSt, z0 = -ringE + j * ringSt;
+    return triLerp(ringY(x0, z0), ringY(x0 + ringSt, z0), ringY(x0, z0 + ringSt), ringY(x0 + ringSt, z0 + ringSt), (x - x0) / ringSt, (z - z0) / ringSt);
+  };
   {
-    const E = 1400, st = 40, n = Math.round(2 * E / st) + 1, ext = T.ext;
+    const ext = T.ext, st = ringSt, E = ringE, n = Math.round(2 * E / st) + 1;
     const pos = [], uv = [], idx = [];
     const vid = new Int32Array(n * n).fill(-1);
     const vtx = (i, j) => {
       const k = j * n + i;
       if (vid[k] >= 0) return vid[k];
       const x = -E + i * st, z = -E + j * st;
-      const inner = Math.abs(x) < ext - 1 && Math.abs(z) < ext - 1;
-      const y = inner ? T.height(x, z) - 2 : T.heightFn(x, z);
+      const y = ringY(x, z);
       pos.push(x, y, z); uv.push(x, z);
       vid[k] = pos.length / 3 - 1;
       return vid[k];
@@ -166,7 +202,7 @@ export function buildWorld(track, M, opts = {}) {
     if (d.type === 'car' || d.type === 'sign') continue;   // Autos setzt main.js, Schilder oben
     const t = d.type === 'start' ? texStart : texCp;
     const mat = new THREE.MeshStandardMaterial({ map: t, roughness: 0.7, metalness: 0 });
-    const w = 2 * (4.5 + 1.6) + 0.3, h = 1.05;
+    const w = 2 * (ROAD_HW + 1.6) + 0.3, h = 1.05;   // Portalbreite wie pb.gate (build.js)
     const g = new THREE.PlaneGeometry(w, h);
     for (const side of [-1, 1]) {
       const mesh = new THREE.Mesh(g, mat);
@@ -178,9 +214,11 @@ export function buildWorld(track, M, opts = {}) {
     }
   }
   // Bäume: gekreuzte Karten, instanziert
+  // Qualitätsstufe 0: jeden zweiten Baum weglassen (die große Welt hat Maßstab² so viele Bäume)
   if (track.trees && track.trees.length) {
+    const thin = opts.tier === 0 && WORLD_SCALE > 1 ? 2 : 1;
     for (const v of [0, 1]) {
-      const list = track.trees.filter((t) => t.v === v);
+      const list = track.trees.filter((t, i) => t.v === v && (t.keep || i % thin === 0));   // Tannen der .TRK bleiben
       if (!list.length) continue;
       const g = treeGeometry();
       const im = new THREE.InstancedMesh(g, M.tree[v], list.length);
@@ -188,7 +226,7 @@ export function buildWorld(track, M, opts = {}) {
       list.forEach((t, i) => {
         q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), t.rot);
         s.set(t.s, t.s * (0.9 + 0.2 * ((i * 37) % 10) / 10), t.s);
-        p.set(t.x, t.y - 0.3, t.z);
+        p.set(t.x, surfaceY(t.x, t.z) - 0.3, t.z);
         m4.compose(p, q, s);
         im.setMatrixAt(i, m4);
       });

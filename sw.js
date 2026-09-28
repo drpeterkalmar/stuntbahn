@@ -1,5 +1,5 @@
 // Service-Worker: offline spielbar, Cache-Busting über Inhalts-Hash (tools/update_sw.py)
-const VERSION = 'd670cf9787';
+const VERSION = '987b7c5c03';
 const CACHE = 'stuntbahn-' + VERSION;
 const ASSETS = [
   './',
@@ -72,6 +72,7 @@ const ASSETS = [
   'src/track/pieces_trk.js',
   'src/track/scenery.js',
   'src/track/showcase.js',
+  'src/track/terrgrid.js',
   'src/track/trk.js',
   'src/track/trkdesign.js',
   'src/track/trkelems.js',

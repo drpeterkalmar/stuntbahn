@@ -11,7 +11,7 @@ import { prepare } from '../../src/track/verify.js';
 import { Race } from '../../src/game/race.js';
 import { fmtTime } from '../../src/core/util.js';
 import { BANK } from '../../src/track/pieces_trk.js';
-import { ROAD_HW } from '../../src/track/defs.js';
+import { ROAD_HW, tileX } from '../../src/track/defs.js';
 
 // Rechteck-Rundkurs ab Start (5,5) nach Osten: oben `top` Stücke (inkl. Start), rechts 3, unten, links 3
 const rect = (t, fillTop, bottom) => { fillTop(t); t.put('large', { turn: 'R' }).road(3).put('large', { turn: 'R' }).road(bottom).put('large', { turn: 'R' }).road(3).put('large', { turn: 'R' }); return t; };
@@ -82,7 +82,7 @@ ok(built > 330, `alle Wege gebaut (${built})`);
   const { layout } = trkToLayout(parseTrk(t.bytes(), 'huegel.trk'));
   const tr = buildTrack(layout, { treeCount: 0 });
   const h = tr.terrain.height;
-  const x = (i) => (i - 15) * 20 + 10;
+  const x = tileX;   // Feldmitte (Feldgröße folgt dem Weltmaßstab)
   ok(Math.abs(h(x(10), x(5)) - IMPORT_LH) < 0.01, 'Hügel auf Ebenenhöhe');
   ok(Math.abs(h(x(8), x(5)) - IMPORT_LH / 2) < 0.05, 'Hangmitte auf halber Höhe');
   ok(h(x(16), x(13)) < -2, 'Seebett unter Wasser');

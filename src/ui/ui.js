@@ -103,13 +103,17 @@ export class UI {
     W.classList.toggle('in', !!on);
   }
   flash() { this.wipe(true); clearTimeout(this._wt); this._wt = setTimeout(() => this.wipe(false), 90); }
-  // Bestzeiten je Fahrhilfe (aktuelle Physik) + ggf. Zeile mit den Zeiten der alten Physik (bis 27.09.2026,
-  // nicht vergleichbar – nur Anzeige, gespeichert bleiben sie unverändert)
+  // Bestzeiten je Fahrhilfe (aktuelle Physik und Welt) + ggf. Zeilen mit den Zeiten der alten Welt (Maßstab 1)
+  // und der alten Physik (beides bis 27.09.2026, nicht vergleichbar – nur Anzeige, gespeichert bleiben sie unverändert)
   bestsHtml(id) {
     const ks = Object.keys(ASSISTS);
     const now = ks.map((k) => { const b = this.store.bestFor(id, k); return `<span>${ASSISTS[k].icon} ${b ? fmtTime(b.time) : '–'}</span>`; }).join('');
-    const olds = ks.map((k) => [k, this.store.oldBestFor(id, k)]).filter(([, b]) => b);
-    const old = olds.length ? `<span class="oldp" title="Bestzeiten mit der alten, langsameren Physik (bis 27.09.2026)">alte Physik: ${olds.map(([k, b]) => ASSISTS[k].icon + ' ' + fmtTime(b.time)).join(' ')}</span>` : '';
+    const row = (fn, label, title) => {
+      const l = ks.map((k) => [k, fn(k)]).filter(([, b]) => b);
+      return l.length ? `<span class="oldp" title="${title}">${label}: ${l.map(([k, b]) => ASSISTS[k].icon + ' ' + fmtTime(b.time)).join(' ')}</span>` : '';
+    };
+    const old = row((k) => this.store.oldWorldBestFor(id, k), 'alte Welt', 'Bestzeiten in der alten, kleineren Welt (bis 27.09.2026)')
+      + row((k) => this.store.oldBestFor(id, k), 'alte Physik', 'Bestzeiten mit der alten, langsameren Physik (bis 27.09.2026)');
     return { now, old };
   }
   // ---------- Menü ----------

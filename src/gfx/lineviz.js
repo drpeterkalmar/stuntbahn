@@ -5,14 +5,18 @@
 // Anzeige-Stufe (Einstellung „Ideallinie“): Aus / Dezent / Kräftig. Breite, Deckkraft, weicher Rand und
 // Ausblenden in der Ferne sind Uniforms – ein Stufenwechsel baut nichts neu.
 import * as THREE from 'three';
+import { WORLD_SCALE } from '../track/defs.js';
 
 // half = halbe Bandbreite (m), edge = ab welchem Anteil der Halbbreite es zum Rand hin ausblendet
 // (0 = Verlauf über die ganze Breite, ~0,8 = fast harte Kante), near/far = Ausblenden mit der Entfernung (m)
-// vom Auto – nicht von der Kamera, damit die Streckenkamera aus der Ferne die Linie am Auto trotzdem zeigt
+// vom Auto – nicht von der Kamera, damit die Streckenkamera aus der Ferne die Linie am Auto trotzdem zeigt.
+// near/far wachsen mit dem Weltmaßstab: Kurven und Bremspunkte liegen entsprechend weiter voraus
+// (bis 27.09.2026: 60/115 bzw. 220/320 m)
+const WS = WORLD_SCALE;
 export const LINE_LEVELS = {
   off: { name: 'Aus' },
-  soft: { name: 'Dezent', opacity: 0.28, half: 0.24, edge: 0.2, near: 60, far: 115 },
-  strong: { name: 'Kräftig', opacity: 0.55, half: 0.32, edge: 0.8, near: 220, far: 320 },
+  soft: { name: 'Dezent', opacity: 0.28, half: 0.24, edge: 0.2, near: 60 * WS, far: 115 * WS },
+  strong: { name: 'Kräftig', opacity: 0.55, half: 0.32, edge: 0.8, near: 220 * WS, far: 320 * WS },
 };
 
 const VERT = /* glsl */`
@@ -67,7 +71,7 @@ export class LineViz {
       }
       // Farbe: Bremszone wenn Zieltempo in den nächsten 40 m deutlich fällt
       let minAhead = vt[i];
-      for (let k = i, acc = 0; k < n && acc < 45; k++) { minAhead = Math.min(minAhead, vt[k]); acc += k > i ? L.s[k] - L.s[k - 1] : 0; }
+      for (let k = i, acc = 0; k < n && acc < 45 * WS; k++) { minAhead = Math.min(minAhead, vt[k]); acc += k > i ? L.s[k] - L.s[k - 1] : 0; }
       const drop = vt[i] - minAhead;
       let c = [0.15, 0.95, 0.25];
       if (drop > 6) c = [1.0, 0.18, 0.1]; else if (drop > 2) c = [1.0, 0.85, 0.1];

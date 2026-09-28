@@ -3,6 +3,7 @@
 // Reines JS (auch in Node lauffähig).
 import { Car } from '../physics/car.js';
 import { Autopilot, Tracker } from '../ai/autopilot.js';
+import { WORLD_SCALE, ROAD_HW } from '../track/defs.js';
 
 export const ASSISTS = {
   easy: { name: 'Leicht', icon: '🟢', steerPull: 0.82, autoSpeed: true, autoStunts: true, free: true, magnet: 1, air: 1, autoRewind: true, showLine: true },
@@ -23,7 +24,11 @@ export const RESET_DELAY = 0.35; // kurzes Aufblitzen zwischen Crash und Reset (
 export const FREE = { in: 0.5, hold: 0.2, keep: 0.15, rel: 0.2, fadeOut: 0.25, fadeIn: 0.8, back: [1.2, 3.0], pre: 2.5, preMin: 35, offV: 16 };
 // Abkürzen (alle Stufen): neben der Fahrbahn mehr Streckenfortschritt als gefahrene Strecke → zurück an die
 // Stelle, wo das Auto die Fahrbahn verlassen hat (Uhr läuft weiter). Toleranz CUT_TOL m + 15 % der Strecke.
-export const CUT_TOL = 8;
+// Erlaubter Gewinn beim Kurven-Schneiden hängt an der Fahrbahnbreite (bis 27.09.2026 fest 8 m bei 4,5 m)
+export const CUT_TOL = 8 * ROAD_HW / 4.5;
+// Abseits: ab OFF.far m Abstand zur Linie, OFF.sec s lang → Crash; ab OFF.hint m Hinweis im HUD. Die Abstände
+// wachsen mit dem Weltmaßstab (Nachbar-Abschnitte liegen entsprechend weiter weg); bis 27.09.2026 30 m / 18 m.
+export const OFF = { far: 30 * WORLD_SCALE, hint: 18 * WORLD_SCALE, sec: 4 };
 const STUNT_NAMES = { loop: 'Looping', tube: 'Röhre', cork: 'Korkenzieher', jump: 'Sprung' };
 
 export const REC_HZ = 60;
@@ -182,20 +187,32 @@ export class Race {
     car.surfaceKind = (L.loop[idx] || L.tube[idx]) ? 1 : 0;
     car.step(dt, this.env.world);
     // Fortschritt / Checkpoints / Ziel
-    const ti = this.tracker.update(car.pos.x, car.pos.y, car.pos.z);
+    let ti = this.tracker.update(car.pos.x, car.pos.y, car.pos.z);
+    // Klar neben der Fahrbahn und am Boden: höchstens alle 0,1 s neu orten (Abkürzung quer übers Gelände)
+    this.relocT = (this.relocT || 0) - dt;
+    let jumped = false;
+    if (this.tracker.dist > L.hw[ti] + 8 && car.onGround > 0 && this.relocT <= 0) {
+      this.relocT = 0.1;
+      // nur nach vorn: zurück zu einem früheren Abschnitt bringt nichts (dort fährt man ohnehin neu), die alte
+      // Ortung bleibt – so verhält sich das Herumfahren im Gelände wie bisher
+      const p0 = this.tracker.progress(), keep = { idx: this.tracker.idx, lap: this.tracker.lap, dist: this.tracker.dist };
+      if (this.tracker.relocate(car.pos.x, car.pos.y, car.pos.z)) {
+        if (this.tracker.progress() > p0) { ti = this.tracker.idx; jumped = true; } else Object.assign(this.tracker, keep);
+      }
+    }
     const prog = this.tracker.progress();
     if (prog > this.maxProgress) this.maxProgress = prog;
+    // Abkürzen lohnt nicht (alle Stufen) – vor Checkpoints/Ziel prüfen: eine erschummelte Durchfahrt zählt nicht
+    if (this.checkShortcut(dt, prog, ti, jumped)) return;
     if (this.cpNext < this.cps.length) {
       const ci = this.cps[this.cpNext];
       if (this.passed(ci, ti)) { this.cpNext++; this.emit('checkpoint', { n: this.cpNext, of: this.cps.length }); }
     } else if ((L.closed && this.tracker.lap >= 1 && ti >= this.startIdx) || (!L.closed && ti >= L.n - 2)) {
       this.finish();
     }
-    // Abseits: zu weit weg von der Linie (großzügig: 30 m, 4 s); ab 18 m Hinweis im HUD
-    if (this.tracker.dist > 30) { this.offT += dt; if (this.offT > 4) { this.car.setCrash('Abseits'); } } else this.offT = 0;
-    if (this.tracker.dist > 18 && !this.autopilotOnly) this.hud = { kind: 'off', text: 'Zurück zur Strecke ↺' };
-    // Abkürzen lohnt nicht (alle Stufen)
-    if (this.checkShortcut(dt, prog, ti)) return;
+    // Abseits: zu weit weg von der Linie (großzügig, OFF); Hinweis im HUD schon vorher
+    if (this.tracker.dist > OFF.far) { this.offT += dt; if (this.offT > OFF.sec) { this.car.setCrash('Abseits'); } } else this.offT = 0;
+    if (this.tracker.dist > OFF.hint && !this.autopilotOnly) this.hud = { kind: 'off', text: 'Zurück zur Strecke ↺' };
     // Festgefahren: 5 s ohne nennenswerten Fortschritt. Wer frei durchs Gelände fährt (in Bewegung, selbst
     // lenkend), darf das – dort greift erst nach 20 s ohne Fortschritt die Sicherung (sonst die Abseits-Regel).
     if (prog > this.stuckProg + 2) { this.stuckProg = prog; this.stuckT = 0; }
@@ -288,31 +305,64 @@ export class Race {
   // Abkürzung? Neben der Fahrbahn (Wagenmitte > 1 m hinter der Kante) Fortschritt entlang der Strecke gegen
   // die tatsächlich gefahrene Strecke rechnen; spart der Ausflug mehr als die Toleranz → zurück an die Stelle,
   // an der das Auto die Fahrbahn verlassen hat. Herumfahren im Gelände (ohne Streckengewinn) bleibt erlaubt.
-  checkShortcut(dt, prog, ti) {
+  checkShortcut(dt, prog, ti, jumped = false) {
     if (this.noCutRule) return false;     // nur für Tests (Vergleich „was brächte die Abkürzung“)
     const L = this.env.track.line;
+    const step = this.car.speed() * dt;
+    // Gefahrene Strecke ab dem Rücksetzpunkt zählen (nicht erst ab dem ersten Schritt neben der Fahrbahn):
+    // sonst galt eine überflogene Sprunglücke als Abkürzung (Auto schießt über die Landung hinaus, 27.09.2026)
+    this.anchorDriven = (this.anchorDriven || 0) + step;
+    // Im Flug über einer Sprungzone nie: die Flugbahn weicht von der Anzeige-Linie ab (27.09.2026)
+    if (this.car.onGround === 0 && (L.air[ti] || this.isJumpZone(ti))) { if (this.shortcut) this.shortcut.driven += step; return false; }
     const off = this.tracker.dist > L.hw[ti] + 1.0 && !L.air[ti];
+    // Neu geortet (Tracker, quer übers Gelände) und schon wieder auf der Fahrbahn eines späteren Abschnitts:
+    // Gewinn gegen den letzten Punkt auf der Fahrbahn prüfen, bevor dieser Punkt weiterwandert
+    if (!off && jumped) {
+      const gain = prog - this.onRoad.prog - this.anchorDriven;
+      if (gain > CUT_TOL + 0.15 * this.anchorDriven) { this.shortcut = { ...this.onRoad, driven: this.anchorDriven }; return this.cutBack(gain, prog); }
+    }
     if (!off) {
       this.shortcut = null;
       // Rücksetzpunkt nur auf Fahrbahn merken – nie über einer Sprunglücke (dort läge die Linie in der Luft,
       // das Auto fiele nach dem Versetzen herunter; fiel mit dem schnelleren Auto 27.09. auf)
-      if (!L.air[ti]) { this.onRoad.prog = prog; this.onRoad.idx = ti; this.onRoad.lap = this.tracker.lap; this.onRoad.cp = this.cpNext; }
+      if (!L.air[ti]) { this.onRoad.prog = prog; this.onRoad.idx = ti; this.onRoad.lap = this.tracker.lap; this.onRoad.cp = this.cpNext; this.anchorDriven = 0; }
       return false;
     }
-    if (!this.shortcut) this.shortcut = { ...this.onRoad, driven: 0 };
+    if (!this.shortcut) this.shortcut = { ...this.onRoad, driven: this.anchorDriven };
     const S = this.shortcut;
-    S.driven += this.car.speed() * dt;
+    if (S.driven !== this.anchorDriven) S.driven += step;
     const gain = prog - S.prog - S.driven;
     if (!(gain <= this.maxGain)) this.maxGain = gain;   // nur Diagnose (Tests)
     if (gain <= CUT_TOL + 0.15 * S.driven) return false;
-    // zurücksetzen: auf die Linie an der Ausfahrt-Stelle, Checkpoints/Runde wie dort
-    const j = S.idx;
+    return this.cutBack(gain, prog);
+  }
+
+  // Abkürzung erkannt: zurück an den letzten Punkt auf der Fahrbahn (this.shortcut)
+  cutBack(gain, prog) {
+    const S = this.shortcut;
+    // zurücksetzen: auf die Linie an der Ausfahrt-Stelle, Checkpoints/Runde wie dort – liegt die in einer
+    // Sprungzone (Anlauf/Lippe/Landung), 45 m vor die Lippe: mit Rücksetz-Tempo sprang das Auto sonst zu kurz
+    let j = S.idx, lap = S.lap;
+    for (const J of this.env.track.jumps) if (j >= J.lipIdx - 30 && j <= J.landIdx + 12) { const b = this.backFrom(J.lipIdx, 45); if (b > J.lipIdx) lap--; j = b; break; }
     this.place(j, Math.min(this.env.prof.vt[j] || 12, 15), true);
-    this.tracker.lap = S.lap; this.cpNext = S.cp;
+    this.tracker.lap = lap; this.cpNext = S.cp;
     this.shortcuts = (this.shortcuts || 0) + 1;
     this.afterJump();
     this.emit('shortcut', { gain, driven: S.driven, prog: prog - S.prog });
     return true;
+  }
+
+  // Linienindex m Meter vor i (auf Rundkursen über den Anfang hinweg)
+  backFrom(i, m) {
+    const L = this.env.track.line;
+    let j = i, acc = 0;
+    while (acc < m) {
+      const pj = j - 1 < 0 ? (L.closed ? L.n - 2 : 0) : j - 1;
+      if (pj === j) break;
+      acc += Math.abs(L.s[j] - L.s[pj]) || 0;
+      j = pj;
+    }
+    return j;
   }
 
   isJumpZone(idx) {
@@ -454,7 +504,7 @@ export class Race {
 
   // nach Versetzen/Rückspulen: Hilfe wieder voll, keine Rückführung, kein laufender Ausflug
   freeReset() {
-    this.own = 0; this.manual = false; this.holdT = 0; this.back = null; this.ap.shift = 0; this.shortcut = null; this.calmT = 0;
+    this.own = 0; this.manual = false; this.holdT = 0; this.back = null; this.ap.shift = 0; this.shortcut = null; this.calmT = 0; this.anchorDriven = 0;
     const t = this.tracker;
     this.onRoad = { prog: t.progress(), idx: t.idx, lap: t.lap, cp: this.cpNext };
   }

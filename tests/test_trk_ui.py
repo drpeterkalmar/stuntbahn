@@ -69,7 +69,7 @@ with Server() as srv, sync_playwright() as pw:
     s.frames(3)
     s.shot('ui_03_ziel', 'trkui')
     best = s.ev(f"() => window.__game.store.bestFor('{oid}', 'easy')")
-    ghost = s.ev(f"() => !!localStorage.getItem('stuntbahn.ghost.{oid}|easy@t2')")  # neue Physik: eigene Wertung (27.09.)
+    ghost = s.ev(f"() => !!localStorage.getItem('stuntbahn.ghost.{oid}|' + window.__game.modeKey('easy', false))")  # neue Physik/Welt: eigene Wertung
     check(best is not None and ghost, 'Bestzeit + Geist je Strecke und Fahrhilfe gespeichert')
     # Reload: Strecke + Bestzeit bleiben im Browser
     s.pg.reload(); s.pg.wait_for_function("window.__app && window.__app.ready", timeout=300000)

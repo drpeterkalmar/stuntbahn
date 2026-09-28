@@ -1,9 +1,29 @@
 // Grundmaße der Strecke (Meter). Raster wie beim Vorbild: 30×30 Felder.
 export const GRID = 30;
-export const TILE = 20;          // Feldgröße
-export const LEVEL_H = 6;        // Höhe einer Hochstraßen-Ebene
-export const ROAD_HW = 4.5;      // halbe Fahrbahnbreite
+
+// Weltmaßstab (27.09.2026, Peter: „Welt im Verhältnis zum Auto vergrößern“, damit das doppelt so schnelle Auto
+// sein Tempo auf die Strecke bringt). Ein Regler für alles Welt-Bezogene: Felder, Radien, Geraden, Gelände,
+// Sichtweite, Szenerie. Auto-Bezogenes bleibt: Auto, Physik, Kamera-Abstand, Cockpit – und die Stunt-Bauwerke,
+// deren Maße an der Fahrphysik hängen (Looping, Schanze, Röhren-Querschnitt, Korkenzieher-Rolle, Slalom).
+// Übersteuern: URL ?welt=1 (alter Maßstab, A/B-Vergleich), in Node STUNT_WELT=1. Bis 27.09.2026: 1.
+export const WORLD_SCALE_DEFAULT = 2;
+export const WORLD_SCALE = (() => {
+  const q = globalThis.location && globalThis.location.search;
+  let v = q ? parseFloat(new URLSearchParams(q).get('welt')) : NaN;
+  if (!(v > 0) && globalThis.process && globalThis.process.env) v = parseFloat(globalThis.process.env.STUNT_WELT);
+  // 1 … 2,5 in Schritten von 0,05 (Feldmaß ganzzahlig; darüber stoßen Looping-Platte und Stützen aneinander)
+  return v >= 1 && v <= 2.5 ? Math.round(v * 20) / 20 : WORLD_SCALE_DEFAULT;
+})();
+const S = WORLD_SCALE;
+// Bestzeiten/Geister/geprüfte Strecken je Maßstab getrennt (store.js): alter Maßstab ohne Zusatz
+export const WORLD_TAG = S === 1 ? '' : '@w' + S;
+
+export const TILE = 20 * S;      // Feldgröße (bis 27.09.2026: 20 m)
+export const LEVEL_H = 6;        // Höhe einer Hochstraßen-Ebene: bleibt (Durchfahrtshöhe hängt am Auto)
+// halbe Fahrbahnbreite: moderat breiter, damit die Straße in der großen Welt kein dünnes Band ist (4,5 → 5,6 m)
+export const ROAD_HW = 4.5 * (1 + 0.25 * (S - 1));
 export const ROAD_Y = 0.06;      // Fahrbahn liegt knapp über dem Gelände
+export const WORLD_HALF = GRID * TILE / 2;   // halbe Kantenlänge des Rasters (m)
 
 // Richtungen: 0 = Ost (+X), 1 = Süd (+Z), 2 = West (−X), 3 = Nord (−Z). Rechts = d+1.
 export const DIRS = [[1, 0], [0, 1], [-1, 0], [0, -1]];

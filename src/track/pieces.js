@@ -2,13 +2,19 @@
 // Lokale Koordinaten je Element: f = vorwärts ab Einfahrtskante, r = rechts, y = hoch (Meter).
 // Jedes Element beschreibt: belegte Felder (a vorwärts, b rechts), Ausfahrt, Höhenwechsel und
 // baut Fahrlinie + Geometrie über den Piece-Builder (pb, siehe build.js).
-import { TILE, LEVEL_H, ROAD_HW, MAT } from './defs.js';
+import { TILE, LEVEL_H, ROAD_HW, MAT, WORLD_SCALE } from './defs.js';
 import { smoothstep, smootherstep, clamp } from '../core/util.js';
 import { AIR, flightPath } from '../physics/air.js';
 import { CAR_DEF } from '../physics/car.js';
 
 const T = TILE;
 const PI = Math.PI;
+// Stützpunkt-Anzahl eines Stücks, dessen Länge mit dem Maßstab wächst: gleiche Dichte (m je Punkt) wie beim
+// alten 20-m-Feld (n = Anzahl bei Maßstab 1) → Maßstab 1 baut exakt die alten Strecken
+const nS = (n) => Math.max(1, Math.round(n * WORLD_SCALE));
+// Schanze: Anlauf-Kurve, Lücke und Landung behalten ihre Maße aus dem 20-m-Raster (Auto-Maßstab, das
+// Tempo-Fenster hängt daran); im größeren Feld liegt davor und dahinter gerade Straße (siehe PIECES.jump)
+export const JUMP_T = 20;
 
 // ---------- Looping: Klothoiden-Form (Krümmung ~ sin), einmal vorberechnet ----------
 export const LOOP = (() => {
@@ -43,7 +49,7 @@ export const LOOP = (() => {
 const OLD_LAND = { landH: 2.5, landLen: 18, aim: 0.45, landShape: 'quad' };
 export const JUMP = {
   kickStart: 4, lipDeg: 28, landH: 3.5, landLen: 20, aim: 0.85, landShape: 'smooth',
-  get lipH() { return kickerY(T).y; }, // Lippenhöhe folgt aus dem Kreisbogen (15° → 2.1 m, 28° → 3.8 m)
+  get lipH() { return kickerY(JUMP_T).y; }, // Lippenhöhe folgt aus dem Kreisbogen (15° → 2.1 m, 28° → 3.8 m)
 };
 export function setLip(deg) {
   JUMP.lipDeg = Math.max(8, Math.min(35, deg));
@@ -54,8 +60,8 @@ export function setLip(deg) {
   const v = q ? +new URLSearchParams(q).get('lip') : 0;
   if (v >= 8 && v <= 35) setLip(v);
 }
-function kickerY(f) { // Kreisbogen von Steigung 0 bis lipDeg, endet bei f = T
-  const L = T - JUMP.kickStart, th = JUMP.lipDeg * PI / 180, R = L / th;
+function kickerY(f) { // Kreisbogen von Steigung 0 bis lipDeg, endet bei f = JUMP_T (ab Anfang des Anlaufs)
+  const L = JUMP_T - JUMP.kickStart, th = JUMP.lipDeg * PI / 180, R = L / th;
   if (f <= JUMP.kickStart) return { y: 0, slope: 0 };
   const a = (f - JUMP.kickStart) / R;
   const s = Math.min(a, th);
@@ -69,7 +75,7 @@ export function landY(x) { // x ab Vorderkante der Landung; 'smooth': oben/unten
   return JUMP.landH * (JUMP.landShape === 'smooth' ? u * u * (3 - 2 * u) : u * u);
 }
 
-// Tempo-Fenster der Standard-Schanze (Lippe bei f=T, Landung ab f=2T): Flugbahn der Radaufstandspunkte
+// Tempo-Fenster der Standard-Schanze (Lippe bei JUMP_T, Landung ab 2·JUMP_T ab Anlauf-Beginn): Flugbahn der Radaufstandspunkte
 // mit derselben Luft-Physik wie das Auto (flightPath). vbest landet bei JUMP.aim der Landerampe.
 const AIR_DRAG = CAR_DEF.dragK / CAR_DEF.mass;
 const jwCache = new Map();
@@ -81,7 +87,7 @@ export function jumpWindow() {
     const P = flightPath(lipY, th, v, { xMax: 90, yMin: -1, drag: AIR_DRAG });
     for (let k = 1; k < P.x.length; k++) {
       const x = P.x[k], y = P.y[k];
-      const fl = x - T;             // Position relativ zur Vorderkante der Landung
+      const fl = x - JUMP_T;        // Position relativ zur Vorderkante der Landung
       if (fl < 0) { if (y < 0) return { fail: 'kurz' }; continue; }
       if (fl < 0.6 && y < JUMP.landH + 0.55) return { fail: 'Kante' };
       if (y <= landY(fl)) return { fl, t: P.t[k], apex: Math.max(...P.y) - lipY };
@@ -118,13 +124,17 @@ function arcSamples(radius, m, step = 1) {
   return lin(0, PI / 2, n).map((th) => ({ f: radius * Math.sin(th), y: 0, r: m * (radius - radius * Math.cos(th)), th }));
 }
 
-// Pfeiler unter einer Hochstraße bei f: vom Boden (lokal -Basis) bis Unterkante Deck (lokal -1)
+// Pfeiler unter einer Hochstraße bei f: vom Boden (lokal -Basis) bis Unterkante Deck (lokal -1). Abstand und
+// Querbalken folgen der Fahrbahnbreite (bis 27.09.2026 fest ±2,6 m / 7,6 m bei ROAD_HW 4,5)
 function pillars(pb, f, r0 = 0) {
-  const bottom = -(pb.lvl * LEVEL_H + 0.06), top = -1.0, h = top - bottom;
+  const bottom = -(pb.lvl * pb.LH + 0.06), top = -1.0, h = top - bottom;
   if (h < 1.5) return;
-  for (const r of [-2.6, 2.6]) pb.box(f, (top + bottom) / 2, r + r0, 1.1, h, 1.1, MAT.CONCRETE, { collide: true });
-  pb.box(f, top - 0.45, r0, 1.6, 0.9, 7.6, MAT.CONCRETE, { collide: true });
+  const w = 2.6 * ROAD_HW / 4.5;
+  for (const r of [-w, w]) pb.box(f, (top + bottom) / 2, r + r0, 1.1, h, 1.1, MAT.CONCRETE, { collide: true });
+  pb.box(f, top - 0.45, r0, 1.6, 0.9, 2 * ROAD_HW - 1.4, MAT.CONCRETE, { collide: true });
 }
+// Pfeilerpaare alle ~20 m (im 20-m-Feld eines in der Mitte)
+function deckPillars(pb) { const k = Math.max(1, Math.round(T / 20)); for (let q = 0; q < k; q++) pillars(pb, T * (q + 0.5) / k); }
 
 export const PIECES = {
   // ---------------- Grundelemente ----------------
@@ -132,7 +142,7 @@ export const PIECES = {
     name: 'Gerade', cells: [[0, 0]], next: [1, 0], turn: 0, dl: 0,
     build(pb) {
       pb.path(straightSamples(T), { profile: pb.lvl > 0 ? 'deck' : 'road' });
-      if (pb.lvl > 0) pillars(pb, T / 2);
+      if (pb.lvl > 0) deckPillars(pb);
     },
   },
   start: {
@@ -149,7 +159,7 @@ export const PIECES = {
       pb.path(straightSamples(T), { profile: pb.lvl > 0 ? 'deck' : 'road', mark: 'cp', markAt: 10 });
       pb.checkpoint(10);
       pb.gate('cp', 10);
-      if (pb.lvl > 0) pillars(pb, T / 2);
+      if (pb.lvl > 0) deckPillars(pb);
     },
   },
   turnS: {
@@ -180,24 +190,27 @@ export const PIECES = {
   chicane: {
     name: 'Schikane', cells: [[0, 0], [1, 0]], next: [2, 0], turn: 0, dl: 0,
     build(pb) {
-      const A = 7.5, hw = 3.7;
-      const s = lin(0, 2 * T, 50).map((f) => ({ f, y: 0, r: pb.m * A * Math.sin(PI * f / (2 * T)) ** 2, hw }));
+      // Versatz wächst mit dem Feld (Form bleibt), Fahrbahn schmaler als normal im selben Verhältnis
+      const A = 7.5 * WORLD_SCALE, hw = 3.7 * ROAD_HW / 4.5;
+      const s = lin(0, 2 * T, nS(50)).map((f) => ({ f, y: 0, r: pb.m * A * Math.sin(PI * f / (2 * T)) ** 2, hw }));
       pb.path(s, { profile: 'road', kerbIn: true, kerbOut: true, hw });
     },
   },
   bumps: {
     name: 'Bodenwellen', cells: [[0, 0]], next: [1, 0], turn: 0, dl: 0, stunt: 1,
     build(pb) {
-      const s = lin(0, T, 60).map((f) => ({ f, y: (f > 2.5 && f < 17.5) ? 0.42 * Math.sin(PI * (f - 2.5) / 5) ** 2 : 0, r: 0 }));
+      // drei Wellen à 5 m (Auto-Maßstab) mittig im Feld; bis 27.09.2026 bei f 2,5 … 17,5 im 20-m-Feld
+      const b0 = T / 2 - 7.5;
+      const s = lin(0, T, nS(60)).map((f) => ({ f, y: (f > b0 && f < b0 + 15) ? 0.42 * Math.sin(PI * (f - b0) / 5) ** 2 : 0, r: 0 }));
       pb.path(s, { profile: 'road' });
     },
   },
   crest: {
     name: 'Kuppe', cells: [[0, 0], [1, 0]], next: [2, 0], turn: 0, dl: 0, stunt: 1,
     build(pb) {
-      const H = 3.4;
+      const H = 3.4 * WORLD_SCALE;   // gleiche Form im größeren Feld (Kuppen-Tempo wächst wie bei Kurven mit √Maßstab)
       const hy = (f) => H * Math.sin(PI * f / (2 * T)) ** 2;
-      const s = lin(0, 2 * T, 40).map((f) => ({ f, y: hy(f), r: 0 }));
+      const s = lin(0, 2 * T, nS(40)).map((f) => ({ f, y: hy(f), r: 0 }));
       pb.path(s, { profile: 'road' });
       pb.mound(0, 2 * T, hy, hwRoad + 1.5, 9);
     },
@@ -206,14 +219,14 @@ export const PIECES = {
   rampUp: {
     name: 'Rampe hoch', cells: [[0, 0], [1, 0]], next: [2, 0], turn: 0, dl: 1,
     build(pb) {
-      const s = lin(0, 2 * T, 40).map((f) => ({ f, y: LEVEL_H * smootherstep(f / (2 * T)), r: 0 }));
+      const s = lin(0, 2 * T, nS(40)).map((f) => ({ f, y: LEVEL_H * smootherstep(f / (2 * T)), r: 0 }));
       pb.path(s, { profile: 'rampwall' });
     },
   },
   rampDown: {
     name: 'Rampe runter', cells: [[0, 0], [1, 0]], next: [2, 0], turn: 0, dl: -1,
     build(pb) {
-      const s = lin(0, 2 * T, 40).map((f) => ({ f, y: -LEVEL_H * smootherstep(f / (2 * T)), r: 0 }));
+      const s = lin(0, 2 * T, nS(40)).map((f) => ({ f, y: -LEVEL_H * smootherstep(f / (2 * T)), r: 0 }));
       pb.path(s, { profile: 'rampwall' });
     },
   },
@@ -229,22 +242,27 @@ export const PIECES = {
   jump: {
     name: 'Sprungschanze', cells: [[0, 0], [1, 0], [2, 0]], next: [3, 0], turn: 0, dl: 0, stunt: 1,
     build(pb) {
-      const s = [];
+      // Schanze in Auto-Maßstab (J = 20 m: Anlauf-Kurve, Lücke, Landung wie im alten Raster); im größeren
+      // Feld liegt die Hälfte der übrigen Länge als gerade Straße davor (a0), der Rest dahinter
+      const J = JUMP_T, a0 = (3 * T - 3 * J) / 2;
+      const s = a0 > 0.5 ? straightSamples(a0).slice(0, -1).map((q) => ({ ...q, surf: 1, prof: 'road' })) : [];
       const fix = (f) => (f < 2 ? {} : { lo: -0.15, hi: 0.15 });
-      for (const f of lin(0, T, 40)) { const k = kickerY(f); s.push({ f, y: k.y, r: 0, surf: 1, prof: f < JUMP.kickStart ? 'road' : 'ramp', ...fix(f) }); }
+      for (const f of lin(0, J, 40)) { const k = kickerY(f); s.push({ f: a0 + f, y: k.y, r: 0, surf: 1, prof: f < JUMP.kickStart ? 'road' : 'ramp', ...fix(f) }); }
       // Flugphase: Linie ohne Fahrbahn (Flugbahn bei vbest nur für Kamera/Anzeige, Physik fliegt frei)
-      const lip = kickerY(T);
-      const P = flightPath(lip.y, Math.atan(lip.slope), jumpWindow().vbest, { xMax: T + 1, drag: AIR_DRAG });
-      for (const f of lin(T, 2 * T, 10).slice(1, -1)) {
-        const x = f - T;
+      const lip = kickerY(J);
+      const P = flightPath(lip.y, Math.atan(lip.slope), jumpWindow().vbest, { xMax: J + 1, drag: AIR_DRAG });
+      for (const f of lin(J, 2 * J, 10).slice(1, -1)) {
+        const x = f - J;
         let k = 1; while (k < P.x.length - 1 && P.x[k] < x) k++;
         const u = (x - P.x[k - 1]) / Math.max(1e-6, P.x[k] - P.x[k - 1]);
-        s.push({ f, y: Math.max(landY(0), P.y[k - 1] + (P.y[k] - P.y[k - 1]) * u), r: 0, surf: 0, air: 1, lo: 0, hi: 0 });
+        s.push({ f: a0 + f, y: Math.max(landY(0), P.y[k - 1] + (P.y[k] - P.y[k - 1]) * u), r: 0, surf: 0, air: 1, lo: 0, hi: 0 });
       }
-      for (const f of lin(2 * T, 3 * T, 30)) s.push({ f, y: landY(f - 2 * T), r: 0, surf: 1, prof: f - 2 * T < JUMP.landLen ? 'ramp' : 'road', ...(f - 2 * T < 12 ? { lo: -0.6, hi: 0.6 } : {}) });
+      for (const f of lin(2 * J, 3 * J, 30)) s.push({ f: a0 + f, y: landY(f - 2 * J), r: 0, surf: 1, prof: f - 2 * J < JUMP.landLen ? 'ramp' : 'road', ...(f - 2 * J < 12 ? { lo: -0.6, hi: 0.6 } : {}) });
+      const f3 = a0 + 3 * J;
+      if (3 * T - f3 > 0.5) for (const q of straightSamples(3 * T - f3).slice(1)) s.push({ ...q, f: f3 + q.f, surf: 1, prof: 'road' });
       pb.path(s, { profile: 'ramp', kind: 'jump' });
-      pb.pit(T - 1, 2 * T + 1, 7.5);
-      pb.jumpInfo({ lipF: T, lipY: lip.y, lipDeg: JUMP.lipDeg, landF: 2 * T });
+      pb.pit(a0 + J - 1, a0 + 2 * J + 1, ROAD_HW + 3);
+      pb.jumpInfo({ lipF: a0 + J, lipY: lip.y, lipDeg: JUMP.lipDeg, landF: a0 + 2 * J });
     },
   },
   loop: {
@@ -253,9 +271,11 @@ export const PIECES = {
       // Spur im Looping liegt links (−a) beim Hochfahren und rechts (+a) beim Herunterkommen;
       // Wechsel oben (hoher Anpressdruck). Anfahrt/Ausfahrt: breite Straße, Ideallinie wechselt dort.
       const L = LOOP, f0 = (2 * T - L.dF) / 2, a = L.shift * pb.m, M = 1.3;
+      // Anfahrt/Ausfahrt im größeren Feld länger: gleiche Punktdichte wie im 20-m-Feld (8 Punkte)
+      const nA = Math.max(8, Math.round(8 * f0 / ((2 * JUMP_T - L.dF) / 2)));
       const s = [];
       const road = (f, r) => ({ f, y: 0, r, hw: hwRoad, prof: 'none', lo: -hwRoad + M - r, hi: hwRoad - M - r });
-      for (const f of lin(0, f0, 8)) s.push(road(f, -a * smootherstep(f / f0)));
+      for (const f of lin(0, f0, nA)) s.push(road(f, -a * smootherstep(f / f0)));
       const step = 4;
       for (let i = step; i <= L.N; i += step) {
         const p = L.pts[i], t = i / L.N;
@@ -263,7 +283,7 @@ export const PIECES = {
         s.push({ f: f0 + p.f, y: p.y, r, up: [-Math.sin(p.th), Math.cos(p.th), 0], hw: L.hw, loop: 1, prof: 'loopLane' });
       }
       const f1 = f0 + L.dF;
-      for (const f of lin(f1, 2 * T, 8).slice(1)) s.push(road(f, a * (1 - smootherstep((f - f1) / (2 * T - f1)))));
+      for (const f of lin(f1, 2 * T, nA).slice(1)) s.push(road(f, a * (1 - smootherstep((f - f1) / (2 * T - f1)))));
       pb.path(s, { profile: 'loop', kind: 'loop' });
       // Fahrbahn vor/nach dem Looping (volle Breite, Mitte r=0) + Betonplatte darunter
       pb.ribbon(straightSamples(f0, 1.5), { profile: 'road' });
@@ -275,7 +295,7 @@ export const PIECES = {
   tube: {
     name: 'Röhre', cells: [[0, 0], [1, 0]], next: [2, 0], turn: 0, dl: 0, stunt: 1,
     build(pb) {
-      const s = lin(0, 2 * T, 20).map((f) => ({ f, y: 0, r: 0, tube: f > 3 && f < 2 * T - 3 ? 1 : 0, lo: -1.2, hi: 1.2 }));
+      const s = lin(0, 2 * T, nS(20)).map((f) => ({ f, y: 0, r: 0, tube: f > 3 && f < 2 * T - 3 ? 1 : 0, lo: -1.2, hi: 1.2 }));
       pb.path(s, { profile: 'tube', kind: 'tube' });
       pb.portal(4); pb.portal(2 * T - 4);
     },

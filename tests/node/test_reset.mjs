@@ -7,6 +7,7 @@ import { verifySync } from '../../src/track/verify.js';
 import { Race, PENALTY, REC_HZ, REC_STRIDE } from '../../src/game/race.js';
 import { Replay } from '../../src/game/replay.js';
 import { modeKey } from '../../src/game/store.js';
+import { WORLD_TAG } from '../../src/track/defs.js';
 import { fmtTime, rng } from '../../src/core/util.js';
 
 const DT = 1 / 120;
@@ -185,12 +186,15 @@ console.log('--- D: ⏪ ohne Totalschaden ---');
 // ---- E: Wertungs-Schlüssel (Bestzeiten/Geister getrennt, alte Schlüssel behalten ihre Bedeutung) ----
 console.log('--- E: Bestzeiten-Schlüssel ---');
 {
-  const keys = [], old = [];
-  for (const a of ['easy', 'medium', 'original']) for (const w of [false, true]) { keys.push(modeKey(a, w)); old.push(modeKey(a, w, 1)); }
-  const ok = new Set(old).size === 6 && modeKey('easy', false, 1) === 'easy' && modeKey('medium', true, 1) === 'medium' && modeKey('original', true, 1) === 'original';
+  const keys = [], old = [], mid = [];
+  for (const a of ['easy', 'medium', 'original']) for (const w of [false, true]) { keys.push(modeKey(a, w)); old.push(modeKey(a, w, 1, '')); mid.push(modeKey(a, w, 2, '')); }
+  const ok = new Set(old).size === 6 && modeKey('easy', false, 1, '') === 'easy' && modeKey('medium', true, 1, '') === 'medium' && modeKey('original', true, 1, '') === 'original';
   check(ok, `6 getrennte Wertungen (alte Physik): ${old.join(', ')} (bisherige Schlüssel easy/medium/original = Leicht aus, Mittel/Original an)`);
   // Tempo-Umbau 27.09.: neue Physik wertet getrennt (Zusatz @t2), alte Einträge bleiben unberührt
-  check(new Set([...keys, ...old]).size === 12 && keys.every((k, i) => k === old[i] + '@t2'), `neue Physik eigene Wertungen: ${keys.join(', ')}`);
+  check(new Set([...mid, ...old]).size === 12 && mid.every((k, i) => k === old[i] + '@t2'), `neue Physik eigene Wertungen: ${mid.join(', ')}`);
+  // Weltmaßstab 27.09. (n12): neue Welt wertet nochmals getrennt (Zusatz WORLD_TAG, z. B. @w2); Maßstab 1 = alte Schlüssel
+  check(WORLD_TAG === '' ? keys.every((k, i) => k === mid[i]) : new Set([...keys, ...mid, ...old]).size === 18 && keys.every((k, i) => k === mid[i] + WORLD_TAG),
+    `neue Welt eigene Wertungen (${WORLD_TAG || 'Maßstab 1: keine'}): ${keys.join(', ')}`);
 }
 
 console.log(fails ? `${fails} Fehlschläge` : 'Reset mit Zeitstrafe + Totalschaden-Option ok');

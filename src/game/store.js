@@ -1,6 +1,7 @@
 // Speicher (localStorage): Einstellungen, Bestzeiten + Geisterautos getrennt je Strecke, Fahrhilfe
 // UND Totalschaden-Einstellung.
 import { PHYS } from '../physics/car.js';
+import { WORLD_TAG } from '../track/defs.js';
 
 const KEY = 'stuntbahn.v1';
 const GHOST_MAX = 40;
@@ -11,9 +12,11 @@ const GHOST_MAX = 40;
 // Physik-Version (27.09.2026, doppelt so schnell): Zeiten der neuen Physik bekommen „@t2“ angehängt.
 // Die alten Einträge bleiben unverändert stehen und werden im Menü als „alte Physik“ gezeigt – nichts
 // wird gelöscht oder umgeschrieben; mit ?auto=alt (PHYS 1) gelten wieder die alten Schlüssel.
-export function modeKey(assist, wreck, phys = PHYS) {
+// Weltmaßstab (27.09.2026, n12): neue Welt = neue Wertung, Zusatz „@w2“ (defs.js WORLD_TAG). Die Zeiten der
+// alten Welt bleiben unverändert und erscheinen im Menü als „alte Welt“; ?welt=1 wertet wieder dort.
+export function modeKey(assist, wreck, phys = PHYS, world = WORLD_TAG) {
   const legacy = assist === 'easy' ? !wreck : !!wreck;
-  return (legacy ? assist : assist + (wreck ? '+wrack' : '+reset')) + (phys >= 2 ? '@t' + phys : '');
+  return (legacy ? assist : assist + (wreck ? '+wrack' : '+reset')) + (phys >= 2 ? '@t' + phys : '') + world;
 }
 
 export class Store {
@@ -41,8 +44,10 @@ export class Store {
     try { localStorage.setItem(KEY, JSON.stringify({ settings: this.settings, best: this.best, ghostIndex: this.ghostIndex })); } catch { /* voll */ }
   }
   bestFor(key, assist, wreck = this.settings.wreck) { return this.best[key + '|' + modeKey(assist, wreck)] || null; }
-  // Bestzeit derselben Wertung mit der alten Physik (bis 27.09.2026) – nur zur Anzeige, nicht vergleichbar
-  oldBestFor(key, assist, wreck = this.settings.wreck) { return PHYS >= 2 ? this.best[key + '|' + modeKey(assist, wreck, 1)] || null : null; }
+  // Bestzeit derselben Wertung mit der alten Physik (bis 27.09.2026, alte Welt) – nur zur Anzeige, nicht vergleichbar
+  oldBestFor(key, assist, wreck = this.settings.wreck) { return PHYS >= 2 ? this.best[key + '|' + modeKey(assist, wreck, 1, '')] || null : null; }
+  // Bestzeit derselben Wertung und Physik in der alten Welt (Maßstab 1, bis 27.09.2026) – nur zur Anzeige
+  oldWorldBestFor(key, assist, wreck = this.settings.wreck) { return WORLD_TAG ? this.best[key + '|' + modeKey(assist, wreck, PHYS, '')] || null : null; }
   // Rennen beendet: Bestzeit prüfen, Geist speichern (rec inkl. Strafzeit-Stillstand, Race.ghostRec)
   submit(key, assist, wreck, time, rec, meta = {}) {
     const k = key + '|' + modeKey(assist, wreck);

@@ -2,8 +2,11 @@
 // Haftungskreis, Luftwiderstand/Abtrieb, Karosserie-Kontakte als Impulse, Crash-Erkennung.
 // Eigene Mini-Mathematik (keine Abhängigkeiten) → deterministisch, läuft in Node und im Browser.
 // Körperachsen: x = rechts, y = oben, z = hinten (vorwärts = −z).
-import { GRIP, ROLL, MAT } from '../track/defs.js';
+import { GRIP, ROLL, MAT, WORLD_SCALE } from '../track/defs.js';
 import { G as GRAV, gravStep } from './air.js';
+
+// „Verirrt“: so weit draußen liegt nur noch der Bergkranz (wächst mit dem Weltmaßstab; bis 27.09.2026 950 m)
+const LOST = 950 * WORLD_SCALE;
 
 // Abstimmung „doppelt so schnell“ (Peter 27.09.2026: „km/h können gut doppelt so hoch werden“):
 // Vmax ~586 statt 286 km/h. Viel mehr Leistung (2,2 MW), lange Übersetzung, mehr Abtrieb,
@@ -335,7 +338,7 @@ export class Car {
       if (F.u.y < -0.25 && contacts === 0 && this._roofTouch) this.setCrash('Überschlag');
       if (F.u.y < 0.0 && sp < 2.5 && (this._bodyTouch || contacts)) { this.upsideT += dt; if (this.upsideT > 0.8) this.setCrash('Auf dem Dach'); }
       else this.upsideT = Math.max(0, this.upsideT - dt);
-      if (Math.abs(this.pos.x) > 950 || Math.abs(this.pos.z) > 950) this.setCrash('Verirrt');
+      if (Math.abs(this.pos.x) > LOST || Math.abs(this.pos.z) > LOST) this.setCrash('Verirrt');
     }
   }
 

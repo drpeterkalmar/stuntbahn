@@ -2,6 +2,7 @@
 // dem Auto), Stoßstange, Streckenkameras (feste Masten an der Strecke, schwenken mit) für Replays.
 import * as THREE from 'three';
 import { Tracker } from '../ai/autopilot.js';
+import { ROAD_HW, WORLD_SCALE } from '../track/defs.js';
 
 const V = () => new THREE.Vector3();
 export const CAM_MODES = ['chase', 'cockpit', 'far', 'bumper', 'track'];
@@ -18,7 +19,8 @@ export function cockpitFov(aspect) {
 // Dazu blickt der Verfolger anteilig (aim) auf einen Punkt der Strecke aimDist + aimSpeed·v Meter voraus: Kurven
 // laufen hochkant sonst seitlich aus dem schmalen Bild.
 // Abgestimmt mit tests/hochformat_cam.py (Auto im unteren Drittel, Strecke voraus im Bild, Auto nie am Rand).
-export const PORTRAIT = { vfov: 88, dist: 2.2, h: 3.6, look: 12, lookUp: -0.5, speedFov: 0.5, aim: 0.5, aimDist: 40, aimSpeed: 0.6 };
+// aimDist wächst mit dem Weltmaßstab (Kurvenradien = Feld; bis 27.09.2026 40 m)
+export const PORTRAIT = { vfov: 88, dist: 2.2, h: 3.6, look: 12, lookUp: -0.5, speedFov: 0.5, aim: 0.5, aimDist: 40 * WORLD_SCALE, aimSpeed: 0.6 };
 export function portraitK(aspect) { return Math.max(0, Math.min(1, (1 - aspect) / 0.5)); }
 const clamp = (x, a) => Math.max(-a, Math.min(a, x));
 const AIM_MAX = 14 * Math.PI / 180;   // hochkant: größtes Eindrehen in die Kurve
@@ -44,16 +46,23 @@ export class CameraRig {
     this._q = new THREE.Quaternion(); this._q2 = new THREE.Quaternion(); this._e = new THREE.Euler();
   }
   setTrackCams(track) {
-    // Masten neben der Strecke an Stunt-Elementen und alle ~120 m
-    const L = track.line, out = [];
-    let lastS = -1e9;
-    for (let i = 0; i < L.n; i += 3) {
+    // Masten neben der Strecke an Stunt-Bauwerken (Auto-Maßstab: ab 45 m Abstand) und sonst alle ~120 m
+    // (wächst mit dem Weltmaßstab). Schritt nach Bogenlänge (~2 m), der Mast steht 8,5 m neben der Fahrbahnkante.
+    // Stunt = Looping/Röhre/Luft/Sprung-Lippe selbst, nicht der Anfang des (im größeren Feld längeren) Stücks
+    const L = track.line, out = [], WS = WORLD_SCALE, off = ROAD_HW + 8.5;
+    const lip = new Uint8Array(L.n);
+    for (const j of track.jumps || []) for (let i = Math.max(0, j.lipIdx - 8); i <= Math.min(L.n - 1, j.lipIdx); i++) lip[i] = 1;
+    let lastS = -1e9, lastI = -1e9;
+    for (let i = 0; i < L.n; i++) {
+      if (L.s[i] - L.s[Math.max(0, lastI)] < 2 && lastI >= 0) continue;
+      lastI = i;
       const pc = track.pieces[L.piece[i]];
-      const want = (pc && pc.stunt && L.s[i] - lastS > 45) || L.s[i] - lastS > 120;
+      const structure = L.loop[i] || L.tube[i] || L.air[i] || lip[i] || (pc && pc.stunt && !/^(jump|loop|tube|tr_loop|tr_corklr|tr_pipe|tr_gap)/.test(pc.type));
+      const want = (structure && L.s[i] - lastS > 45) || L.s[i] - lastS > 120 * WS;
       if (!want) continue;
       lastS = L.s[i];
       const side = (out.length % 2) ? 1 : -1;
-      const p = new THREE.Vector3(L.px[i] + L.bx[i] * side * 13, Math.max(L.py[i], 0) + 5.5, L.pz[i] + L.bz[i] * side * 13);
+      const p = new THREE.Vector3(L.px[i] + L.bx[i] * side * off, Math.max(L.py[i], 0) + 5.5, L.pz[i] + L.bz[i] * side * off);
       out.push({ p, s: L.s[i], i });
     }
     this.trackCams = out;
@@ -71,7 +80,7 @@ export class CameraRig {
     if (L && pk > 0) {
       tr.update(cp.x, cp.y, cp.z, !this.trkOk);
       this.trkOk = tr.dist < 25;
-      const stunt = this.trkOk && (this.up.y < 0.6 || this.stuntAhead(tr.idx, 18));
+      const stunt = this.trkOk && (this.up.y < 0.6 || this.stuntAhead(tr.idx, Math.max(18, 0.4 * speed)));
       if (stunt) hi = 0;
       if (this.trkOk && !air && !stunt) {
         const n = L.n, D = PT.aimDist + PT.aimSpeed * speed;

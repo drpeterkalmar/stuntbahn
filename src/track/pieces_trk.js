@@ -3,18 +3,30 @@
 // Optionen aus dem Layout-Stück (pb.pc): surf (Belag), lvl/h1 (Ebenen an Ein-/Ausfahrt), sup (Unterbau:
 // pillars/solid/span/truss), deco (tunnel/slalom), kick/land (Sprungschanze/Landung an offener Rampe),
 // side/b0/b1 (Überhöhung), into (Röhre/Autobahn hinein/hinaus), sub (abgesenkte Deko-Spur), start, cp.
-import { TILE, ROAD_HW, MAT } from './defs.js';
+import { TILE, ROAD_HW, MAT, WORLD_SCALE } from './defs.js';
 import { PIECES, LOOP } from './pieces.js';
 
-const T = TILE, PI = Math.PI, HW = ROAD_HW;
+const T = TILE, PI = Math.PI, HW = ROAD_HW, WS = WORLD_SCALE;
 const lin = (a, b, n) => Array.from({ length: n + 1 }, (_, i) => a + (b - a) * i / n);
+// Stützpunkte eines mit dem Feld wachsenden Stücks: gleiche Dichte wie im alten 20-m-Feld (n bei Maßstab 1)
+const nS = (n) => Math.max(1, Math.round(n * WS));
 const clamp01 = (t) => (t < 0 ? 0 : t > 1 ? 1 : t);
 export const cs = (t) => 0.5 - 0.5 * Math.cos(PI * clamp01(t));      // Kosinus-Übergang (= Hang-Profil)
 export const BANK = 28 * PI / 180;                                  // Überhöhung Steilstraße/-kurve
 export const KICK_DEG = 18;                                         // Abwurfwinkel offener Rampen
 
-// Aufsteigende Schanze der Höhe H auf Länge L: flach → Kreisbogen → Gerade mit KICK_DEG an der Lippe
-export function kickY(x, L, H) {
+// Aufsteigende Schanze der Höhe H auf Länge L: flach → Kreisbogen → Gerade mit KICK_DEG an der Lippe.
+// Im größeren Feld (Weltmaßstab) ist die Schanze höchstens so lang, wie die Form bei dieser Höhe hergibt
+// (0,9·H/tan(KICK_DEG/2), bei 5 m ≈ 28 m; mindestens KICK_LEN = 20 m wie im alten Raster), davor liegt flache
+// Fahrbahn. Auf der ganzen Feldlänge passt die Form bei ~6 m Höhe nicht mehr (der Bogen allein wäre schon höher),
+// die Rampe endete waagrecht – das Tempo-Fenster fehlte, das Auto flog ungebremst (27.09.2026). Kürzer als
+// nötig begrenzte dagegen der enge Bogen (6,2 g) das Absprungtempo – Lücken ab 3 Feldern waren nicht zu schaffen.
+// Landerampen (lim = Infinity) nutzen das ganze Feld: die Lücke wächst mit dem Feld, eine kurze Landung ließe
+// nur ein 0,5 m/s schmales Tempo-Fenster (so gemessen am Beispiel-Rundkurs bei Maßstab 2).
+export const KICK_LEN = 20;
+export function kickY(x, L, H, lim) {
+  if (lim === undefined) lim = Math.max(KICK_LEN, 0.9 * H / Math.tan(KICK_DEG * PI / 360));
+  if (L > lim) return x <= L - lim ? 0 : kickY(x - (L - lim), lim, H, lim);
   const th = KICK_DEG * PI / 180, t1 = Math.tan(th), t2 = Math.tan(th / 2);
   const a = (L * t1 - H) / (t1 - t2);
   if (a <= 0.5 || a >= L) return H * cs(x / L);
@@ -27,7 +39,9 @@ function heightAt(pc, LH, f, L) {
   const dy = ((pc.h1 ?? pc.lvl ?? 0) - (pc.lvl || 0)) * LH;
   if (Math.abs(dy) < 1e-6) return 0;
   if (pc.kick && dy > 0) return kickY(f, L, dy);
-  if (pc.land && dy < 0) return kickY(L - f, L, -dy) + dy;
+  // Landung nach langer Lücke (ab 3 Feldern im größeren Feld): steilere Rampe wie die Schanze, passend zum
+  // steilen Sinkflug (sonst harte Landung); kurze Lücken behalten die ganze Feldlänge (breiteres Tempo-Fenster)
+  if (pc.land && dy < 0) return kickY(L - f, L, -dy, (pc.gapK || 1) >= 3 ? undefined : Infinity) + dy;
   return dy * cs(f / L);
 }
 
@@ -114,7 +128,8 @@ function buildStraight(pb, L) {
   // Slalom: zwei Betonblöcke auf gegenüberliegenden Spuren (rechts zuerst, links weiter hinten). Wie im
   // Original bleibt in der Mitte genau Platz für ein gerade ausgerichtetes Auto: die Linie fährt mittig durch.
   if (pc.deco === 'slalom') {
-    const A = [4, 6.6], B = [L - 6.6, L - 4], gap = 1.3;
+    // Blöcke und ihr Abstand in Auto-Maßstab, mittig im Feld (bis 27.09.2026 im 20-m-Feld bei 4 … 6,6 / 13,4 … 16)
+    const c = L / 2, A = [c - 6, c - 3.4], B = [c + 3.4, c + 6], gap = 1.3;
     for (const s of S) if (s.f > A[0] - 3 && s.f < B[1] + 3) { s.lo = -0.25; s.hi = 0.25; }
     if (!pc.sub) {
       pb.box((A[0] + A[1]) / 2, 0.65, (gap + HW) / 2, A[1] - A[0], 1.3, HW - gap, MAT.WALL, { collide: true });
@@ -141,9 +156,10 @@ function buildStraight(pb, L) {
   if (pc.over) {
     // Überführung: Widerlager seitlich der unterquerten Straße
     for (const s of [-1, 1]) {
-      const g = pb.ground(L / 2, s * 8.2) - pb.base;
+      const wo = HW + 3.7;   // Widerlager neben der unterquerten Fahrbahn (bis 27.09.2026 fest 8,2 m)
+      const g = pb.ground(L / 2, s * wo) - pb.base;
       const top = S[0].y - 1.0;
-      if (top - g > 1) for (const f of [2.5, L - 2.5]) pb.box(f, (top + g) / 2, s * 8.2, 1.4, top - g, 2.6, MAT.CONCRETE, { collide: true });
+      if (top - g > 1) for (const f of [2.5, L - 2.5]) pb.box(f, (top + g) / 2, s * wo, 1.4, top - g, 2.6, MAT.CONCRETE, { collide: true });
     }
   }
 }
@@ -176,19 +192,20 @@ const smooth5 = (t) => { t = clamp01(t); return t * t * t * (t * (t * 6 - 15) + 
 // Steilstraße (gerade) und Übergang: Überhöhung b0 → b1 (Anteil), hohe Seite side (+1 rechts)
 function buildBankStraight(pb) {
   const pc = pb.pc, hw = HW + 0.5, side = pc.side || 1;
-  const S = lin(0, T, 14).map((f) => {
+  const S = lin(0, T, nS(14)).map((f) => {
     const b = BANK * ((pc.b0 ?? 1) + ((pc.b1 ?? 1) - (pc.b0 ?? 1)) * cs(f / T));
     return { f, y: hw * Math.sin(b), r: 0, bank: side * b, hw };
   });
   pb.path(S, { profile: 'banked', turn: -side, hw });
 }
 
-// Schikane: S aus zwei Kreisbögen (R 25 m), Versatz um ein Feld; Asphalt-Vorfeld („schnelles Gras“)
+// Schikane: S aus zwei Kreisbögen, 2T vorwärts und T seitlich: R·sinθ = T, R·(1−cosθ) = T/2 ⇒ R = 1,25·T
+// (25 m im 20-m-Feld; fest 25 m ergab ab T > 25 NaN); Asphalt-Vorfeld („schnelles Gras“)
 function buildChicane(pb) {
-  const pc = pb.pc, m = pb.m, R = 25, th = Math.asin(T / R);
+  const pc = pb.pc, m = pb.m, R = 1.25 * T, th = Math.asin(T / R);
   const S = [];
-  for (const a of lin(0, th, 18)) S.push({ f: R * Math.sin(a), y: 0, r: m * R * (1 - Math.cos(a)) });
-  for (const a of lin(th, 0, 18).slice(1)) S.push({ f: 2 * T - R * Math.sin(a), y: 0, r: m * (T - R * (1 - Math.cos(a))) });
+  for (const a of lin(0, th, nS(18))) S.push({ f: R * Math.sin(a), y: 0, r: m * R * (1 - Math.cos(a)) });
+  for (const a of lin(th, 0, nS(18)).slice(1)) S.push({ f: 2 * T - R * Math.sin(a), y: 0, r: m * (T - R * (1 - Math.cos(a))) });
   pb.path(S, { profile: 'road', kerbIn: kerbs(pc), kerbOut: kerbs(pc) });
   if (!pc.sub) pb.pad(0.5, 2 * T - 0.5, m > 0 ? -T / 2 + 0.5 : -1.5 * T + 0.5, m > 0 ? 1.5 * T - 0.5 : T / 2 - 0.5);
 }
@@ -196,12 +213,13 @@ function buildChicane(pb) {
 // Röhre (1 Feld) mit optionalem Hindernis (Buckel quer im Boden)
 function buildPipe(pb) {
   const pc = pb.pc;
-  const S = lin(0, T, 10).map((f) => ({ f, y: 0, r: 0, tube: 1, lo: -1.2, hi: 1.2 }));
+  const S = lin(0, T, nS(10)).map((f) => ({ f, y: 0, r: 0, tube: 1, lo: -1.2, hi: 1.2 }));
   if (pc.obst) {
-    // Buckel: Linie darüber, Röhre bleibt gerade (Rohrmantel als eigener Lauf ohne Linie)
-    const bump = (f) => (f > 4 && f < 16 ? 0.95 * Math.sin(PI * (f - 4) / 12) ** 2 : 0);
-    pb.ribbon(lin(0, T, 10).map((f) => ({ f, y: 0, r: 0 })), { profile: 'tube' });
-    pb.path(lin(0, T, 30).map((f) => ({ f, y: bump(f) + 0.02, r: 0, tube: 1, lo: -1.2, hi: 1.2, hw: 2.15 })), { profile: 'hump', kind: 'tube' });
+    // Buckel (12 m, Auto-Maßstab) mittig: Linie darüber, Röhre bleibt gerade (Rohrmantel als eigener Lauf ohne Linie)
+    const b0 = T / 2 - 6;
+    const bump = (f) => (f > b0 && f < b0 + 12 ? 0.95 * Math.sin(PI * (f - b0) / 12) ** 2 : 0);
+    pb.ribbon(lin(0, T, nS(10)).map((f) => ({ f, y: 0, r: 0 })), { profile: 'tube' });
+    pb.path(lin(0, T, nS(30)).map((f) => ({ f, y: bump(f) + 0.02, r: 0, tube: 1, lo: -1.2, hi: 1.2, hw: 2.15 })), { profile: 'hump', kind: 'tube' });
   } else pb.path(S, { profile: 'tube', kind: 'tube' });
   const pipeK = (k) => k === 'pipe' || k === 'pobst' || k === 'pipeT';
   if (!pipeK(pc.pk) && !pc.sub) pb.portal(0.2, -1);
@@ -209,9 +227,9 @@ function buildPipe(pb) {
 }
 // Röhren-Übergang: Straße ↔ Röhre mit Portal
 function buildPipeT(pb) {
-  const pc = pb.pc, into = !!pc.into, fp = into ? 7 : 13;
+  const pc = pb.pc, into = !!pc.into, fp = (into ? 7 : 13) * WS;
   const S = [];
-  for (const f of lin(0, T, 20)) {
+  for (const f of lin(0, T, nS(20))) {
     const inTube = into ? f > fp : f < fp;
     const d = Math.abs(f - fp);
     const lim = inTube ? 1.2 : Math.min(3.2, 1.2 + d * 0.35);
@@ -222,42 +240,48 @@ function buildPipeT(pb) {
 }
 
 // Autobahn: zwei Richtungsfahrbahnen + Mittelleitwand; Linie auf der rechten Fahrbahn
-const HWY_W = 9.6, HWY_R = 4.9;
+// Zwei Richtungsfahrbahnen à 2·HW + Mittelwand (bis 27.09.2026: HWY_W 9,6 / HWY_R 4,9 bei HW 4,5)
+const HWY_W = 2 * HW + 0.6, HWY_R = HW + 0.4;
 function buildHighway(pb) {
   const pc = pb.pc;
-  pb.ribbon(lin(0, T, 8).map((f) => ({ f, y: 0, r: 0, hw: HWY_W })), { profile: 'road' });
-  pb.path(lin(0, T, 10).map((f) => ({ f, y: 0, r: HWY_R, lo: -3.2, hi: 3.2, prof: 'none' })), { profile: 'none' });
+  pb.ribbon(lin(0, T, nS(8)).map((f) => ({ f, y: 0, r: 0, hw: HWY_W })), { profile: 'road' });
+  pb.path(lin(0, T, nS(10)).map((f) => ({ f, y: 0, r: HWY_R, lo: -3.2, hi: 3.2, prof: 'none' })), { profile: 'none' });
   if (!pc.sub) pb.box(T / 2, 0.4, 0, T, 0.8, 0.6, MAT.WALL, { collide: true });
 }
 function buildHighwayT(pb) {
   const pc = pb.pc, into = !!pc.into;
   const k = (f) => (into ? cs(f / T) : 1 - cs(f / T));
-  pb.ribbon(lin(0, T, 10).map((f) => ({ f, y: 0, r: 0, hw: HW + (HWY_W - HW) * k(f) })), { profile: 'road' });
-  pb.path(lin(0, T, 12).map((f) => ({ f, y: 0, r: HWY_R * k(f), lo: -3.2, hi: 3.2, prof: 'none' })), { profile: 'none' });
+  pb.ribbon(lin(0, T, nS(10)).map((f) => ({ f, y: 0, r: 0, hw: HW + (HWY_W - HW) * k(f) })), { profile: 'road' });
+  pb.path(lin(0, T, nS(12)).map((f) => ({ f, y: 0, r: HWY_R * k(f), lo: -3.2, hi: 3.2, prof: 'none' })), { profile: 'none' });
   if (!pc.sub) {
-    const [a, b] = into ? [11, T] : [0, T - 11];
+    const [a, b] = into ? [11 * WS, T] : [0, T - 11 * WS];
     pb.box((a + b) / 2, 0.4, 0, b - a, 0.8, 0.6, MAT.WALL, { collide: true });
   }
 }
 
 // Korkenzieher (Rolle): 360° um die Fahrtrichtung, rechts hinauf, oben kopfüber über der Mittelwand,
 // links wieder herunter (Einfahrt rechte Spur, Ausfahrt linke Spur)
+// Rolle in Auto-Maßstab (26 m lang), mittig im Stück; f0/f1 gelten im alten 40-m-Stück (2 Felder à 20 m)
 export const CORK = { R: 3.6, hw: 2.3, f0: 7, f1: 33, a0: 2.2 };
 function buildCorkLR(pb) {
-  const { R, hw, f0, f1, a0 } = CORK, L = 2 * T, M = 1.3;
+  const L = 2 * T, M = 1.3, d = T - 20;
+  const { R, hw, a0 } = CORK, f0 = CORK.f0 + d, f1 = CORK.f1 + d;
+  const nA = Math.max(6, Math.round(6 * f0 / CORK.f0));
   const s = [];
   const road = (f, r) => ({ f, y: 0, r, hw: HW, prof: 'none', lo: -HW + M - r, hi: HW - M - r });
-  for (const f of lin(0, f0, 6)) s.push(road(f, a0 * smooth5(f / f0)));
+  // Spurversatz in Auto-Maßstab direkt an der Rolle (davor gerade): über die ganze lange Anfahrt verteilt erreichte
+  // die Linie die Rolle schnurgerade und musste den 41°-Knick am Rolleneingang auf 2 m nehmen (Profil: 14 m/s)
+  for (const f of lin(0, f0, nA)) s.push(road(f, a0 * smooth5((f - d) / CORK.f0)));
   const N = 140;
   for (let k = 1; k <= N; k++) {
     const u = k / N, ph = 2 * PI * u;
     const a = a0 - 2 * a0 * smooth5((u - 0.15) / 0.7);
     s.push({ f: f0 + (f1 - f0) * u, y: R * (1 - Math.cos(ph)), r: a + R * Math.sin(ph), up: [0, Math.cos(ph), -Math.sin(ph)], hw, loop: 1, prof: 'loopLane' });
   }
-  for (const f of lin(f1, L, 6).slice(1)) s.push(road(f, -a0 * (1 - smooth5((f - f1) / (L - f1)))));
+  for (const f of lin(f1, L, nA).slice(1)) s.push(road(f, -a0 * (1 - smooth5((f - f1) / (L - d - f1)))));
   pb.path(s, { profile: 'loop', kind: 'loop' });
-  pb.ribbon(lin(0, f0 + 1, 4).map((f) => ({ f, y: 0, r: 0 })), { profile: 'road' });
-  pb.ribbon(lin(f1 - 1, L, 4).map((f) => ({ f, y: 0, r: 0 })), { profile: 'road' });
+  pb.ribbon(lin(0, f0 + 1, Math.max(4, Math.round(nA * 2 / 3))).map((f) => ({ f, y: 0, r: 0 })), { profile: 'road' });
+  pb.ribbon(lin(f1 - 1, L, Math.max(4, Math.round(nA * 2 / 3))).map((f) => ({ f, y: 0, r: 0 })), { profile: 'road' });
   pb.pad(f0, f1, -HW - 1.2, HW + 1.2);
   // diagonale Mittelwand unter der Rolle (von links vorn nach rechts hinten)
   const wa = [f0 + 2, -HW + 0.4], wb = [f1 - 2, HW - 0.4];
@@ -278,13 +302,13 @@ function buildCorkUD(pb) {
   const H = ((pc.h1 ?? pc.lvl) - pc.lvl) * pb.LH;
   const s = [];
   // Hinauf: unten Gerade, Kreis steigt, oben Gerade. Hinunter: oben Gerade, Kreis fällt, unten Gerade.
-  for (const f of lin(0, T, 10)) s.push({ f, y: 0, r: 0 });
-  const N = 64;
+  for (const f of lin(0, T, nS(10))) s.push({ f, y: 0, r: 0 });
+  const N = nS(64);
   for (let k = 1; k <= N; k++) {
     const psi = 2 * PI * k / N;
     s.push({ f: T + Rc * Math.sin(psi), y: H * cs(k / N), r: m * (Rc - Rc * Math.cos(psi)), hw: HW - 0.6 });
   }
-  for (const f of lin(T, 2 * T, 10).slice(1)) s.push({ f, y: H, r: 0 });
+  for (const f of lin(T, 2 * T, nS(10)).slice(1)) s.push({ f, y: H, r: 0 });
   pb.path(s, { profile: 'deck', hw: HW - 0.6 });
   // Pfeiler: oberes Geradenstück + Kreis (wo hoch genug)
   const yTop = Math.max(0, H);
@@ -306,7 +330,7 @@ function buildGap(pb) {
   const y1 = ((pc.h1 ?? pc.lvl) - pc.lvl) * pb.LH;
   const y0 = last ? last.p[1] - pb.base : 0;          // Flugkurve beginnt exakt an der Lippe
   const a = (y1 - y0 - s0 * Lg) / (Lg * Lg);
-  const S = lin(0, Lg, Math.max(6, k * 8)).map((f) => ({ f, y: y0 + s0 * f + a * f * f, r: 0, surf: 0, air: 1, lo: 0, hi: 0 }));
+  const S = lin(0, Lg, Math.max(6, nS(k * 8))).map((f) => ({ f, y: y0 + s0 * f + a * f * f, r: 0, surf: 0, air: 1, lo: 0, hi: 0 }));
   pb.path(S, { profile: 'none', kind: 'jump' });
   pb.jumpInfo({ gen: 1, lipF: 0, landF: Lg });
 }

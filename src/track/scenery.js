@@ -244,7 +244,7 @@ export function buildScenery(items, ctx) {
     const g = ctx.groundAt(x, z);
     const s = 0.9 + ((it.i * 7 + it.j * 13) % 5) * 0.06;
     if (it.kind === 'pine') {
-      ctx.trees.push({ x, y: g, z, s: 1.05 * s, rot: (it.i * 1.7 + it.j) % PI, v: (it.i + it.j) % 2 });
+      ctx.trees.push({ x, y: g, z, s: 1.05 * s, rot: (it.i * 1.7 + it.j) % PI, v: (it.i + it.j) % 2, keep: 1 });
       continue;
     }
     if (it.kind === 'ghost' || it.kind === 'ghostop') {

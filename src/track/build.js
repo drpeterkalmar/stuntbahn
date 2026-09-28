@@ -2,14 +2,17 @@
 // Fahrlinie mit Rahmen (Tangente/Normale/Rechts), Render-Geometrie (je Material + Chunk),
 // Kollisionsdreiecke (identisch zur Render-Geometrie), Gelände-Höhenfeld, Bäume, Checkpoints.
 // Reines JS ohne DOM/three.js → läuft auch in Node (Tests, Generator-Prüfung).
-import { TILE, LEVEL_H, ROAD_HW, ROAD_Y, GRID, DIRS, tileX, tileZ, MAT, ROAD_MATS, SURF_MAT, GRIP } from './defs.js';
+import { TILE, LEVEL_H, ROAD_HW, ROAD_Y, GRID, DIRS, tileX, tileZ, MAT, ROAD_MATS, SURF_MAT, GRIP, WORLD_SCALE, WORLD_HALF } from './defs.js';
 import { PIECES, JUMP, LOOP, pieceCells } from './pieces.js';
 import './pieces_trk.js';
 import { buildTrkTerrain, carveUnderRoads } from './trkterrain.js';
 import { buildScenery } from './scenery.js';
+import { adaptiveGrid, gridExt, FINE_DT } from './terrgrid.js';
 import { clamp, smoothstep, makeNoise2, rng } from '../core/util.js';
 
-const CHUNK = 100;
+const WS = WORLD_SCALE;
+// Chunk-Kante wächst mit dem Maßstab: gleich viele Draw-Calls wie im alten Raster (bis 27.09.2026: 100 m)
+const CHUNK = 100 * WS;
 
 // ---------- kleine Vektorhelfer (Arrays [x,y,z]) ----------
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
@@ -181,9 +184,9 @@ export function buildTrack(layout, opt = {}) {
     if (!b) { b = new Batch(mat, ROAD_MATS.has(mat)); b.chunk = chunk; batches.set(k, b); }
     return b;
   };
-  // Importe füllen das ganze 600-m-Raster: größere Chunks halten die Draw-Calls < 200
-  const CH = layout.trk ? 200 : CHUNK;
-  const chunkOf = (x, z) => Math.floor((x + 1000) / CH) + ',' + Math.floor((z + 1000) / CH);
+  // Importe füllen das ganze Raster: größere Chunks halten die Draw-Calls < 200
+  const CH = layout.trk ? 2 * CHUNK : CHUNK;
+  const chunkOf = (x, z) => Math.floor((x + 1000 * WS) / CH) + ',' + Math.floor((z + 1000 * WS) / CH);
   const addColTri = (p0, p1, p2, n0, n1, n2, mat) => {
     colPos.push(p0[0], p0[1], p0[2], p1[0], p1[1], p1[2], p2[0], p2[1], p2[2]);
     colNrm.push(n0[0], n0[1], n0[2], n1[0], n1[1], n1[2], n2[0], n2[1], n2[2]);
@@ -436,9 +439,10 @@ export function buildTrack(layout, opt = {}) {
         for (let k = 0; k <= N; k++) arr.push(hy(f0 + (f1 - f0) * k / N));
         shapes.push({ type: 'mound', E, F, R, f0, f1, arr, hw: hwid, slope });
       },
-      river: (f0, f1) => { shapes.push({ type: 'pond', E, F, R, f0, f1, c: [(f0 + f1) / 2, 0], rx: (f1 - f0) * 0.45, rz: 30, depth: 3 }); },
+      river: (f0, f1) => { shapes.push({ type: 'pond', E, F, R, f0, f1, c: [(f0 + f1) / 2, 0], rx: (f1 - f0) * 0.45, rz: 30 * WS, depth: 3 }); },
       arch: (len) => {
-        const H = 7.5, hw = ROAD_HW + 0.55, n = 10;
+        // Bogenhöhe wächst mit √Maßstab (Spannweite = Feld), Segmente/Hänger mit der Länge
+        const H = 7.5 * Math.sqrt(WS), hw = ROAD_HW + 0.55, n = Math.round(10 * WS), nh = Math.round(8 * WS);
         for (const sgn of [-1, 1]) {
           for (let k = 0; k < n; k++) {
             const f0 = len * k / n, f1 = len * (k + 1) / n;
@@ -446,8 +450,8 @@ export function buildTrack(layout, opt = {}) {
             const fm = (f0 + f1) / 2, ym = (y0 + y1) / 2, L = Math.hypot(f1 - f0, y1 - y0);
             addBox(fm, ym, sgn * hw, L + 0.1, 0.45, 0.45, MAT.STEEL, { pitch: Math.atan2(y1 - y0, f1 - f0) });
           }
-          for (let k = 1; k < 8; k++) {
-            const f = len * k / 8, y1 = 0.9 + H * Math.sin(Math.PI * f / len);
+          for (let k = 1; k < nh; k++) {
+            const f = len * k / nh, y1 = 0.9 + H * Math.sin(Math.PI * f / len);
             addBox(f, (0.9 + y1) / 2, sgn * hw, 0.12, y1 - 0.9, 0.12, MAT.STEEL, {});
           }
         }
@@ -456,7 +460,7 @@ export function buildTrack(layout, opt = {}) {
       },
       loopSupports: (f0) => {
         // Stahlrahmen seitlich des Loopings + Querträger über dem Scheitel
-        const fc = f0 + LOOP.dF / 2, top = LOOP.H + 1.3, off = 7.6;
+        const fc = f0 + LOOP.dF / 2, top = LOOP.H + 1.3, off = Math.max(7.6, ROAD_HW + 2.1);   // außerhalb der Platte
         for (const sgn of [-1, 1]) {
           addBox(fc - 3, top / 2, sgn * off, 0.6, top, 0.6, MAT.STEEL, { collide: true });
           addBox(fc + 3, top / 2, sgn * off, 0.6, top, 0.6, MAT.STEEL, { collide: true });
@@ -468,7 +472,7 @@ export function buildTrack(layout, opt = {}) {
       jumpInfo: (j) => { if (!decor) jumps.push({ piece: pidx, ...j, E, F, R, base }); },
       portal: (f, facingOpt) => {
         // Betonfassade um die Röhrenöffnung (Ring zwischen Innenkontur und Rechteck)
-        const b0 = 2.2, R0 = 3.5, Wx = 7.2, Yb = -0.5, Yt = 2 * R0 + 1.4, n = 10;
+        const b0 = 2.2, R0 = 3.5, Wx = Math.max(7.2, ROAD_HW + 1.6), Yb = -0.5, Yt = 2 * R0 + 1.4, n = 10;   // Fassade deckt die Fahrbahn
         const pts = [];
         for (let k = 0; k <= 4; k++) pts.push([-b0 + 2 * b0 * k / 4, 0]);
         for (let k = 1; k <= n; k++) { const t = -Math.PI / 2 + Math.PI * k / n; pts.push([b0 + R0 * Math.cos(t), R0 + R0 * Math.sin(t)]); }
@@ -567,7 +571,10 @@ export function buildTrack(layout, opt = {}) {
   // ----- Gelände -----
   const terrain = trkTerr || buildTerrain(occupied, shapes, layout.seed || 1);
   // ----- Bäume ----- (Import: Tannen aus der Szenerie + Wald außerhalb des Rasters)
-  const trees = trkTerr ? sceneryTrees.concat(placeTrees(terrain, layout.seed || 1, opt.treeCount ?? 420, GRID * TILE / 2 + 25)) : placeTrees(terrain, layout.seed || 1, opt.treeCount ?? 520);
+  // Anzahl wächst mit der Fläche (Maßstab²), damit die große Welt gleich dicht bewaldet ist; Bäume selbst
+  // behalten ihre Größe. Die Grafik dünnt auf Qualitätsstufe 0 aus (world.js).
+  const tc = (n) => Math.round(n * WS * WS);
+  const trees = trkTerr ? sceneryTrees.concat(placeTrees(terrain, layout.seed || 1, opt.treeCount ?? tc(420), WORLD_HALF + 25 * WS)) : placeTrees(terrain, layout.seed || 1, opt.treeCount ?? tc(520));
 
   // ----- Batches finalisieren -----
   const outBatches = [];
@@ -618,17 +625,18 @@ export function buildTerrain(occupied, shapes, seed) {
     const tx = fi - i0, tz = fj - j0;
     const g = (i, j) => (i < 0 || j < 0 || i >= GRID || j >= GRID) ? 99 : D[j * GRID + i];
     const a = g(i0, j0), b = g(i0 + 1, j0), c = g(i0, j0 + 1), dd = g(i0 + 1, j0 + 1);
-    const out = Math.max(Math.abs(x) - GRID * TILE / 2, Math.abs(z) - GRID * TILE / 2, 0) / TILE;
+    const out = Math.max(Math.abs(x) - WORLD_HALF, Math.abs(z) - WORLD_HALF, 0) / TILE;
     const v = Math.min(99, (a * (1 - tx) + b * tx) * (1 - tz) + (c * (1 - tx) + dd * tx) * tz);
     return Math.min(v, 30) + out;
   };
+  // Landschaft wächst geometrisch ähnlich mit (Breite und Höhe ×Maßstab: gleiche Hangneigung, gleiche Silhouette)
   const baseH = (x, z) => {
     const dt = distTiles(x, z);
     const mask = smoothstep(1.4, 4.5, dt);
-    const r = Math.hypot(x, z);
-    const hills = 13 * Math.pow(noise.fbm(x / 230 + 11, z / 230 - 7, 4) * 0.5 + 0.5, 1.6) + 5 * noise.fbm(x / 90, z / 90, 3);
-    const rim = 70 * smoothstep(420, 950, r) * (0.7 + 0.3 * noise.fbm(x / 300, z / 300, 2));
-    return mask * Math.max(0, hills) + rim;
+    const u = x / WS, v = z / WS, r = Math.hypot(u, v);
+    const hills = 13 * Math.pow(noise.fbm(u / 230 + 11, v / 230 - 7, 4) * 0.5 + 0.5, 1.6) + 5 * noise.fbm(u / 90, v / 90, 3);
+    const rim = 70 * smoothstep(420, 950, r) * (0.7 + 0.3 * noise.fbm(u / 300, v / 300, 2));
+    return WS * (mask * Math.max(0, hills) + rim);
   };
   const shapeH = (x, z, h) => {
     for (const s of shapes) {
@@ -662,11 +670,12 @@ export function buildTerrain(occupied, shapes, seed) {
   };
   const heightFn = (x, z) => shapeH(x, z, baseH(x, z));
 
-  // Inneres Raster (Physik + Grafik): 5 m über das Streckenfeld + Rand
-  const ext = GRID * TILE / 2 + 60, step = 5;
-  const nx = Math.round(2 * ext / step) + 1;
-  const H = new Float32Array(nx * nx);
-  for (let j = 0; j < nx; j++) for (let i = 0; i < nx; i++) H[j * nx + i] = heightFn(-ext + i * step, -ext + j * step);
+  // Inneres Raster (Physik + Grafik): 5 m über das Streckenfeld + Rand. Physik überall exakt; die Grafik zeichnet
+  // adaptiv (terrgrid.js): fein bis FINE_DT Felder um die Strecke (Gruben/Kuppen/Teiche liegen darin) und wo das
+  // Gelände stark gekrümmt ist, sonst 20-m-Blöcke
+  const ext = gridExt(WORLD_HALF + 60 * WS, 5), step = 5;
+  const fineBlock = (x0, z0, x1, z1) => Math.min(distTiles(x0, z0), distTiles(x1, z0), distTiles(x0, z1), distTiles(x1, z1), distTiles((x0 + x1) / 2, (z0 + z1) / 2)) < FINE_DT;
+  const { nx, H, Hv, fine, nb } = adaptiveGrid(ext, step, heightFn, fineBlock);
   const height = (x, z) => {
     const fx = (x + ext) / step, fz = (z + ext) / step;
     if (fx < 0 || fz < 0 || fx >= nx - 1 || fz >= nx - 1) return heightFn(x, z);
@@ -678,7 +687,7 @@ export function buildTerrain(occupied, shapes, seed) {
     if (s.type === 'pit') return { E: s.E, F: s.F, R: s.R, f0: s.f0 - 1, f1: s.f1 + 1, r0: -s.hw - 1, r1: s.hw + 1, y: -2.6 };
     return { E: s.E, F: s.F, R: s.R, f0: s.c[0] - s.rx, f1: s.c[0] + s.rx, r0: -s.rz, r1: s.rz, y: -1.4 };
   });
-  return { ext, step, nx, H, height, heightFn, distTiles, waters };
+  return { ext, step, nx, H, Hv, height, heightFn, distTiles, waters, fine, nb };
 }
 
 function placeTrees(terrain, seed, count, keepOut = 0) {
@@ -688,12 +697,14 @@ function placeTrees(terrain, seed, count, keepOut = 0) {
   let tries = 0;
   while (out.length < count && tries < count * 30) {
     tries++;
-    const x = r.range(-560, 560), z = r.range(-560, 560);
+    const x = r.range(-560 * WS, 560 * WS), z = r.range(-560 * WS, 560 * WS);
     if (keepOut && Math.abs(x) < keepOut && Math.abs(z) < keepOut) continue;
+    // Abstand zur Strecke in Metern wie im 20-m-Raster (≥ 17 m hinter dem belegten Feld, bis 70 m lichter):
+    // in Feldern gerechnet stünden die Bäume in der großen Welt erst 54 m neben der Straße (leerer Streifen)
     const dt = terrain.distTiles(x, z);
-    if (dt < 1.35) continue;
-    const dens = noise.fbm(x / 140, z / 140, 3) * 0.5 + 0.5;
-    const near = dt < 4 ? 0.55 : 1;
+    if (dt < 0.5 + 17 / TILE) continue;
+    const dens = noise.fbm(x / (140 * WS), z / (140 * WS), 3) * 0.5 + 0.5;
+    const near = dt < 0.5 + 70 / TILE ? 0.55 : 1;
     if (r() > dens * dens * 2.2 * near) continue;
     const y = terrain.height(x, z);
     if (y < -0.5) continue;

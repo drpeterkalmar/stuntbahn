@@ -8,6 +8,10 @@
 // gelöst (Active-Set + Band-LDLᵀ), grob nach fein – erst auf einem 24-m-Raster, dessen Lösung liefert
 // Startwert und Randmenge für 12 → 6 → 3 → 1,5 m. So braucht jede Stufe nur wenige Durchgänge.
 
+import { WORLD_SCALE } from '../track/defs.js';
+import { LOOP, JUMP_T } from '../track/pieces.js';
+import { CORK } from '../track/pieces_trk.js';
+
 const STEP = 1.5;
 // Toleranzen: Randverletzung (m) und Kraft, ab der ein Randpunkt frei wird. Auf Geraden liegt die Linie oft
 // genau am Rand ohne echte Kraft (entartet) – ohne Schwelle pendeln solche Punkte endlos rein und raus.
@@ -60,7 +64,12 @@ const KEEP = 0.3, KEEP_START = 0.5, KEEP_BANK = 1.2;
 // Linie und Kante (Rad-Außenkante ~0,4 m vor der Kante). Der Autopilot weicht in Kurven um bis zu ~0,5 m
 // von der Linie ab (99. Perzentil, Korpus) – ohne Zuschlag rutschen auf Hochstraßen Räder über die Kante.
 const EDGE_EXTRA = 0.5;
-const KEEP_TYPES = new Set(['loop', 'tube', 'tr_loop', 'tr_corklr', 'tr_corkud', 'tr_pipe', 'tr_pipeT', 'tr_pobst']);
+const KEEP_TYPES = new Set(['tube', 'tr_corkud', 'tr_pipe', 'tr_pipeT', 'tr_pobst']);
+// Looping und Korkenzieher-Rolle: nur das Bauwerk (L.loop) plus die Anfahrt/Ausfahrt in Auto-Maßstab (so lang
+// wie im 20-m-Feld, + 1 m) – im größeren Feld (Weltmaßstab) ist davor/danach normale Straße, auf der sich die
+// Linie frei aufstellen darf. Über das ganze Stück festgelegt, entstand vor der Rolle ein Knick in der Linie
+// (Profil bremste auf 14 m/s, das Auto streifte beim Verlassen die Spurwand). Maßstab 1: ganzes Stück wie bisher.
+const KEEP_AROUND = { loop: (2 * JUMP_T - LOOP.dF) / 2 + 1, tr_loop: (2 * JUMP_T - LOOP.dF) / 2 + 1, tr_corklr: Math.max(CORK.f0, 2 * JUMP_T - CORK.f1) + 1 };
 export function stuntBounds(L, track) {
   const n = L.n, lo = Float32Array.from(L.lo), hi = Float32Array.from(L.hi);
   const lim = new Float32Array(n).fill(Infinity);
@@ -68,6 +77,14 @@ export function stuntBounds(L, track) {
   for (let i = 0; i < n; i++) {
     const pc = track && track.pieces[L.piece[i]];
     if (L.loop[i] || L.tube[i] || (pc && KEEP_TYPES.has(pc.type))) lim[i] = KEEP;
+  }
+  for (const pc of (track && track.pieces) || []) {
+    const m = KEEP_AROUND[pc.type];
+    if (!m || pc.lineEnd < pc.lineStart) continue;
+    let a = -1, b = -1;
+    for (let i = pc.lineStart; i <= pc.lineEnd; i++) if (L.loop[i]) { if (a < 0) a = i; b = i; }
+    if (a < 0) continue;
+    for (let i = pc.lineStart; i <= pc.lineEnd; i++) if (L.s[i] >= L.s[a] - m && L.s[i] <= L.s[b] + m) lim[i] = KEEP;
   }
   // überhöht: Querneigung > ~7° irgendwo im Umkreis von 6 m (auch die Übergänge)
   const bank = new Uint8Array(n);
@@ -95,6 +112,13 @@ export function stuntBounds(L, track) {
 
 export function computeIdeal(L, opts = {}) {
   const n = L.n;
+  // Basislinie mit NaN (z. B. ein Baustein, dessen Geometrie beim Feldmaß nicht aufgeht) früh und lesbar melden –
+  // sonst endete das tief im Löser als „Invalid typed array length“ (so geschehen bei der Schikane, 27.09.2026)
+  if (!(L.total > 0)) {
+    let bad = 0; while (bad < n && Number.isFinite(L.px[bad]) && Number.isFinite(L.s[bad])) bad++;
+    const pc = opts.track && bad < n ? opts.track.pieces[L.piece[bad]] : null;
+    throw new Error(`Ideallinie: Basislinie ungültig (Länge ${L.total}${bad < n ? `, erster ungültiger Punkt ${bad}/${n}` : ''}${pc ? ` in „${pc.type}“` : ''})`);
+  }
   // Grenzen: Baustein-Grenzen, in Stunt-Abschnitten auf die Bausteinspur verengt (opts.track)
   const bd = stuntBounds(L, opts.track);
   const Lb = { ...L, lo: bd.lo, hi: bd.hi };
@@ -128,6 +152,8 @@ export function computeIdeal(L, opts = {}) {
 // Scheitelpunkte: je Kurve (Basislinie dreht sich, keine Luft/Looping/Röhre) die Stelle, an der die Linie
 // der inneren Grenze (bnd, mit Sicherheitsabstand) am nächsten kommt – nur wenn sie sie bis auf 25 cm
 // erreicht. Liefert [{ i, side }] mit side = +1 (innen = +B) bzw. −1.
+// Kurven erst ab Radius < 80 m × Weltmaßstab (Radien wachsen mit dem Feld; bis 27.09.2026 fest 80 m)
+const KAP_MIN = 1 / (80 * WORLD_SCALE);
 export function findApexes(L, off, bnd = L) {
   const n = L.n, W = 6, out = [];
   const kap = new Float32Array(n);
@@ -138,10 +164,10 @@ export function findApexes(L, off, bnd = L) {
   const bad = (i) => L.air[i] || L.loop[i] || L.tube[i];
   let i = 0;
   while (i < n) {
-    if (Math.abs(kap[i]) > 1 / 80 && !bad(i)) {
+    if (Math.abs(kap[i]) > KAP_MIN && !bad(i)) {
       const sg = Math.sign(kap[i]);
       let j = i, best = -1, bd = 1e9;
-      while (j < n && Math.abs(kap[j]) > 1 / 80 && Math.sign(kap[j]) === sg && !bad(j)) {
+      while (j < n && Math.abs(kap[j]) > KAP_MIN && Math.sign(kap[j]) === sg && !bad(j)) {
         const inner = sg > 0 ? bnd.hi[j] : -bnd.lo[j];
         const gap = inner - off[j] * sg;
         if (inner > 0.5 && gap < bd) { bd = gap; best = j; }
