@@ -9,7 +9,7 @@ import { HOP, NITRO, NITRO_TOTAL, nitroLevel, hopModel, hopHeightAt } from '../p
 
 export const ASSISTS = {
   easy: { name: 'Leicht', icon: '🟢', steerPull: 0.82, autoSpeed: true, autoStunts: true, free: true, magnet: 1, air: 1, autoRewind: true, showLine: true },
-  medium: { name: 'Mittel', icon: '🟡', steerPull: 0.28, stuntPull: 0.6, autoSpeed: false, brakeAssist: true, autoStunts: false, magnet: 0.35, air: 0.4, autoRewind: true, showLine: true },
+  medium: { name: 'Mittel', icon: '🟡', steerPull: 0.28, stuntPull: 0.6, autoSpeed: false, brakeHelp: true, autoStunts: false, magnet: 0.35, air: 0.4, autoRewind: true, showLine: true },
   original: { name: 'Original', icon: '🔴', steerPull: 0, autoSpeed: false, autoStunts: false, magnet: 0, air: 0, autoRewind: false, showLine: false },
 };
 
@@ -24,6 +24,27 @@ export const RESET_DELAY = 0.35; // kurzes Aufblitzen zwischen Crash und Reset (
 // Vor Stunts (pre s bzw. mindestens preMin m) übernimmt der Autopilot wieder, mit Ansage im HUD.
 // Abseits der Fahrbahn gemäßigtes Gas (höchstens offV m/s).
 export const FREE = { in: 0.5, hold: 0.2, keep: 0.15, rel: 0.2, fadeOut: 0.25, fadeIn: 0.8, back: [1.2, 3.0], pre: 2.5, preMin: 35, offV: 16 };
+// URL-Regler (Zahl) für A/B-Vergleiche am Handy
+const urlNum = (k) => { const q = globalThis.location && globalThis.location.search; if (!q) return null; const v = new URLSearchParams(q).get(k); return v !== null && v !== '' && Number.isFinite(+v) ? +v : null; };
+// Mittel: keine Zwangsbremse mehr (Peter 28.09.2026: „Bei Mittel bremst mich die Ideallinie ab“, n14). Bis n13 nahm die
+// Hilfe ab 6 % Übertempo Gas weg und bremste (18–31 % der Rennzeit eines Vollgas-Spielers). Jetzt Einstellung
+// „Bremshilfe“ (store.settings.brakeHelp): 'off' | 'hint' (Standard: nur Hinweis „Bremsen!“ + Ton, sobald man schneller
+// ist als das Profil look s voraus, frühestens alle gap s) | 'soft' (bremst sanft nur bei mehr als over Übertempo UND
+// ohne Vollgas; baut in inT s auf, gibt in outT s frei – Vollgas gibt sofort frei). ESP (Gegenlenken bei großem
+// Kurswinkel) weicher und blendet bei deutlichem Gegenlenken (|Lenkung| > FREE.in) in espOut s aus.
+export const BRAKE_HELP = { look: 0.7, hintOver: 0.03, gap: 1.5, over: 0.15, inT: 0.25, outT: 0.3, espFrom: 0.6, espRange: 0.8, espMax: 0.5, espOut: 0.3 };
+export const BRAKE_HELP_MODES = { off: 'Aus', hint: 'Hinweis', soft: 'Sanft' };
+
+// Leicht „mitlenken statt Schienen“ (Peter 28.09.2026: „ein bisschen mitlenken müssen, um auf der Ideallinie zu
+// bleiben“, n14). Die Hilfe liefert nur (1 − lk) der Kurven-Vorsteuerung; den Rest lenkt der Spieler. Um die Linie
+// liegt ein Band (± dz m, nie über die Fahrbahngrenze der Ideallinie hinaus = Rad-Außenkante 0,4 m vor der Kante;
+// an Engstellen daher schmal): darin kein Zug zur Linie, nur eine halbe Kurshaltung (hold) gegen Schlingern. Wer das
+// Band verlässt (vorausschauend: Lage in look s), wird wie vom Autopiloten (Kurs + Querfehler, Verstärkung kE statt
+// 2,4 – hält auch bei Tempo gegen einen schiefen Daumen) zum Bandrand zurückgeführt, höchstens mit vlat m/s bzw. vlatK × Tempo quer (die Hilfe allein bringt das Auto nie ins
+// Schleudern). In Kurven nimmt die Tempo-Automatik ab
+// slowFrom m neben der Linie Tempo raus, am Bandrand bis slow (Anteil). Freies Lenken (Übernahme) nur, wenn die Eingabe außerhalb des Bandes weiter von der
+// Linie wegdrückt – Mitlenken in die Kurve bleibt Hilfe. lk = 0 (URL ?lk=0): Verhalten bis n13 (Zug 82 %).
+export const LEICHT = { lk: Math.max(0, Math.min(1, urlNum('lk') ?? 0.8)), dz: 3.5, dzBank: 1.0, hold: 0.05, look: 0.3, lookBand: 0.8, kE: 8, vlat: 4, vlatK: 0.12, slow: 0.3, slowFrom: 1.1, gain: 0.6, awayEx: 0.5 };
 // Abkürzen (alle Stufen): neben der Fahrbahn mehr Streckenfortschritt als gefahrene Strecke → zurück an die
 // Stelle, wo das Auto die Fahrbahn verlassen hat (Uhr läuft weiter). Toleranz CUT_TOL m + 15 % der Strecke.
 // Erlaubter Gewinn beim Kurven-Schneiden hängt an der Fahrbahnbreite (bis 27.09.2026 fest 8 m bei 4,5 m)
@@ -42,6 +63,7 @@ export class Race {
     this.assistKey = opts.assist || 'medium';
     this.assist = ASSISTS[this.assistKey];
     this.wreckOn = !!opts.wreck; // Totalschaden an/aus (gilt für alle Fahrhilfe-Stufen)
+    this.brakeHelp = BRAKE_HELP_MODES[opts.brakeHelp] ? opts.brakeHelp : 'hint';   // Mittel: Bremshilfe (n14)
     this.car = new Car();
     this.ap = new Autopilot(env.ideal, env.prof);
     this.tracker = new Tracker(env.track.line);
@@ -161,13 +183,23 @@ export class Race {
       else {
         // Rückführung nach freiem Lenken: Autopilot mit voller Kraft (sonst max. 82 %)
         const p = this.back ? 1 : pull;
-        steer = ap.steer * p + steer * (1 - pull) + (pull > 0.5 && !A.stuntPull ? steer * 0.25 : 0);
+        // Leicht mit Mitlenk-Modell (LEICHT.lk > 0): Teil-Vorsteuerung + Korridor + Spieler; sonst Zug zur Linie
+        if (A.free && LEICHT.lk > 0 && !this.back) steer = this.leichtSteer(input.steer, idx);
+        else steer = ap.steer * p + steer * (1 - pull) + (pull > 0.5 && !A.stuntPull ? steer * 0.25 : 0);
         if (A.free) steer = steer * (1 - this.own) + input.steer * this.own;   // Spieler hat Vorrang
       }
       steer = Math.max(-1, Math.min(1, steer));
-      // Rückführung ohne Ruck: Lenkänderung höchstens 4/s (wie eine ruhige Hand an der Tastatur)
-      if (this.calmT > 0 && !this.manual) { const d = 4 * dt; steer = Math.max(this.lastInput.steer - d, Math.min(this.lastInput.steer + d, steer)); }
+      // Rückführung ohne Ruck: Lenkänderung höchstens 4/s (wie eine ruhige Hand an der Tastatur). Die Glättung endet
+      // erst, wenn die Lenkung ihr Ziel erreicht hat – vorher sprang sie beim Ablauf von calmT schlagartig nach (n14)
+      if ((this.calmT > 0 || this.calmLag) && !this.manual) {
+        const d = 4 * dt, s2 = Math.max(this.lastInput.steer - d, Math.min(this.lastInput.steer + d, steer));
+        this.calmLag = Math.abs(s2 - steer) > 1e-6;
+        steer = s2;
+      } else this.calmLag = false;
       if (zone) this.hud = { kind: 'stunt', text: `${zone.name}${zone.inside ? '' : ' voraus'} – Autopilot lenkt` };
+      // Leicht: außerhalb der toten Zone Tempo raus (wirkt im nächsten Regler-Schritt); sonst unverändert
+      // (nicht vor und in Stunts: dort muss das Profil-Tempo stimmen, z. B. das Absprung-Tempo der Schanze)
+      this.ap.assistScale = A.free && LEICHT.lk > 0 && !this.manual && !this.back && !stunt && !zone ? 1 - LEICHT.slow * (this.cw || 0) : 1;
       if (A.autoSpeed) {
         thr = ap.throttle; brk = ap.brake;
         // neben der Fahrbahn gemäßigt
@@ -181,16 +213,25 @@ export class Race {
         // die Bremse des Spielers geht immer vor
         if (input.brake > 0.05) { thr = 0; brk = Math.max(brk, input.brake); }
       }
-      else if (A.brakeAssist) {
+      else if (A.brakeHelp) {
         const vt = this.env.prof.vt[idx];
         const v = car.fwdSpeed();
-        if (v > vt * 1.06 + 1.5) { thr = Math.min(thr, 0.15); brk = Math.max(brk, ap.brake * 0.8); }
-        // Stabilitätshilfe (ESP): bei großem Kurswinkel gegenlenken + Gas weg, falsche Richtung abfangen
+        const H = BRAKE_HELP;
+        if (this.brakeHelp !== 'off') this.brakeHint(v, idx, input);
+        // „Sanft“: nur bei deutlichem Übertempo und ohne Vollgas; Vollgas oder genug langsamer → in outT s frei
+        const want = this.brakeHelp === 'soft' && v > vt * (1 + H.over) + 1 && input.throttle < 0.95;
+        this.softB = want ? Math.min(1, (this.softB || 0) + dt / H.inT) : Math.max(0, (this.softB || 0) - dt / H.outT);
+        if (this.softB > 0) { thr = Math.min(thr, 1 - this.softB); brk = Math.max(brk, this.softB * Math.min(0.8, ap.brake)); }
+        // Stabilitätshilfe (ESP): bei großem Kurswinkel gegenlenken + Gas weg, falsche Richtung abfangen. Weicher als
+        // bis n13 (ab 0,6 statt 0,5 rad, höchstens 50 % statt 80 %) und nie gegen eine deutliche Lenkeingabe: lenkt der
+        // Spieler deutlich in die andere Richtung, blendet ESP in espOut s aus
         const psi = Math.abs(this.ap.psi || 0);
-        if (psi > 0.5 && v > 3) {
-          const k = Math.min(1, (psi - 0.5) / 0.6);
-          steer = steer * (1 - 0.8 * k) + ap.steer * 0.8 * k;
-          thr = Math.min(thr, 1 - 0.7 * k);
+        const against = Math.abs(input.steer) > FREE.in && Math.sign(input.steer) !== Math.sign(ap.steer);
+        this.espFade = against ? Math.min(1, (this.espFade || 0) + dt / H.espOut) : Math.max(0, (this.espFade || 0) - dt / 0.6);
+        if (psi > H.espFrom && v > 3) {
+          const k = Math.min(1, (psi - H.espFrom) / H.espRange) * (1 - this.espFade);
+          steer = steer * (1 - H.espMax * k) + ap.steer * H.espMax * k;
+          thr = Math.min(thr, 1 - 0.5 * k);
         }
         if (psi > 2.2 && Math.abs(v) < 6) { this.wrongT = (this.wrongT || 0) + dt; if (this.wrongT > 1.5) { this.wrongT = 0; this.car.setCrash('Falsche Richtung'); } }
         else this.wrongT = 0;
@@ -256,6 +297,19 @@ export class Race {
     if (car.crash) this.onCrash();
   }
 
+  // Mittel, Bremshilfe „Hinweis“/„Sanft“: schneller als das Profil look s voraus (+ hintOver) und nicht selbst am
+  // Bremsen → Anzeige „Bremsen!“ (race.hud) und beim ersten Mal Ereignis 'brakehint' (Ton), frühestens alle gap s
+  brakeHint(v, idx, input) {
+    const H = BRAKE_HELP, P = this.env.prof, L = this.env.track.line;
+    const j1 = this.ap.ahead(idx, Math.max(8, v * H.look));
+    let vmin = P.vt[idx];
+    for (let j = idx, c = 0; c < 400; c++) { vmin = Math.min(vmin, P.vt[j]); if (j === j1) break; j = j + 1 >= L.n ? (L.closed ? 1 : L.n - 1) : j + 1; }
+    const need = v > vmin * (1 + H.hintOver) + 1 && input.brake < 0.3;
+    if (need && !this.bhOn && this.simTime - (this.bhT ?? -99) > H.gap) { this.bhT = this.simTime; this.emit('brakehint', { dv: v - vmin }); }
+    this.bhOn = need;
+    if (need) this.hud = { kind: 'brake', text: 'Bremsen!' };
+  }
+
   // Stunt-Zonen der Linie (dort lenkt auf Leicht der Autopilot): zusammenhängende Stücke mit Looping,
   // Röhre, Luft oder Sprung-Anlauf/-Landung, mit Namen fürs HUD. [{ i0, i1, s0, s1, name }]
   stuntZones() {
@@ -293,7 +347,12 @@ export class Race {
   freeSteer(dt, input, idx) {
     const v = this.car.fwdSpeed(), a = Math.abs(input.steer);
     const zone = this.zoneAhead(idx, Math.max(FREE.preMin, v * FREE.pre));
-    if (a > FREE.in) this.holdT += dt; else this.holdT = 0;
+    this.zoneNow = zone;
+    // Mitlenk-Modell: Übernahme nur, wenn die Eingabe außerhalb des Bandes weiter von der Linie wegdrückt (positives
+    // Lenken bewegt das Auto zur +B-Seite, lat > 0 = rechts der Linie); in die Kurve mitlenken bleibt Hilfe
+    const ex = this.ex || 0;
+    const away = LEICHT.lk <= 0 || (Math.abs(ex) > LEICHT.awayEx && Math.sign(input.steer) === Math.sign(ex));
+    if (a > FREE.in && away) this.holdT += dt; else this.holdT = 0;
     if (zone) this.manual = false;
     else if (this.holdT >= FREE.hold) { this.manual = true; this.relT = 0; }
     else if (this.manual) {
@@ -301,7 +360,8 @@ export class Race {
     }
     const ap = this.ap;
     // Lenk-Glättung läuft von der Übernahme bis 2 s nach Ende der Rückführung
-    this.calmT = this.manual || this.back || this.own > 0 || Math.abs(ap.lat) > 1 ? 1.5 : Math.max(0, (this.calmT || 0) - dt);
+    // (Mitlenk-Modell: nicht schon ab 1 m neben der Linie – dort fährt man jetzt oft, die Glättung bremste den Spieler)
+    this.calmT = this.manual || this.back || this.own > 0 || (LEICHT.lk <= 0 && Math.abs(ap.lat) > 1) ? 1.5 : Math.max(0, (this.calmT || 0) - dt);
     if (this.manual) {
       this.own = Math.min(1, this.own + dt / FREE.fadeOut);
       ap.shift = ap.lat; this.back = null;    // Ziel des Autopiloten = da, wo das Auto gerade ist
@@ -324,6 +384,70 @@ export class Race {
       }
     }
     return zone;
+  }
+
+  // Leicht, Mitlenk-Modell: (1 − lk) der Kurven-Vorsteuerung des Autopiloten + Band-Rückführung + Spieler.
+  // Rückführung vorausschauend (Lage in look s aus Kurswinkel und Tempo) und sanft: Kurshaltung von hold (im Band)
+  // weich bis voll (0,5 m darüber), Rückkehr höchstens mit vlat m/s quer – ein fester großer Ausschlag ließ das Auto
+  // bei Tempo quer schießen.
+  leichtSteer(u, idx) {
+    const ap = this.ap, v = Math.abs(this.car.fwdSpeed()), psi = ap.psi || 0;
+    const ex = this.corridor(idx, ap.lat, ap.lat + v * Math.sin(psi) * LEICHT.look);
+    const sm = (q) => (q <= 0 ? 0 : q >= 1 ? 1 : q * q * (3 - 2 * q));
+    const k = LEICHT.hold + (1 - LEICHT.hold) * sm(Math.abs(ex) / 0.5);
+    const lim = Math.asin(Math.min(1, Math.max(LEICHT.vlat, LEICHT.vlatK * v) / Math.max(v, 1)));
+    const eT = Math.max(-lim, Math.min(lim, Math.atan2(LEICHT.kE * ex, v + 3)));
+    const corr = (-k * psi - eT + k * (ap.yawTerm || 0)) / (ap.maxSteer || 0.3);
+    const up = u * LEICHT.gain;   // Spieler-Anteil (grobe Handy-Tipps wirken nicht mit vollem Einschlag)
+    // Vorsteuerung auffüllen: höchstens (1 − lk) des Nötigen und nur, was der Spieler in Kurvenrichtung noch nicht
+    // selbst lenkt (wer voll mitlenkt, bekommt nichts dazu – sonst lenkte das Auto doppelt ein)
+    const F = Math.abs(ap.ffN || 0), sg = Math.sign(ap.ffN || 0), U = up * sg;
+    const ff = sg * Math.max(0, Math.min((1 - LEICHT.lk) * F, (1 - LEICHT.lk) * F - (U - LEICHT.lk * F)));
+    return ff + corr + up;
+  }
+  // Band um die Ideallinie: ± dz, begrenzt durch die Fahrbahngrenze der Ideallinie (I.lo/I.hi). Liefert, wie weit das
+  // Auto (Vorderachse, lat) außerhalb liegt (0 = im Band), merkt sich Band (freeSteer) und Anteil (Tempo-Abschlag).
+  corridor(idx, lat, latP = lat) {
+    const I = this.env.ideal || this.env.track.line;
+    // engste Stelle der nächsten Meter (Tempo × look + 3 m): am Scheitel rückt die Innengrenze an die Linie heran
+    // Stunt angekündigt (freeSteer): Band schrumpft bis zur Übergabe an den Autopiloten (~1,2 s davor) weich auf 0 –
+    // das Auto ist dann schon auf der Linie und fädelt ruhig in Looping, Röhre, Korkenzieher oder Schanze ein
+    const v = Math.abs(this.car.fwdSpeed()), Z = this.zoneNow;
+    let dz = LEICHT.dz;
+    if (Z && !Z.inside) {
+      const lead = Math.max(20, v * 1.2), pre = Math.max(FREE.preMin, v * FREE.pre);
+      dz *= Math.max(0, Math.min(1, (Z.dist - lead) / Math.max(1, pre - lead)));
+    }
+    // überhöhte Fahrbahn (Steilkurven und ihre Übergänge): schmales Band wie die Ideallinie dort (KEEP_BANK) –
+    // neben der Linie rutscht ein Auto die Flanke hinab bzw. hebt am verwundenen Übergang ab
+    const B = this.env.track.line;
+    if (Math.abs(B.by[idx]) > 0.12) dz = Math.min(dz, LEICHT.dzBank);
+    // selbst gezündeter Nitro (Extras automatisch): der geplante Zeitgewinn setzt die Linie voraus → schmales Band
+    if (this.autoNitro && this.nitroT >= 0) dz = Math.min(dz, LEICHT.dzBank);
+    let lo = -dz, hi = dz;
+    // Fahrbahngrenzen der nächsten lookBand s (+3 m): Verengungen (Autobahn-Übergang, Scheitel) früh genug sehen
+    const j1 = this.ap.ahead(idx, v * LEICHT.lookBand + 3);
+    for (let j = idx, c = 0; c < 400; c++) {
+      if (Math.abs(B.by[j]) > 0.12) { lo = Math.max(lo, -LEICHT.dzBank); hi = Math.min(hi, LEICHT.dzBank); }
+      lo = Math.max(lo, I.lo[j]); hi = Math.min(hi, I.hi[j]);
+      if (j === j1) break;
+      j = j + 1 >= I.n ? (I.closed ? 1 : I.n - 1) : j + 1;
+    }
+    if (lo > hi) lo = hi = (lo + hi) / 2;
+    // Überschreitung: jetzt oder (vorausschauend) gleich – die größere zählt, nach außen gerichtet
+    const exOf = (x) => (x < lo ? x - lo : x > hi ? x - hi : 0);
+    const e0 = exOf(lat), e1 = exOf(latP);
+    const ex = Math.abs(e1) > Math.abs(e0) ? e1 : e0;
+    this.band = [lo, hi]; this.ex = ex;
+    // Tempo-Abschlag (Anteil 0 … 1): in Kurven (Querbeschleunigung des Plans bis 8 m/s² voll) ab slowFrom m neben
+    // der Linie, voll am Bandrand und außerhalb – ein Auto neben der Ideallinie fährt einen engeren Bogen
+    const curv = Math.min(1, Math.abs(this.env.prof.kA[idx]) * v * v / 8);
+    const x = (Math.abs(lat) - LEICHT.slowFrom) / Math.max(0.3, LEICHT.dz - LEICHT.slowFrom);
+    // außerhalb des Bandes wächst der Abschlag mit der Überschreitung (die Band-Grenze liegt an Scheitel und Kurven-
+    // ausgang genau auf der Fahrbahngrenze der Linie – wenige cm darüber sind noch Fahrbahn), voll 0,8 m darüber
+    const sm = (q) => (q <= 0 ? 0 : q >= 1 ? 1 : q * q * (3 - 2 * q));
+    this.cw = Math.max(curv * sm(x), sm(Math.abs(ex) / 0.8));
+    return ex;
   }
 
   // Abkürzung? Neben der Fahrbahn (Wagenmitte > 1 m hinter der Kante) Fortschritt entlang der Strecke gegen
@@ -541,7 +665,7 @@ export class Race {
 
   // nach Versetzen/Rückspulen: Hilfe wieder voll, keine Rückführung, kein laufender Ausflug
   freeReset() {
-    this.own = 0; this.manual = false; this.holdT = 0; this.back = null; this.ap.shift = 0; this.shortcut = null; this.calmT = 0; this.anchorDriven = 0;
+    this.own = 0; this.manual = false; this.holdT = 0; this.back = null; this.ap.shift = 0; this.shortcut = null; this.calmT = 0; this.anchorDriven = 0; this.calmLag = false;
     const t = this.tracker;
     this.onRoad = { prog: t.progress(), idx: t.idx, lap: t.lap, cp: this.cpNext };
   }
@@ -574,7 +698,7 @@ export class Race {
   }
   stopNitro() {
     if (this.nitroT < 0) return;
-    this.nitroT = -1; this.car.boost = 0;
+    this.nitroT = -1; this.car.boost = 0; this.autoNitro = false;
     const e = this.xev.filter((x) => x.k === 'nitro').pop(), fr = this.recFrames();
     if (e && e.end == null) e.end = fr;
     const g = this.nitroLog[this.nitroLog.length - 1];
@@ -636,7 +760,7 @@ export class Race {
     const P = this.xplan || (this.xplan = this.planExtras());
     const car = this.car;
     if (this.tracker.lap >= 1 && this.cpNext >= this.cps.length) return;   // Zieleinfahrt: lohnt nicht mehr
-    if (this.charges.nitro && P.nitro && this.nitroT < 0 && car.onGround >= 2 && this.inRange(idx, P.nitro.i0, P.nitro.i1)) this.want.nitro = true;
+    if (this.charges.nitro && P.nitro && this.nitroT < 0 && car.onGround >= 2 && this.inRange(idx, P.nitro.i0, P.nitro.i1)) { this.want.nitro = true; this.autoNitro = true; }
     if (this.charges.hop && !this.want.hop && P.hops.some((h) => this.inRange(idx, h.i0, h.i1)) && this.hopSafe(idx)) this.want.hop = true;
   }
   inRange(i, a, b) { return a <= b ? i >= a && i <= b : i >= a || i <= b; }

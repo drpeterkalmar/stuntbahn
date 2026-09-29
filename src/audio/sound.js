@@ -146,6 +146,7 @@ async function makeBank() {
   });
   bank.beep = await beep(660, 0.18);
   bank.go = await beep(1320, 0.45);
+  bank.brake = await beep(440, 0.1, 'sawtooth');   // Mittel: Brems-Hinweis (n14), kurz und tief
   bank.cp = await renderOffline(0.5, (ctx) => {
     for (const [f, t0] of [[880, 0], [1320, 0.09]]) {
       const o = ctx.createOscillator(); o.type = 'triangle'; o.frequency.value = f;
@@ -231,6 +232,7 @@ export class Sound {
     else if (e.type === 'nitro') this.shot(this.bank.nitroGo, 0.9);
     else if (e.type === 'hop') this.shot(this.bank.hop, 0.9);
     else if (e.type === 'refill') this.shot(this.bank.cp, 0.5);
+    else if (e.type === 'brakehint' && this.bank.brake) this.shot(this.bank.brake, 0.55);
   }
   update(car, dt, state) {
     if (!this.running || !this.nodes) return;

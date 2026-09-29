@@ -1,6 +1,6 @@
 // Bedienoberfläche (DOM): Laden, Menü, HUD, Touch-Steuerung, Pause, Ergebnis, Replay, Credits.
 import { fmtTime, daySeed } from '../core/util.js';
-import { ASSISTS, PENALTY } from '../game/race.js';
+import { ASSISTS, PENALTY, BRAKE_HELP_MODES } from '../game/race.js';
 import { DIFFS } from '../track/generator.js';
 import { PAINTS } from '../gfx/carmesh.js';
 import { PIECES } from '../track/pieces.js';
@@ -119,8 +119,9 @@ export class UI {
     W.classList.toggle('in', !!on);
   }
   flash() { this.wipe(true); clearTimeout(this._wt); this._wt = setTimeout(() => this.wipe(false), 90); }
-  // Bestzeiten je Fahrhilfe (aktuelle Physik und Welt) + ggf. Zeilen mit den Zeiten der alten Welt (Maßstab 1)
-  // und der alten Physik (beides bis 27.09.2026, nicht vergleichbar – nur Anzeige, gespeichert bleiben sie unverändert)
+  // Bestzeiten je Fahrhilfe (aktuelle Physik und Welt) + ggf. Zeilen mit den Zeiten der alten Physik (bis 28.09.2026),
+  // der alten Welt (Maßstab 1) und der ersten Physik (beides bis 27.09.2026) – nicht vergleichbar, nur Anzeige,
+  // gespeichert bleiben sie unverändert
   bestsHtml(id) {
     const ks = Object.keys(ASSISTS);
     const now = ks.map((k) => { const b = this.store.bestFor(id, k); return `<span>${ASSISTS[k].icon} ${b ? fmtTime(b.time) : '–'}</span>`; }).join('');
@@ -130,8 +131,9 @@ export class UI {
     };
     const xOn = this.store.settings.extras;
     const old = row((k) => this.store.otherExtrasBestFor(id, k), xOn ? 'ohne Extras' : 'mit Extras', xOn ? 'Bestzeiten ohne Hüpfer & Nitro (eigene Liste, Option aus)' : 'Bestzeiten mit Hüpfer & Nitro (eigene Liste)')
+      + row((k) => this.store.prevPhysBestFor(id, k), 'alte Physik', 'Bestzeiten mit der Physik bis 28.09.2026 (weniger Bodenhaftung, anderes Tempo-Profil)')
       + row((k) => this.store.oldWorldBestFor(id, k), 'alte Welt', 'Bestzeiten in der alten, kleineren Welt (bis 27.09.2026)')
-      + row((k) => this.store.oldBestFor(id, k), 'alte Physik', 'Bestzeiten mit der alten, langsameren Physik (bis 27.09.2026)');
+      + row((k) => this.store.oldBestFor(id, k), 'erste Physik', 'Bestzeiten mit der ersten, langsameren Physik (bis 27.09.2026)');
     return { now, old };
   }
   // ---------- Menü ----------
@@ -197,8 +199,8 @@ export class UI {
       ? { easy: 'Crash? Wrack, dann automatisch 3 s zurück.', medium: 'Crash heißt Wrack, dann 3 s zurück.', original: 'Crash heißt Wrack.' }[k]
       : `Crash? Sofort zurück auf die Fahrbahn, +${PENALTY} s.`;
     return {
-      easy: 'Gas und Stunts macht das Auto selbst, deine Bremse geht immer vor. Lässt du los, fährt es allein auf der Linie; lenkst du deutlich, hast du Vorrang – auch quer durchs Gelände. Loslassen führt sanft zurück. Abkürzen zählt nicht (zurück an die Stelle). ',
-      medium: 'Bremsassistent, leichter Zug zur Linie, farbige Ideallinie (grün Gas, gelb vom Gas, rot bremsen), Rückspul-Knopf. ',
+      easy: 'Gas und Stunts macht das Auto selbst, deine Bremse geht immer vor. Die Hilfe hält dich auf der Fahrbahn und lenkt einen Teil der Kurven – die Ideallinie triffst du, wenn du etwas mitlenkst (ohne Lenken driftet das Auto in Kurven nach außen und wird langsamer). Drückst du deutlich über den Rand hinaus, hast du Vorrang – auch quer durchs Gelände. Loslassen führt sanft zurück. Abkürzen zählt nicht (zurück an die Stelle). ',
+      medium: 'Du bremst selbst – die farbige Ideallinie (grün Gas, gelb vom Gas, rot bremsen) und ein kurzer Hinweis „Bremsen!“ mit Ton zeigen, wo. Leichter Zug zur Linie, Stabilitätshilfe beim Rutschen, Rückspul-Knopf. ',
       original: 'Keine Hilfen – wie 1990. ',
     }[k] + crash;
   }
@@ -250,6 +252,7 @@ export class UI {
       case 'rslow': this.replay.speedMul = this.replay.speedMul === 1 ? 0.3 : 1; this.toast(this.replay.speedMul === 1 ? 'Normal' : 'Zeitlupe'); break;
       case 'rend': this.showResult(this.lastRace, this.lastRes, this.env); break;
       case 'blur': S.blur = v; this.store.save(); if (A.quality.post) A.quality.post.autoOff = false; this.showSettings(); break;
+      case 'brakehelp': S.brakeHelp = v; this.store.save(); if (window.__game && window.__game.race) window.__game.race.brakeHelp = v; this.showSettings(); break;
       case 'quality': S.quality = v; this.store.save(); A.quality.forced = v === 'auto' ? null : v; if (v !== 'auto') A.quality.tier = +v; dispatchEvent(new Event('resize')); this.showSettings(); break;
       default: break;
     }
@@ -418,6 +421,9 @@ export class UI {
       <p class="hint">${S.extras
         ? `Je Runde <b>1× Hüpfer</b> (🦘, ~3,5 m hoch, nur mit Bodenkontakt, nicht in Looping/Röhre/Korkenzieher/an Schanzen) und <b>1× Nitro</b> (🔥, ${NITRO.dur} s kräftiger Schub). An Start/Ziel wieder voll. <span class="desk">Leertaste / Shift oder N, </span>Gamepad B / RB.${S.autoExtras ? ' Auf <b>Leicht</b> zündet der Autopilot den Nitro auf der längsten Geraden und hüpft nur, wo es sicher ist (über Bodenwellen) – du kannst jederzeit selbst drücken.' : ''}`
         : '<b>Aus:</b> ohne Hüpfer und Nitro wie im Original. Bestzeiten mit und ohne Extras werden getrennt gezählt.'}</p>
+      <div class="lbl">Bremshilfe (Mittel)</div>
+      <div class="seg" data-g="brakehelp">${Object.entries(BRAKE_HELP_MODES).map(([k, n]) => `<button data-a="brakehelp" data-v="${k}" class="${(S.brakeHelp || 'hint') === k ? 'on' : ''}">${n}</button>`).join('')}</div>
+      <p class="hint">${{ off: '<b>Aus:</b> keine Anzeige, kein Eingriff – nur die farbige Ideallinie.', hint: '<b>Hinweis</b> (Standard): Kurz „Bremsen!“ mit Ton, wenn du vor einer Kurve oder einem Stunt zu schnell bist. Die Hilfe bremst nie selbst.', soft: '<b>Sanft:</b> wie Hinweis; zusätzlich bremst die Hilfe leicht mit, wenn du deutlich zu schnell bist (> 15 %) und nicht Vollgas gibst. Vollgas gibt sie sofort frei.' }[S.brakeHelp || 'hint']}</p>
       <div class="lbl">Crash</div>
       <div class="row">${onoff('wreck', '💥 Totalschaden')}</div>
       <p class="hint">${S.wreck
@@ -428,7 +434,7 @@ export class UI {
       ${this.lineSeg()}
       <p class="hint">${S.assist === 'original'
         ? 'Auf <b>Original</b> gibt es keine Ideallinie – die Einstellung gilt für Leicht und Mittel.'
-        : 'Farbiges Band auf der Fahrbahn (grün Gas, gelb vom Gas, rot bremsen, blau Luft): außen anfahren, innen am Scheitel, außen raus. Keile am Innenrand markieren die Scheitelpunkte. Nur die Anzeige – die Lenkhilfe bleibt gleich.'}
+        : 'Farbiges Band auf der Fahrbahn wie bei Forza (grün Gas, gelb Gas weg, orange bis rot bremsen – je dunkler, desto stärker –, blau Luft; berechnet aus dem Tempo-Profil): außen anfahren, innen am Scheitel, außen raus. Keile am Innenrand markieren die Scheitelpunkte. Nur die Anzeige – die Lenkhilfe bleibt gleich.'}
       Im Rennen umschalten: Knopf oben rechts, <span class="desk">Taste <b>L</b>, </span>Gamepad <b>Back</b>.</p>
       <div class="lbl">Lackfarbe</div>
       <div class="row">${PAINTS.map((p, i) => `<button data-a="paint" data-v="${i}" class="sw ${S.paint === p.color ? 'on' : ''}" style="--c:#${p.color.toString(16).padStart(6, '0')}">${p.name}</button>`).join('')}</div>
@@ -441,7 +447,7 @@ export class UI {
   showHelp() {
     this.sheet('Steuerung', `
       <p><b>Handy (quer oder hochkant):</b> Fahrhilfe <i>Leicht</i>: linke/rechte Bildschirmhälfte halten zum Lenken – Gas macht das Auto. Oder in den Optionen „Lenken durch Neigen“ (hochkant: seitlich kippen oder wie ein Lenkrad drehen). Drehst du das Handy im Rennen, pausiert es kurz – weiter mit „▶ Weiter“.</p>
-      <p><b>Leicht:</b> Ohne Lenken fährt das Auto allein auf der Ideallinie. Lenkst du deutlich (kurz halten), hast <b>du Vorrang</b>: Die Hilfe lässt los, du kannst die Fahrbahn verlassen und durchs Gelände fahren. Loslassen – die Hilfe blendet weich ein und führt dich sanft zurück. Deine Bremse geht immer vor. Loopings, Röhren, Korkenzieher und Sprünge lenkt weiter das Auto; vorher steht oben „… voraus – Autopilot lenkt“. Gilt für Tastatur, Gamepad, Touch und Neigen.</p>
+      <p><b>Leicht:</b> Die Hilfe hält das Auto sicher auf der Fahrbahn und lenkt einen Teil jeder Kurve. Die Ideallinie triffst du, wenn du in Kurven etwas mitlenkst – ohne Lenken driftet das Auto nach außen und verliert Zeit. Drückst du deutlich über den Rand hinaus (kurz halten), hast <b>du Vorrang</b>: Die Hilfe lässt los, du kannst die Fahrbahn verlassen und durchs Gelände fahren. Loslassen – die Hilfe blendet weich ein und führt dich sanft zurück. Deine Bremse geht immer vor. Loopings, Röhren, Korkenzieher und Sprünge lenkt weiter das Auto; vorher steht oben „… voraus – Autopilot lenkt“. Gilt für Tastatur, Gamepad, Touch und Neigen.</p>
       <p><i>Mittel/Original</i>: links ◀ ▶ lenken, rechts GAS und BREMSE (hochkant alle unten in einer Reihe). Bremse im Stand = Rückwärtsgang.</p>
       <p><b>Tastatur:</b> Pfeile oder WASD (bremsen: Pfeil runter/S), <b>Leertaste</b> Hüpfer, <b>Shift</b> oder <b>N</b> Nitro, <b>R</b> zurückspulen, <b>C</b> Kamera (Verfolger, Cockpit, Hubschrauber, Stoßstange, Strecke), <b>L</b> Ideallinie ein/aus, <b>Esc</b> Pause.</p>
       <p><b>Gamepad:</b> linker Stick lenken, RT/A Gas, LT/X Bremse, <b>B</b> Hüpfer, <b>RB</b> Nitro, Y zurückspulen, LB Kamera, Back Ideallinie, Start Pause.</p>
@@ -488,7 +494,7 @@ export class UI {
     if (ht !== this._hint) {
       this._hint = ht;
       const E = $('#hud .hint2');
-      if (ht) E.textContent = (hd.kind === 'stunt' ? '🤖 ' : '') + ht;
+      if (ht) E.textContent = (hd.kind === 'stunt' ? '🤖 ' : hd.kind === 'brake' ? '▼ ' : '') + ht;
       E.className = 'hint2' + (ht ? ' show ' + hd.kind : '');
     }
     const t = race.state === 'countdown' ? 0 : race.time;

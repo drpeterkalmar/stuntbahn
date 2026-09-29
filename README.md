@@ -72,8 +72,8 @@ spielbar am Handy (quer oder hochkant), mit Gamepad oder Tastatur. Als App insta
 ## Fahrhilfen
 | Stufe | Was hilft |
 |---|---|
-| 🟢 **Leicht** | Gas automatisch (Bremse des Spielers geht vor). Ohne Lenken fährt das Auto allein die Ideallinie; deutlicher Lenkeinschlag (kurz gehalten) gibt dem Spieler Vorrang – auch quer durchs Gelände, Loslassen führt weich zurück. Loopings, Röhren, Korkenzieher und Sprünge lenkt das Auto selbst (mit Ansage im HUD). Handy: linke/rechte Bildschirmhälfte halten (oder Neigen). |
-| 🟡 **Mittel** | Bremsassistent, leichter Zug zur Linie (in Stunts stärker), Stabilitätshilfe, farbige Ideallinie (grün = Gas, gelb = vom Gas, rot = bremsen), Rückspul-Knopf. |
+| 🟢 **Leicht** | Gas automatisch (Bremse des Spielers geht vor). **Mitlenken statt Schienen** (seit 29.09.2026): Die Hilfe hält das Auto auf der Fahrbahn und lenkt einen Teil jeder Kurve; die Ideallinie trifft man mit etwas Mitlenken, ohne Lenken driftet das Auto nach außen und wird langsamer (`?lk=0` = alte Schienen, `?lk=0.5` weniger mitlenken). Wer deutlich über den Rand hinaus drückt, hat Vorrang – auch quer durchs Gelände, Loslassen führt weich zurück. Loopings, Röhren, Korkenzieher und Sprünge lenkt das Auto selbst (mit Ansage im HUD), Engstellen und Steilkurven hält es eng auf der Linie. Handy: linke/rechte Bildschirmhälfte halten (oder Neigen). |
+| 🟡 **Mittel** | Du bremst selbst: farbige Ideallinie (grün = Gas, gelb = vom Gas, rot = bremsen, aus dem Tempo-Profil) und kurzer Brems-Hinweis „Bremsen!“ mit Ton. Optionen → „Bremshilfe“ Aus / **Hinweis** / Sanft (bremst leicht mit bei > 15 % Übertempo ohne Vollgas). Leichter Zug zur Linie (in Stunts stärker), Stabilitätshilfe beim Rutschen (gibt bei deutlichem Gegenlenken nach), Rückspul-Knopf. |
 | 🔴 **Original** | Keine Hilfen – so tricky wie damals. |
 
 Die Fahrhilfe ist jederzeit im Pause-Menü umschaltbar.

@@ -1,11 +1,14 @@
 // Leicht – frei lenkbar (27.09.): Spieler hat Vorrang, weiche Rückführung, Abkürzen lohnt nicht,
 // Stunts lenkt weiter der Autopilot (mit Ansage im HUD).
-//  A: 2 s voll links → > 8 m neben der Fahrbahn; loslassen → in ~5 s ohne Crash zurück auf der Linie
-//  B: kleiner Lenkeinschlag (< 0,5) übernimmt nicht – Leicht fährt weiter auf der Linie
+// Seit n14 (29.09.2026) „mitlenken statt Schienen“ (race.js LEICHT): Im Band um die Linie hält die Hilfe nicht
+// gegen, sie übernimmt erst, wenn die Eingabe außerhalb des Bandes weiter wegdrückt.
+//  A: 2 s voll links → > 8 m neben der Fahrbahn; Hilfe gibt ≤ 0,6 s nach dem ersten Gegenhalten frei; loslassen →
+//     ohne Crash zurück auf die Fahrbahn
+//  B: kleiner Lenkeinschlag (< 0,5) übernimmt nicht – das Auto bleibt auf dem Asphalt
 //  C: Abkürzen quer durch die Wiese einer Kehre bringt keine Zeit (auch nicht auf Mittel/Original)
 //  D: Spieler lenkt dauernd voll – Looping trotzdem sauber, vorher Ansage „Looping voraus – Autopilot lenkt“
 import { chain, setup } from './common.mjs';
-import { Race, FREE } from '../../src/game/race.js';
+import { Race, FREE, LEICHT } from '../../src/game/race.js';
 import { generate } from '../../src/track/generator.js';
 import { verifySync } from '../../src/track/verify.js';
 import { WORLD_SCALE } from '../../src/track/defs.js';
@@ -32,21 +35,26 @@ const offLine = (race) => { const c = race.car.pos, i = race.ap.tr.idx; return M
   // das stärkere Auto wäre nach 2,2 s schon 100 km/h schnell)
   for (let k = 0; k < 6 / DT && !(race.state === 'running' && race.car.fwdSpeed() >= +(process.env.V0 || 21.7)); k++) race.step(DT, zero);
   const v0 = race.car.fwdSpeed();
-  let tOwn = null, t = 0;
+  let tOwn = null, tRes = null, t = 0;
   const ev1 = [];
   // Tastatur wie im Spiel (input.js): Lenkung rampt mit 3,2/s ein und 6/s aus
   let ks = 0;
   for (let k = 0; k < 2 / DT; k++) {
     ks = Math.max(-1, ks - 3.2 * DT);
     race.step(DT, { steer: ks, throttle: 0, brake: 0 }); t += DT;
+    // ab wann hält die Hilfe gegen? (n14: erst außerhalb des Bandes um die Linie; bis n13 sofort)
+    if (tRes === null && (LEICHT.lk <= 0 ? Math.abs(ks) > FREE.in : race.ex && Math.sign(race.ex) === Math.sign(ks))) tRes = t;
     if (tOwn === null && race.own >= 1) tOwn = t;
     ev1.push(...race.events); race.events.length = 0;
   }
   const side = offRoad(race);
-  check(tOwn !== null && tOwn <= 0.16 + FREE.hold + 0.3 + 1e-6, `A1 Übernahme: Zug zur Linie nach ${tOwn && tOwn.toFixed(2)} s ganz aus (Richtwert ≤ 0,66 s: Tastatur-Rampe bis 0,5 in 0,16 s, 0,2 s halten, ≤ 0,3 s Ausblenden), Tempo vorher ${(v0 * 3.6).toFixed(0)} km/h`);
+  // Übernahme: ab dem ersten Gegenhalten (außerhalb des Bandes, Eingabe drückt weiter weg) bis ganz frei höchstens
+  // Weg bis awayEx (~0,1 s) + FREE.hold + FREE.fadeOut + Reserve 0,05 s; bis n13 ab Tastendruck ≤ 0,66 s
+  const lim1 = LEICHT.lk <= 0 ? FREE.hold + 0.3 : 0.15 + FREE.hold + FREE.fadeOut + 0.05;
+  check(tOwn !== null && tRes !== null && tOwn - tRes <= lim1 + 1e-6, `A1 Übernahme: Hilfe hält ab ${tRes && tRes.toFixed(2)} s gegen, ${tOwn && (tOwn - tRes).toFixed(2)} s später ganz frei (≤ ${lim1.toFixed(2)} s), ab Tastendruck ${tOwn && tOwn.toFixed(2)} s, Tempo vorher ${(v0 * 3.6).toFixed(0)} km/h`);
   check(side > 8, `A2 nach 2 s voll links: ${side.toFixed(1)} m neben der Fahrbahn (> 8 m)`);
   // loslassen
-  let back = null, maxJerk = 0, prevSteer = race.lastInput.steer, jAt = '', maxYaw = 0;
+  let back = null, road = null, maxJerk = 0, prevSteer = race.lastInput.steer, jAt = '', maxYaw = 0;
   const ev2 = [];
   const steerLog = [];
   for (let k = 0, t2 = 0; k < 9 / DT; k++) {
@@ -61,12 +69,18 @@ const offLine = (race) => { const c = race.car.pos, i = race.ap.tr.idx; return M
     if (process.env.DBG && k % 15 === 0) console.log(`  ${t2.toFixed(2)} Linie ${offLine(race).toFixed(1)} m psi ${(race.ap.psi * 57.3).toFixed(0)}° v ${race.car.fwdSpeed().toFixed(1)} own ${race.own.toFixed(2)} shift ${race.ap.shift.toFixed(1)} st ${race.lastInput.steer.toFixed(2)} ap ${race.ap.out.steer.toFixed(2)} gnd ${race.car.onGround}`);
     ev2.push(...race.events); race.events.length = 0;
     if (back === null && offLine(race) < 1.0 && race.own === 0) back = t2;
+    if (road === null && offRoad(race) < -0.9 && race.own === 0) road = t2;   // Wagen ganz auf dem Asphalt
   }
   const cr = crashes([...ev1, ...ev2]);
   // Grenze 7 s (bis 27.09. 6 s): mit Rennreifen (mu 1,5) lenkt das Auto bei vollem Einschlag enger ein und steht
-  // nach 2 s voll links steiler zur Strecke (~55° statt ~40°), der Rückweg über die Wiese ist länger
-  check(back !== null && back <= 7 && !cr.length, `A3 losgelassen: zurück auf der Linie (< 1 m) nach ${back && back.toFixed(1)} s (Richtwert ~6 s), Crashs/Resets: ${cr.join(', ') || 'keine'}; Verlauf ${steerLog.slice(0, 8).join(' ')}`);
-  check(maxJerk <= 4.01 && maxYaw < 1.3, `A4 ohne Ruck: größte Lenkänderung der Hilfe ${maxJerk.toFixed(1)}/s (Grenze 4/s, Tastatur rampt mit 3,2–8/s), größte Gierrate ${maxYaw.toFixed(2)} rad/s`);
+  // nach 2 s voll links steiler zur Strecke (~55° statt ~40°), der Rückweg über die Wiese ist länger. Seit n14
+  // (mu 1,7, Mitlenk-Modell) dreht es nach 2 s voll links bis quer zur Strecke (~90°) und die Hilfe zieht im Band
+  // nicht mehr auf die Linie: geprüft wird „wieder ganz auf der Fahrbahn“ (Rückweg über die Wiese mit gemäßigtem
+  // Tempo FREE.offV). Grenze 7,5 s: mit lk = 0 (altes Leicht, neue Physik) 6,6 s; das Band-Modell übernimmt am Ende
+  // der Rückführung ~5 m neben der Linie und flacht den Anfahrwinkel ab (sanfter, ~0,6 s länger).
+  check(road !== null && road <= 7.5 && !cr.length, `A3 losgelassen: wieder ganz auf der Fahrbahn nach ${road && road.toFixed(1)} s (≤ 7,5 s; auf der Linie < 1 m nach ${back ? back.toFixed(1) + ' s' : '—'}), Crashs/Resets: ${cr.join(', ') || 'keine'}; Verlauf ${steerLog.slice(0, 8).join(' ')}`);
+  // Gierrate: mit mu 1,7 (n14) dreht der volle Autopilot-Einschlag auf der Wiese schneller als mit 1,5 → Grenze 1,5 rad/s
+  check(maxJerk <= 4.01 && maxYaw < 1.5, `A4 ohne Ruck: größte Lenkänderung der Hilfe ${maxJerk.toFixed(1)}/s (Grenze 4/s, Tastatur rampt mit 3,2–8/s), größte Gierrate ${maxYaw.toFixed(2)} rad/s (< 1,5)`);
   run(race, 60, zero);
   check(race.state === 'finished', `A5 danach fährt Leicht allein ins Ziel (${race.state})`);
 }
@@ -75,8 +89,11 @@ const offLine = (race) => { const c = race.car.pos, i = race.ap.tr.idx; return M
 {
   const race = new Race(env, { assist: 'easy', countdown: 0.2 });
   run(race, 4, { steer: 0, throttle: 0, brake: 0 });
-  run(race, 3, { steer: -0.4, throttle: 0, brake: 0 });
-  check(race.own === 0 && offRoad(race) < -1, `B  Lenkeinschlag 0,4 für 3 s: keine Übernahme (Anteil Spieler ${race.own}), Auto bleibt auf der Fahrbahn (${(-offRoad(race)).toFixed(1)} m vor der Kante)`);
+  // bis n13 blieb das Auto dabei auf der Linie; seit n14 schiebt der Daumen es zum Bandrand – die Hilfe hält es auf dem
+  // Asphalt (Wagenmitte ≥ 0,9 m vor der Kante = Räder auf der Fahrbahn), auch bei ~250 km/h auf der langen Geraden
+  let worst = -1e9;
+  run(race, 3, (r) => { worst = Math.max(worst, offRoad(r)); return { steer: -0.4, throttle: 0, brake: 0 }; });
+  check(race.own === 0 && worst < -0.9, `B  Lenkeinschlag 0,4 für 3 s: keine Übernahme (Anteil Spieler ${race.own}), Auto bleibt auf der Fahrbahn (mindestens ${(-worst).toFixed(1)} m vor der Kante)`);
 }
 
 // ---- C: Abkürzen ----

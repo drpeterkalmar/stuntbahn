@@ -316,7 +316,7 @@ function startRace(opts = {}) {
   replay = null;
   if (fx) fx.reset();
   const S = store.settings;
-  race = new Race(env, { assist: S.assist, wreck: S.wreck, autopilot: !!opts.autopilot, extras: S.extras, autoExtras: S.autoExtras });
+  race = new Race(env, { assist: S.assist, wreck: S.wreck, autopilot: !!opts.autopilot, extras: S.extras, autoExtras: S.autoExtras, brakeHelp: S.brakeHelp });
   // Sammlung: „zuletzt gefahren“ / „noch nie gefahren“
   if (env.meta.sam) { S.samPlayed = { ...(S.samPlayed || {}), [env.meta.key]: Date.now() }; store.save(); }
   ghost = new Ghost(store.loadGhost(env.meta.key, S.assist, race.wreckOn, race.extrasOn));
