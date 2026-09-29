@@ -37,14 +37,17 @@ export const BRAKE_HELP_MODES = { off: 'Aus', hint: 'Hinweis', soft: 'Sanft' };
 
 // Leicht „mitlenken statt Schienen“ (Peter 28.09.2026: „ein bisschen mitlenken müssen, um auf der Ideallinie zu
 // bleiben“, n14). Die Hilfe liefert nur (1 − lk) der Kurven-Vorsteuerung; den Rest lenkt der Spieler. Um die Linie
-// liegt ein Band (± dz m, nie über die Fahrbahngrenze der Ideallinie hinaus = Rad-Außenkante 0,4 m vor der Kante;
-// an Engstellen daher schmal): darin kein Zug zur Linie, nur eine halbe Kurshaltung (hold) gegen Schlingern. Wer das
-// Band verlässt (vorausschauend: Lage in look s), wird wie vom Autopiloten (Kurs + Querfehler, Verstärkung kE statt
-// 2,4 – hält auch bei Tempo gegen einen schiefen Daumen) zum Bandrand zurückgeführt, höchstens mit vlat m/s bzw. vlatK × Tempo quer (die Hilfe allein bringt das Auto nie ins
-// Schleudern). In Kurven nimmt die Tempo-Automatik ab
-// slowFrom m neben der Linie Tempo raus, am Bandrand bis slow (Anteil). Freies Lenken (Übernahme) nur, wenn die Eingabe außerhalb des Bandes weiter von der
-// Linie wegdrückt – Mitlenken in die Kurve bleibt Hilfe. lk = 0 (URL ?lk=0): Verhalten bis n13 (Zug 82 %).
-export const LEICHT = { lk: Math.max(0, Math.min(1, urlNum('lk') ?? 0.8)), dz: 3.5, dzBank: 1.0, vFast: [30, 60], fastMin: 0.3, hold: 0.05, look: 0.3, lookBand: 0.8, kE: 8, vlat: 4, vlatK: 0.12, slow: 0.3, slowFrom: 1.1, gain: 0.6, awayEx: 0.5 };
+// liegt ein Band (± dz m; ab vFast[0] m/s schmaler bis fastMin × dz bei vFast[1]; nie über die Fahrbahngrenze der
+// Ideallinie hinaus, an Steilkurven dzBank, vor Engstellen und angekündigten Stunts weich auf 0): darin kein Zug zur
+// Linie, nur eine schwache Kurshaltung (hold) gegen Schlingern. Wer das Band verlässt (vorausschauend: Lage in look s),
+// wird wie vom Autopiloten (Kurs + Querfehler, Verstärkung kE) zum Bandrand zurückgeführt, höchstens mit vlat m/s bzw.
+// vlatK × Tempo quer (die Hilfe allein bringt das Auto nie ins Schleudern). Die Tempo-Automatik nimmt ab slowFrom m
+// neben der Linie Tempo raus, am Bandrand bis slow (Anteil). Freies Lenken (Übernahme) nur, wenn die Eingabe außerhalb
+// des Bandes weiter von der Linie wegdrückt (> awayEx m) – Mitlenken in die Kurve bleibt Hilfe.
+// URL: ?lk=0…1 (Mitlenk-Anteil; 0 = Verhalten bis n13, Zug 82 %), ?lkband=m (Band ±, Standard 3,5). Wie weit das
+// Auto bei „Hände weg“ treibt, hängt vor allem am Band (gemessen, 4 Strecken: lk 0,8 → 0,9 Ø 1,34–1,75 → 1,38–1,78 m;
+// Band 3,5 → 4 m: 1,44–1,93 m, aber der Kind-Bot crasht dann öfter)
+export const LEICHT = { lk: Math.max(0, Math.min(1, urlNum('lk') ?? 0.8)), dz: Math.max(0.5, Math.min(8, urlNum('lkband') ?? 3.5)), dzBank: 1.0, vFast: [30, 60], fastMin: 0.3, hold: 0.05, look: 0.3, lookBand: 0.8, kE: 8, vlat: 4, vlatK: 0.12, slow: 0.3, slowFrom: 1.1, gain: 0.6, awayEx: 0.5 };
 // Abkürzen (alle Stufen): neben der Fahrbahn mehr Streckenfortschritt als gefahrene Strecke → zurück an die
 // Stelle, wo das Auto die Fahrbahn verlassen hat (Uhr läuft weiter). Toleranz CUT_TOL m + 15 % der Strecke.
 // Erlaubter Gewinn beim Kurven-Schneiden hängt an der Fahrbahnbreite (bis 27.09.2026 fest 8 m bei 4,5 m)
