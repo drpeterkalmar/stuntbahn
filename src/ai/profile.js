@@ -77,11 +77,11 @@ export function genericJumpWindow(L, lip, land) {
 //              statt vbest (unteres Drittel des Fensters)
 // Bis n13 (Vergleich ?grip=1): res 0,82, vNarrow 15,5, crestAero aus, brakeCircle 0 (Pauschalwert brake), jumpSafe 0.
 // n14 (29.09.2026, Messung in FAHRGEFUEHL_BERICHT.md): Kurven 76 % der jetzt höheren Haftung (Bots wie Menschen
-// behalten Reserve), Engstellen 30 m/s (Querfehler in der Slalom-Gasse wächst mit dem Tempo nicht), Kuppen mit
+// behalten Reserve), Engstellen 25 m/s (Querfehler in der Slalom-Gasse wächst mit dem Tempo kaum; bei 25 m/s scheitert keine der 244 Slalom-Strecken der Sammlung ohne Hilfen, bei 22 und 30 m/s je eine), Kuppen mit
 // Abtrieb, Bremsplan aus dem Haftungskreis (70 %), Schanze 1,5 m/s unter der Fenster-Obergrenze (Landung bleibt auf der Rampe).
 export const PROF = GRIP_ALT
   ? { res: 0.82, resPre: 0.65, preLen: 25, aero: 0.8, nmin: 0.45, nmax: 6.2, brake: 8, vNarrow: 15.5, rollMax: 3.2, crestAero: false, brakeCircle: 0, jumpSafe: 0 }
-  : { res: 0.76, resPre: 0.65, preLen: 25, aero: 0.8, nmin: 0.45, nmax: 6.2, brake: 8, vNarrow: 30, rollMax: 3.2, crestAero: true, brakeCircle: 0.7, jumpSafe: 1.5 };
+  : { res: 0.76, resPre: 0.65, preLen: 25, aero: 0.8, nmin: 0.45, nmax: 6.2, brake: 8, vNarrow: 25, rollMax: 3.2, crestAero: true, brakeCircle: 0.7, jumpSafe: 1.5 };
 
 export function computeProfile(L, opts = {}) {
   const n = L.n;
@@ -183,9 +183,11 @@ export function computeProfile(L, opts = {}) {
     // Anlauf bis zur Lippe: Zieltempo vbest, Mindesttempo vmin
     // Anlauf: Standard-Schanze in Auto-Maßstab (JUMP_T), Import-Rampen über ein ganzes Feld
     const runup = j.gen ? TILE : JUMP_T;
-    // Ziel an der Lippe: vbest (unteres Drittel des Fensters) bzw. mit PROF.jumpSafe das höchste Tempo, das noch
-    // sicher im Fenster landet (Obergrenze minus Reserve für den Regler); Not-Fenster ohne sauberen Bereich: vbest
-    const vAim = PROF.jumpSafe > 0 && !w.fallback ? Math.max(w.vbest, w.vmax - PROF.jumpSafe) - 0.6 : w.vbest;
+    // Ziel an der Lippe: vbest (unteres Drittel des Fensters) bzw. mit PROF.jumpSafe bei der Standard-Schanze das
+    // höchste Tempo, das noch sicher landet (Obergrenze minus Reserve für den Regler; gemessen: Landung bleibt auf der
+    // Rampe, tools/jump_measure.mjs). Import-Sprünge (j.gen) bleiben bei vbest: ihr Fenster kennt nur die Landung,
+    // nicht den Platz dahinter – in Sprung-Ketten kam das Auto sonst zu schnell zur nächsten Lippe (AP_HARD3.TRK)
+    const vAim = PROF.jumpSafe > 0 && !w.fallback && !j.gen ? Math.max(w.vbest, w.vmax - PROF.jumpSafe) - 0.6 : w.vbest;
     w.vaim = vAim + 0.6;
     for (let i = li; i >= 0 && L.s[li] - L.s[i] < runup; i--) { vmax[i] = Math.min(vmax[i], vAim + 0.6); vmin[i] = Math.max(vmin[i], w.vmin + 0.6); if (D) dl('schanze')[i] = vAim + 0.6; }
     for (let i = li + 1; i < n && L.air[i]; i++) { vmax[i] = Math.max(vAim + 0.6, 10); vmin[i] = 0; if (D) dl('luft')[i] = vmax[i]; }
