@@ -1,11 +1,25 @@
-// Farbige Ideallinie (Fahrhilfe Mittel/Leicht): grün = Gas, gelb = vom Gas, rot = bremsen, blau = Luft.
-// Ein Band knapp über der Fahrbahn; Farbe aus dem Tempo-Profil (Ziel vs. erreichbares Tempo).
+// Farbige Ideallinie (Fahrhilfe Mittel/Leicht) wie bei Forza: grün = Gas, gelb = Gas weg, orange → rot = bremsen
+// (je dunkler, desto stärker), blau = Luft. Ein Band knapp über der Fahrbahn; Farben aus dem Pedal-Plan des Tempo-
+// Profils (profile.js pedalPlan: Soll-Verzögerung gegen Ausrollen, n14) – bis n13 eine Faustregel („rot, wenn das
+// Ziel-Tempo in den nächsten 90 m um > 6 m/s fällt“), die weit vor dem Bremspunkt rot färbte.
 // Scheitelpunkte (I.apex): flacher Keil von der Linie zum Innenrand, in Linienfarbe – zeigt, wo die Linie
 // die Kurve innen berührt. Teil desselben Meshes, folgt also Sichtbarkeit und Stufe der Linie.
 // Anzeige-Stufe (Einstellung „Ideallinie“): Aus / Dezent / Kräftig. Breite, Deckkraft, weicher Rand und
 // Ausblenden in der Ferne sind Uniforms – ein Stufenwechsel baut nichts neu.
 import * as THREE from 'three';
 import { WORLD_SCALE } from '../track/defs.js';
+import { pedalPlan } from '../ai/profile.js';
+
+// Farben (linear, vor Tonemapping): Gas, Gas weg, Bremsen leicht → voll, Luft
+export const LINE_COLORS = { gas: [0.15, 0.95, 0.25], lift: [1.0, 0.85, 0.1], brakeLo: [1.0, 0.55, 0.08], brakeHi: [1.0, 0.1, 0.08], air: [0.2, 0.7, 1.0] };
+// Farbe einer Stelle aus dem Pedal-Plan (cls 0 Gas, 1 Gas weg, 2 bremsen, 3 Luft; brake 0 … 1 = nötiger Bremsdruck)
+export function lineColor(cls, brake) {
+  const C = LINE_COLORS;
+  if (cls === 3) return C.air;
+  if (cls === 1) return C.lift;
+  if (cls === 2) { const u = Math.min(1, brake / 0.6); return C.brakeLo.map((x, k) => x + (C.brakeHi[k] - x) * u); }
+  return C.gas;
+}
 
 // half = halbe Bandbreite (m), edge = ab welchem Anteil der Halbbreite es zum Rand hin ausblendet
 // (0 = Verlauf über die ganze Breite, ~0,8 = fast harte Kante), near/far = Ausblenden mit der Entfernung (m)
@@ -61,7 +75,8 @@ export class LineViz {
     const n = L.n, lift = 0.05;
     // je Linienpunkt zwei Ecken (side −1/+1); die Breite setzt der Vertex-Shader über die Binormale
     const pos = new Float32Array(n * 2 * 3), bin = new Float32Array(n * 2 * 3), col = new Float32Array(n * 2 * 3), side = new Float32Array(n * 2), idx = [];
-    const vt = prof.vt;
+    const plan = pedalPlan(L, prof);
+    this.plan = plan;
     for (let i = 0; i < n; i++) {
       for (let s = 0; s < 2; s++) {
         const o = (i * 2 + s) * 3;
@@ -69,13 +84,7 @@ export class LineViz {
         bin[o] = L.bx[i]; bin[o + 1] = L.by[i]; bin[o + 2] = L.bz[i];
         side[i * 2 + s] = s ? 1 : -1;
       }
-      // Farbe: Bremszone wenn Zieltempo in den nächsten 40 m deutlich fällt
-      let minAhead = vt[i];
-      for (let k = i, acc = 0; k < n && acc < 45 * WS; k++) { minAhead = Math.min(minAhead, vt[k]); acc += k > i ? L.s[k] - L.s[k - 1] : 0; }
-      const drop = vt[i] - minAhead;
-      let c = [0.15, 0.95, 0.25];
-      if (drop > 6) c = [1.0, 0.18, 0.1]; else if (drop > 2) c = [1.0, 0.85, 0.1];
-      if (L.air[i]) c = [0.2, 0.7, 1.0];
+      const c = lineColor(L.air[i] ? 3 : plan.cls[i], plan.brake[i]);
       for (let s = 0; s < 2; s++) col.set(c, (i * 2 + s) * 3);
       if (i < n - 1 && !L.air[i] && !L.air[i + 1]) { const a = i * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
     }
