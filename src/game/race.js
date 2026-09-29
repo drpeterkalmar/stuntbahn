@@ -44,7 +44,7 @@ export const BRAKE_HELP_MODES = { off: 'Aus', hint: 'Hinweis', soft: 'Sanft' };
 // Schleudern). In Kurven nimmt die Tempo-Automatik ab
 // slowFrom m neben der Linie Tempo raus, am Bandrand bis slow (Anteil). Freies Lenken (Übernahme) nur, wenn die Eingabe außerhalb des Bandes weiter von der
 // Linie wegdrückt – Mitlenken in die Kurve bleibt Hilfe. lk = 0 (URL ?lk=0): Verhalten bis n13 (Zug 82 %).
-export const LEICHT = { lk: Math.max(0, Math.min(1, urlNum('lk') ?? 0.8)), dz: 3.5, dzBank: 1.0, hold: 0.05, look: 0.3, lookBand: 0.8, kE: 8, vlat: 4, vlatK: 0.12, slow: 0.3, slowFrom: 1.1, gain: 0.6, awayEx: 0.5 };
+export const LEICHT = { lk: Math.max(0, Math.min(1, urlNum('lk') ?? 0.8)), dz: 3.5, dzBank: 1.0, vFast: [30, 60], fastMin: 0.3, hold: 0.05, look: 0.3, lookBand: 0.8, kE: 8, vlat: 4, vlatK: 0.12, slow: 0.3, slowFrom: 1.1, gain: 0.6, awayEx: 0.5 };
 // Abkürzen (alle Stufen): neben der Fahrbahn mehr Streckenfortschritt als gefahrene Strecke → zurück an die
 // Stelle, wo das Auto die Fahrbahn verlassen hat (Uhr läuft weiter). Toleranz CUT_TOL m + 15 % der Strecke.
 // Erlaubter Gewinn beim Kurven-Schneiden hängt an der Fahrbahnbreite (bis 27.09.2026 fest 8 m bei 4,5 m)
@@ -392,18 +392,24 @@ export class Race {
   // bei Tempo quer schießen.
   leichtSteer(u, idx) {
     const ap = this.ap, v = Math.abs(this.car.fwdSpeed()), psi = ap.psi || 0;
-    const ex = this.corridor(idx, ap.lat, ap.lat + v * Math.sin(psi) * LEICHT.look);
+    // Vorhersage der Lage in look s aus dem Kurswinkel – nicht in der Anfahrt zu einem angekündigten Stunt: dort
+    // versetzt die Linie ihre Spur (Korkenzieher, Looping), der Kurswinkel zur Linie voraus sähe wie Wegdriften aus
+    const ex = this.corridor(idx, ap.lat, this.zoneNow ? ap.lat : ap.lat + v * Math.sin(psi) * LEICHT.look);
     const sm = (q) => (q <= 0 ? 0 : q >= 1 ? 1 : q * q * (3 - 2 * q));
     const k = LEICHT.hold + (1 - LEICHT.hold) * sm(Math.abs(ex) / 0.5);
     const lim = Math.asin(Math.min(1, Math.max(LEICHT.vlat, LEICHT.vlatK * v) / Math.max(v, 1)));
     const eT = Math.max(-lim, Math.min(lim, Math.atan2(LEICHT.kE * ex, v + 3)));
     const corr = (-k * psi - eT + k * (ap.yawTerm || 0)) / (ap.maxSteer || 0.3);
-    const up = u * LEICHT.gain;   // Spieler-Anteil (grobe Handy-Tipps wirken nicht mit vollem Einschlag)
+    // Spieler-Anteil (grobe Handy-Tipps wirken nicht mit vollem Einschlag); vor einem angekündigten Stunt („… voraus –
+    // Autopilot lenkt“) blendet er mit dem Band aus, damit das Auto gerade und mittig einfädelt
+    const up = u * LEICHT.gain * (this.stuntFade ?? 1);
     // Vorsteuerung auffüllen: höchstens (1 − lk) des Nötigen und nur, was der Spieler in Kurvenrichtung noch nicht
     // selbst lenkt (wer voll mitlenkt, bekommt nichts dazu – sonst lenkte das Auto doppelt ein)
     const F = Math.abs(ap.ffN || 0), sg = Math.sign(ap.ffN || 0), U = up * sg;
     const ff = sg * Math.max(0, Math.min((1 - LEICHT.lk) * F, (1 - LEICHT.lk) * F - (U - LEICHT.lk * F)));
-    return ff + corr + up;
+    // vor einem angekündigten Stunt weich auf die reine Autopilot-Lenkung überblenden (bis zur Übergabe ~1,2 s davor)
+    const sf = this.stuntFade ?? 1;
+    return sf * (ff + corr + up) + (1 - sf) * (ap.out ? ap.out.steer : 0);
   }
   // Band um die Ideallinie: ± dz, begrenzt durch die Fahrbahngrenze der Ideallinie (I.lo/I.hi). Liefert, wie weit das
   // Auto (Vorderachse, lat) außerhalb liegt (0 = im Band), merkt sich Band (freeSteer) und Anteil (Tempo-Abschlag).
@@ -413,15 +419,29 @@ export class Race {
     // Stunt angekündigt (freeSteer): Band schrumpft bis zur Übergabe an den Autopiloten (~1,2 s davor) weich auf 0 –
     // das Auto ist dann schon auf der Linie und fädelt ruhig in Looping, Röhre, Korkenzieher oder Schanze ein
     const v = Math.abs(this.car.fwdSpeed()), Z = this.zoneNow;
-    let dz = LEICHT.dz;
+    // bei hohem Tempo schmaler (ab vFast[0] m/s weich bis auf fastMin des Bandes bei vFast[1]): Mitlenken zählt in
+    // Kurven; bei 200+ km/h ließ ein breites Band das Auto an Leitplanken, Hochstraßen-Wände und Bauwerke treiben
+    const uF = Math.max(0, Math.min(1, (v - LEICHT.vFast[0]) / (LEICHT.vFast[1] - LEICHT.vFast[0])));
+    let dz = LEICHT.dz * (1 - (1 - LEICHT.fastMin) * uF * uF * (3 - 2 * uF));
+    this.stuntFade = 1;
     if (Z && !Z.inside) {
       const lead = Math.max(20, v * 1.2), pre = Math.max(FREE.preMin, v * FREE.pre);
-      dz *= Math.max(0, Math.min(1, (Z.dist - lead) / Math.max(1, pre - lead)));
+      this.stuntFade = Math.max(0, Math.min(1, (Z.dist - lead) / Math.max(1, pre - lead)));
+      dz *= this.stuntFade;
     }
     // überhöhte Fahrbahn (Steilkurven und ihre Übergänge): schmales Band wie die Ideallinie dort (KEEP_BANK) –
     // neben der Linie rutscht ein Auto die Flanke hinab bzw. hebt am verwundenen Übergang ab
     const B = this.env.track.line;
     if (Math.abs(B.by[idx]) > 0.12) dz = Math.min(dz, LEICHT.dzBank);
+    // Engstelle voraus (Slalom, Stunt-Spur: Linien-Grenzen < 1 m breit): Band wie vor Stunts rechtzeitig auf 0
+    const lo0 = I.blo || I.lo, hi0 = I.bhi || I.hi;
+    const jn = this.ap.ahead(idx, Math.max(20, v * 2.2));
+    for (let j = idx, c = 0, d = 0; c < 600; c++) {
+      if (hi0[j] - lo0[j] < 1) { const lead = Math.max(10, v * 1.0); dz *= Math.max(0, Math.min(1, (d - lead) / Math.max(1, v * 1.2))); break; }
+      if (j === jn) break;
+      const k = j + 1 >= I.n ? (I.closed ? 1 : I.n - 1) : j + 1;
+      d += Math.max(0, I.s[k] - I.s[j]); j = k;
+    }
     // selbst gezündeter Nitro (Extras automatisch): der geplante Zeitgewinn setzt die Linie voraus → schmales Band
     if (this.autoNitro && this.nitroT >= 0) dz = Math.min(dz, LEICHT.dzBank);
     let lo = -dz, hi = dz;
@@ -429,7 +449,7 @@ export class Race {
     const j1 = this.ap.ahead(idx, v * LEICHT.lookBand + 3);
     for (let j = idx, c = 0; c < 400; c++) {
       if (Math.abs(B.by[j]) > 0.12) { lo = Math.max(lo, -LEICHT.dzBank); hi = Math.min(hi, LEICHT.dzBank); }
-      lo = Math.max(lo, I.lo[j]); hi = Math.min(hi, I.hi[j]);
+      lo = Math.max(lo, lo0[j]); hi = Math.min(hi, hi0[j]);
       if (j === j1) break;
       j = j + 1 >= I.n ? (I.closed ? 1 : I.n - 1) : j + 1;
     }

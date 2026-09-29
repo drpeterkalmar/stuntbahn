@@ -146,6 +146,10 @@ export function computeIdeal(L, opts = {}) {
   }
   const I = makeLine(L, off);
   I.apex = findApexes(L, off, bd);
+  // Grenzen, in denen die Linie selbst bleibt (Randzuschlag, Stunt-/Steilkurven-Spur), relativ zur Ideallinie –
+  // die Fahrhilfe „Leicht“ lässt das Auto nur innerhalb davon treiben (race.js corridor, n14)
+  I.blo = new Float32Array(n); I.bhi = new Float32Array(n);
+  for (let i = 0; i < n; i++) { I.blo[i] = bd.lo[i] - off[i]; I.bhi[i] = bd.hi[i] - off[i]; }
   return I;
 }
 
