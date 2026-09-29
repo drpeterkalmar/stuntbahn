@@ -6,7 +6,7 @@ import { makeMaterials, shadowUniforms } from './gfx/materials.js';
 import { makeSky, makeEnvironment, loadSkyInfo, sunDirFromUV, bakeStaticShadow } from './gfx/env.js';
 import { buildWorld, STATIC_LAYER } from './gfx/world.js';
 import { makeCar, loadCarModel, parkedCarGeometry } from './gfx/carmesh.js';
-import { CameraRig, CAM_MODES, CAM_NAMES } from './gfx/camera.js';
+import { CameraRig, CAM_MODES, CAM_NAMES, cockpitDash, clearLens } from './gfx/camera.js';
 import { Cockpit } from './gfx/cockpit.js';
 import { displayGear } from './gfx/gauges.js';
 import { Input } from './game/input.js';
@@ -127,7 +127,8 @@ async function boot() {
   ui.loading(0.6, 'Auto lackieren …');
   carVis = await makeCar({ color: store.settings.paint });
   scene.add(carVis.root);
-  post.setCarBox(carLocalBox(carVis));
+  rig.carBox = carLocalBox(carVis);   // Stoßstangen-Kamera: vor die Nase
+  post.setCarBox(rig.carBox);
   ghostVis = await makeCar({ color: 0xffffff });
   ghostVis.root.traverse((o) => {
     if (o.isMesh && !o.userData.fx) {   // Nitro-Flammen des Geists bleiben Flammen
@@ -245,6 +246,7 @@ async function importFiles(files) {
 function deleteImported(id) {
   trkLib.remove(id);
   for (const k of Object.keys(store.best)) if (k.startsWith(id + '|')) delete store.best[k];
+  delete store.times[id];
   // Geister aller Wertungen (Physik, Weltmaßstab) dieser Strecke
   try { for (const k of Object.keys(localStorage)) if (k.startsWith('stuntbahn.ghost.' + id + '|')) localStorage.removeItem(k); } catch { /* egal */ }
   store.save();
@@ -319,7 +321,8 @@ function startRace(opts = {}) {
   race = new Race(env, { assist: S.assist, wreck: S.wreck, autopilot: !!opts.autopilot, extras: S.extras, autoExtras: S.autoExtras, brakeHelp: S.brakeHelp });
   // Sammlung: „zuletzt gefahren“ / „noch nie gefahren“
   if (env.meta.sam) { S.samPlayed = { ...(S.samPlayed || {}), [env.meta.key]: Date.now() }; store.save(); }
-  ghost = new Ghost(store.loadGhost(env.meta.key, S.assist, race.wreckOn, race.extrasOn));
+  // Leicht (n15): kein Geisterauto (keine Bestzeit-Wertung)
+  ghost = new Ghost(S.assist === 'easy' ? null : store.loadGhost(env.meta.key, S.assist, race.wreckOn, race.extrasOn));
   ghostVis.root.visible = !!ghost.data && store.settings.ghost;
   rig.mode = CAM_MODES.includes(store.settings.cam) ? store.settings.cam : 'chase';
   rig.init = false;
@@ -337,7 +340,7 @@ async function newTrack(seed, diff) {
   ui.showMenu(env);
   mode = 'menu';
 }
-function setAssist(k) { store.settings.assist = k; store.save(); if (race) race.setAssist(k); ui.refresh(); ui.assistChanged(); }
+function setAssist(k) { store.settings.assist = k; store.save(); if (race) race.setAssist(k); if (k === 'easy' && ghostVis) ghostVis.root.visible = false; ui.refresh(); ui.assistChanged(); }
 function setPaint(c) { store.settings.paint = c; store.save(); carVis.setPaint(c); }
 function toMenu() { mode = 'menu'; replay = null; sound.stop(); race = new Race(env, { assist: store.settings.assist, countdown: 1e9 }); ui.showMenu(env); }
 function startReplay() {
@@ -419,7 +422,7 @@ function handleEvents() {
     // Auto versetzt (Reset/Überspringen/Rückspulen): Kamera neu ansetzen, keine Zwischenbild-Interpolation
     if (e.type === 'reset' || e.type === 'skip' || e.type === 'rewind') { rig.init = false; prevPose = null; blurCut = true; }
     if (e.type === 'finish') {
-      const res = store.submit(env.meta.key, race.assistKey, race.wreckOn, race.finalTime, race.ghostRec(), { ...env.meta, penalties: race.penalties, extras: race.extrasOn, nitro: race.nitroLog });
+      const res = store.submit(env.meta.key, race.assistKey, race.wreckOn, race.finalTime, race.assistKey === 'easy' ? null : race.ghostRec(), { ...env.meta, penalties: race.penalties, extras: race.extrasOn, nitro: race.nitroLog });
       ui.showResult(race, res, env);
       sound.stop();
     }
@@ -428,7 +431,9 @@ function handleEvents() {
 }
 
 // Cockpit-Layout: freie Zone zwischen den Touch-Tasten (Querformat) bzw. über den Tasten (Hochformat: Tasten
-// in einer Reihe unten) bzw. über der Replay-Leiste; Gestenleiste (safe-area unten) bleibt frei.
+// in einer Reihe unten, Instrumente zwischen Hüpfer und Nitro) bzw. über der Replay-Leiste; Gestenleiste
+// (safe-area unten) bleibt frei. Reicht die Lücke nicht, wählt das Cockpit selbst „compact“ oder „hud“ – das
+// Armaturenbrett rückt dafür nicht mehr nach oben (n15: Fahrbahn bleibt sichtbar).
 // DOM-Maße nur alle 15 Bilder lesen (erzwingt sonst jedes Bild eine Layout-Berechnung).
 let cpZone = null, cpZoneF = -1e9;
 function cockpitZone() {
@@ -439,15 +444,15 @@ function cockpitZone() {
   let zl = W / 2 - half, zr = W / 2 + half, bottom = ui.safeBottom();
   // Touch-Tasten und (am Touch-Gerät) die Extras-Knöpfe über den Daumen halten die Instrumente frei
   const touch = document.body.dataset.touch && document.body.dataset.touch !== 'none';
-  const rects = [...document.querySelectorAll('#touch.show.pads .pad' + (touch ? ', #hud.show .xb' : ''))].map((p) => p.getBoundingClientRect()).filter((r) => r.width);
-  let gl = zl, gr = zr;
-  for (const r of rects) { if (r.left < W / 2) gl = Math.max(gl, r.right + 12); else gr = Math.min(gr, r.left - 12); }
-  // Lücke zwischen den Tasten zu schmal für die Instrumente (Hochformat) → Instrumente über die Tasten
-  if (rects.length && (H > W || gr - gl < 200)) bottom = Math.max(bottom, H - Math.min(...rects.map((r) => r.top)) + 10);
-  else { zl = gl; zr = gr; }
+  const rect = (sel) => [...document.querySelectorAll(sel)].map((p) => p.getBoundingClientRect()).filter((r) => r.width);
+  const pads = rect('#touch.show.pads .pad'), xbs = touch ? rect('#hud.show .xb') : [];
+  // Hochkant: Tasten unten in einer Reihe → Instrumente darüber, seitlich nur Hüpfer/Nitro als Grenze
+  const stack = pads.length && H > W;
+  if (stack) bottom = Math.max(bottom, H - Math.min(...pads.map((r) => r.top)) + 10);
+  for (const r of stack ? xbs : [...pads, ...xbs]) { if (r.left < W / 2) zl = Math.max(zl, r.right + 12); else zr = Math.min(zr, r.left - 12); }
   const R = document.getElementById('replayui');
   if (R && R.classList.contains('show')) { const r = R.getBoundingClientRect(); if (r.top > H / 2) bottom = Math.max(bottom, H - r.top); }
-  cpZone = { W, H, zl, zr, bottom };
+  cpZone = { W, H, zl, zr, bottom, dash: cockpitDash(W / H) };
   return cpZone;
 }
 function cockpitValues() {
@@ -502,6 +507,7 @@ function render(rdt) {
   }
   if (pose && mode === 'menu' && !app.freezeCam) {
     // Menü: langsame Kamerafahrt um das Auto am Start
+    clearLens(camera);
     const t = performance.now() / 1000 * 0.12;
     const r = 7.5;
     camera.position.set(pose.pos.x + Math.cos(t) * r, pose.pos.y + 2.2, pose.pos.z + Math.sin(t) * r);
@@ -544,8 +550,10 @@ function render(rdt) {
   blurCut = false;
   if (inCockpit) {
     cockpit.layout({ ...cockpitZone(), vfov: camera.fov });
-    cockpit.update(frozen ? 0 : rdt * (mode === 'replay' && replay ? replay.speedMul * (replay.paused ? 0 : 1) : 1), cockpitValues(), camera, sun.userData.dir);
+    const cv = cockpitValues();
+    cockpit.update(frozen ? 0 : rdt * (mode === 'replay' && replay ? replay.speedMul * (replay.paused ? 0 : 1) : 1), cv, camera, sun.userData.dir);
     cockpit.render(renderer);
+    ui.cockpitMode(cockpit.gaugePx, cv.gear);
   }
 }
 

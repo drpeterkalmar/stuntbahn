@@ -5,6 +5,7 @@ import { WORLD_TAG } from '../track/defs.js';
 
 const KEY = 'stuntbahn.v1';
 const GHOST_MAX = 40;
+const TIMES_MAX = 5;   // Leicht: so viele letzte Zeiten je Strecke
 
 // Wertungsklasse aus Fahrhilfe + Totalschaden. Migration ohne Umkopieren: die bisherigen Schlüssel
 // (nur Fahrhilfe) behalten ihre Bedeutung – Leicht fuhr bisher ohne Wrack (→ Totalschaden aus),
@@ -28,9 +29,15 @@ export class Store {
   constructor() {
     let d = {};
     try { d = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch { d = {}; }
-    this.settings = Object.assign({ assist: 'easy', paint: 0xa3120e, sound: true, ghost: true, touch: 'auto', tilt: false, wreck: false, line: 'soft', lineLast: 'soft', cam: 'chase', quality: 'auto', diff: 2, lastSeed: null, seenHelp: false, extras: true, autoExtras: true, blur: 'light', brakeHelp: 'hint' }, d.settings || {});
+    this.settings = Object.assign({ assist: 'easy', paint: 0xa3120e, sound: true, ghost: true, touch: 'auto', tilt: false, wreck: false, line: 'soft', lineLast: 'soft', cam: 'chase', quality: 'auto', diff: 2, lastSeed: null, seenHelp: false, extras: true, autoExtras: true, blur: 'light', brakeHelp: 'hint', tbsize: 'gross' }, d.settings || {});
     this.best = d.best || {};      // key|modeKey -> { time, date, name, pen }
     this.ghostIndex = d.ghostIndex || []; // Reihenfolge für LRU
+    // Leicht (n15, Peter 28.09.: „keine Highscores, nur Zeit notieren“): letzte Zeiten je Strecke, neueste zuerst,
+    // { t, d (Datum), pen, x (Extras), w (Totalschaden), old (aus einer früheren Leicht-Bestzeit übernommen) }.
+    // Die Leicht-Bestzeiten in best bleiben unverändert gespeichert, werden aber nicht mehr gezeigt; die der
+    // aktuellen Wertung (Physik/Welt) kommen einmalig als Einträge in diese Liste.
+    this.times = d.times || {};
+    if (!d.timesMig) { this.migrateEasyBests(); this.timesMig = 1; } else this.timesMig = d.timesMig;
     try { this.verified = JSON.parse(localStorage.getItem(KEY + '.verified') || '{}'); } catch { this.verified = {}; }
   }
   // Geprüfte Strecken (Autopilot) cachen: Layout nach Entschärfen + Referenzzeit
@@ -46,8 +53,21 @@ export class Store {
     try { localStorage.setItem(KEY + '.verified', JSON.stringify(this.verified)); } catch { /* voll */ }
   }
   save() {
-    try { localStorage.setItem(KEY, JSON.stringify({ settings: this.settings, best: this.best, ghostIndex: this.ghostIndex })); } catch { /* voll */ }
+    try { localStorage.setItem(KEY, JSON.stringify({ settings: this.settings, best: this.best, ghostIndex: this.ghostIndex, times: this.times, timesMig: this.timesMig })); } catch { /* voll */ }
   }
+  migrateEasyBests() {
+    for (const w of [false, true]) for (const x of [true, false]) {
+      const mk = '|' + modeKey('easy', w, PHYS, WORLD_TAG, x);
+      for (const [k, b] of Object.entries(this.best)) {
+        if (!k.endsWith(mk) || !b || !(b.time > 0)) continue;
+        const id = k.slice(0, -mk.length), L = this.times[id] || (this.times[id] = []);
+        L.push({ t: b.time, d: b.date || '', pen: b.pen || 0, x: x ? 1 : 0, w: w ? 1 : 0, old: 1 });
+      }
+    }
+    for (const L of Object.values(this.times)) { L.sort((a, b) => (b.d || '').localeCompare(a.d || '')); L.length = Math.min(L.length, TIMES_MAX); }
+  }
+  // Leicht: letzte Zeiten dieser Strecke (neueste zuerst, nicht nach Zeit sortiert)
+  timesFor(key) { return this.times[key] || []; }
   bestFor(key, assist, wreck = this.settings.wreck, extras = this.settings.extras) { return this.best[key + '|' + modeKey(assist, wreck, PHYS, WORLD_TAG, extras)] || null; }
   // Bestzeit derselben Wertung mit der jeweils anderen Extras-Einstellung (nur Anzeige: „ohne/mit Extras“)
   otherExtrasBestFor(key, assist, wreck = this.settings.wreck) { return this.bestFor(key, assist, wreck, !this.settings.extras); }
@@ -60,6 +80,13 @@ export class Store {
   oldWorldBestFor(key, assist, wreck = this.settings.wreck) { return WORLD_TAG && PHYS >= 2 ? this.best[key + '|' + modeKey(assist, wreck, 2, '', false)] || null : null; }
   // Rennen beendet: Bestzeit prüfen, Geist speichern (rec inkl. Strafzeit-Stillstand, Race.ghostRec)
   submit(key, assist, wreck, time, rec, meta = {}) {
+    // Leicht: keine Wertung, kein Geist – nur die Zeit mit Datum vorne in die Liste
+    if (assist === 'easy') {
+      const L = [{ t: time, d: new Date().toISOString().slice(0, 10), pen: meta.penalties || 0, x: meta.extras !== false ? 1 : 0, w: wreck ? 1 : 0 }, ...this.timesFor(key)].slice(0, TIMES_MAX);
+      this.times[key] = L;
+      this.save();
+      return { easy: true, isBest: false, prev: null, time, list: L };
+    }
     const k = key + '|' + modeKey(assist, wreck, PHYS, WORLD_TAG, meta.extras !== false);
     const prev = this.best[k];
     const isBest = !prev || time < prev.time;

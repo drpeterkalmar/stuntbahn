@@ -7,8 +7,19 @@ import { ROAD_HW, WORLD_SCALE } from '../track/defs.js';
 const V = () => new THREE.Vector3();
 export const CAM_MODES = ['chase', 'cockpit', 'far', 'bumper', 'track'];
 export const CAM_NAMES = { chase: 'Verfolger', cockpit: 'Cockpit', far: 'Hubschrauber', bumper: 'Stoßstange', track: 'Streckenkamera' };
+// URL-Regler (Browser): ?eye= Augenhöhe, ?hz= Horizont, ?dash= Armaturenbrett (s. u.)
+const Q = new URLSearchParams(typeof location !== 'undefined' ? location.search : '');
+const qnum = (k, lo, hi) => { const v = parseFloat(Q.get(k)); return Number.isFinite(v) ? Math.max(lo, Math.min(hi, v)) : null; };
 // Cockpit: Augenpunkt in Auto-Koordinaten (x rechts, y oben, z hinten): Fahrer links, ~1 m über der Straße
-export const EYE = { x: -0.34, y: 0.45, z: 0.12 };
+export const EYE = { x: -0.34, y: qnum('eye', 0.1, 1.2) ?? 0.45, z: 0.12 };
+// Cockpit-Ausschnitt (n15, Peter 28.09.: „Im Cockpit sieht man die Straße nicht“): Der Horizont liegt per
+// Objektiv-Verschiebung (setViewOffset, keine Neigung) im oberen Drittel, das Armaturenbrett beginnt erst bei
+// ~70 % der Bildhöhe → dazwischen die Fahrbahn. Anteile der Bildhöhe von oben; ?hz= / ?dash= übersteuern.
+export const COCKPIT_VIEW = { hz: qnum('hz', 0.15, 0.5), dash: qnum('dash', 0.4, 0.95) };
+export const cockpitHorizon = (aspect) => COCKPIT_VIEW.hz ?? (aspect < 1 ? 0.3 : 0.32);
+export const cockpitDash = (aspect) => COCKPIT_VIEW.dash ?? 0.7;
+// Objektiv-Verschiebung aus (alle anderen Ansichten, Menü)
+export function clearLens(cam) { if (cam.view && cam.view.enabled) cam.clearViewOffset(); }
 // Festes Sichtfeld im Cockpit: 75° waagrecht (Querformat); vertikal daraus, begrenzt auf 34–75° (Hochformat)
 export function cockpitFov(aspect) {
   const v = 2 * Math.atan(Math.tan(37.5 * Math.PI / 180) / Math.max(0.2, aspect)) * 180 / Math.PI;
@@ -22,8 +33,8 @@ export function cockpitFov(aspect) {
 // aimDist wächst mit dem Weltmaßstab (Kurvenradien = Feld; bis 27.09.2026 40 m)
 export const PORTRAIT = { vfov: 88, dist: 2.2, h: 3.6, look: 12, lookUp: -0.5, speedFov: 0.5, aim: 0.5, aimDist: 40 * WORLD_SCALE, aimSpeed: 0.6 };
 export function portraitK(aspect) { return Math.max(0, Math.min(1, (1 - aspect) / 0.5)); }
-const clamp = (x, a) => Math.max(-a, Math.min(a, x));
 const AIM_MAX = 14 * Math.PI / 180;   // hochkant: größtes Eindrehen in die Kurve
+const CP_SUSP = +(Q.get('cpsusp') ?? 1);   // Cockpit: Anteil Federungs-Ausgleich (n14: 0,5)
 const LAG_MAX = 3.0; // m: größter Verzug des Verfolgers hinter dem Auto (Tempo-Nachführung)
 
 export class CameraRig {
@@ -40,10 +51,9 @@ export class CameraRig {
     this.airT = 0; this.airK = 0; this.baseY = 0;
     this.lastCp = V(); this.hasCp = false;
     this.view = 'chase';     // tatsächlich gezeigte Ansicht (Cockpit → Verfolger beim Wrack)
-    // Cockpit: geglättete Lage, Kopf-Feder (Landungen), Hilfsobjekte
+    // Cockpit: geglättete Lage
     this.cq = new THREE.Quaternion(); this.cInit = false;
-    this.bob = 0; this.bobV = 0; this.lastP = V(); this.lastV = V(); this.aUp = 0; this.hasLast = 0;
-    this._q = new THREE.Quaternion(); this._q2 = new THREE.Quaternion(); this._e = new THREE.Euler();
+    this._q = new THREE.Quaternion(); this._q2 = new THREE.Quaternion(); this._q3 = new THREE.Quaternion(); this._e = new THREE.Euler();
     // Kameraschütteln (Verfolger): Anregung aus dem Federweg der Räder (Bodenwellen), klingt schnell ab
     this.shake = 0; this.shT = 0; this.lastComp = null; this.shakeOn = true;
   }
@@ -175,6 +185,7 @@ export class CameraRig {
     const view = this.mode === 'cockpit' && crashed ? 'chase' : this.mode;
     if (view !== this.view && view === 'cockpit') this.cInit = false;
     this.view = view;
+    if (view !== 'cockpit') clearLens(cam);
     if (view === 'cockpit') {
       this.cockpit(dt, P, cp);
       return;
@@ -236,7 +247,11 @@ export class CameraRig {
       cam.lookAt(this.look);
       this.lastCp.copy(cp); this.hasCp = true;
     } else if (this.mode === 'bumper') {
-      this.pos.copy(cp).addScaledVector(f, -0.2).addScaledVector(u, 0.62);
+      // Echte Stoßstangen-Sicht (n15): knapp vor der Frontschürze, ~42 cm über der Fahrbahn. Bis n14 saß die Kamera
+      // 0,2 m hinter der Wagenmitte IN der Karosserie → Dachkante und Scheibenrahmen lagen als zwei Querstriche im
+      // Bild. Vor der Nase liegt nichts vom Auto im Blickfeld (auch keine Nitro-Flammen), der Schatten bleibt.
+      const B = this.carBox, nose = B ? -B.min.z : 2.3, floor = B ? B.min.y : -0.55;
+      this.pos.copy(cp).addScaledVector(f, nose + 0.12).addScaledVector(u, floor + 0.42);
       cam.position.copy(this.pos);
       cam.up.copy(u);
       this.look.copy(this.pos).addScaledVector(f, 10);
@@ -257,46 +272,43 @@ export class CameraRig {
     if (Math.abs(cam.fov - this.fov) > 0.05) { cam.fov = this.fov; cam.updateProjectionMatrix(); }
   }
   // Cockpit: Kamera = Fahrerauge, dreht voll mit dem Auto (Looping, Korkenzieher). Gegen Übelkeit am Handy:
-  // Federungs-Nicken/-Wanken nur zur Hälfte, Lage leicht geglättet (~60 ms), Kopf federt bei Landungen
-  // höchstens 4 cm nach, festes Sichtfeld (kein Tempo-Zoom).
+  // festes Sichtfeld (kein Tempo-Zoom) und ruhige Lage (n15, „darf nicht mehr wackeln“): kein Nicken/Wanken aus
+  // der Federung (voll ausgeglichen), kein Nachfedern des Kopfes mehr; Lage leicht geglättet (~60 ms).
   cockpit(dt, P, cp) {
     const cam = this.cam, q = this._q.set(P.q.x, P.q.y, P.q.z, P.q.w);
-    let pitch = 0, roll = 0;
+    const u = this._u.set(P.frame.u.x, P.frame.u.y, P.frame.u.z);
+    // Federung ausgleichen: Nicken/Wanken des Aufbaus gegenüber den Rädern voll heraus (bis n14 zur Hälfte) →
+    // die Kamera folgt der Fahrbahn, nicht dem schaukelnden Aufbau
+    let pitch = 0, roll = 0, heave = 0;
     const w = P.wheels;
     if (w) {
+      // Auf-und-ab des Aufbaus (Einfedern gegenüber dem gleitenden Mittel) ebenfalls ausgleichen
+      const cm = (w[0].comp + w[1].comp + w[2].comp + w[3].comp) / 4;
+      if (!this.cInit || this.hv == null) this.hv = cm;
+      this.hv += (cm - this.hv) * (1 - Math.exp(-dt * 1.5));
+      heave = Math.max(-0.08, Math.min(0.08, cm - this.hv));
       const cf = (w[0].comp + w[1].comp) / 2, cr = (w[2].comp + w[3].comp) / 2;
       const cl = (w[0].comp + w[2].comp) / 2, cR = (w[1].comp + w[3].comp) / 2;
-      pitch = clamp(Math.atan2(cf - cr, 2.72), 0.08);   // > 0: Nase eingefedert
-      roll = clamp(Math.atan2(cl - cR, 1.73), 0.08);    // > 0: links eingefedert
+      pitch = Math.max(-0.08, Math.min(0.08, Math.atan2(cf - cr, 2.72)));   // > 0: Nase eingefedert
+      roll = Math.max(-0.08, Math.min(0.08, Math.atan2(cl - cR, 1.73)));    // > 0: links eingefedert
     }
-    // Kopf-Feder: Beschleunigung längs Auto-Oben (aus der Bewegung, auch im Replay) → Kopf sinkt/hebt sich
-    const u = this._u.set(P.frame.u.x, P.frame.u.y, P.frame.u.z);
-    if (!this.cInit) { this.cq.copy(q); this.bob = 0; this.bobV = 0; this.aUp = 0; this.hasLast = 0; this.cInit = true; }
-    if (dt > 1e-4) {
-      const vx = (cp.x - this.lastP.x) / dt, vy = (cp.y - this.lastP.y) / dt, vz = (cp.z - this.lastP.z) / dt;
-      if (this.hasLast >= 2) {
-        const a = ((vx - this.lastV.x) * u.x + (vy - this.lastV.y) * u.y + (vz - this.lastV.z) * u.z) / dt;
-        this.aUp += (clamp(a, 150) - this.aUp) * Math.min(1, dt * 25);
-      }
-      if (this.hasLast >= 1) this.lastV.set(vx, vy, vz);
-      this.hasLast = Math.min(2, this.hasLast + 1);
-      const n = Math.min(8, Math.ceil(dt / 0.004)), h = Math.min(dt, 0.1) / n;
-      for (let i = 0; i < n; i++) { this.bobV += (-110 * this.bob - 12.6 * this.bobV - 0.04 * this.aUp) * h; this.bob += this.bobV * h; }
-      this.bob = clamp(this.bob, 0.04);
-    }
-    this.lastP.copy(cp);
-    // Ziel-Lage: Auto-Lage mit halbierter Federungsbewegung, Blick 3° gesenkt (+ Nicken mit dem Kopf)
-    this._e.set(0.5 * pitch - 3 * Math.PI / 180 + this.bob * 0.6, 0, -0.5 * roll);
-    const target = this._q2.copy(q).multiply(new THREE.Quaternion().setFromEuler(this._e));
-    if (this.cq.angleTo(target) > 0.9) this.cq.copy(target);
+    this._e.set(CP_SUSP * pitch, 0, -CP_SUSP * roll);
+    const target = this._q2.copy(q).multiply(this._q3.setFromEuler(this._e));
+    if (!this.cInit) { this.cq.copy(target); this.cInit = true; }
+    const a = this.cq.angleTo(target);
+    if (a > 0.9) this.cq.copy(target);
     else this.cq.slerp(target, 1 - Math.exp(-dt * 16));
     const eye = this._h.set(EYE.x, EYE.y, EYE.z).applyQuaternion(this.cq);
-    this.pos.copy(cp).add(eye).addScaledVector(u, this.bob);
+    this.pos.copy(cp).add(eye).addScaledVector(u, CP_SUSP * heave);
     cam.position.copy(this.pos);
     cam.quaternion.copy(this.cq);
     cam.up.copy(u);
     this.look.copy(this.pos).addScaledVector(this._d.set(0, 0, -1).applyQuaternion(this.cq), 10);
     this.fov = cockpitFov(cam.aspect);
     if (Math.abs(cam.fov - this.fov) > 0.01) { cam.fov = this.fov; cam.updateProjectionMatrix(); }
+    // Horizont ins obere Drittel: Bildausschnitt nach unten verschieben (Sichtfeld und Senkrechte bleiben)
+    const sh = 0.5 - cockpitHorizon(cam.aspect);
+    // (setViewOffset setzt aspect = fullWidth / fullHeight → volle Breite = aspect, Höhe 1)
+    if (!cam.view || !cam.view.enabled || Math.abs(cam.view.offsetY - sh) > 1e-4 || Math.abs(cam.view.fullWidth - cam.aspect) > 1e-4) cam.setViewOffset(cam.aspect, 1, 0, sh, cam.aspect, 1);
   }
 }

@@ -15,7 +15,9 @@ spielbar am Handy (quer oder hochkant), mit Gamepad oder Tastatur. Als App insta
   Seine Rundenzeit steht als „Autopilot-Referenz“ im Menü.
 - **Crash = kein Totalschaden** (Standard): das Auto steht sofort wieder auf der Fahrbahn vor dem Stunt,
   mit Schwung, **+5 s** auf die Rennzeit. Wer es wie früher mag: Optionen → **💥 Totalschaden** (Wrack).
-- **Bestzeiten und Geisterautos** werden je Strecke, je Fahrhilfe *und* je Totalschaden-Einstellung getrennt gespeichert.
+- **Bestzeiten und Geisterautos** (Mittel und Original) werden je Strecke, je Fahrhilfe *und* je Totalschaden-Einstellung
+  getrennt gespeichert. **Leicht wertet nicht** (seit 29.09.2026): kein Bestzeit-Jubel, kein Geisterauto – nur „Deine Zeit“
+  und die letzten 5 Zeiten je Strecke mit Datum. Alte Leicht-Bestzeiten bleiben gespeichert, werden nicht mehr gezeigt.
 - **Doppelt so schnell** (seit 27.09.2026): Vmax ~586 km/h, 0–200 in 3,8 s, Rennreifen und Abtrieb (Details:
   `TEMPO_BERICHT.md`). Bestzeiten der alten Physik bleiben gespeichert und stehen im Menü als „erste Physik“.
 - **Mehr Bodenhaftung und schnellere Ideallinie** (seit 29.09.2026): Reifen mu 1,7 statt 1,5, mehr Abtrieb (wirkt nur mit
@@ -25,7 +27,11 @@ spielbar am Handy (quer oder hochkant), mit Gamepad oder Tastatur. Als App insta
 - **Cockpit-Kamera** (🎥 / `C` / Gamepad LB): Blick durch die Frontscheibe, analoger Tacho (bis 600 km/h), Drehzahlmesser
   (0–8 ×1000, rot ab 7000, Zeiger schwingt leicht nach), Schaltkulisse mit Knauf (R, 1–6), Lenkrad dreht mit.
   Die Kamerawahl bleibt gespeichert. Beim Wrack kurz Verfolger, dann wieder Cockpit (Details: `COCKPIT_BERICHT.md`).
-- **Replay** der letzten Fahrt mit Verfolger-, Cockpit-, Hubschrauber-, Strecken- und Stoßstangenkamera.
+  **Seit 29.09.2026 sieht man die Straße:** Horizont im oberen Drittel, Armaturenbrett erst ab ~70 % der Bildhöhe, Fahrbahn
+  ~34–40 % der Bildhöhe (vorher 0–7 %); Federung ruhig ausgeglichen. Wenig Platz zwischen den Tasten → kompakte
+  Instrumente bzw. Tempo digital im HUD (Details: `BEDIENUNG_BERICHT.md`).
+- **Replay** der letzten Fahrt mit Verfolger-, Cockpit-, Hubschrauber-, Strecken- und Stoßstangenkamera (Stoßstange seit
+  29.09.2026 vor der Frontschürze, freie Sicht ohne Karosserie-Striche).
 - **Extras je Runde (seit 28.09.2026): 1× Hüpfer 🦘 und 1× Nitro 🔥**, an Start/Ziel wieder voll. Hüpfer: ~3,5 m hoch aus der
   Fahrt, Auto bleibt waagrecht, nur mit Bodenkontakt, in Looping/Röhre/Korkenzieher und an Schanzen gesperrt. Nitro: 3 s
   +70–80 % Beschleunigung (Vmax ~700 statt 586 km/h), dann 0,7 s weich zurück, mit Flammen, Tempo-Streifen, weiterem
@@ -101,7 +107,8 @@ zurückgesetzt, an der er die Fahrbahn verlassen hat (Uhr läuft weiter). Ab 18 
 ## Steuerung
 - **Handy (quer oder hochkant):** Leicht – Bildschirmhälften halten; Mittel/Original – links ◀ ▶, rechts GAS und BREMSE
   (Bremse im Stand = rückwärts; hochkant alle vier Tasten unten in einer Reihe). Runde Knöpfe darüber: links 🦘 Hüpfer,
-  rechts 🔥 Nitro. Optional „Lenken durch Neigen“
+  rechts 🔥 Nitro. **Tastengröße** (Optionen): Normal / **Groß** (Standard, +30 %) / Riesig; die Trefferfläche ist 6 px größer
+  als die sichtbare Taste. Kein versehentlicher Doppeltipp-Zoom (auch iOS). Optional „Lenken durch Neigen“
   (hochkant: seitlich kippen oder wie ein Lenkrad drehen). Keine Wischgesten. Drehen im Rennen → kurze Pause mit „▶ Weiter“.
 - **Tastatur:** Pfeile/WASD (bremsen ↓/S), **Leertaste Hüpfer**, **Shift oder `N` Nitro**, `R` zurückspulen, `C` Kamera,
   `L` Ideallinie, `Esc` Pause. (Bis 28.09.2026 bremste die Leertaste.)
@@ -147,7 +154,7 @@ node tools/linie_analyse.mjs --laps       # Ideallinie: Scheitel-Nutzung, Löser
 python3 tests/linie_shots.py              # Fotos: Linie mit Scheitel-Keilen, HUD-Ansagen (tests/shots/linie/)
 python3 tests/smoke.py                    # Browser (Playwright, Pixel 7 quer), Screenshots nach tests/shots/
 python3 tests/test_race.py                # Rennen, Bestzeit nach Reload, Geist, Replay
-python3 tests/test_touch.py               # Touch-Steuerung quer + hochkant, Knopfgrößen ≥ 48 px, Layout
+python3 tests/test_touch.py               # Touch-Steuerung quer + hochkant, Knopfgrößen, Tastengröße, Bounding-Boxen, Layout
 python3 tests/test_hochformat.py          # Drehen im Rennen (quer→hoch→quer), keine hängenden Finger, Neigen-Achse, Platz für 2 Knöpfe
 python3 tests/hochformat_shots.py         # Fotos + Layout-Prüfung aller Bildschirme (pixel7 iphone14 klein | …q = quer)
 python3 tests/hochformat_cam.py 4711      # Verfolger hoch vs. quer: Auto-Lage, Horizont, Strecke voraus (m)
@@ -156,6 +163,11 @@ python3 tests/test_reset_ui.py            # Totalschalter, „+5 s“, Strafen i
 node tests/node/test_cockpit.mjs          # Instrumente: Skalen, Vmax ≤ Tacho, Zeiger-Dynamik, Kulisse, Replay-Gang
 python3 tests/test_cockpit_ui.py          # Cockpit: Kamera-Knopf, gespeichert, Wrack → Verfolger, Replay, 0 Fehler
 python3 tests/cockpit_shots.py quer       # Cockpit-Fotos + Zeigerprüfung (quer|hoch|desktop|tablet) nach tests/shots/cockpit/
+python3 tests/cockpit_sicht.py nachher    # Cockpit: Fahrbahn-Anteil, ab wie viel m, Horizont, Brett-Oberkante, Wackeln (hoch+quer)
+python3 tests/stossstange_shots.py x      # Stoßstangen-Kamera: Anteil eigenes Auto im Bild (soll 0), Rennen + Replay
+python3 tests/test_leicht_zeiten.py       # Leicht: keine Bestzeit/kein Geist, Zeiten-Liste; Mittel wertet wie bisher
+node tests/node/test_leicht_zeiten.mjs    # Speicher: Leicht-Zeiten, Übernahme alter Leicht-Bestzeiten, Mittel unverändert
+python3 tests/test_zoom.py                # kein Doppeltipp-Zoom: touch-action je Scrollbereich, Eingaben ≥ 16 px, Doppel-Taps
 node tools/jump_measure.mjs               # Sprung-Messung: Scheitel, Airtime, Weite (--air 1 --lip 15 = alt)
 node tools/jump_easy_batch.mjs 10         # Generator-Strecken auf „Leicht“: im Ziel ohne Crash, Flugzeiten
 python3 tests/jump_shots.py               # Fotos am Sprung-Scheitel (neu gegen alt) nach tests/shots/sprung/
@@ -180,6 +192,8 @@ Nützliche URL-Parameter: `?seed=4711&d=3`, `?demo`, `?gallery` (alle Bausteine)
 (Beispielstrecke im .TRK-Format), `?speed=1` (Originaltempo statt 1,25×), `?q=0|1|2` (Grafikstufe), `?nosw`,
 `?air=1` (volle Schwerkraft im Flug, Standard 0.7), `?lip=15` (alte Schanze; mit `?air=1` exakt der alte Sprung).
 `?blur=off|light|strong` (Bewegungsunschärfe übersteuern).
+Cockpit: `?eye=0.45` (Augenhöhe in m über dem Auto-Ursprung), `?hz=0.32` (Horizont, Anteil der Bildhöhe von oben),
+`?dash=0.7` (Oberkante Armaturenbrett, Anteil von oben), `?cpsusp=1` (Federungs-Ausgleich, 0,5 = Stand bis 28.09.).
 `?auto=alt` (alte, langsamere Abstimmung bis 27.09.2026 zum Vergleich; wertet in der alten Bestzeiten-Liste).
 `?grip=1` (Haftung und Ideallinie bis 28.09.2026 zum A/B-Vergleich; wertet unter „alte Physik“).
 `?lk=0…1` (Leicht: Anteil der Kurve, den der Spieler selbst lenkt, Standard 0.8; `?lk=0` = alte Schienen) und

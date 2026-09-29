@@ -31,6 +31,7 @@ export class UI {
     this.a = {};
     this.screen = null;
     this.touchIds = new Map();
+    document.body.dataset.tbsize = store.settings.tbsize || 'gross';
     this.build();
   }
   build() {
@@ -60,6 +61,7 @@ export class UI {
         <div class="pad left"><div class="tb" data-t="L">◀</div><div class="tb" data-t="R">▶</div></div>
         <div class="pad right"><div class="tb brake" data-t="B">BREMSE</div><div class="tb gas" data-t="G">GAS</div></div>
       </div>
+      <div id="cpgear" aria-hidden="true"></div>
       <div id="pause" class="screen"></div>
       <div id="result" class="screen"></div>
       <div id="replayui"><div class="rinfo"></div><div class="bar"><i></i></div><div class="btns"></div></div>
@@ -87,6 +89,15 @@ export class UI {
       this.action(b.dataset.a, b.dataset.v, b);
     });
     this.initTouch();
+    this.noZoom();
+  }
+  // iOS Safari ignoriert user-scalable=no (seit iOS 10): Zwei-Finger-Zoom (gesture*) und Doppeltipp-Zoom (dblclick)
+  // abfangen. Bewusst KEIN preventDefault auf touchstart/touchend – das bräche Klicks und die Ton-Freischaltung;
+  // zwei schnelle Taps auf eine Touch-Taste bleiben zwei Auslösungen (Tasten reagieren auf pointerdown).
+  noZoom() {
+    const stop = (e) => e.preventDefault();
+    for (const t of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(t, stop, { passive: false });
+    document.addEventListener('dblclick', stop, { passive: false });
   }
   bind(actions) { this.a = actions; }
   show(id) {
@@ -122,8 +133,9 @@ export class UI {
   // Bestzeiten je Fahrhilfe (aktuelle Physik und Welt) + ggf. Zeilen mit den Zeiten der alten Physik (bis 28.09.2026),
   // der alten Welt (Maßstab 1) und der ersten Physik (beides bis 27.09.2026) – nicht vergleichbar, nur Anzeige,
   // gespeichert bleiben sie unverändert
+  // Leicht (seit n15) hat keine Bestzeiten mehr → nur Mittel und Original; dazu (Menü) die letzte Leicht-Zeit
   bestsHtml(id) {
-    const ks = Object.keys(ASSISTS);
+    const ks = Object.keys(ASSISTS).filter((k) => k !== 'easy');
     const now = ks.map((k) => { const b = this.store.bestFor(id, k); return `<span>${ASSISTS[k].icon} ${b ? fmtTime(b.time) : '–'}</span>`; }).join('');
     const row = (fn, label, title) => {
       const l = ks.map((k) => [k, fn(k)]).filter(([, b]) => b);
@@ -134,7 +146,15 @@ export class UI {
       + row((k) => this.store.prevPhysBestFor(id, k), 'alte Physik', 'Bestzeiten mit der Physik bis 28.09.2026 (weniger Bodenhaftung, anderes Tempo-Profil)')
       + row((k) => this.store.oldWorldBestFor(id, k), 'alte Welt', 'Bestzeiten in der alten, kleineren Welt (bis 27.09.2026)')
       + row((k) => this.store.oldBestFor(id, k), 'erste Physik', 'Bestzeiten mit der ersten, langsameren Physik (bis 27.09.2026)');
-    return { now, old };
+    const last = this.store.timesFor(id)[0];
+    const lastEasy = last ? `<span class="lastt" title="Leicht: keine Bestzeit, nur die letzte Zeit">${ASSISTS.easy.icon} zuletzt ${fmtTime(last.t)}</span>` : '';
+    return { now, old, lastEasy };
+  }
+  // Leicht: Liste der letzten Zeiten (neueste zuerst, mit Datum); cur = gerade gefahrene (oberste) hervorheben
+  timesHtml(list, cur) {
+    if (!list || !list.length) return '';
+    const day = (d) => d ? d.slice(8, 10) + '.' + d.slice(5, 7) + '.' : '';
+    return `<div class="lbl">Deine letzten Zeiten hier</div><ol class="times">${list.map((e, i) => `<li class="${cur && i === 0 ? 'cur' : ''}"><b>${fmtTime(e.t)}</b><span>${day(e.d)}${e.pen ? ' · 💥 ' + e.pen + '×' : ''}${e.old ? ' · früher' : ''}</span></li>`).join('')}</ol>`;
   }
   // ---------- Menü ----------
   showMenu(env) {
@@ -165,7 +185,7 @@ export class UI {
           <div class="tmeta">${metaLine}</div>
           <div class="stunts">${stuntsHtml || 'ohne Stunts'}</div>
           ${apLine}
-          <div class="bests">${bests.now}<span class="bmode">${S.wreck ? '💥 mit Totalschaden' : '↺ Reset +' + PENALTY + ' s'}${S.extras ? ' · 🦘🔥 mit Extras' : ' · ohne Extras'}</span>${bests.old}</div>
+          <div class="bests">${bests.now}${S.assist === 'easy' ? bests.lastEasy : ''}<span class="bmode">${S.wreck ? '💥 mit Totalschaden' : '↺ Reset +' + PENALTY + ' s'}${S.extras ? ' · 🦘🔥 mit Extras' : ' · ohne Extras'}</span>${bests.old}</div>
         </div>
         <button class="big go" data-a="start">▶ Losfahren</button>
       </div>
@@ -199,7 +219,7 @@ export class UI {
       ? { easy: 'Crash? Wrack, dann automatisch 3 s zurück.', medium: 'Crash heißt Wrack, dann 3 s zurück.', original: 'Crash heißt Wrack.' }[k]
       : `Crash? Sofort zurück auf die Fahrbahn, +${PENALTY} s.`;
     return {
-      easy: 'Gas und Stunts macht das Auto selbst, deine Bremse geht immer vor. Die Hilfe hält dich auf der Fahrbahn und lenkt einen Teil der Kurven – die Ideallinie triffst du, wenn du etwas mitlenkst (ohne Lenken driftet das Auto in Kurven nach außen und wird langsamer). Drückst du deutlich über den Rand hinaus, hast du Vorrang – auch quer durchs Gelände. Loslassen führt sanft zurück. Abkürzen zählt nicht (zurück an die Stelle). ',
+      easy: 'Ohne Bestzeit-Wertung – deine Zeit wird nur notiert. Gas und Stunts macht das Auto selbst, deine Bremse geht immer vor. Die Hilfe hält dich auf der Fahrbahn und lenkt einen Teil der Kurven – die Ideallinie triffst du, wenn du etwas mitlenkst (ohne Lenken driftet das Auto in Kurven nach außen und wird langsamer). Drückst du deutlich über den Rand hinaus, hast du Vorrang – auch quer durchs Gelände. Loslassen führt sanft zurück. Abkürzen zählt nicht (zurück an die Stelle). ',
       medium: 'Du bremst selbst – die farbige Ideallinie (grün Gas, gelb vom Gas, rot bremsen) und ein kurzer Hinweis „Bremsen!“ mit Ton zeigen, wo. Leichter Zug zur Linie, Stabilitätshilfe beim Rutschen, Rückspul-Knopf. ',
       original: 'Keine Hilfen – wie 1990. ',
     }[k] + crash;
@@ -251,6 +271,7 @@ export class UI {
       case 'rplay': this.replay.paused = !this.replay.paused; break;
       case 'rslow': this.replay.speedMul = this.replay.speedMul === 1 ? 0.3 : 1; this.toast(this.replay.speedMul === 1 ? 'Normal' : 'Zeitlupe'); break;
       case 'rend': this.showResult(this.lastRace, this.lastRes, this.env); break;
+      case 'tbsize': S.tbsize = v; document.body.dataset.tbsize = v; this.store.save(); this.showSettings(); break;
       case 'blur': S.blur = v; this.store.save(); if (A.quality.post) A.quality.post.autoOff = false; this.showSettings(); break;
       case 'brakehelp': S.brakeHelp = v; this.store.save(); if (window.__game && window.__game.race) window.__game.race.brakeHelp = v; this.showSettings(); break;
       case 'quality': S.quality = v; this.store.save(); A.quality.forced = v === 'auto' ? null : v; if (v !== 'auto') A.quality.tier = +v; dispatchEvent(new Event('resize')); this.showSettings(); break;
@@ -339,8 +360,9 @@ export class UI {
   samCtx() {
     const S = this.store.settings;
     return {
-      best: (id) => this.store.bestFor(id, S.assist),
-      hasBest: (id) => Object.keys(ASSISTS).some((k) => this.store.bestFor(id, k)),
+      // Leicht hat keine Bestzeit (n15) → Sortierung „eigene Bestzeit“ nimmt dort die bessere aus Mittel/Original
+      best: (id) => S.assist !== 'easy' ? this.store.bestFor(id, S.assist) : [this.store.bestFor(id, 'medium'), this.store.bestFor(id, 'original')].filter(Boolean).sort((a, b) => a.time - b.time)[0] || null,
+      hasBest: (id) => ['medium', 'original'].some((k) => this.store.bestFor(id, k)),
       played: S.samPlayed || {}, lengthBounds: this.a.sammlung.meta.lengthBounds,
     };
   }
@@ -416,6 +438,8 @@ export class UI {
     const onoff = (k, label) => `<button data-a="toggle" data-v="${k}" class="${S[k] ? 'on' : ''}">${S[k] ? '✅' : '⬜'} ${label}</button>`;
     this.sheet('Optionen', `
       <div class="row">${onoff('sound', 'Ton')}${onoff('ghost', 'Geisterauto')}${onoff('tilt', 'Lenken durch Neigen')}</div>
+      <div class="lbl">Tastengröße (Handy, Mittel/Original)</div>
+      <div class="seg" data-g="tbsize">${[['normal', 'Normal'], ['gross', 'Groß'], ['riesig', 'Riesig']].map(([k, n]) => `<button data-a="tbsize" data-v="${k}" class="${(S.tbsize || 'gross') === k ? 'on' : ''}">${n}</button>`).join('')}</div>
       <div class="lbl">Extras</div>
       <div class="row">${onoff('extras', '🦘🔥 Hüpfer & Nitro')}${S.extras ? onoff('autoExtras', '🤖 Extras automatisch (Leicht)') : ''}</div>
       <p class="hint">${S.extras
@@ -454,7 +478,7 @@ export class UI {
       <p><b>Extras 🦘 🔥</b> (je 1 pro Runde, an Start/Ziel wieder voll): <b>Hüpfer</b> – das Auto springt aus der Fahrt ~3,5 m hoch und bleibt dabei waagrecht; nur mit Bodenkontakt, in Looping, Röhre, Korkenzieher und an Schanzen gesperrt (Knopf ausgegraut). <b>Nitro</b> – ${NITRO.dur} s lang deutlich mehr Schub (+70–80 % Beschleunigung, bis ~700 km/h), danach sanft zurück. Handy: runde Knöpfe über den Daumen (links 🦘, rechts 🔥). Abschaltbar in den Optionen.</p>
       <p><b>Crash:</b> Standardmäßig kein Totalschaden – das Auto steht sofort wieder auf der Fahrbahn vor dem Stunt, mit Schwung, und du bekommst <b>+${PENALTY} s</b> auf die Zeit. Klappt ein Stunt mehrmals nicht, wirst du dahinter gesetzt (auch dann je +${PENALTY} s). Wer es hart mag: Optionen → <b>💥 Totalschaden</b> (Wrack wie im Original).</p>
       <p><b>⏪ Zurückspulen</b> (Leicht/Mittel): 3 s zurück, um einen Crash zu vermeiden. Ohne Totalschaden läuft die Uhr dabei weiter – es kostet die Zeit, die du neu fährst, aber keine Strafe.</p>
-      <p><b>Ziel:</b> Alle Checkpoints der Reihe nach, dann über die Ziellinie. Bestzeiten und Geisterautos gibt es getrennt je Fahrhilfe und Totalschaden-Einstellung.</p>
+      <p><b>Ziel:</b> Alle Checkpoints der Reihe nach, dann über die Ziellinie. Bestzeiten und Geisterautos gibt es auf <i>Mittel</i> und <i>Original</i>, getrennt je Fahrhilfe und Totalschaden-Einstellung. Auf <i>Leicht</i> wird nur deine Zeit notiert (die letzten 5 je Strecke, mit Datum) – ohne Bestzeit und Geisterauto.</p>
       <p><b>Abkürzen</b> lohnt nicht (alle Stufen): Wer quer durchs Gelände Strecke spart, wird an die Stelle zurückgesetzt, an der er die Fahrbahn verlassen hat – die Uhr läuft weiter. Herumfahren im Gelände ist erlaubt; wer sich zu weit entfernt, sieht „Zurück zur Strecke ↺“ und wird nach einigen Sekunden zurückgesetzt.</p>`);
   }
   showCredits() {
@@ -478,8 +502,7 @@ export class UI {
     $('#hud .assistTag').textContent = A.icon + ' ' + A.name;
     $('#hud [data-a=rewind]').style.display = this.store.settings.assist === 'original' ? 'none' : '';
     this.lineChanged();
-    const b = this.store.bestFor(env.meta.key, this.store.settings.assist, race.wreckOn);
-    $('#hud .best').textContent = b ? 'Beste ' + fmtTime(b.time) : '';
+    this.hudBest(race, env);
     $('#hud .pen').textContent = '';
     this._pen = 0;
     this._x = null;
@@ -487,6 +510,13 @@ export class UI {
     this.wipe(false);
     this.setTouchMode(true);
     this.lastCd = null;
+  }
+  // Leicht: keine Bestzeit, stattdessen die letzte Zeit auf dieser Strecke
+  hudBest(race, env) {
+    const k = this.store.settings.assist;
+    if (k === 'easy') { const l = this.store.timesFor(env.meta.key)[0]; $('#hud .best').textContent = l ? 'Zuletzt ' + fmtTime(l.t) : ''; return; }
+    const b = this.store.bestFor(env.meta.key, k, race.wreckOn);
+    $('#hud .best').textContent = b ? 'Beste ' + fmtTime(b.time) : '';
   }
   hud(race, env, ghost) {
     // Hinweis-Zeile: Stunt-Ansage (Leicht: „Looping voraus – Autopilot lenkt“) bzw. „Zurück zur Strecke ↺“
@@ -568,7 +598,7 @@ export class UI {
     $('#hud .assistTag').textContent = A.icon + ' ' + A.name;
     $('#hud [data-a=rewind]').style.display = k === 'original' ? 'none' : '';
     this.lineChanged();
-    if (document.body.dataset.mode === 'race') this.setTouchMode(true);
+    if (document.body.dataset.mode === 'race') { this.setTouchMode(true); if (window.__game && window.__game.race) this.hudBest(window.__game.race, this.env); }
   }
   // Auswahl „Ideallinie“ (Optionen + Pause); auf Original ausgegraut
   lineSeg() {
@@ -603,8 +633,9 @@ export class UI {
     const A = ASSISTS[race.assistKey];
     this.wipe(false);
     const pen = race.penalties ? `<div class="rpen">💥 ${race.penalties} Strafe${race.penalties > 1 ? 'n' : ''} × ${PENALTY} s = +${race.penalties * PENALTY} s</div>` : (race.wreckOn ? '' : '<div class="rpen ok">✨ Ohne Crash – keine Strafzeit</div>');
-    const best = res.isBest ? '<div class="rec">🏆 Neue Bestzeit!</div>' : (res.prev ? `<div class="prev">Bestzeit ${fmtTime(res.prev)} (${(res.time - res.prev >= 0 ? '+' : '') + (res.time - res.prev).toFixed(2).replace('.', ',')} s)</div>` : '');
-    $('#result').innerHTML = `<div class="card"><h2>🏁 Ziel!</h2>
+    // Leicht (n15): keine Bestzeit-Wertung – „Deine Zeit“ und die letzten Zeiten auf dieser Strecke
+    const best = res.easy ? this.timesHtml(res.list, true) : res.isBest ? '<div class="rec">🏆 Neue Bestzeit!</div>' : (res.prev ? `<div class="prev">Bestzeit ${fmtTime(res.prev)} (${(res.time - res.prev >= 0 ? '+' : '') + (res.time - res.prev).toFixed(2).replace('.', ',')} s)</div>` : '');
+    $('#result').innerHTML = `<div class="card"><h2>🏁 Ziel!</h2>${res.easy ? '<div class="ryour">Deine Zeit</div>' : ''}
       <div class="rtime">${fmtTime(res.time)}</div>${pen}${best}
       <div class="rmeta">${A.icon} ${A.name} · ${race.wreckOn ? '💥 Totalschaden an' : 'Totalschaden aus'} · ${race.extrasOn ? `Extras: 🦘 ${race.used.hop ? '✓' : '–'} 🔥 ${race.used.nitro ? '✓' : '–'}` : 'ohne Extras'} · ${env.meta.name} (${env.meta.key}) · Crashs ${race.crashes}${race.rewinds ? ' · Rückspulen ' + race.rewinds : ''}</div>
       <div class="row"><button class="big go" data-a="retry">🔁 Nochmal</button><button data-a="replay">🎬 Replay</button></div>
@@ -636,6 +667,16 @@ export class UI {
     this._rpen = P.n; this._rsec = P.sec;
     const txt = `⏱ ${fmtTime(r.raceTime())}${P.n ? ` · 💥 ${P.n}× +${PENALTY} s` : ''}`;
     if (txt !== this._rtxt) { this._rtxt = txt; $('#replayui .rinfo').textContent = txt; }
+  }
+  // Cockpit-Instrumente (n15): „full“ / „compact“ (Gang als Schild zwischen den Rundinstrumenten) /
+  // „hud“ (keine Rundinstrumente, digitales Tempo im HUD) – per data-cpi für das CSS
+  cockpitMode(px, gear) {
+    const B = document.body, m = px ? px.mode : 'full';
+    if (B.dataset.cpi !== m) B.dataset.cpi = m;
+    if (m !== 'compact') return;
+    const G = $('#cpgear'), [x, y, d] = px.gear, k = x.toFixed(0) + '|' + y.toFixed(0) + '|' + d.toFixed(0);
+    if (this._cpk !== k) { this._cpk = k; Object.assign(G.style, { left: x + 'px', top: y + 'px', width: d + 'px', height: d + 'px', fontSize: (d * 0.6).toFixed(0) + 'px' }); }
+    if (G.textContent !== String(gear)) G.textContent = String(gear);
   }
   // ---------- Touch ----------
   isTouchDevice() { return matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window; }

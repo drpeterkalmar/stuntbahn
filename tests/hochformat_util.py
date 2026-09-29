@@ -83,7 +83,11 @@ JS_CHECK = r"""(groups) => {
       if (c[0] < -1 || c[2] > W + 1 || c[3] > H - sa.b + 1 || c[1] < 0) out.push('Instrument ' + c.map(Math.round));
       for (const o of others) { const r = R(o); const dx = Math.max(r[0] - gx, 0, gx - r[2]), dy = Math.max(r[1] - px.yc, 0, px.yc - r[3]); if (Math.hypot(dx, dy) < px.gd / 2 - 1) overlap.push('Instrument@' + Math.round(gx) + ' ⟷ ' + name(o)); }
     }
-    if (px.gd < 90) small.push('Instrument nur ' + Math.round(px.gd) + ' px');
+    // n15: Stufen – „full“ ≥ 90 px, „compact“ ≥ 80 px (Gang-Schild), „hud“ ohne Rundinstrumente (Tempo digital sichtbar)
+    if (px.mode === 'hud') { const sp = document.querySelector('#hud.show .speed'); if (sp && !vis(sp)) small.push('Cockpit hud: Digital-Tempo fehlt'); }
+    else if (px.gd < (px.mode === 'compact' ? 79.5 : 89.5)) small.push('Instrument nur ' + Math.round(px.gd) + ' px (' + px.mode + ')');
+    if (px.mode === 'compact') { const g = document.getElementById('cpgear'); if (!vis(g)) small.push('Gang-Schild fehlt');
+      else for (const o of others) if (inter(R(g), R(o))) overlap.push('Gang-Schild ⟷ ' + name(o)); }
   }
   return { out, small, overlap, clipped, n: items.length + btns.length, W, H, sa };
 }"""

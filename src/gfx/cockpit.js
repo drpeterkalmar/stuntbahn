@@ -3,6 +3,7 @@
 // Durchgang mit gelöschtem Tiefenpuffer gezeichnet → nie Clipping mit Strecke, Wänden oder Röhren.
 // Layout in Bildschirm-Pixeln: Rundinstrumente + Schaltkulisse mittig unten zwischen den Touch-Tasten,
 // Lenkrad darunter (Nabe unter dem Bildrand), A-Säulen, Dachrahmen und Innenspiegel an den Rändern.
+// Seit n15 tief: Das Armaturenbrett beginnt bei ~68 % der Bildhöhe, darüber ist die Fahrbahn frei.
 // Skalen werden einmal auf ein Canvas gezeichnet; bewegt werden nur Zeiger, Knauf und Lenkrad (Meshes).
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -157,42 +158,57 @@ export class Cockpit {
   }
 
   // Layout aus Bildschirmmaßen (CSS-Pixel), vertikalem Sichtfeld und freier Zone zwischen den Touch-Tasten.
+  // n15: Das Armaturenbrett beginnt erst bei o.dash (Anteil der Bildhöhe, Standard ~0,68), die Instrumente sitzen
+  // darunter. Drei Stufen je nach Platz zwischen den Tasten: „full“ (2 Rundinstrumente + Schaltkulisse),
+  // „compact“ (nur die Rundinstrumente, Gang als kleines Schild darunter, s. main.js) und „hud“ (keine
+  // Rundinstrumente – Tempo und Gang stehen digital im HUD); das Armaturenbrett bleibt immer tief.
   layout(o) {
-    const key = [o.W, o.H, o.vfov.toFixed(2), Math.round(o.zl), Math.round(o.zr), Math.round(o.bottom)].join('|');
+    const key = [o.W, o.H, o.vfov.toFixed(2), Math.round(o.zl), Math.round(o.zr), Math.round(o.bottom), o.dash || 0].join('|');
     if (key === this.key) return false;
     this.key = key;
     if (this.parts) { this.root.remove(this.parts); this.parts.traverse((x) => { if (x.geometry) x.geometry.dispose(); }); }
     const { W, H } = o, cx = W / 2, t = Math.tan(o.vfov * DEG / 2);
+    const U = Math.min(H, 0.75 * W);                         // Maßstab für Ränder/Wülste (hochkant nicht die Höhe)
     const mpp = (D) => 2 * D * t / H;                       // Meter je Pixel in Tiefe D
     const P = (x, y, D) => new THREE.Vector3((x - cx) * mpp(D), (H / 2 - y) * mpp(D), -D);
     const M = this.mats, grp = new THREE.Group();
     // --- Maße in Pixeln ---
-    const half = Math.max(80, Math.min(cx - o.zl, o.zr - cx));  // symmetrisch um die Mitte (Fahrer blickt geradeaus)
-    const yB = H - o.bottom;                                    // „Unterkante“ (über der Replay-Leiste)
-    const gd = Math.max(70, Math.min(0.36 * H, (2 * half) / 2.62, 0.3 * W));  // Durchmesser Rundinstrument
+    const half = Math.max(40, Math.min(cx - o.zl, o.zr - cx));  // symmetrisch um die Mitte (Fahrer blickt geradeaus)
+    const yB = H - o.bottom;                                    // „Unterkante“ (über der Replay-Leiste / den Tasten)
+    const mB = Math.min(0.055 * H, 14);                         // Abstand Instrumente – Unterkante
+    const yT = (o.dash || 0.68) * H;                            // gewünschte Oberkante des Armaturenbretts
+    let mode = 'full', gd = Math.min(0.36 * H, (2 * half) / 2.62, 0.3 * W);
+    if (gd < 90) { mode = 'compact'; gd = Math.min(0.36 * H, (2 * half) / 2.2, 0.3 * W); if (gd < 80) mode = 'hud'; }
+    // Platz unter der Oberkante (Instrumente + Hutze ≈ 1,14 gd); reicht er nicht, rückt das Brett etwas höher
+    gd = Math.min(gd, Math.max((yB - mB - yT) / 1.14, mode === 'full' ? 90 : 80));
+    if (mode === 'hud') gd = 0;
     const gap = 0.07 * gd, gw = 0.5 * gd, gh = 0.62 * gd;       // Schaltkulisse
-    const off = gw / 2 + gap + gd / 2;
-    const yc = yB - 0.055 * H - gd / 2;                         // Mitte der Rundinstrumente
+    const off = mode === 'full' ? gw / 2 + gap + gd / 2 : 0.56 * gd;
+    const yc = yB - mB - gd / 2;                                // Mitte der Rundinstrumente
     const DG = 0.72, DF = 0.84, DW = 0.46;                      // Tiefen: Instrumente, Armaturenbrett, Lenkrad
-    this.gaugePx = { gd, yc, xs: [cx - off, cx + off], gate: [cx, yc + 0.12 * gd, gw, gh] };
+    this.mode = mode;
+    this.gaugePx = { mode, gd, yc, xs: gd ? [cx - off, cx + off] : [], gate: mode === 'full' ? [cx, yc + 0.12 * gd, gw, gh] : null, gear: mode === 'compact' ? [cx, yc + 0.46 * gd, 0.28 * gd] : null };
     const dark = [], alu = [];
     const shade = (k) => [0.085 * k, 0.072 * k, 0.06 * k];   // Anthrazit, leicht warm (Himmelslicht färbt sonst blau)
     // Armaturenbrett: Oberseite (vorne tiefer, zur Scheibe hin flacher) + Stirnwand
-    const yD = yc - 0.5 * gd - 0.08 * H;                        // Oberkante (seitlich)
+    const yD = gd ? Math.min(yT, yc - 0.64 * gd) : yT;          // Oberkante (Mitte)
+    this.dashPx = yD;
     const xs = []; for (let i = 0; i <= 24; i++) xs.push(-0.2 * W + (1.4 * W) * i / 24);
-    const yDx = (x) => yD + 0.05 * H * Math.pow((x - cx) / (0.7 * W), 2);
-    const near = xs.map((x) => P(x, yDx(x), DF)), far = xs.map((x) => P(x, yDx(x) - 0.045 * H, 1.35));
+    const yDx = (x) => yD + 0.05 * U * Math.pow((x - cx) / (0.7 * W), 2);
+    const near = xs.map((x) => P(x, yDx(x), DF)), far = xs.map((x) => P(x, yDx(x) - 0.045 * U, 1.35));
     dark.push(tint(strip(far, near), shade(1.35)));
     const low = xs.map((x) => P(x, H * 1.25, DF - 0.1));
     dark.push(tint(strip(near, low), shade(1.15), shade(0.35)));
     // Hutze über den Instrumenten: Halbschale (vorne Lippe, hinten an der Stirnwand), physisch ausgedehnt
-    {
+    if (gd) {
       const rx = off + gd * 0.62, ry = gd * 0.7, D0 = DG - 0.1, D1 = DF + 0.02;
       const front = [], back = [];
       for (let i = 0; i <= 20; i++) {
         const a = Math.PI * i / 20;
-        const p = P(cx + rx * Math.cos(a), yc + 0.08 * gd - ry * Math.sin(a), D0);
-        front.push(p); back.push(new THREE.Vector3(p.x * 1.02, p.y * 1.02 + 0.01, -D1));
+        // hintere Kante in Bildschirm-Pixeln knapp über der vorderen (tiefer liegend, sonst ragt sie als Kuppel
+        // weit ins Bild – bis n14 per Metern skaliert)
+        front.push(P(cx + rx * Math.cos(a), yc + 0.08 * gd - ry * Math.sin(a), D0));
+        back.push(P(cx + rx * 1.02 * Math.cos(a), yc + 0.06 * gd - ry * 1.03 * Math.sin(a), D1));
       }
       dark.push(tint(strip(back, front), shade(1.1)));
       // Lippe (dicker Wulst an der Vorderkante)
@@ -202,7 +218,7 @@ export class Cockpit {
     // Instrumentenrohre + Chromringe
     const mG = mpp(DG), Rg = gd / 2 * mG;
     this.gauges = [];
-    for (let k = 0; k < 2; k++) {
+    for (let k = 0; k < this.gaugePx.xs.length; k++) {
       const c = P(this.gaugePx.xs[k], yc, DG);
       // Rohr: Ränder über Bildschirm-Pixel definiert → der vordere Rand liegt auch weit unten im Bild
       // (Hochformat, starke Perspektive) immer außerhalb des Zifferblatts, nie davor
@@ -226,9 +242,9 @@ export class Cockpit {
       roofA.push(P(x, -0.1 * H, 0.75)); roofB.push(P(x, roofY + sag, 0.75)); roofC.push(P(x, roofY + sag - 0.012 * H, 1.3));
     }
     dark.push(tint(strip(roofA, roofB), shade(1.5)), tint(strip(roofB, roofC), shade(2.1)));
-    const yBase = yDx(0) - 0.045 * H;
+    const yBase = yDx(0) - 0.045 * U;
     const pillar = (xb0, xb1, xt0, xt1, D, inner) => {
-      const b0 = P(xb0, yBase + 0.06 * H, D), b1 = P(xb1, yBase + 0.06 * H, D), t0 = P(xt0, roofY, D), t1 = P(xt1, roofY, D);
+      const b0 = P(xb0, yBase + 0.06 * U, D), b1 = P(xb1, yBase + 0.06 * U, D), t0 = P(xt0, roofY, D), t1 = P(xt1, roofY, D);
       dark.push(tint(quad(b0, b1, t1, t0), shade(1.25)));
       // Innenkante (Tiefe) → Lichtkante
       const e0 = inner > 0 ? b1 : b0, e1 = inner > 0 ? t1 : t0;
@@ -243,8 +259,8 @@ export class Cockpit {
       for (const [x0, x1] of [[0.03 * W, 0.3 * W], [0.7 * W, 0.975 * W]]) {
         const r0 = [], r1 = [], r2 = [];
         for (let i = 0; i <= 14; i++) {
-          const k = i / 14, x = x0 + (x1 - x0) * k, bump = 0.05 * H * Math.pow(Math.sin(Math.PI * k), 0.7);
-          r0.push(P(x, yBase + 0.03 * H, 1.7)); r1.push(P(x, yBase - bump, 2.2)); r2.push(P(x, yBase - bump * 0.85, 2.9));
+          const k = i / 14, x = x0 + (x1 - x0) * k, bump = 0.035 * U * Math.pow(Math.sin(Math.PI * k), 0.7);
+          r0.push(P(x, yBase + 0.03 * U, 1.7)); r1.push(P(x, yBase - bump, 2.2)); r2.push(P(x, yBase - bump * 0.85, 2.9));
         }
         fen.push(strip(r1, r0), strip(r2, r1));
       }
@@ -265,9 +281,10 @@ export class Cockpit {
       grp.add(new THREE.Mesh(glass, M.mirror));
     }
     grp.add(new THREE.Mesh(mergeGeometries(dark), M.dash));
-    grp.add(new THREE.Mesh(mergeGeometries(alu.map((a) => { a.deleteAttribute('uv'); return a; })), M.alu));
+    if (alu.length) grp.add(new THREE.Mesh(mergeGeometries(alu.map((a) => { a.deleteAttribute('uv'); return a; })), M.alu));
     // Zifferblätter (ein Mesh, Atlas-UVs), Glas, Zeiger
-    {
+    this.needles = [];
+    if (this.gauges.length) {
       const faces = [];
       for (let k = 0; k < 2; k++) {
         const { c, R } = this.gauges[k];
@@ -296,8 +313,9 @@ export class Cockpit {
         return pivot;
       });
     }
-    // Schaltkulisse + Knauf
-    {
+    // Schaltkulisse + Knauf (nur „full“)
+    this.gateGeo = null; this.knobMesh = null;
+    if (this.gaugePx.gate) {
       const [gx, gy, w, h] = this.gaugePx.gate, D = DG - 0.02, s = mpp(D), c = P(gx, gy, D);
       const plate = new THREE.PlaneGeometry(w * s, h * s);
       plate.translate(c.x, c.y, c.z);
@@ -310,16 +328,17 @@ export class Cockpit {
       grp.add(kb);
       this.knobMesh = kb;
     }
-    // Lenkrad: Nabe unter dem Bildrand, Kranz umrahmt die Instrumente; 3 Speichen, Griffmulden, Markierung oben
+    // Lenkrad: Nabe unter dem Bildrand, Kranz umrahmt die Instrumente (ohne Instrumente: knapp unter der
+    // Oberkante des Armaturenbretts); 3 Speichen, Griffmulden, Markierung oben
     {
-      const hubY = yB + 0.17 * H;
-      const reach = Math.hypot(off, hubY - yc) + gd / 2 + 0.025 * H;
-      const rimPx = 0.034 * H, s = mpp(DW);
+      const hubY = yB + 0.3 * U;
+      const rimPx = 0.03 * U, s = mpp(DW);
+      const reach = gd ? Math.hypot(off, hubY - yc) + gd / 2 + 0.012 * U : Math.max(0.15 * W, hubY - yD - rimPx + 0.02 * U);
       const R = (reach + rimPx) * s, r = rimPx * s;
       const wheel = new THREE.Group();
       wheel.position.copy(P(cx, hubY, DW));
       const tilt = new THREE.Group();
-      tilt.rotation.x = -14 * DEG;
+      tilt.rotation.x = -6 * DEG;   // n15: flacher (bis n14 −14°, der Kranz ragte oben weit ins Bild)
       wheel.add(tilt);
       const spin = new THREE.Group();
       tilt.add(spin);
@@ -361,11 +380,11 @@ export class Cockpit {
     c.updateMatrixWorld(true);
     if (!this.parts) return;
     const aS = this.nS.update(dt, speedAngle(v.kmh)), aT = this.nT.update(dt, rpmAngle(v.rpm));
-    this.needles[0].rotation.z = -aT; this.needles[1].rotation.z = -aS;
+    if (this.needles.length) { this.needles[0].rotation.z = -aT; this.needles[1].rotation.z = -aS; }
     this.wheelSpin.rotation.z = -v.steer * WHEEL_RATIO;
     const k = this.knob.update(dt, v.gear), G = this.gateGeo;
-    this.knobMesh.position.set(G.c.x + k.x * G.w * 0.33, G.c.y + k.y * G.h * 0.22, G.c.z + G.w * 0.06);
-    if (String(v.gear) !== String(this.gateGear)) { this.gateGear = v.gear; drawGate(this.gateCv, v.gear); this.gateTex.needsUpdate = true; }
+    if (G) this.knobMesh.position.set(G.c.x + k.x * G.w * 0.33, G.c.y + k.y * G.h * 0.22, G.c.z + G.w * 0.06);
+    if (String(v.gear) !== String(this.gateGear)) { this.gateGear = v.gear; if (G) { drawGate(this.gateCv, v.gear); this.gateTex.needsUpdate = true; } }
     // Sonne: steht sie vor dem Auto, fällt Licht durch die Scheibe aufs Armaturenbrett
     if (sunDir) {
       const f = new THREE.Vector3(0, 0, -1).applyQuaternion(c.quaternion);
@@ -386,5 +405,5 @@ export class Cockpit {
     renderer.autoClear = ac;
   }
   // Debug/Tests: Zeigerwinkel in Grad
-  readout() { return { speedDeg: this.nS.a / DEG, rpmDeg: this.nT.a / DEG, knob: [this.knob.x, this.knob.y], gear: this.gateGear, px: this.gaugePx, wheel: this.wheelPx }; }
+  readout() { return { speedDeg: this.nS.a / DEG, rpmDeg: this.nT.a / DEG, knob: [this.knob.x, this.knob.y], gear: this.gateGear, px: this.gaugePx, wheel: this.wheelPx, dash: this.dashPx, mode: this.mode }; }
 }

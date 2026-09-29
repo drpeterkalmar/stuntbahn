@@ -1,4 +1,5 @@
-# Phase 5: Rennen bis ins Ziel, Ergebnis, Bestzeit nach Reload, Geisterauto, Replay mit 4 Kameras
+# Phase 5: Rennen bis ins Ziel, Ergebnis, Bestzeit nach Reload, Geisterauto, Replay mit 4 Kameras.
+# Seit n15 auf Mittel (Autopilot fährt): Leicht hat keine Bestzeit/keinen Geist mehr (tests/test_leicht_zeiten.py).
 import sys, time, json
 sys.path.insert(0, 'tests')
 from util import *
@@ -6,8 +7,8 @@ res = {}
 with Server() as srv, sync_playwright() as pw:
     s = Session(pw, srv.base)
     s.open('?nosw&seed=1000&d=1')
-    s.ev("__game.setAssist('easy')")
-    s.tap('button[data-a=start]')
+    s.ev("__game.setAssist('medium')")
+    s.ev("__game.start({autopilot:true})")
     t0 = time.time()
     st = None
     for k in range(80):
@@ -44,4 +45,8 @@ with Server() as srv, sync_playwright() as pw:
     s.shot('r_ghost', 'race')
     print(json.dumps(res, ensure_ascii=False, indent=1))
     print('errors', s.errors[:8])
+    ok = res['ziel']['state'] == 'finished' and res['ergebnis_sichtbar'] and res['neue_bestzeit'] and '🟡 –' not in res['menue_bestzeiten'] \
+        and any(res['geist_sichtbar']) and len(set(map(tuple, positions))) == 4 and not res['kleine_knoepfe_ergebnis'] and not s.errors
     s.close()
+print('ERGEBNIS', 'grün' if ok else 'ROT')
+sys.exit(0 if ok else 1)

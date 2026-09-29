@@ -57,7 +57,7 @@ with Server() as srv, sync_playwright() as pw:
         s.tap('#hud [data-a=cam]'); s.frames(6); time.sleep(0.4)
         s.shot(p + '_mittel_cockpit', SUB)
         check(s, p + ' Cockpit Mittel', ['cockpit'])
-        expect(s.ev("getComputedStyle(document.querySelector('#hud .speed')).display") == 'none', p + ' Cockpit: Digital-Tempo ausgeblendet')
+        expect((s.ev("getComputedStyle(document.querySelector('#hud .speed')).display") == 'none') == (s.ev("__game.cockpit.mode") != 'hud'), p + ' Cockpit: Digital-Tempo nur ohne Rundinstrumente (' + s.ev("__game.cockpit.mode") + ')')
         s.ev("__game.setAssist('easy')"); s.frames(6); time.sleep(0.4)
         s.shot(p + '_leicht_cockpit', SUB)
         check(s, p + ' Cockpit Leicht', ['cockpit'])

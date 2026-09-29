@@ -5,6 +5,45 @@ sys.path.insert(0, 'tests')
 from util import *
 from hochformat_util import layout_check
 
+# n15: Bounding-Boxen der Touch-Tasten (Trefferfläche = Element, sichtbar = 6 px kleiner), Auto im Bild (Box des
+# Modells projiziert), Tempo, Extras, HUD oben, Cockpit-Instrumente
+BB = r"""async () => {
+  const THREE = await import('./lib/three.module.min.js');
+  const G = window.__game, cam = G.camera, car = G.carVis.root;
+  const R = (e) => { const r = e.getBoundingClientRect(); return [r.left, r.top, r.right, r.bottom]; };
+  const vis = (e) => e && e.offsetParent !== null && getComputedStyle(e).display !== 'none' && e.getBoundingClientRect().width > 0;
+  const tb = [...document.querySelectorAll('#touch.show .tb')].filter(vis).map((e) => ({ t: e.dataset.t, hit: R(e), vis: R(e).map((v, i) => v + (i < 2 ? 6 : -6)) }));
+  // Auto im Bild: Ecken der Modell-Box projiziert (nur Verfolger)
+  let carR = null;
+  if (G.rig.view === 'chase' && car.visible) {
+    const box = new THREE.Box3().setFromObject(car), W = innerWidth, H = innerHeight, xs = [], ys = [];
+    for (const x of [box.min.x, box.max.x]) for (const y of [box.min.y, box.max.y]) for (const z of [box.min.z, box.max.z]) {
+      const p = new THREE.Vector3(x, y, z).project(cam); xs.push((p.x + 1) / 2 * W); ys.push((1 - p.y) / 2 * H); }
+    carR = [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
+  }
+  const one = (q) => { const e = document.querySelector(q); return vis(e) ? R(e) : null; };
+  const px = G.rig.view === 'cockpit' && G.cockpit.readout().px;
+  return { tb, carR, speed: one('#hud.show .speed'), xb: [...document.querySelectorAll('#hud.show .xb')].filter(vis).map(R), tl: one('#hud.show .tl'), tr: one('#hud.show .tr'),
+    gauges: px && px.gd ? px.xs.map((x) => [x - px.gd / 2, px.yc - px.gd / 2, x + px.gd / 2, px.yc + px.gd / 2]) : [], mode: px && px.mode, W: innerWidth, H: innerHeight };
+}"""
+def inter(a, b): return a and b and min(a[2], b[2]) - max(a[0], b[0]) > 1 and min(a[3], b[3]) - max(a[1], b[1]) > 1
+def sz(r): return (round(r[2] - r[0]), round(r[3] - r[1]))
+def bb_check(s, orient, tag, want=None):
+    b = s.ev(BB)
+    T = {t['t']: t for t in b['tb']}
+    print(tag, 'sichtbar', {k: sz(v['vis']) for k, v in T.items()}, 'Auto', b['carR'] and [round(v) for v in b['carR']], 'Instrumente', b['mode'], flush=True)
+    if want:
+        for k, (w, h) in want.items():
+            if k in T: expect(abs(sz(T[k]['vis'])[0] - w) <= 2 and abs(sz(T[k]['vis'])[1] - h) <= 2, f'{orient} {tag}: Taste {k} sichtbar {sz(T[k]["vis"])} ≈ {w}×{h}')
+    expect(all(sz(t['hit'])[0] - sz(t['vis'])[0] == 12 for t in b['tb']), f'{orient} {tag}: Trefferfläche je Seite 6 px größer als sichtbar')
+    gaps = [max(u['vis'][0] - t['vis'][2], t['vis'][0] - u['vis'][2]) for i, t in enumerate(b['tb']) for u in b['tb'][i + 1:]]
+    expect(gaps and min(gaps) >= 11.5, f'{orient} {tag}: Abstand zwischen Tasten ≥ 12 px ({min(gaps) if gaps else None})')
+    others = [('Auto', b['carR']), ('Tempo', b['speed']), ('HUD oben links', b['tl']), ('HUD oben rechts', b['tr'])] + [('Extra', x) for x in b['xb']] + [('Instrument', g) for g in b['gauges']]
+    hits = [f"{t['t']}⟷{n}" for t in b['tb'] for n, r in others if inter(t['hit'], r)]
+    expect(not hits, f'{orient} {tag}: Tasten überdecken weder Auto, Tempo, Extras, HUD noch Instrumente {hits}')
+    if b['carR']: expect(b['carR'][3] < min(t['hit'][1] for t in b['tb']) or not any(inter(t['hit'], b['carR']) for t in b['tb']), f'{orient} {tag}: Auto frei')
+    return b
+
 ok = True
 def expect(cond, msg):
     global ok
@@ -63,6 +102,24 @@ with Server() as srv, sync_playwright() as pw:
         res['kleine_knoepfe_rennen'] = s.small_buttons()
         r = layout_check(s)
         expect(not r['overlap'] and not r['out'] and not r['small'], f'{orient}: HUD Mittel sauber {r}')
+        # n15: größere Tasten (Standard „Groß“ = +30 %), Nachweis per Bounding-Box, dann Cockpit mit Tasten, Normal/Riesig
+        s.ev("__game.sim(2)"); s.frames(8)
+        if orient == 'quer': want = {'L': (112, 112), 'R': (112, 112), 'G': (135, 153), 'B': (120, 112)}
+        else: want = {'L': (81, 104), 'R': (81, 104), 'B': (81, 104), 'G': (97, 125)}
+        bb_check(s, orient, 'Groß Verfolger', want)
+        s.shot(f't_gross_verfolger_{orient}', 'touch')
+        s.ev("__game.cam('cockpit')"); s.frames(30); time.sleep(0.3)
+        b = bb_check(s, orient, 'Groß Cockpit')
+        r = layout_check(s, ['cockpit'])
+        expect(not r['overlap'] and not r['out'] and not r['small'] and b['mode'] in ('full', 'compact'), f'{orient}: Cockpit mit großen Tasten sauber ({b["mode"]}) {r}')
+        s.shot(f't_gross_cockpit_{orient}', 'touch')
+        for size, k in (('normal', 1.0), ('riesig', 1.5)):
+            s.ev(f"() => {{ document.body.dataset.tbsize = '{size}'; }}"); s.frames(20); time.sleep(0.3)
+            b = bb_check(s, orient, size.capitalize() + ' Cockpit')
+            r = layout_check(s, ['cockpit'])
+            expect(not r['overlap'] and not r['out'] and not r['small'], f'{orient}: Cockpit {size} sauber ({b["mode"]}) {r}')
+            s.shot(f't_{size}_cockpit_{orient}', 'touch')
+        s.ev("() => { document.body.dataset.tbsize = 'gross'; __game.cam('chase'); }"); s.frames(5)
         # Pause-Menü + Fahrhilfe umschalten
         s.tap('#hud [data-a=pause]'); time.sleep(0.5)
         res['kleine_knoepfe_pause'] = s.small_buttons()
