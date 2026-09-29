@@ -251,12 +251,14 @@ function buildHighway(pb) {
 function buildHighwayT(pb) {
   const pc = pb.pc, into = !!pc.into;
   const k = (f) => (into ? cs(f / T) : 1 - cs(f / T));
+  const [a, b] = into ? [11 * WS, T] : [0, T - 11 * WS];
+  // Grenze zur Mittelleitplanke (±0,3 m um die Mitte): wo sie steht (ab 4 m davor), Wagenmitte mindestens 1,6 m
+  // von der Mitte der Fahrbahn wie an Kanten (Rad-Außenkante + 0,4 m). Bis n14 fest −3,2 m – am Leitplanken-Beginn
+  // liegt die Spur aber erst ~3,5 m neben der Mitte (fiel erst auf, als Leicht das Auto neben der Linie fahren ließ)
+  const lo = (f) => (f >= a - 4 && f <= b + 4 ? Math.max(-3.2, -(HWY_R * k(f) - 1.6)) : -3.2);
   pb.ribbon(lin(0, T, nS(10)).map((f) => ({ f, y: 0, r: 0, hw: HW + (HWY_W - HW) * k(f) })), { profile: 'road' });
-  pb.path(lin(0, T, nS(12)).map((f) => ({ f, y: 0, r: HWY_R * k(f), lo: -3.2, hi: 3.2, prof: 'none' })), { profile: 'none' });
-  if (!pc.sub) {
-    const [a, b] = into ? [11 * WS, T] : [0, T - 11 * WS];
-    pb.box((a + b) / 2, 0.4, 0, b - a, 0.8, 0.6, MAT.WALL, { collide: true });
-  }
+  pb.path(lin(0, T, nS(12)).map((f) => ({ f, y: 0, r: HWY_R * k(f), lo: lo(f), hi: 3.2, prof: 'none' })), { profile: 'none' });
+  if (!pc.sub) pb.box((a + b) / 2, 0.4, 0, b - a, 0.8, 0.6, MAT.WALL, { collide: true });
 }
 
 // Korkenzieher (Rolle): 360° um die Fahrtrichtung, rechts hinauf, oben kopfüber über der Mittelwand,
