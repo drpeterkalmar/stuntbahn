@@ -175,14 +175,13 @@ function apRunde(env, P) {
     let j = i, jm = i;
     if (race.ap.vtIdx != null) jm = race.ap.vtIdx;
     else { const jv = race.ap.ahead(i, Math.max(3, Math.abs(v) * 0.35)); for (let c = 0; c < 400; c++) { if (P.vt[j] < P.vt[jm]) jm = j; if (j === jv) break; j = nextI(j); } }
-    // Bremst der Plan am Ziel des Reglers (vt fällt dahinter), zählt die Bremszeit zur Ursache am Ende der Bremszone –
-    // auch wenn das Auto dabei knapp unter vt liegt (Regler ab n14 folgt vt knapp voraus mit Vorsteuerung; bis 29.09.
-    // landete das fast alles unter „Vorausschau“). Vorausschau = bremst, obwohl der Plan dort nicht bremst und das
-    // Auto schon unter dem Ziel-Tempo ist; Halten = Pendeln an einer Grenze ohne Bremszone
+    // Vorausschau = bremst, obwohl mehr als 2 m/s unter dem Plan-Tempo der eigenen Stelle (zu früh: der Regler bis n13
+    // zielte auf das kleinste vt der nächsten 0,35 s und lag in Bremszonen ~4 m/s unter dem Plan). Der Regler ab n14
+    // folgt vt knapp voraus und liegt dort nur ~0,5–1 m/s darunter – das zählt zur Ursache am Ende der Bremszone
+    // (bis 29.09. lag die Schwelle bei 0,5 m/s, dann landete auch das unter „Vorausschau“)
     let why;
-    const zoneB = P.vt[race.ap.ahead(jm, 4)] < P.vt[jm] - 0.2;
-    if (!zoneB && v < P.vt[jm] - 0.5) why = 'vorausschau';
-    else if (!zoneB && P.vt[jm] >= P.vt[i] - 0.3 && P.vt[i] >= P.vmax[i] - 0.3) why = 'halten';
+    if (v < P.vt[i] - 2) why = 'vorausschau';
+    else if (P.vt[jm] >= P.vt[i] - 0.3 && P.vt[i] >= P.vmax[i] - 0.3) why = 'halten';
     else { let k = jm; for (let c = 0; c < n && P.vt[k] < P.vmax[k] - 0.05; c++) k = nextI(k); why = bindend(k); }
     brems[why] = (brems[why] || 0) + DT;
   }
