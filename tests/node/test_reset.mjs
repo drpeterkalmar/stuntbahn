@@ -4,6 +4,7 @@
 // Brückenwand (Aufprall). Danach fährt der Autopilot (bzw. auf Leicht der „Spieler nichts“) ins Ziel.
 import { generate } from '../../src/track/generator.js';
 import { verifySync } from '../../src/track/verify.js';
+import { PHYS } from '../../src/physics/car.js';
 import { Race, PENALTY, REC_HZ, REC_STRIDE } from '../../src/game/race.js';
 import { Replay } from '../../src/game/replay.js';
 import { modeKey } from '../../src/game/store.js';
@@ -194,10 +195,13 @@ console.log('--- E: Bestzeiten-Schlüssel ---');
   // Tempo-Umbau 27.09.: neue Physik wertet getrennt (Zusatz @t2), alte Einträge bleiben unberührt
   check(new Set([...mid, ...old]).size === 12 && mid.every((k, i) => k === old[i] + '@t2'), `neue Physik eigene Wertungen: ${mid.join(', ')}`);
   // Weltmaßstab 27.09. (n12): neue Welt wertet nochmals getrennt (Zusatz WORLD_TAG, z. B. @w2); Maßstab 1 = alte Schlüssel
-  check(WORLD_TAG === '' ? keys.every((k, i) => k === mid[i]) : new Set([...keys, ...mid, ...old]).size === 18 && keys.every((k, i) => k === mid[i] + WORLD_TAG),
-    `neue Welt eigene Wertungen (${WORLD_TAG || 'Maßstab 1: keine'}): ${keys.join(', ')}`);
+  const w2 = mid.map((k) => k + WORLD_TAG);
+  check(WORLD_TAG === '' || (new Set([...w2, ...mid, ...old]).size === 18 && w2.every((k, i) => k === modeKey(['easy', 'medium', 'original'][i >> 1], !!(i & 1), 2, WORLD_TAG, false))),
+    `neue Welt eigene Wertungen (${WORLD_TAG || 'Maßstab 1: keine'}): ${w2.join(', ')}`);
+  // Bodenhaftung 29.09. (n14): Physik 3 wertet getrennt (Zusatz @t3 statt @t2), die Zeiten der Physik 2 bleiben
+  check(PHYS === 3 && new Set([...keys, ...w2, ...mid, ...old]).size === 24 && keys.every((k, i) => k === w2[i].replace('@t2', '@t3')), `mehr Haftung eigene Wertungen (@t3): ${keys.join(', ')}`);
   // Extras 28.09.: mit Hüpfer & Nitro eigene Liste (Standard), die bisherigen Zeiten = Liste „ohne Extras“
-  check(new Set([...xk, ...keys, ...mid, ...old]).size === 24 && xk.every((k, i) => k === keys[i] + '@x'), `Extras eigene Wertungen (@x): ${xk.join(', ')}`);
+  check(new Set([...xk, ...keys, ...w2, ...mid, ...old]).size === 30 && xk.every((k, i) => k === keys[i] + '@x'), `Extras eigene Wertungen (@x): ${xk.join(', ')}`);
 }
 
 console.log(fails ? `${fails} Fehlschläge` : 'Reset mit Zeitstrafe + Totalschaden-Option ok');

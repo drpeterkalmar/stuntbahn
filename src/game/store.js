@@ -17,6 +17,8 @@ const GHOST_MAX = 40;
 // Extras (28.09.2026, Hüpfer + Nitro): Zeiten mit Extras bekommen „@x“ – eine eigene Liste. Die bisherigen
 // Zeiten (ohne Extras gefahren) bleiben unverändert und sind genau die Liste mit ausgeschalteten Extras
 // (Option „Hüpfer & Nitro“ aus, für Puristen); das Menü zeigt sie als „ohne Extras“.
+// Mehr Bodenhaftung (29.09.2026, n14): Physik 3 → Zusatz „@t3“. Die Zeiten der Physik 2 (gleiche Welt, gleiche
+// Extras-Einstellung) bleiben stehen und erscheinen im Menü als „alte Physik“; ?grip=1 wertet wieder dort.
 export function modeKey(assist, wreck, phys = PHYS, world = WORLD_TAG, extras = true) {
   const legacy = assist === 'easy' ? !wreck : !!wreck;
   return (legacy ? assist : assist + (wreck ? '+wrack' : '+reset')) + (phys >= 2 ? '@t' + phys : '') + world + (extras ? '@x' : '');
@@ -26,7 +28,7 @@ export class Store {
   constructor() {
     let d = {};
     try { d = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch { d = {}; }
-    this.settings = Object.assign({ assist: 'easy', paint: 0xa3120e, sound: true, ghost: true, touch: 'auto', tilt: false, wreck: false, line: 'soft', lineLast: 'soft', cam: 'chase', quality: 'auto', diff: 2, lastSeed: null, seenHelp: false, extras: true, autoExtras: true, blur: 'light' }, d.settings || {});
+    this.settings = Object.assign({ assist: 'easy', paint: 0xa3120e, sound: true, ghost: true, touch: 'auto', tilt: false, wreck: false, line: 'soft', lineLast: 'soft', cam: 'chase', quality: 'auto', diff: 2, lastSeed: null, seenHelp: false, extras: true, autoExtras: true, blur: 'light', brakeHelp: 'hint' }, d.settings || {});
     this.best = d.best || {};      // key|modeKey -> { time, date, name, pen }
     this.ghostIndex = d.ghostIndex || []; // Reihenfolge für LRU
     try { this.verified = JSON.parse(localStorage.getItem(KEY + '.verified') || '{}'); } catch { this.verified = {}; }
@@ -49,10 +51,13 @@ export class Store {
   bestFor(key, assist, wreck = this.settings.wreck, extras = this.settings.extras) { return this.best[key + '|' + modeKey(assist, wreck, PHYS, WORLD_TAG, extras)] || null; }
   // Bestzeit derselben Wertung mit der jeweils anderen Extras-Einstellung (nur Anzeige: „ohne/mit Extras“)
   otherExtrasBestFor(key, assist, wreck = this.settings.wreck) { return this.bestFor(key, assist, wreck, !this.settings.extras); }
-  // Bestzeit derselben Wertung mit der alten Physik (bis 27.09.2026, alte Welt, ohne Extras) – nur zur Anzeige, nicht vergleichbar
+  // Bestzeit derselben Wertung mit der Physik vor n14 (bis 28.09.2026, weniger Haftung; gleiche Welt und Extras) –
+  // nur zur Anzeige, nicht vergleichbar
+  prevPhysBestFor(key, assist, wreck = this.settings.wreck, extras = this.settings.extras) { return PHYS >= 3 ? this.best[key + '|' + modeKey(assist, wreck, 2, WORLD_TAG, extras)] || null : null; }
+  // Bestzeit derselben Wertung mit der ersten Physik (bis 27.09.2026, alte Welt, ohne Extras) – nur zur Anzeige
   oldBestFor(key, assist, wreck = this.settings.wreck) { return PHYS >= 2 ? this.best[key + '|' + modeKey(assist, wreck, 1, '', false)] || null : null; }
-  // Bestzeit derselben Wertung und Physik in der alten Welt (Maßstab 1, bis 27.09.2026, ohne Extras) – nur zur Anzeige
-  oldWorldBestFor(key, assist, wreck = this.settings.wreck) { return WORLD_TAG ? this.best[key + '|' + modeKey(assist, wreck, PHYS, '', false)] || null : null; }
+  // Bestzeit derselben Wertung in der alten Welt (Maßstab 1, Physik 2, bis 27.09.2026, ohne Extras) – nur zur Anzeige
+  oldWorldBestFor(key, assist, wreck = this.settings.wreck) { return WORLD_TAG && PHYS >= 2 ? this.best[key + '|' + modeKey(assist, wreck, 2, '', false)] || null : null; }
   // Rennen beendet: Bestzeit prüfen, Geist speichern (rec inkl. Strafzeit-Stillstand, Race.ghostRec)
   submit(key, assist, wreck, time, rec, meta = {}) {
     const k = key + '|' + modeKey(assist, wreck, PHYS, WORLD_TAG, meta.extras !== false);

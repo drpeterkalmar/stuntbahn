@@ -26,25 +26,34 @@ export const CAR_DEF = {
   ],
   mountY: 0.12, wheelR: 0.345, rest: 0.36, maxComp: 0.33,
   k: 70000, bumpStart: 0.22, bumpK: 260000, cComp: 4300, cReb: 6000,
-  mu: 1.5, slip0: 0.085, rollH: 0.3,
-  power: 2200000, maxDrive: 18000, driveFront: 0.42, brake: 27000, brakeFront: 0.6, aeroGrip: 1,
-  dragK: 0.48, downK: 1.5, reverseMax: 9,
+  mu: 1.7, slip0: 0.085, rollH: 0.3,
+  power: 2200000, maxDrive: 18000, driveFront: 0.5, brake: 27000, brakeFront: 0.6, aeroGrip: 1,
+  dragK: 0.48, downK: 2.5, groundFx: 0.5, reverseMax: 9,
   steerMax: 0.6, steerSpeed: 3.0,
   gears: [0, 20, 35, 55, 82, 117, 165], idle: 900, redline: 7600,   // Gangspitzen m/s (bis 27.09.: 13 … 70)
 };
+// Mehr Bodenhaftung (Peter 28.09.2026: „Bei Original brauchen wir mehr Bodenhaftung“, n14): Reifen mu 1,5 → 1,7,
+// Abtrieb 1,5 → 2,5 als Bodeneffekt (groundFx, wirkt nur nahe der Fahrbahn – Sprünge bleiben), Antrieb 42/58 →
+// 50/50 (weniger Übersteuern beim Gasgeben in der Kurve). Dazu teilt build.js verwundene Fahrbahn fein auf (vorher
+// ließ ein Sägezahn die Räder an Steilkurven-Eingängen abheben). Messung: FAHRGEFUEHL_BERICHT.md, tools/fahr_analyse.mjs.
+// Werte bis n13 – URL ?grip=1 fährt zum Vergleich damit (und wertet in den Bestzeiten der alten Physik).
+export const CAR_DEF_GRIP_ALT = { mu: 1.5, downK: 1.5, groundFx: 0, driveFront: 0.42 };
 // Abstimmung bis 27.09.2026 (Vmax 286 km/h) – zum Vergleich (tools/tempo_measure.mjs, URL ?auto=alt)
 export const CAR_DEF_ALT = {
-  ...CAR_DEF,
+  ...CAR_DEF, ...CAR_DEF_GRIP_ALT,
   mu: 1.0, power: 240000, maxDrive: 15500, brake: 27000, aeroGrip: 0, dragK: 0.43, downK: 1.1,
   gears: [0, 13, 22, 31, 41, 53, 70],
 };
 
-// Physik-Version für Bestzeiten/Geister (store.js): 1 = bis 27.09.2026, 2 = „doppelt so schnell“.
-// URL ?auto=alt fährt zum Vergleich mit der alten Abstimmung (und wertet dann auch in der alten Liste).
+// Physik-Version für Bestzeiten/Geister (store.js): 1 = bis 27.09.2026, 2 = „doppelt so schnell“, 3 = mehr
+// Bodenhaftung (n14, 29.09.2026). URL ?auto=alt / ?grip=1 fährt zum Vergleich mit der alten Abstimmung (und wertet
+// dann auch in der alten Liste). GRIP_ALT: auch Fahrbahn-Aufteilung (build.js) und Profil-Reserven wie bis n13.
+const urlQ = globalThis.location && globalThis.location.search ? new URLSearchParams(globalThis.location.search) : null;
+export const GRIP_ALT = !!urlQ && (urlQ.get('grip') === '1' || urlQ.get('auto') === 'alt');
 export const PHYS = (() => {
-  const q = globalThis.location && globalThis.location.search;
-  if (q && new URLSearchParams(q).get('auto') === 'alt') { Object.assign(CAR_DEF, CAR_DEF_ALT); return 1; }
-  return 2;
+  if (urlQ && urlQ.get('auto') === 'alt') { Object.assign(CAR_DEF, CAR_DEF_ALT); return 1; }
+  if (GRIP_ALT) { Object.assign(CAR_DEF, CAR_DEF_GRIP_ALT); return 2; }
+  return 3;
 })();
 
 // Größter Lenkwinkel bei Tempo v (m/s) – gemeinsam für Physik und Autopilot
@@ -59,7 +68,8 @@ export function driveAccel(def, v) {
   return (Math.min(def.maxDrive * aeroLoad(def, v), def.power / v) - def.dragK * v * v) / def.mass;
 }
 // Planbare Bremsverzögerung bei Tempo v (m/s²): Grundwert (Asphalt, mit Reserve für den Regler) wächst mit
-// der Aero-Last, dazu der halbe Luftwiderstand. Gemessen bei Vollbremsung: 12,7·Aero-Last + Luftwiderstand.
+// der Aero-Last, dazu der halbe Luftwiderstand. Vollbremsung (gemessen, n14): Reibungsgrenze 1,25·mu·g·Aero-Last
+// + Luftwiderstand (mu 1,5: 18,4·Aero-Last).
 export function brakeDecel(def, v, base = 8) {
   return base * aeroLoad(def, v) + 0.5 * def.dragK * v * v / def.mass;
 }
@@ -298,7 +308,14 @@ export class Car {
     // Aerodynamik
     fx -= d.dragK * sp * this.v.x; fy -= d.dragK * sp * this.v.y; fz -= d.dragK * sp * this.v.z;
     const down = d.downK * vF * Math.abs(vF);
-    if (contacts >= 2) { fx -= F.u.x * down; fy -= F.u.y * down; fz -= F.u.z * down; }
+    // Abtrieb als Bodeneffekt (d.groundFx = Reichweite in m, n14): voll bis zur normalen Bodenfreiheit, darüber
+    // linear weniger, 0 ab groundFx m Abstand – hält das Auto über Kuppen und an verwundenen Übergängen am Boden,
+    // Sprünge bleiben (nach ~0,05 s über der Lippe außer Reichweite), der Hüpfer ist ausgenommen.
+    // Ohne groundFx wie bis n13: nur mit mindestens 2 Rädern am Boden.
+    let gf = contacts >= 2 ? 1 : 0;
+    if (d.groundFx > 0) gf = this.hopUp ? gf : this.groundFactor(world, d.groundFx);
+    this.downF = down * gf;
+    if (gf > 0) { fx -= F.u.x * down * gf; fy -= F.u.y * down * gf; fz -= F.u.z * down * gf; }
     // Magnet-Hilfe (Fahrhilfe "Leicht"/Stunts): drückt auf die Fahrbahn, wenn Räder Kontakt haben
     if (this.assist.magnet > 0 && contacts >= 2) {
       const l = Math.hypot(nAvgX, nAvgY, nAvgZ) || 1;
@@ -353,6 +370,16 @@ export class Car {
       else this.upsideT = Math.max(0, this.upsideT - dt);
       if (Math.abs(this.pos.x) > LOST || Math.abs(this.pos.z) > LOST) this.setCrash('Verirrt');
     }
+  }
+
+  // Bodeneffekt-Anteil 0 … 1: Strahl von der Wagenmitte nach unten (Karosserie-Unten); voll bis zur Ruhelage
+  // (Bodenfreiheit wie beim Aufsetzen, place()), linear weniger bis range m darüber
+  groundFactor(world, range) {
+    const d = this.def, F = this.frame;
+    const h0 = d.wheelR + d.rest - d.mass * 9.81 / 4 / d.k - d.mountY;
+    const hit = world.ray(this.pos.x, this.pos.y, this.pos.z, -F.u.x, -F.u.y, -F.u.z, h0 + range, true);
+    if (!hit) return 0;
+    return Math.max(0, Math.min(1, 1 - (hit.t - h0) / range));
   }
 
   setCrash(reason, info) {

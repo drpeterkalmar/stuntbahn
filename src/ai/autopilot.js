@@ -1,7 +1,17 @@
 // Autopilot: Pure Pursuit auf der Ideallinie + Tempo-Regler auf das Profil.
 // Wird für Lösbarkeitsprüfung (Generator), Fahrhilfen (Mischung Spieler/Autopilot) und Demo genutzt.
 import { GRIP, WORLD_SCALE } from '../track/defs.js';
-import { maxSteerAt } from '../physics/car.js';
+import { maxSteerAt, aeroLoad } from '../physics/car.js';
+import { G } from '../physics/air.js';
+
+// Tempo-Regler (n14, 29.09.2026): Vorsteuerung aus dem Profil (Soll-Beschleunigung d(v²/2)/ds kurz voraus) + P-Anteil
+// auf den Tempofehler, stetig auf Gas bzw. Bremse umgerechnet über das Fahrzeugmodell (Luft-/Rollwiderstand, Steigung,
+// Antriebs- und Bremskraft). So folgt das Auto dem Profil eng, ohne früh zu bremsen und ohne zu pendeln.
+// Bis n13: Ziel = kleinstes Profil-Tempo der nächsten 0,35 s, Gas 0,35 + 0,45·Fehler, Bremse erst unter −0,4 m/s –
+// das Auto bremste meist unter dem Plan-Tempo (87 % der Bremszeit) und wechselte bis zu 17-mal je Sekunde zwischen
+// Gas und Bremse (tools/fahr_analyse.mjs). preview: s Vorlauf des Bezugspunkts, kv: 1/s, dead: kleinste Pedalstellung.
+export const SPEED = { preview: 0.03, kv: 8, dead: 0.02 };
+const ROLL_ROAD = 0.015;   // Rollwiderstand Asphalt (defs.js ROLL) für die Vorsteuerung
 
 // Suchfenster des Trackers (Stützpunkte zurück/voraus, ~2 m je Punkt): wächst mit dem Weltmaßstab, damit ein
 // Auto, das quer übers Gelände zu einem entfernteren Abschnitt fährt, weiter gefunden wird (bis 27.09.2026 25/70)
@@ -86,6 +96,7 @@ export class Autopilot {
       if (nj >= n) { if (!L.closed) break; nj = 1; ds = L.s[1]; } else ds = L.s[nj] - L.s[j];
       acc += ds; j = nj;
     }
+    this.aheadAcc = acc;   // tatsächlich zurückgelegte Bogenlänge (Rundkurs: über den Start hinweg)
     return j;
   }
   control(car) {
@@ -116,17 +127,29 @@ export class Autopilot {
     delta += 0.06 * (yaw - yawWant);
     const maxSteer = maxSteerAt(car.def, v);
     o.steer = Math.max(-1, Math.min(1, delta / maxSteer));
-    if (L.air[i] || car.onGround === 0) o.steer = 0;
-    // Tempo: Ziel = Minimum des Profils über die nächsten ~0.35 s
-    const jv = this.ahead(i, Math.max(3, Math.abs(v) * 0.35));
-    let vt = this.P.vt[i];
-    // (bis 27.09.2026 höchstens 60 Punkte: bei > 57 m/s über dichten Stützpunkten, z. B. Bodenwellen, zu kurz)
-    for (let q = i, c = 0; c < 400; c++) { vt = Math.min(vt, this.P.vt[q]); if (q === jv) break; q = q + 1 >= L.n ? (L.closed ? 1 : L.n - 1) : q + 1; }
-    vt *= this.speedScale;
-    const ev = vt - v;
-    if (ev > -0.4) { o.throttle = Math.max(0, Math.min(1, 0.35 + ev * 0.45)); o.brake = 0; }
-    else { o.throttle = 0; o.brake = Math.max(0, Math.min(1, -ev * 0.3)); }
-    if (v < 3 && vt > 5) { o.throttle = 1; o.brake = 0; }
+    // Anteile für die Fahrhilfe „Leicht“ (race.js): Kurven-Vorsteuerung und Rückführung (Kurs + Querfehler)
+    this.ffN = ff / maxSteer; this.fbN = (delta - ff) / maxSteer;
+    this.maxSteer = maxSteer; this.yawTerm = 0.06 * (yaw - yawWant);
+    if (L.air[i] || car.onGround === 0) { o.steer = 0; this.ffN = this.fbN = 0; }
+    // Tempo: Bezugspunkt kurz voraus, Soll-Beschleunigung aus dem Profil über die nächsten 4 m
+    const sc = this.speedScale * (this.assistScale ?? 1), vA = Math.abs(v);
+    // (nie über eine Flugphase hinweg: in der Luft wirken weder Gas noch Bremse – Bezug bleibt die Lippe)
+    let jr = this.ahead(i, 0.5 + vA * SPEED.preview);
+    if (L.air[jr] && !L.air[i]) jr = i;
+    let jn = this.ahead(jr, 4), dsn = this.aheadAcc;
+    if (L.air[jn] && !L.air[jr]) { jn = jr; dsn = 0; }
+    const vr = this.P.vt[jr] * sc, vn = this.P.vt[jn] * sc;
+    this.vtIdx = jr; this.vRef = vr;
+    const aff = dsn > 0.5 ? Math.min(40, (vn * vn - vr * vr) / (2 * dsn)) : 0;
+    const acmd = aff + SPEED.kv * (vr - v);
+    // Beschleunigung ohne Pedal: Luft- und Rollwiderstand, Hangabtrieb längs des Autos
+    const def = car.def, m = def.mass, aero = aeroLoad(def, v);
+    const aRes = -(def.dragK * v * vA) / m - ROLL_ROAD * G * aero * Math.sign(v) - G * F.f.y;
+    if (acmd >= aRes) { o.throttle = Math.min(1, (acmd - aRes) * m / Math.min(def.maxDrive * aero, def.power / Math.max(vA, 1))); o.brake = 0; }
+    else { o.throttle = 0; o.brake = Math.min(1, (aRes - acmd) * m / (def.brake * aero)); }
+    if (o.throttle < SPEED.dead) o.throttle = 0;
+    if (o.brake < SPEED.dead) o.brake = 0;
+    if (v < 3 && vr > 5) { o.throttle = 1; o.brake = 0; }
     // Traktionskontrolle auf rutschigem Belag (Eis/Schotter): Gas nur, soweit Seitenhaftung übrig bleibt
     let gs = 0, gn = 0;
     for (const w of car.wheels) if (w.contact) { gs += GRIP[w.mat] ?? 1; gn++; }

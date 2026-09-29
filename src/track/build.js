@@ -9,6 +9,7 @@ import { buildTrkTerrain, carveUnderRoads } from './trkterrain.js';
 import { buildScenery } from './scenery.js';
 import { adaptiveGrid, gridExt, FINE_DT } from './terrgrid.js';
 import { clamp, smoothstep, makeNoise2, rng } from '../core/util.js';
+import { GRIP_ALT } from '../physics/car.js';
 
 const WS = WORLD_SCALE;
 // Chunk-Kante wächst mit dem Maßstab: gleich viele Draw-Calls wie im alten Raster (bis 27.09.2026: 100 m)
@@ -30,6 +31,35 @@ class Batch {
     if (this.col) this.col.push(...(col || [0.8, 0.8, 0.8]));
     return this.nv++;
   }
+}
+
+// Verwundene Fahrbahn (Steilkurven-Übergänge, Korkenzieher): Ein Viereck zwischen zwei Querschnitten ist dort
+// windschief; als zwei Dreiecke entsteht ein Knick – bei 12 m Breite und 1 m Stützpunktabstand ein Sägezahn von
+// mehreren Zentimetern, auf dem die Räder 30-mal je Sekunde aufschlugen und abwechselnd ohne Last waren (Auto hob am
+// Steilkurven-Eingang ab, n14). Solche Fahrbahn-Segmente werden über den ganzen Lauf quer in so viele Streifen
+// geteilt, dass der Knick unter TWIST_TOL bleibt (Grafik und Kollision gleich). Ebene Fahrbahn bleibt ein Segment.
+const TWIST_TOL = 0.01, TWIST_MAX = 24;
+function splitTwisted(S, profs) {
+  if (GRIP_ALT) return profs;   // ?grip=1: Fahrbahn wie bis n13 (Vergleich)
+  const nseg = profs[0].length, split = new Array(nseg).fill(1);
+  const at = (s, a) => add(add(s.p, mul(s.B, a[0])), mul(s.N, a[1]));
+  for (let k = 0; k < nseg; k++) {
+    if (!profs[0][k].road) continue;
+    let dmax = 0;
+    for (let i = 1; i < S.length; i++) {
+      const A0 = at(S[i - 1], profs[i - 1][k].a), B0 = at(S[i - 1], profs[i - 1][k].b), A1 = at(S[i], profs[i][k].a), B1 = at(S[i], profs[i][k].b);
+      const n = cross(sub(B0, A0), sub(A1, A0)), l = Math.hypot(n[0], n[1], n[2]);
+      if (l > 1e-9) dmax = Math.max(dmax, Math.abs(dot(sub(B1, A0), n)) / l);
+    }
+    split[k] = Math.min(TWIST_MAX, Math.max(1, Math.ceil(dmax / (4 * TWIST_TOL))));
+  }
+  if (split.every((x) => x === 1)) return profs;
+  const lerp2 = (p, q, u) => [p[0] + (q[0] - p[0]) * u, p[1] + (q[1] - p[1]) * u];
+  return profs.map((pr) => pr.flatMap((sg, k) => {
+    const m = split[k];
+    if (m === 1) return [sg];
+    return Array.from({ length: m }, (_, q) => ({ ...sg, a: lerp2(sg.a, sg.b, q / m), b: lerp2(sg.a, sg.b, (q + 1) / m), na: sg.na && sg.nb ? lerp2(sg.na, sg.nb, q / m) : sg.na, nb: sg.na && sg.nb ? lerp2(sg.na, sg.nb, (q + 1) / m) : sg.nb }));
+  }));
 }
 
 // ---------- Querschnitte (Profile) im Rahmen: x = rechts, y = Fahrbahn-Normale ----------
@@ -318,9 +348,11 @@ export function buildTrack(layout, opt = {}) {
 
     const buildRun = (S, prof, o) => {
       const pf = PROFILES[prof];
-      const profs = S.map((s) => pf(s, o));
+      let profs = S.map((s) => pf(s, o));
+      const nseg0 = profs[0].length;
+      for (const pr of profs) if (pr.length !== nseg0) throw new Error('Profil-Segmentzahl variiert: ' + prof);
+      profs = splitTwisted(S, profs);
       const nseg = profs[0].length;
-      for (const pr of profs) if (pr.length !== nseg) throw new Error('Profil-Segmentzahl variiert: ' + prof);
       // Bogenlänge entlang des Laufs (für UV v)
       const sAlong = [0];
       for (let i = 1; i < S.length; i++) sAlong.push(sAlong[i - 1] + Math.hypot(...sub(S[i].p, S[i - 1].p)));
