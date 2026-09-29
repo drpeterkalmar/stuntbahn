@@ -24,8 +24,10 @@ with Server() as srv, sync_playwright() as pw:
     # Bestzeit der neuen Physik in der alten Welt (Maßstab 1, Schlüssel @t2 ohne Welt-Zusatz) → „alte Welt“
     old_world = s.ev("__game.worldScale") != 1
     if old_world: s.ev(f"() => {{ __game.store.best['{key}|medium@t2'] = {{ time: 44.44, date: '2026-09-27', name: 'alt' }}; __game.store.save(); __game.ui.refresh(); }}")
+    # Bestzeit der Physik bis 28.09.2026 (weniger Haftung, @t2, gleiche Welt + Extras) → „alte Physik“ (seit n14)
+    s.ev(f"() => {{ __game.store.best['{key}|' + __game.modeKey('medium', true, 2)] = {{ time: 47.77, date: '2026-09-28', name: 'alt' }}; __game.store.save(); __game.ui.refresh(); }}")
     menu_off = s.ev("document.querySelector('#menu .bests').textContent")
-    check('0:51,23' not in menu_off and 'Reset +5 s' in menu_off, f'Menü (aus): alte Mittel-Zeit nicht gezeigt, Kennzeichnung da: {menu_off!r}')
+    check('0:51,23' not in menu_off and '0:47,77' not in menu_off and 'Reset +5 s' in menu_off, f'Menü (aus): alte Mittel-Zeiten nicht gezeigt, Kennzeichnung da: {menu_off!r}')
     s.shot('reset_01_menu', 'reset')
     # Optionen: Schalter
     s.tap('button[data-a=settings]')
@@ -36,7 +38,8 @@ with Server() as srv, sync_playwright() as pw:
     s.shot('reset_03_optionen_an', 'reset')
     s.tap('#sheet [data-a=close]')
     menu_on = s.ev("document.querySelector('#menu .bests').textContent")
-    check('0:51,23' in menu_on and 'Totalschaden' in menu_on and 'alte Physik' in menu_on, f'Menü (an): alte Mittel-Bestzeit erscheint (als alte Physik): {menu_on!r}')
+    check('0:51,23' in menu_on and 'Totalschaden' in menu_on and 'erste Physik' in menu_on, f'Menü (an): alte Mittel-Bestzeit erscheint (als erste Physik): {menu_on!r}')
+    check('alte Physik: 🟡 0:47,77' in menu_on, f'Menü (an): Bestzeit vor n14 erscheint (als alte Physik): {menu_on!r}')
     if old_world: check('alte Welt' in menu_on and '0:44,44' in menu_on, f'Menü (an): Bestzeit der alten Welt erscheint (als alte Welt): {menu_on!r}')
     s.tap('button[data-a=settings]'); s.tap('#sheet [data-a=toggle][data-v=wreck]'); s.tap('#sheet [data-a=close]')
     check(s.ev("__game.store.settings.wreck") is False, 'wieder aus')

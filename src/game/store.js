@@ -10,8 +10,8 @@ const GHOST_MAX = 40;
 // (nur Fahrhilfe) behalten ihre Bedeutung – Leicht fuhr bisher ohne Wrack (→ Totalschaden aus),
 // Mittel/Original mit Wrack (→ Totalschaden an). Nur die jeweils andere Variante bekommt einen Zusatz.
 // Physik-Version (27.09.2026, doppelt so schnell): Zeiten der neuen Physik bekommen „@t2“ angehängt.
-// Die alten Einträge bleiben unverändert stehen und werden im Menü als „alte Physik“ gezeigt – nichts
-// wird gelöscht oder umgeschrieben; mit ?auto=alt (PHYS 1) gelten wieder die alten Schlüssel.
+// Die alten Einträge bleiben unverändert stehen und werden im Menü als „erste Physik“ gezeigt (bis n14 „alte
+// Physik“) – nichts wird gelöscht oder umgeschrieben; mit ?auto=alt (PHYS 1) gelten wieder die alten Schlüssel.
 // Weltmaßstab (27.09.2026, n12): neue Welt = neue Wertung, Zusatz „@w2“ (defs.js WORLD_TAG). Die Zeiten der
 // alten Welt bleiben unverändert und erscheinen im Menü als „alte Welt“; ?welt=1 wertet wieder dort.
 // Extras (28.09.2026, Hüpfer + Nitro): Zeiten mit Extras bekommen „@x“ – eine eigene Liste. Die bisherigen
