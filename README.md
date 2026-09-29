@@ -17,7 +17,11 @@ spielbar am Handy (quer oder hochkant), mit Gamepad oder Tastatur. Als App insta
   mit Schwung, **+5 s** auf die Rennzeit. Wer es wie früher mag: Optionen → **💥 Totalschaden** (Wrack).
 - **Bestzeiten und Geisterautos** werden je Strecke, je Fahrhilfe *und* je Totalschaden-Einstellung getrennt gespeichert.
 - **Doppelt so schnell** (seit 27.09.2026): Vmax ~586 km/h, 0–200 in 3,8 s, Rennreifen und Abtrieb (Details:
-  `TEMPO_BERICHT.md`). Bestzeiten der alten Physik bleiben gespeichert und stehen im Menü als „alte Physik“.
+  `TEMPO_BERICHT.md`). Bestzeiten der alten Physik bleiben gespeichert und stehen im Menü als „erste Physik“.
+- **Mehr Bodenhaftung und schnellere Ideallinie** (seit 29.09.2026): Reifen mu 1,7 statt 1,5, mehr Abtrieb (wirkt nur mit
+  Radkontakt, nimmt mit dem Bodenabstand ab), ruhige Räder an Steilkurven; der Autopilot fährt im Mittel 11 % schneller,
+  pendelt nicht mehr zwischen Gas und Bremse. Bestzeiten davor stehen im Menü als „alte Physik“ (Details:
+  `FAHRGEFUEHL_BERICHT.md`).
 - **Cockpit-Kamera** (🎥 / `C` / Gamepad LB): Blick durch die Frontscheibe, analoger Tacho (bis 600 km/h), Drehzahlmesser
   (0–8 ×1000, rot ab 7000, Zeiger schwingt leicht nach), Schaltkulisse mit Knauf (R, 1–6), Lenkrad dreht mit.
   Die Kamerawahl bleibt gespeichert. Beim Wrack kurz Verfolger, dann wieder Cockpit (Details: `COCKPIT_BERICHT.md`).
@@ -137,6 +141,8 @@ node tests/node/test_verify_batch.mjs 10  # Generator: 10 Seeds × 3 Stufen per 
 node tests/node/test_assists.mjs          # Fahrhilfen mit simulierten Spielern
 node tests/node/test_reset.mjs            # Crash in Looping/Sprung/Wand: Reset +5 s bzw. Wrack; nie Endlosschleife
 node tests/node/test_free_steer.mjs       # Leicht: Spieler-Vorrang, weiche Rückführung, Abkürz-Regel, Stunt-Ansage
+node tests/node/test_fahrgefuehl.mjs      # Leicht mitlenken, Tempo-Regler, Linienfarben = Pedale, Mittel ohne Zwangsbremse, Haftung
+node tools/fahr_analyse.mjs               # Bremsleistung Plan/Physik, Bremszeit + Zeitverlust je Ursache, Haftung (--root=Kopie)
 node tools/linie_analyse.mjs --laps       # Ideallinie: Scheitel-Nutzung, Löser-Zeit, Autopilot-Runden auf allen Stufen
 python3 tests/linie_shots.py              # Fotos: Linie mit Scheitel-Keilen, HUD-Ansagen (tests/shots/linie/)
 python3 tests/smoke.py                    # Browser (Playwright, Pixel 7 quer), Screenshots nach tests/shots/
@@ -175,6 +181,9 @@ Nützliche URL-Parameter: `?seed=4711&d=3`, `?demo`, `?gallery` (alle Bausteine)
 `?air=1` (volle Schwerkraft im Flug, Standard 0.7), `?lip=15` (alte Schanze; mit `?air=1` exakt der alte Sprung).
 `?blur=off|light|strong` (Bewegungsunschärfe übersteuern).
 `?auto=alt` (alte, langsamere Abstimmung bis 27.09.2026 zum Vergleich; wertet in der alten Bestzeiten-Liste).
+`?grip=1` (Haftung und Ideallinie bis 28.09.2026 zum A/B-Vergleich; wertet unter „alte Physik“).
+`?lk=0…1` (Leicht: Anteil der Kurve, den der Spieler selbst lenkt, Standard 0.8; `?lk=0` = alte Schienen) und
+`?lkband=3.5` (Leicht: Band um die Linie in m, in dem die Hilfe nicht zur Linie zieht – größer = mehr Treiben bei „Hände weg“).
 `?welt=1` (alter, kleiner Weltmaßstab bis 27.09.2026 zum A/B-Vergleich, Standard 2 = Felder 40 statt 20 m;
 erlaubt 1 … 2,5; wertet in der Bestzeiten-Liste der jeweiligen Welt). In Node: `STUNT_WELT=1 node …`.
 
