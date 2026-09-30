@@ -4,7 +4,7 @@
 import { Car, CAR_DEF, driveAccel, aeroLoad } from '../physics/car.js';
 import { G } from '../physics/air.js';
 import { Autopilot, Tracker } from '../ai/autopilot.js';
-import { WORLD_SCALE, ROAD_HW, TILE } from '../track/defs.js';
+import { WORLD_SCALE, ROAD_HW, TILE, MAT } from '../track/defs.js';
 import { HOP, NITRO, NITRO_TOTAL, nitroLevel, hopModel, hopHeightAt } from '../physics/extras.js';
 
 // Mittel (n16, Peter 29.09.2026: „Mittlere Schwierigkeit mehr Bodenhaftung und kein Magnet zur Ideallinie“): kein
@@ -70,6 +70,24 @@ export const CUT_TOL = 8 * ROAD_HW / 4.5;
 // Abseits: ab OFF.far m Abstand zur Linie, OFF.sec s lang → Crash; ab OFF.hint m Hinweis im HUD. Die Abstände
 // wachsen mit dem Weltmaßstab (Nachbar-Abschnitte liegen entsprechend weiter weg); bis 27.09.2026 30 m / 18 m.
 export const OFF = { far: 30 * WORLD_SCALE, hint: 18 * WORLD_SCALE, sec: 4 };
+// Absturz von der Hochstraße: so tief unter der Fahrlinie (m), die dort mindestens high m über dem Gelände liegt
+export const FALL = { drop: 4, high: 3, near: 10, sec: 3 };
+// Linienpunkte über hoch liegender Fahrbahn (> FALL.high m über dem Gelände, dazu 25 m davor/dahinter): dort gibt
+// Leicht dem Spieler keinen Vorrang über den Rand hinaus (n19)
+export function highLine(track) {
+  const L = track.line, n = L.n, T = track.terrain, h = new Uint8Array(n);
+  if (!T) return h;
+  const raw = new Uint8Array(n);
+  let any = false;
+  for (let i = 0; i < n; i++) if (!L.air[i] && L.py[i] - T.height(L.px[i], L.pz[i]) > FALL.high) { raw[i] = 1; any = true; }
+  if (!any) return h;
+  for (let i = 0, j0 = 0, j1 = 0; i < n; i++) {
+    while (L.s[j0] < L.s[i] - 25) j0++;
+    while (j1 < n - 1 && L.s[j1 + 1] <= L.s[i] + 25) j1++;
+    for (let j = j0; j <= j1; j++) if (raw[j]) { h[i] = 1; break; }
+  }
+  return h;
+}
 const STUNT_NAMES = { loop: 'Looping', tube: 'Röhre', cork: 'Korkenzieher', jump: 'Sprung' };
 
 export const REC_HZ = 60;
@@ -85,6 +103,7 @@ export class Race {
     this.car = new Car();
     this.ap = new Autopilot(env.ideal, env.prof);
     this.tracker = new Tracker(env.track.line);
+    this.high = highLine(env.track);
     this.state = 'countdown';
     this.countdown = opts.countdown ?? 3;
     this.time = 0;
@@ -301,6 +320,17 @@ export class Race {
         this.charges.hop = 1; this.charges.nitro = 1; this.emit('refill');
       }
     }
+    // Absturz von einer Hochstraße (n19, 3D-Strecken, gilt auch für Importe): Auto steht wieder auf etwas, liegt aber
+    // mehr als FALL.drop m unter der Fahrlinie, die dort hoch über dem Gelände verläuft → Crash „Abgestürzt“ und Reset
+    // wie jeder andere Crash (vorher fuhr man im Gelände unter der Brücke weiter – ohne Weg zurück nach oben)
+    // (nur im Gelände: auf einer Fahrbahn – etwa dem Auslauf unter der Steilwand – ist man nicht abgestürzt)
+    // (und nur dicht unter der Fahrbahn: wer quer durchs Gelände fährt, während die Linie gerade ansteigt, ist nicht abgestürzt)
+    // (und nur, wer kurz vorher wirklich oben fuhr: Räder auf der Fahrbahn, hoch über dem Gelände)
+    const TR = this.env.track.terrain;
+    if (TR && car.onGround > 0 && car.wheels.some((w) => w.contact && w.mat !== MAT.GRASS) && car.pos.y - TR.height(car.pos.x, car.pos.z) > FALL.high) this.upT = this.time;
+    if (!car.crash && car.onGround > 0 && !L.air[ti] && this.time - (this.upT ?? -1e9) < FALL.sec && car.pos.y < L.py[ti] - FALL.drop && Math.hypot(car.pos.x - L.px[ti], car.pos.z - L.pz[ti]) < L.hw[ti] + FALL.near && car.wheels.some((w) => w.contact && w.mat === MAT.GRASS)) {
+      if (L.py[ti] - TR.height(L.px[ti], L.pz[ti]) > FALL.high) car.setCrash('Abgestürzt');
+    }
     // Abseits: zu weit weg von der Linie (großzügig, OFF); Hinweis im HUD schon vorher
     if (this.tracker.dist > OFF.far) { this.offT += dt; if (this.offT > OFF.sec) { this.car.setCrash('Abseits'); } } else this.offT = 0;
     if (this.tracker.dist > OFF.hint && !this.autopilotOnly) this.hud = { kind: 'off', text: 'Zurück zur Strecke ↺' };
@@ -394,7 +424,8 @@ export class Race {
     const ex = this.ex || 0;
     const away = LEICHT.lk <= 0 || (Math.abs(ex) > LEICHT.awayEx && Math.sign(input.steer) === Math.sign(ex));
     if (a > FREE.in && away) this.holdT += dt; else this.holdT = 0;
-    if (zone) this.manual = false;
+    // Hochstraße (n19, 3D): kein Vorrang über den Fahrbahnrand hinaus – hinunter ginge es nur im Absturz
+    if (zone || this.high[idx]) { this.manual = false; if (this.high[idx]) this.holdT = 0; }
     else if (this.holdT >= FREE.hold) { this.manual = true; this.relT = 0; }
     else if (this.manual) {
       if (a <= FREE.keep) { this.relT += dt; if (this.relT >= FREE.rel) this.manual = false; } else this.relT = 0;

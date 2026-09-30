@@ -62,3 +62,62 @@ export function drawMinimap(cv, trk, layout) {
     g.strokeStyle = '#fff'; g.lineWidth = 1; g.stroke();
   }
 }
+
+// Übersichtskarte einer generierten Strecke (n19, Menü): Ebenen unterscheidbar – höher = heller, mit Schatten, der
+// mit der Höhe weiter versetzt ist. Stücke nach Höhe sortiert gezeichnet: an Kreuzungen liegt die obere Fahrbahn
+// (samt Schatten) über der unteren. Spiralen/Wendeln als Kreis, Klippensprünge mit gestrichelter Flugstrecke.
+const LVL_COL = ['#5f676e', '#98a1a9', '#c3cad0', '#e6eaed', '#ffffff'];
+export function drawLayoutMap(cv, layout) {
+  const g = cv.getContext('2d'), W = cv.width, H = cv.height;
+  const P = layout.pieces || [];
+  let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+  for (const pc of P) for (const [ci, cj] of pieceCells(pc.type, pc.i, pc.j, pc.d, pc.m || 1).cells) { x0 = Math.min(x0, ci); y0 = Math.min(y0, cj); x1 = Math.max(x1, ci); y1 = Math.max(y1, cj); }
+  const span = Math.max(x1 - x0 + 1, y1 - y0 + 1) + 1.2, S = Math.min(W, H) / span;
+  const ox = (W - (x1 - x0 + 1) * S) / 2 - x0 * S, oy = (H - (y1 - y0 + 1) * S) / 2 - y0 * S;
+  const X = (i) => ox + i * S, Y = (j) => oy + j * S;
+  g.clearRect(0, 0, W, H);
+  g.fillStyle = '#2f5a26'; g.beginPath(); g.roundRect ? g.roundRect(0, 0, W, H, S * 0.8) : g.rect(0, 0, W, H); g.fill();
+  const edge = (i, j, d, back) => { const [dx, dy] = DIRS[d]; const k = back ? -0.5 : 0.5; return [X(i + 0.5 + dx * k), Y(j + 0.5 + dy * k)]; };
+  const pathOf = (pc) => {
+    const r = pieceCells(pc.type, pc.i, pc.j, pc.d, pc.m || 1), nx = r.next;
+    const a = edge(pc.i, pc.j, pc.d, true), b = edge(nx[0] - DIRS[nx[2]][0], nx[1] - DIRS[nx[2]][1], nx[2], false);
+    const turn = nx[2] !== pc.d;
+    const [dx, dy] = DIRS[pc.d];
+    const c = turn ? (dx ? [b[0], a[1]] : [a[0], b[1]]) : null;
+    const circle = pc.type === 'spiral' || pc.type === 'tr_corkud';
+    const R = DIRS[(pc.d + 1) % 4], m = pc.m || 1;
+    const cc = circle ? [X(pc.i + 0.5 + dx * 0.5 + R[0] * m * 0.5), Y(pc.j + 0.5 + dy * 0.5 + R[1] * m * 0.5)] : null;
+    return { a, b, c, cc, gap: /^cliff/.test(pc.type) };
+  };
+  const draw = (pc, pth, color, w, shadow) => {
+    g.strokeStyle = color; g.lineWidth = w; g.lineCap = 'round'; g.lineJoin = 'round';
+    const o = shadow || [0, 0];
+    g.beginPath(); g.moveTo(pth.a[0] + o[0], pth.a[1] + o[1]);
+    if (pth.c) g.quadraticCurveTo(pth.c[0] + o[0], pth.c[1] + o[1], pth.b[0] + o[0], pth.b[1] + o[1]);
+    else if (pth.gap && !shadow) {
+      // Anlauf, gestrichelte Flugstrecke, Landung
+      const q = (t) => [pth.a[0] + (pth.b[0] - pth.a[0]) * t, pth.a[1] + (pth.b[1] - pth.a[1]) * t];
+      g.lineTo(...q(0.3)); g.stroke(); g.setLineDash([w * 0.6, w * 0.8]); g.beginPath(); g.moveTo(...q(0.3)); g.lineTo(...q(0.55)); g.stroke(); g.setLineDash([]);
+      g.beginPath(); g.moveTo(...q(0.55)); g.lineTo(pth.b[0], pth.b[1]);
+    } else g.lineTo(pth.b[0] + o[0], pth.b[1] + o[1]);
+    g.stroke();
+    if (pth.cc) { g.beginPath(); g.arc(pth.cc[0] + o[0], pth.cc[1] + o[1], S * 0.5, 0, Math.PI * 2); g.stroke(); }
+  };
+  const lvOf = (pc) => Math.max(pc.lvl || 0, pc.h1 ?? pc.lvl ?? 0);
+  const order = P.map((pc, k) => [pc, k]).sort((p, q) => lvOf(p[0]) - lvOf(q[0]) || p[1] - q[1]);
+  const w = Math.max(2, S * 0.42);
+  for (const [pc] of order) {
+    if (!PIECES[pc.type]) continue;
+    const lv = lvOf(pc), pth = pathOf(pc);
+    if (lv > 0) draw(pc, pth, 'rgba(0,0,0,0.45)', w * 1.1, [S * 0.18 * lv, S * 0.26 * lv]);
+    draw(pc, pth, '#1c1e20', w + 2, null);
+    const avg = ((pc.lvl || 0) + (pc.h1 ?? pc.lvl ?? 0)) / 2;
+    draw(pc, pth, LVL_COL[Math.min(LVL_COL.length - 1, Math.round(avg))], w, null);
+    if (PIECES[pc.type].stunt && !/^(slope|spiral|tr_corkud)/.test(pc.type)) draw(pc, pth, 'rgba(255,120,40,0.85)', w * 0.35, null);
+  }
+  const st = P.find((p) => p.type === 'start') || P[0];
+  if (st) {
+    g.fillStyle = '#e8291c'; g.beginPath(); g.arc(X(st.i + 0.5), Y(st.j + 0.5), Math.max(3, S * 0.45), 0, Math.PI * 2); g.fill();
+    g.strokeStyle = '#fff'; g.lineWidth = 1.5; g.stroke();
+  }
+}

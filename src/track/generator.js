@@ -4,9 +4,10 @@
 // 3) Lösbarkeit prüft verify() mit dem Autopilot (Crash → Element entschärfen, neu prüfen)
 import { GRID } from './defs.js';
 import { rng } from '../core/util.js';
-import { pieceCells } from './pieces.js';
+import { pieceCells, PIECES } from './pieces.js';
 import './pieces_3d.js';
 import './pieces_trk.js';
+import { generate3d } from './generator3d.js';
 
 export const DIFFS = {
   1: { name: 'Sanft', w: [9, 12], h: [6, 8], bumps: [1, 3], large: 0.9, bank: 0.25, density: 0.18, must: ['loop', 'crest'], types: { bumps: 3, crest: 3, chicane: 2, bridge: 3 } },
@@ -42,7 +43,7 @@ function makeCycle(r, D) {
   return cyc;
 }
 
-function bump(cyc, r) {
+export function bump(cyc, r) {
   const n = cyc.length;
   const dirOf = (a, b) => [b[0] - a[0], b[1] - a[1]];
   // Segment gleicher Richtung wählen
@@ -95,7 +96,7 @@ function bump(cyc, r) {
 const key = (p) => p[0] + ',' + p[1];
 
 // Richtung als Index: 0 Ost, 1 Süd, 2 West, 3 Nord (Raster-y nach unten = Süd = +Z)
-function dirIdx(a, b) {
+export function dirIdx(a, b) {
   const dx = b[0] - a[0], dy = b[1] - a[1];
   return dx === 1 ? 0 : dy === 1 ? 1 : dx === -1 ? 2 : 3;
 }
@@ -103,6 +104,8 @@ function dirIdx(a, b) {
 // ---------- 2) Elemente ----------
 export function generate(seed, diff = 2, opts = {}) {
   diff = Math.max(1, Math.min(3, diff | 0));
+  // 3D-Strecken (n19): eigener Generator, eigener Schlüssel; ohne Option bleibt alles wie bisher (alte Codes)
+  if (opts.d3) return generate3d(seed, diff, opts);
   const D = DIFFS[diff];
   const r = rng((seed >>> 0) * 7919 + diff * 104729);
   let cyc = makeCycle(r, D);
@@ -254,8 +257,14 @@ function toLayout(cyc, dr, out) {
 export function defuse(layout, pieceIdx) {
   const p = layout.pieces[pieceIdx];
   if (!p) return false;
-  const repl = { loop: ['straight', 'straight'], tube: ['straight', 'straight'], jump: ['straight', 'straight', 'straight'], crest: ['straight', 'straight'], chicane: ['straight', 'straight'], bumps: ['straight'], bank: null };
+  const repl = { loop: ['straight', 'straight'], tube: ['straight', 'straight'], jump: ['straight', 'straight', 'straight'], crest: ['straight', 'straight'], chicane: ['straight', 'straight'], bumps: ['straight'], bank: null,
+    waves: ['straight', 'straight', 'straight'], tr_corklr: ['straight', 'straight'] };
   if (p.type === 'bank') { p.type = 'turnL'; return true; }
+  // 3D-Teile (n19): Ersatz mit gleicher Form und gleichem Ebenenwechsel – Steilwand/Steilkurve → weite Kurve,
+  // Klippensprung → Steilrampe gleicher Länge, Spirale/Wendel → Rampe über die beiden geraden Felder
+  if (p.type === 'wall' || p.type === 'tr_bankC') { p.type = 'turnL'; return true; }
+  if (p.type === 'cliff' || p.type === 'cliff2') { p.type = 'slope' + PIECES[p.type].cells.length; return true; }
+  if (p.type === 'spiral' || p.type === 'tr_corkud') { p.type = 'slope2'; return true; }
   const r = repl[p.type];
   if (!r) return false;
   const F = [[1, 0], [0, 1], [-1, 0], [0, -1]][p.d];

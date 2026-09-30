@@ -30,4 +30,4 @@ for (const diff of [1, 2, 3]) {
   console.log(JSON.stringify(row));
 }
 fs.mkdirSync('tests/out/n19', { recursive: true });
-fs.writeFileSync(`tests/out/n19/quote_${d3 ? '3d' : 'flach'}_${N}.json`, JSON.stringify(out, null, 1));
+fs.writeFileSync(`tests/out/n19/quote_${d3 ? "3d" : "flach"}_${N}_${von}.json`, JSON.stringify(out, null, 1));

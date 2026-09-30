@@ -9,13 +9,15 @@ import { NITRO } from '../physics/extras.js';
 import { BLUR_LEVELS } from '../gfx/post.js';
 import { parseTrk } from '../track/trk.js';
 import { trkToLayout } from '../track/trkimport.js';
-import { drawMinimap } from './minimap.js';
+import { drawMinimap, drawLayoutMap } from './minimap.js';
 import { SAM_STUNTS, SAM_DIFF, SAM_SORTS, DEFAULT_VIEW, filterSort, lengthClass } from '../game/sammlung.js';
 import { HORIZONS } from '../track/trk.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const h = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
-const ICON = { loop: '➰', jump: '🛫', tube: '🕳️', bank: '↪️', crest: '⛰️', bumps: '〰️', chicane: '🔀', bridge: '🌉' };
+const ICON = { loop: '➰', jump: '🛫', tube: '🕳️', bank: '↪️', crest: '⛰️', bumps: '〰️', chicane: '🔀', bridge: '🌉',
+  // 3D-Teile (n19)
+  spiral: '🌀', cliff: '🪂', cliff2: '🪂', wall: '🧱', waves: '🎢', slope3: '🎿', slope4: '🎿', tr_corklr: '🍥', tr_corkud: '🌀', tr_bankC: '↪️' };
 // Symbole für importierte Strecken (Elementart → Symbol, Name)
 const TICON = { loop: ['➰', 'Looping'], corklr: ['🌀', 'Korkenzieher'], corkud: ['🌀', 'Wendel'], gap: ['🛫', 'Sprung'], pipe: ['🕳️', 'Röhre'], bankC: ['↪️', 'Steilkurve'], chicane: ['🔀', 'Schikane'], elev: ['🌉', 'Hochstraße'], tunnel: ['🚇', 'Tunnel'], hwy: ['🛣️', 'Autobahn'], slalom: ['🚧', 'Slalom'] };
 function stuntSummary(pieces) {
@@ -162,18 +164,19 @@ export class UI {
     document.body.dataset.mode = 'menu';
     const S = this.store.settings, m = env.meta, lay = env.layout;
     const stunts = {};
-    for (const p of lay.pieces) if (ICON[p.type]) stunts[p.type] = (stunts[p.type] || 0) + 1;
+    for (const p of lay.pieces) { const t = { tr_bankC: 'bank', cliff2: 'cliff', slope4: 'slope3', tr_corkud: 'spiral' }[p.type] || p.type; if (ICON[t]) stunts[t] = (stunts[t] || 0) + 1; }
     if (lay.pieces.some((p) => p.type === 'rampUp')) stunts.bridge = lay.pieces.filter((p) => p.type === 'bridge').length;
-    const stuntTxt = Object.entries(stunts).map(([t, n]) => `<span title="${PIECES[t] ? PIECES[t].name : t}">${ICON[t]}${n > 1 ? '×' + n : ''}</span>`).join(' ');
+    if (m.crossings) stunts.bridge = m.crossings;   // 3D: Überführungen
+    const stuntTxt = Object.entries(stunts).map(([t, n]) => `<span title="${t === 'bridge' && m.d3 ? 'Überführung' : PIECES[t] ? PIECES[t].name : t}">${ICON[t]}${n > 1 ? '×' + n : ''}</span>`).join(' ');
     const bests = this.bestsHtml(m.key);
     const today = daySeed();
-    const isDay = m.seed === today && m.diff === 2 && !m.imported;
+    const isDay = m.seed === today && m.diff === 2 && !m.imported && !m.sam && !!m.d3 === !S.flat;
     const km = (env.ideal.total / 1000).toFixed(2);
     const metaLine = m.sam
       ? `⭐ Sammlung · ${SAM_DIFF[m.sam.d][0]} ${SAM_DIFF[m.sam.d][1]}${m.diffName ? ' · ' + m.diffName : ''} · ${(m.sam.m / 1000).toFixed(2).replace('.', ',')} km`
       : m.imported
       ? `📂 Importiert${m.diffName ? ' · ' + m.diffName : ''} · ${km} km${m.closed === false ? ' · offen' : ''}`
-      : `Code <b>${m.seed}-${m.diff}</b> · ${m.diffName || ''} · ${km} km`;
+      : `Code <b>${m.key}</b> · ${m.diffName || ''} · ${km} km${m.d3 ? ` · 3D, ${m.levels} ${m.levels === 1 ? 'Ebene' : 'Ebenen'} hoch` : ''}`;
     const stuntsHtml = m.imported ? stuntSummary(lay.pieces) : stuntTxt;
     const apLine = m.apTime ? `<div class="tmeta">🤖 Autopilot-Referenz ${fmtTime(m.apTime)}${m.fixes ? ' · ' + m.fixes + '× entschärft' : ''}</div>`
       : m.apFail ? `<div class="tmeta">🤖 Probefahrt ohne Hilfen: ${m.apFail} – Fahrhilfe Leicht hilft</div>` : '';
@@ -181,6 +184,7 @@ export class UI {
       <div class="col left">
         <div class="logo">STUNT<b>BAHN</b></div>
         <div class="card track">
+          ${!m.imported && !m.sam && env.layout.pieces.length ? '<canvas class="tmap" width="320" height="320" aria-label="Streckenkarte"></canvas>' : ''}
           <div class="tname">${isDay || m.samDay ? '📅 Strecke des Tages<br>' : ''}${m.name || 'Strecke'}</div>
           <div class="tmeta">${metaLine}</div>
           <div class="stunts">${stuntsHtml || 'ohne Stunts'}</div>
@@ -194,7 +198,7 @@ export class UI {
         <div class="seg" data-g="assist">${Object.entries(ASSISTS).map(([k, A]) => `<button data-a="assist" data-v="${k}" class="${S.assist === k ? 'on' : ''}">${A.icon} ${A.name}</button>`).join('')}</div>
         <div class="hint">${this.assistHint(S.assist)}</div>
         <div class="lbl">Neue Strecke</div>
-        <div class="seg" data-g="diff">${[1, 2, 3].map((d) => `<button data-a="diff" data-v="${d}" class="${(S.diff || 2) === d ? 'on' : ''}">${DIFFS[d].name}</button>`).join('')}</div>
+        <div class="segrow"><div class="seg" data-g="diff">${[1, 2, 3].map((d) => `<button data-a="diff" data-v="${d}" class="${(S.diff || 2) === d ? 'on' : ''}">${DIFFS[d].name}</button>`).join('')}</div><button class="flat${S.flat ? '' : ' on'}" data-a="flat" data-v="${S.flat ? 0 : 1}" aria-pressed="${S.flat ? 'false' : 'true'}" title="${S.flat ? 'Flache Strecken wie bisher – tippen für 3D (Ebenen, Brücken, Spiralen, Klippensprünge)' : '3D-Strecken: Ebenen, Brücken, Spiralen, Klippensprünge – tippen für flache Strecken wie bisher'}">${S.flat ? '▭ flach' : '🏗️ 3D'}</button></div>
         <div class="row">
           <button data-a="random">🎲 Zufall</button>
           <button data-a="today">📅 Tages-Strecke</button>
@@ -208,6 +212,8 @@ export class UI {
         </div>
       </div>`;
     this.show('menu');
+    const tmap = document.querySelector('#menu canvas.tmap');
+    if (tmap) drawLayoutMap(tmap, env.layout);
     this.wipe(false);
     this.setTouchMode(false);
     $('#hud').classList.remove('show');
@@ -233,9 +239,11 @@ export class UI {
       case 'diff': S.diff = +v; this.store.save(); this.refresh(); break;
       case 'random': A.newTrack((Math.random() * 90000 + 1000) | 0, S.diff || 2); break;
       case 'today': A.newTrack(daySeed(), 2); break;
+      case 'flat': S.flat = v === '1'; this.store.save(); this.refresh(); break;
       case 'code': {
-        const c = prompt('Strecken-Code (z. B. 4711-2):', this.env ? this.env.meta.key : '');
-        if (c) { const m = /^\s*(\d+)(?:\s*-\s*([123]))?\s*$/.exec(c); if (m) A.newTrack(+m[1], +(m[2] || S.diff || 2)); else this.toast('Ungültiger Code'); }
+        // „4711-2“ = die bisherige (flache) Strecke wie immer, „4711-2-3d“ = 3D (n19); ohne Stufe die gewählte
+        const c = prompt('Strecken-Code (z. B. 4711-2 oder 4711-2-3d):', this.env && !this.env.meta.imported ? this.env.meta.key : '');
+        if (c) { const m = /^\s*(\d+)(?:\s*-\s*([123]))?(?:\s*-?\s*(3d))?\s*$/i.exec(c); if (m) A.newTrack(+m[1], +(m[2] || S.diff || 2), !!m[3]); else this.toast('Ungültiger Code'); }
         break;
       }
       case 'settings': this.showSettings(); break;

@@ -55,6 +55,20 @@ spielbar am Handy (quer oder hochkant), mit Gamepad oder Tastatur. Als App insta
   Abstand zu jeder Fahrbahn (auch Hochstraßen/Rampen), nie im Wasser. Dosiert nach Grafikstufe; ruckelt es, blendet die
   Automatik (nach der Unschärfe) zuerst Gras/Büsche/Wolkenschatten aus. `?deko=0` / `?wolken=0` zum Vergleich.
 
+## 🏗️ 3D-Strecken (seit 30.09.2026, n19)
+- **Neue Zufallsstrecken und die Strecke des Tages sind 3D:** mehrere Ebenen übereinander (Sanft bis 2, Sportlich bis 3,
+  Irre bis 4 Ebenen à 6 m), meist eine **Acht**, die sich über eine **Brücke** selbst kreuzt, dazu **Spiralen** hinauf und
+  hinunter, **Steilrampen** (Bergab-Sprint), **Klippensprünge** eine oder zwei Ebenen tief, **Steilwand** (68°),
+  **Achterbahn-Wellen** mit kurzer Luftphase, Korkenzieher, Wendel und Steilkurve des Klassikers.
+- **Code mit Zusatz „-3d“** (z. B. `4711-3-3d`); Bestzeiten und Geister getrennt. **Alte Codes bleiben gültig:** `4711-3`
+  ist dieselbe flache Strecke wie immer. Menü → Schalter **🏗️ 3D / ▭ flach** neben der Schwierigkeit.
+- **Streckenkarte** im Menü: höher = heller, mit Schatten; an Kreuzungen liegt die obere Straße oben.
+- Hochstraßen mit hohen Brüstungen (außen in Kurven höher), Pfeiler nie auf der unteren Fahrbahn. **Absturz** von einer
+  Hochstraße = Crash und Reset (+5 s) wie jeder andere. **Leicht** gibt auf Hochstraßen keinen Vorrang über den Rand.
+- Die Verfolgerkamera wird nie von Decks, Pfeilern oder der oberen Fahrbahn verdeckt (fünf Strahlen, weich heran).
+- **Galerie** (`?gallery`) zeigt alle Teile hintereinander. Details, Quoten, Leistung: `STRECKEN3D_BERICHT.md`.
+- URL: `?seed=4711&d=3&3d=1` (ohne `3d=1` wie bisher flach).
+
 ## ⭐ Sammlung: 250 eigene Strecken (seit 28.09.2026)
 - Menü → **📂 Strecke laden (.TRK)** → Abschnitt **„⭐ Sammlung (250)“** (eingeklappt, lädt erst beim Aufklappen:
   `assets/sammlung.bin` + `.json`, zusammen ~117 KB gzip). Oben die **Strecke des Tages** (Kalendertag mod 250, für alle gleich).
@@ -154,6 +168,14 @@ node tools/build_sammlung.mjs             # nur lokal: Sammlung bauen/anhängen 
 python3 tests/test_trk_ui.py              # Import-Oberfläche: Datei-Auswahl, ZIP, Drag & Drop, Ziel, Löschen
 node tests/node/test_loop_gate.mjs        # Physik-Gate: Ebene → Schanze → Steilkurve → Looping → Röhre
 node tests/node/test_verify_batch.mjs 10  # Generator: 10 Seeds × 3 Stufen per Autopilot lösbar
+node tests/node/test_strecken3d.mjs       # n19: neue Teile (Spirale, Überführung, Wellen, Steilrampen, Klippe, Steilwand, TRK-Teile, Galerie)
+node tests/node/test_generator3d.mjs 40   # n19: 3D-Generator – Belegung, Ebenen-Regeln, Kreuzungen, Lösbarkeit, Bauzeit ≤ +30 %
+node tests/node/test_alte_codes.mjs       # n19: alte Codes identisch (Layout-Hash 83 Seeds × 3 Stufen, --verify)
+node tests/node/test_leicht3d.mjs 6       # n19: Fahrhilfen auf 3D-Strecken, Leicht ohne Absturz, Absturz → Reset
+node tools/quote3d.mjs 300 [--3d]         # n19: Lösbarkeit + Bauzeit je Stufe (flach bzw. 3D)
+python3 tests/test_strecken3d_ui.py       # n19: Menü (Code -3d, Karte, Schalter), Rennen 3D, Kamera nie verdeckt
+python3 tests/strecken3d_shots.py quer    # n19: Galerie-Fotos der neuen Teile (quer|hoch)
+python3 tests/strecken3d_fahrt_shots.py quer  # n19: Fahrt-Fotos (Spirale, Überführung oben/unten, Klippenflug, Steilwand, Karte)
 node tests/node/test_assists.mjs          # Fahrhilfen mit simulierten Spielern
 node tests/node/test_reset.mjs            # Crash in Looping/Sprung/Wand: Reset +5 s bzw. Wrack; nie Endlosschleife
 node tests/node/test_free_steer.mjs       # Leicht: Spieler-Vorrang, weiche Rückführung, Abkürz-Regel, Stunt-Ansage

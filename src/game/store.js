@@ -34,7 +34,7 @@ export class Store {
   constructor() {
     let d = {};
     try { d = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch { d = {}; }
-    this.settings = Object.assign({ assist: 'easy', paint: 0xa3120e, sound: true, ghost: true, touch: 'auto', tilt: false, wreck: false, line: 'soft', lineLast: 'soft', cam: 'chase', quality: 'auto', diff: 2, lastSeed: null, seenHelp: false, extras: true, autoExtras: true, blur: 'light', brakeHelp: 'hint', tbsize: 'gross' }, d.settings || {});
+    this.settings = Object.assign({ assist: 'easy', paint: 0xa3120e, sound: true, ghost: true, touch: 'auto', tilt: false, wreck: false, line: 'soft', lineLast: 'soft', cam: 'chase', quality: 'auto', diff: 2, lastSeed: null, seenHelp: false, extras: true, autoExtras: true, blur: 'light', brakeHelp: 'hint', tbsize: 'gross', flat: false }, d.settings || {});
     this.best = d.best || {};      // key|modeKey -> { time, date, name, pen }
     this.ghostIndex = d.ghostIndex || []; // Reihenfolge für LRU
     // Leicht (n15, Peter 28.09.: „keine Highscores, nur Zeit notieren“): letzte Zeiten je Strecke, neueste zuerst,
@@ -49,10 +49,11 @@ export class Store {
   getVerified(key, build) {
     const v = this.verified[key];
     if (!v || v.b !== build) return null;
-    return { pieces: v.p.map(([type, i, j, d, m, lvl]) => ({ type, i, j, d, m, lvl })), ap: v.ap, fixes: v.f };
+    // 3D-Strecken (n19): 7. Wert = Ebene an der Ausfahrt (h1), v = Variante des Generators
+    return { pieces: v.p.map(([type, i, j, d, m, lvl, h1]) => (h1 == null ? { type, i, j, d, m, lvl } : { type, i, j, d, m, lvl, h1 })), ap: v.ap, fixes: v.f, variant: v.v || 0 };
   }
-  setVerified(key, build, pieces, ap, fixes) {
-    this.verified[key] = { b: build, p: pieces.map((q) => [q.type, q.i, q.j, q.d, q.m || 1, q.lvl || 0]), ap, f: fixes };
+  setVerified(key, build, pieces, ap, fixes, variant = 0) {
+    this.verified[key] = { b: build, p: pieces.map((q) => (q.h1 == null ? [q.type, q.i, q.j, q.d, q.m || 1, q.lvl || 0] : [q.type, q.i, q.j, q.d, q.m || 1, q.lvl || 0, q.h1])), ap, f: fixes, ...(variant ? { v: variant } : {}) };
     const keys = Object.keys(this.verified);
     if (keys.length > 60) delete this.verified[keys[0]];
     try { localStorage.setItem(KEY + '.verified', JSON.stringify(this.verified)); } catch { /* voll */ }

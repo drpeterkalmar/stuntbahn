@@ -34,6 +34,13 @@ button { font: inherit; color: inherit; border: 0; cursor: pointer; }
 #menu .left { flex: 1 1 46%; max-width: 480px; }
 #menu .right { flex: 1 1 54%; max-width: 520px; }
 .track .tname { font-size: 20px; font-weight: 800; }
+/* Schwierigkeit + Schalter 3D/flach in einer Zeile (n19) */
+.segrow { display: flex; gap: 8px; align-items: stretch; }
+.segrow .seg { flex: 1 1 auto; min-width: 0; }
+.segrow > button.flat { flex: 0 0 auto; white-space: nowrap; min-height: 48px; min-width: 48px; padding: 8px 12px; border-radius: 12px; background: #ffffff14; border: 1px solid #ffffff22; font-weight: 600; font-size: 15px; }
+.segrow > button.flat.on { background: #ff6a2a; border-color: #ff9a6a; color: #fff; }
+/* Streckenkarte mit Ebenen (n19): höher = heller, mit Schatten */
+.track .tmap { float: right; width: 118px; height: 118px; margin: 0 0 4px 8px; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.4); }
 .track .tmeta { opacity: .8; font-size: 14px; margin-top: 2px; }
 .track .stunts { font-size: 20px; margin-top: 6px; display: flex; flex-wrap: wrap; gap: 8px; }
 .track .bests { display: flex; gap: 12px; margin-top: 8px; font-size: 14px; opacity: .92; flex-wrap: wrap; }

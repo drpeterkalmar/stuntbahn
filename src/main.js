@@ -146,7 +146,9 @@ async function boot() {
   if (params.has('demo')) await loadTrack(demoLayout(), { name: 'Teststrecke' });
   else if (params.has('gallery')) await loadTrack(galleryLayout());
   else if (params.has('trk')) await loadImported(params.get('trk')).catch((e) => { console.warn(e); return loadGenerated(daySeed(), 2); });
-  else await loadGenerated(q ? +q : daySeed(), +(params.get('d') || 2));
+  // ?seed=…&d=… wie bisher flach (alte Codes, Tests); &3d=1 = 3D. Ohne Seed: Strecke des Tages, ab n19 in 3D
+  // (Schalter „flach“ im Menü = die bisherigen Strecken)
+  else await loadGenerated(q ? +q : daySeed(), +(params.get('d') || 2), q ? params.get('3d') === '1' : !store.settings.flat);
   ui.loading(1, 'Fertig');
   app.ready = true;
   ui.bind({ startRace, newTrack, setAssist, toMenu, retry, startReplay, cycleCam, rewind: () => race && race.requestRewind(), pause: togglePause,
@@ -158,19 +160,27 @@ async function boot() {
   requestAnimationFrame(frame);
 }
 
-// Generierte Strecke: aus Cache (bereits geprüft) oder Autopilot-Prüfung mit Fortschrittsanzeige
-async function loadGenerated(seed, diff) {
-  const lay = generate(seed, diff);
+// Generierte Strecke: aus Cache (bereits geprüft) oder Autopilot-Prüfung mit Fortschrittsanzeige.
+// 3D (n19): scheitert der Autopilot auch nach dem Entschärfen, nimmt der Generator die nächste Variante desselben
+// Codes (deterministisch – alle bekommen dieselbe Strecke), höchstens 4.
+async function loadGenerated(seed, diff, d3 = false) {
+  let lay = generate(seed, diff, d3 ? { d3: true } : {});
   const key = lay.meta.key;
   const cached = store.getVerified(key + WORLD_TAG, VBUILD);
   if (cached) {
+    if (cached.variant) lay = generate(seed, diff, { d3: true, variant: cached.variant });
     lay.pieces = cached.pieces;
     return loadTrack(lay, { apTime: cached.ap, fixes: cached.fixes });
   }
-  ui.loading(0.82, 'Autopilot prüft die Strecke …');
-  const res = await verify(lay, (p, f) => ui.loading(0.82 + 0.16 * p, `Autopilot prüft die Strecke … ${Math.round(p * 100)} %${f ? ' (entschärft: ' + f + ')' : ''}`));
-  store.setVerified(key + WORLD_TAG, VBUILD, res.layout.pieces, res.apTime, res.fixes);
-  return loadTrack(res.layout, { apTime: res.apTime, fixes: res.fixes }, res.env);
+  for (let variant = 0; ; variant++) {
+    if (variant) lay = generate(seed, diff, { d3: true, variant });
+    ui.loading(0.82, 'Autopilot prüft die Strecke …');
+    const res = await verify(lay, (p, f) => ui.loading(0.82 + 0.16 * p, `Autopilot prüft die Strecke … ${Math.round(p * 100)} %${f ? ' (entschärft: ' + f + ')' : ''}`));
+    if (res.ok || !d3 || variant >= 3) {
+      store.setVerified(key + WORLD_TAG, VBUILD, res.layout.pieces, res.apTime, res.fixes, variant);
+      return loadTrack(res.layout, { apTime: res.apTime, fixes: res.fixes }, res.env);
+    }
+  }
 }
 
 // ---------- Importierte .TRK-Strecken ----------
@@ -332,10 +342,10 @@ function startRace(opts = {}) {
   prevPose = null;
 }
 function retry() { startRace(); }
-async function newTrack(seed, diff) {
+async function newTrack(seed, diff, d3 = !store.settings.flat) {
   ui.loading(0.5, 'Strecke bauen …');
   await new Promise((r) => setTimeout(r, 30));
-  await loadGenerated(seed, diff);
+  await loadGenerated(seed, diff, d3);
   ui.loading(1);
   ui.showMenu(env);
   mode = 'menu';
@@ -571,7 +581,7 @@ window.__game = {
       charges: race && { ...race.charges }, used: race && { ...race.used }, x: race && race.xstate(), onGround: c && c.onGround, extras: race && race.extrasOn };
   },
   start: (o) => startRace(o || {}),
-  newTrack: (s, d) => newTrack(s, d),
+  newTrack: (s, d, d3) => newTrack(s, d, d3),
   setAssist,
   setLine,
   toggleLine,

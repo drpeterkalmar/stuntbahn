@@ -6,7 +6,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { generate } from '../../src/track/generator.js';
+import { generate, galleryLayout } from '../../src/track/generator.js';
 import { prepare } from '../../src/track/verify.js';
 import { planDeco, roadClearance, MIN_CLEAR } from '../../src/track/deco.js';
 import { parseTrk } from '../../src/track/trk.js';
@@ -55,6 +55,12 @@ for (let s = 1; s <= N; s++) for (const d of [1, 2, 3]) {
   const lay = generate(s * 101 + 7, d);
   envs.push([`seed ${lay.meta.key}`, () => prepare(lay)]);
 }
+// n19: 3D-Strecken (Hochstraßen, Spiralen, Steilwand, Klippen) und die Galerie mit allen Teilen
+for (let s = 1; s <= Math.ceil(N / 2); s++) for (const d of [1, 2, 3]) {
+  const lay = generate(s * 101 + 7, d, { d3: true });
+  envs.push([`seed ${lay.meta.key}`, () => prepare(lay)]);
+}
+envs.push(['galerie', () => prepare(galleryLayout())]);
 for (const sc of SHOWCASE) envs.push([sc.id, () => { const trk = parseTrk(showcaseBytes(sc.id), sc.id + '.trk'); return prepare(trkToLayout(trk).layout); }]);
 // .TRK-Korpus (nur lokal): kleine gleichmäßige Stichprobe inkl. der längsten Strecke
 const DIR = path.join(ROOT, 'trk_local');

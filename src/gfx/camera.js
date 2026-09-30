@@ -36,6 +36,8 @@ export function portraitK(aspect) { return Math.max(0, Math.min(1, (1 - aspect) 
 const AIM_MAX = 14 * Math.PI / 180;   // hochkant: größtes Eindrehen in die Kurve
 const CP_SUSP = +(Q.get('cpsusp') ?? 1);   // Cockpit: Anteil Federungs-Ausgleich (n14: 0,5)
 const LAG_MAX = 3.0; // m: größter Verzug des Verfolgers hinter dem Auto (Tempo-Nachführung)
+// Verdeckungs-Strahlen (n19): Versatz um die Wunschposition (seitlich, oben; m, ~Nahebene), Abstand zum Bauteil (m)
+const CAM_RAYS = [[0, 0], [0.45, 0], [-0.45, 0], [0, 0.35], [0, -0.35]], CAM_GAP = 0.55;
 
 export class CameraRig {
   constructor(camera) {
@@ -203,12 +205,12 @@ export class CameraRig {
       if (a > 0) { back.y *= 1 - a; back.normalize(); }
       const want = V().copy(cp).addScaledVector(back, -(dist + 1.5 * a)).addScaledVector(this.up, h);
       if (a > 0) want.y -= a * 0.85 * Math.max(0, cp.y - this.baseY);
-      // Kamera nicht durch Bauwerke: Strahl vom Auto zur Wunschposition
+      // Kamera nicht durch Bauwerke (n19, 3D-Strecken: Decks, Pfeiler, obere Fahrbahn, Spiralen): fünf Strahlen vom
+      // Auto zur Wunschposition (Mitte + ±Nahebene seitlich/oben) gegen die Kollisionswelt; die kürzeste freie Länge
+      // zieht die Kamera heran – schnell hinein, langsam wieder hinaus (kein Pumpen an Pfeilerreihen). Bis n18 ein
+      // Strahl ohne Glättung.
+      const occ = world ? this.occlude(dt, cp, want, world) : null;
       if (world) {
-        const o = V().copy(cp).addScaledVector(this.up, 1.2);
-        const d = V().subVectors(want, o); const L = d.length(); d.divideScalar(L);
-        const hit = world.rayTrack(o.x, o.y, o.z, d.x, d.y, d.z, L, false);
-        if (hit && hit.t > 0.8) want.copy(o).addScaledVector(d, hit.t - 0.5);
         const gy = world.terrain.height(want.x, want.z) + 0.6;
         if (want.y < gy) want.y = gy;
       }
@@ -222,6 +224,8 @@ export class CameraRig {
         if (stepLen < 30) this.pos.addScaledVector(vcar, carry);   // kein Mitnehmen bei Teleport (Reset)
       }
       this.pos.lerp(want, kp);
+      // harte Grenze: die tatsächliche Kameraposition (nach Nachführen) liegt nie hinter einem Bauteil
+      if (occ) this.clampFree(occ.o, world);
       cam.position.copy(this.pos);
       if (view === 'chase' && !crashed) {
         const [sy, sx] = this.shakeOffset(dt, P, speed);
@@ -270,6 +274,39 @@ export class CameraRig {
     }
     this.fov += (targetFov - this.fov) * Math.min(1, dt * 3);
     if (Math.abs(cam.fov - this.fov) > 0.05) { cam.fov = this.fov; cam.updateProjectionMatrix(); }
+  }
+  // Verdeckung: freie Länge vom Auto (1,2 m über dem Wagen) Richtung Wunschposition want (wird verkürzt). Liefert { o }.
+  occlude(dt, cp, want, world) {
+    const o = this._oc || (this._oc = V()), d = this._od || (this._od = V()), sd = this._os || (this._os = V()), u2 = this._ou || (this._ou = V()), t = this._ot || (this._ot = V());
+    o.copy(cp).addScaledVector(this.up, 1.2);
+    d.subVectors(want, o);
+    const L = d.length();
+    if (L < 1e-3) return { o };
+    d.divideScalar(L);
+    sd.crossVectors(d, this.up); if (sd.lengthSq() < 1e-6) sd.set(1, 0, 0); sd.normalize();
+    u2.crossVectors(sd, d).normalize();
+    let free = L;
+    for (const [a, b] of CAM_RAYS) {
+      t.copy(want).addScaledVector(sd, a).addScaledVector(u2, b).sub(o);
+      const len = t.length(); t.divideScalar(len);
+      const hit = world.rayTrack(o.x, o.y, o.z, t.x, t.y, t.z, len, false);
+      if (hit) free = Math.min(free, hit.t / len * L - CAM_GAP);
+    }
+    free = Math.max(0.8, free);
+    if (this.camFree == null || !this.hasCp) this.camFree = free;
+    else this.camFree = free < this.camFree ? this.camFree + (free - this.camFree) * (1 - Math.exp(-dt * 20)) : this.camFree + (free - this.camFree) * (1 - Math.exp(-dt * 1.6));
+    this.camFree = Math.min(this.camFree, L);
+    this.occK = 1 - this.camFree / L;   // Anteil herangezogen (Tests/Anzeige)
+    want.copy(o).addScaledVector(d, Math.min(L, this.camFree));
+    return { o };
+  }
+  clampFree(o, world) {
+    const d = this._cd || (this._cd = V()).subVectors(this.pos, o);
+    const L = d.length();
+    if (L < 0.9) return;
+    d.divideScalar(L);
+    const hit = world.rayTrack(o.x, o.y, o.z, d.x, d.y, d.z, L + CAM_GAP * 0.5, false);
+    if (hit && hit.t < L + CAM_GAP * 0.5) this.pos.copy(o).addScaledVector(d, Math.max(0.8, hit.t - CAM_GAP));
   }
   // Cockpit: Kamera = Fahrerauge, dreht voll mit dem Auto (Looping, Korkenzieher). Gegen Übelkeit am Handy:
   // festes Sichtfeld (kein Tempo-Zoom) und ruhige Lage (n15, „darf nicht mehr wackeln“): kein Nicken/Wanken aus
