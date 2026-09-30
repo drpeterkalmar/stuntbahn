@@ -15,7 +15,7 @@ with Server() as srv, sync_playwright() as pw:
     s.ev("__game.setAssist('original')")
     s.tap('button[data-a=start]')      # Geste → AudioContext freischalten
     time.sleep(4)
-    res['ton'] = s.ev("(() => { const S = window.__soundRef; return S && S.ctx ? { state: S.ctx.state, bank: !!S.bank, running: S.running, loops: S.bank ? S.bank.engine.length : 0 } : 'kein ctx'; })()")
+    res['ton'] = s.ev("(() => { const S = window.__soundRef; return S && S.ctx ? { state: S.ctx.state, bank: !!S.bank, running: S.running, aufnahmen: !!(S.bank && S.bank.rec), loops: S.bank ? (S.bank.rec ? S.bank.rec.on.length + S.bank.rec.off.length : S.bank.engine.length) : 0 } : 'kein ctx'; })()")
     s.ev("__game.sim(3.2)")   # Countdown
     # Gamepad: RT (Taste 7) Gas + Stick links
     s.ev("window.__pad.buttons[7] = { pressed: true, value: 1 }; window.__pad.axes[0] = -0.8;")

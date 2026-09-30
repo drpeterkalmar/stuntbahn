@@ -1,7 +1,7 @@
 # Lizenzen der Fremd-Assets
 
 Alle hier genannten Dateien stammen aus freien Quellen (CC0 bzw. CC-BY 4.0). Code, Streckenbausteine,
-Physik, Generator, Ton und Icons sind eigene Arbeit. Keine Assets aus „Stunts“ oder „Ultimate Stunts“.
+Physik, Generator, Ton-Synthese und Icons sind eigene Arbeit (Ton-Aufnahmen: siehe unten, CC0). Keine Assets aus „Stunts“ oder „Ultimate Stunts“.
 
 ## Auto (CC-BY 4.0 – Namensnennung erforderlich)
 
@@ -67,3 +67,28 @@ Reproduzierbar laden: `python3 tools/fetch_assets.py`, danach `python3 tools/mak
 |---|---|---|
 | `lib/three.*.min.js`, `lib/addons/**` | [three.js](https://threejs.org) r186 | MIT (`lib/THREE_LICENSE.txt`) |
 | `lib/addons/libs/meshopt_decoder.module.js` | [meshoptimizer](https://github.com/zeux/meshoptimizer) (über three.js) | MIT |
+
+## Ton (freesound.org, CC0)
+
+`snd/sfx.m4a` (mit `snd/sfx.json`) enthält Ausschnitte dieser Aufnahmen. Alle stehen unter **Creative Commons 0**; die Lizenz
+wurde am 30.09.2026 auf der Seite jedes Klangs geprüft (`tools/fetch_sounds.py` bricht bei einer anderen Lizenz ab).
+Bearbeitung (`tools/build_sounds.py`): geschnitten, gefiltert, im Pegel angeglichen, Motor-Stücke in der Tonhöhe
+geglättet und zu Loops gemacht, zusammen als AAC (mono, 96 kbit/s) gespeichert. Keine Sonniss- oder „Royalty-free“-Pakete.
+
+| Aufnahme | Urheber (freesound) | Lizenz | Verwendung |
+|---|---|---|---|
+| [Import car revs on Chassis Dyno with Turbo.wav](https://freesound.org/people/editboy23/sounds/496171/) | editboy23 | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | Motor: Prüfstandslauf (Last-Hochlauf + Schiebebetrieb), Leerlauf |
+| [Car Crash](https://freesound.org/people/squareal/sounds/237375/) | squareal | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | Crash: Blech-Knirschen |
+| [Crash.wav](https://freesound.org/people/CogFireStudios/sounds/420356/) | CogFireStudios | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | Crash: Blech-Knirschen (zweite Variante) |
+| [metal_collision.wav](https://freesound.org/people/RichieMcMullen/sounds/386798/) | RichieMcMullen | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | Crash: Aufprall-Wumms (Metallkörper) |
+| [Hood Impact](https://freesound.org/people/LPA134/sounds/329516/) | LPA134 | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | Aufprall/Landung: Motorhaube |
+| [Jumping on Car Hood](https://freesound.org/people/sanlega/sounds/467230/) | sanlega | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | Landungen: Sprünge auf eine Motorhaube |
+| [Fall debris (crash)](https://freesound.org/people/xkeril/sounds/703248/) | xkeril | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | Crash: rieselnde Trümmer |
+| [Glass Break](https://freesound.org/people/unfa/sounds/221528/) | unfa | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | Crash (schwer): Glas |
+| [MetalScrape_4.wav](https://freesound.org/people/deerlord/sounds/534853/) | deerlord | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | Schleifen an Leitplanke/Wand |
+| [screeching tyres / tires](https://freesound.org/people/johnnydekk/sounds/614627/) | johnnydekk | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | Reifenquietschen |
+| [car park skiding corner.wav](https://freesound.org/people/martian/sounds/178889/) | martian | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | Reifenquietschen (zweite Variante) |
+| [BACKFIRE.ogg](https://freesound.org/people/CeebFrack/sounds/105351/) | CeebFrack | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | Fehlzündung (tief) |
+| [S012_Engine_Backfire_Mono.wav](https://freesound.org/people/P%C3%B3l/sounds/385935/) | Pól | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | Fehlzündung (hell) |
+
+Countdown-, Checkpoint-, Ziel- und Brems-Töne, Fahrtwind, Nitro und Hüpfer sind weiter eigene Synthese (`src/audio/sound.js`).

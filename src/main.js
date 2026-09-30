@@ -534,7 +534,7 @@ function render(rdt) {
   if (fx && mode === 'race' && !frozen) fx.update(rdt, camera);
   if (lineViz) lineViz.update(camera, race, store.settings.assist, mode, store.settings.line);
   sky.position.copy(camera.position);
-  if (mode === 'race' && race) { ui.hud(race, env, ghost); sound.update(race.car, rdt, race.state); }
+  if (mode === 'race' && race) { ui.hud(race, env, ghost); sound.update(race.car, rdt, race.state, { cockpit: rig.view === 'cockpit' }); }
   if (mode === 'replay' && replay) ui.replayHud(replay);
   // Cockpit: Außenkarosserie ausblenden (ragt sonst ins Bild), Innenraum im zweiten Durchgang darüber
   const inCockpit = mode !== 'menu' && !!pose && rig.view === 'cockpit';

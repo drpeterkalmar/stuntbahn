@@ -596,10 +596,12 @@ export class Race {
 
   onCrash() {
     this.crashes++;
+    // Schwere fürs Crash-Geräusch (n16): Aufprall-Tempo senkrecht zur Wand/zum Boden bzw. Fahrtempo
+    const ci = this.car.crash.info, sev = { v: +this.car.speed().toFixed(1), imp: ci && ci.vn ? -ci.vn : 0 };
     this.crashT = 0;
     this.stopNitro();
     if (this.wreckOn) {
-      this.emit('crash', { reason: this.car.crash.reason });
+      this.emit('crash', { reason: this.car.crash.reason, ...sev });
       this.state = 'wreck';
       return;
     }
@@ -607,7 +609,7 @@ export class Race {
     this.time += PENALTY;
     this.penalties++;
     this.pens.push({ f: this.recFrames(), sec: PENALTY });
-    this.emit('crash', { reason: this.car.crash.reason, penalty: PENALTY });
+    this.emit('crash', { reason: this.car.crash.reason, penalty: PENALTY, ...sev });
     this.state = 'reset';
   }
 

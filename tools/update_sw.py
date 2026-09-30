@@ -8,7 +8,7 @@ for d in ['src', 'lib', 'icons', 'assets']:
         for f in sorted(fn):
             rel = os.path.relpath(os.path.join(dp, f), ROOT)
             # sammlung_stil.json: Stil-Modell nur für den Build, nicht fürs Spiel
-            if f.endswith(('.js', '.png', '.css', '.webp', '.jpg', '.json', '.glb', '.hdr', '.bin')) and not f.startswith('.') and rel != os.path.join('assets', 'sammlung_stil.json'):
+            if f.endswith(('.js', '.png', '.css', '.webp', '.jpg', '.json', '.glb', '.hdr', '.bin', '.m4a')) and not f.startswith('.') and rel != os.path.join('assets', 'sammlung_stil.json'):
                 files.append(rel)
 files = sorted(set(files))
 h = hashlib.sha256()

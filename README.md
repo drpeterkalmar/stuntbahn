@@ -131,7 +131,14 @@ zurückgesetzt, an der er die Fahrbahn verlassen hat (Uhr läuft weiter). Ab 18 
   (funktioniert kopfüber). Fahrhilfen = Mischung Spieler/Autopilot.
 - Grafik: HDRI-Himmel + bildbasiertes Licht, PBR-Texturen, Klarlack-Auto, **vorberechneter Sonnenschatten**
   für die statische Strecke (einmal gerenderte Tiefenkarte), Echtzeit-Schatten nur fürs Auto,
-  automatische Qualitätsstufen nach Bildrate. Ton komplett vorgerendert (OfflineAudioContext).
+  automatische Qualitätsstufen nach Bildrate.
+- **Ton aus Aufnahmen** (seit 30.09.2026, n16; CC0 von freesound.org, eine Datei `assets/snd/sfx.m4a`, 0,27 MB, beim Laden der
+  Seite dekodiert): Motor aus Drehzahl-Loops eines Prüfstandslaufs (Last und Schiebebetrieb getrennt, überblendet,
+  Tonhöhe folgt der Drehzahl), Zündunterbrechung beim Hochschalten, Zwischengas beim Runterschalten, Fehlzündungen im
+  Schiebebetrieb, Drehzahlbegrenzer, Nitro-Schicht, im Cockpit Innenraum-Klang; Crash nach Schwere geschichtet (Wumms,
+  Blech, Trümmer, Glas nur bei schweren), Schleifen an Wand/Leitplanke, Landungen nach Fallhöhe, Reifenquietschen.
+  Neu bauen: `python3 tools/fetch_sounds.py && python3 tools/build_sounds.py`. Scheitert das Laden, spielt der
+  bisherige Synthesizer; `?snd=alt` erzwingt ihn (A/B). Messungen: `SOUND_BERICHT.md`.
 - Debug-API `window.__game` (Headless-Tests).
 
 ## Entwicklung & Tests
@@ -155,6 +162,9 @@ node tools/fahr_analyse.mjs               # Bremsleistung Plan/Physik, Bremszeit
 node tools/linie_analyse.mjs --laps       # Ideallinie: Scheitel-Nutzung, Löser-Zeit, Autopilot-Runden auf allen Stufen
 python3 tests/linie_shots.py              # Fotos: Linie mit Scheitel-Keilen, HUD-Ansagen (tests/shots/linie/)
 python3 tests/smoke.py                    # Browser (Playwright, Pixel 7 quer), Screenshots nach tests/shots/
+python3 tests/sound_levels.py             # Ton: Aufnahmen geladen, Pegel, Loop-Nähte, Rückfall auf den Synthesizer, ?snd=alt
+python3 tests/ton_probe.py                # Ton offline gerendert alt/neu: Pegel, Übersteuerung, Handy-Filter; Hörproben ~/Downloads/Stuntbahn-Ton/
+python3 tests/ton_cpu.py                  # CPU-Last des Tons: aus / alt / neu
 python3 tests/test_race.py                # Rennen, Bestzeit nach Reload, Geist, Replay
 python3 tests/test_touch.py               # Touch-Steuerung quer + hochkant, Knopfgrößen, Tastengröße, Bounding-Boxen, Layout
 python3 tests/test_hochformat.py          # Drehen im Rennen (quer→hoch→quer), keine hängenden Finger, Neigen-Achse, Platz für 2 Knöpfe
@@ -197,6 +207,7 @@ Nützliche URL-Parameter: `?seed=4711&d=3`, `?demo`, `?gallery` (alle Bausteine)
 Cockpit: `?eye=0.45` (Augenhöhe in m über dem Auto-Ursprung), `?hz=0.32` (Horizont, Anteil der Bildhöhe von oben),
 `?dash=0.7` (Oberkante Armaturenbrett, Anteil von oben), `?cpsusp=1` (Federungs-Ausgleich, 0,5 = Stand bis 28.09.).
 `?auto=alt` (alte, langsamere Abstimmung bis 27.09.2026 zum Vergleich; wertet in der alten Bestzeiten-Liste).
+`?snd=alt` (bisheriger Synthesizer-Ton statt der Aufnahmen, A/B).
 `?grip=1` (Haftung und Ideallinie bis 28.09.2026 zum A/B-Vergleich; wertet unter „alte Physik“).
 `?mgrip=1` (Mittel wie bis 29.09.2026: Zug zur Ideallinie, weniger Haftung – A/B-Vergleich; wertet in der alten
 Mittel-Liste, die sonst als „alte Physik“ erscheint). Messung: `MITTEL_BERICHT.md`.
@@ -211,5 +222,7 @@ erlaubt 1 … 2,5; wertet in der Bestzeiten-Liste der jeweiligen Welt). In Node:
 - **Texturen:** Poly Haven (CC0) – Rob Tuytel, Charlotte Baglioni, Rico Cilliers.
 - **Umgebung:** Poly Haven (CC0) – Pflanzen, Felsen, Kies von Rico Cilliers, Rob Tuytel, James Ray Cock, Jenelle van Heerden, Kless Gyzen, Dimitrios Savva (Details in `assets/LICENSES.md`).
 - **Bibliothek:** three.js (MIT).
-Details: [`assets/LICENSES.md`](assets/LICENSES.md). Code, Bausteine, Physik, Ton: eigene Arbeit.
+- **Ton-Aufnahmen:** 13 CC0-Aufnahmen von freesound.org (Urheber und Links in `assets/LICENSES.md`).
+
+Details: [`assets/LICENSES.md`](assets/LICENSES.md). Code, Bausteine, Physik, Ton-Synthese: eigene Arbeit.
 Kein Code und keine Assets aus „Stunts“/„4D Sports Driving“ oder „Ultimate Stunts“ – nur die Spielidee.

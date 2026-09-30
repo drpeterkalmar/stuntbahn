@@ -390,11 +390,13 @@ export class Car {
   _contacts(dt, world) {
     const d = this.def, F = this.frame;
     this._roofTouch = false; this._bodyTouch = false;
+    this.scrape = 0;   // Gleit-Tempo der Karosserie an Wand/Leitplanke/Boden in diesem Schritt (nur für den Ton, n16)
     const tmpA = { x: 0, y: 0, z: 0 }, tmpB = { x: 0, y: 0, z: 0 }, vp = { x: 0, y: 0, z: 0 };
     let bestPen = 0, cx = 0, cy = 0, cz = 0;
     const doContact = (px, py, pz, nx, ny, nz, pen, fric, rest, kind) => {
       this._pointVel(px, py, pz, vp);
       const vn = vp.x * nx + vp.y * ny + vp.z * nz;
+      if (kind !== 4) this.scrape = Math.max(this.scrape, Math.hypot(vp.x - vn * nx, vp.y - vn * ny, vp.z - vn * nz));
       if (vn < 0) {
         if (!this.crash) {
           const info = { kind, vn: +vn.toFixed(1), n: [+nx.toFixed(2), +ny.toFixed(2), +nz.toFixed(2)], p: [+px.toFixed(1), +py.toFixed(1), +pz.toFixed(1)] };
