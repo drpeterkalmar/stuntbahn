@@ -23,8 +23,10 @@ function bot(kind, seed) {
 const N = +(process.argv[2] || 6);
 let fails = 0; const falls = {};
 const seeds = [20260930, 4711, ...Array.from({ length: N - 2 }, (_, k) => 3000 + k * 7919 % 90000)];
+// FLACH=1: dieselben Spieler auf den flachen Strecken derselben Codes (Vergleich für den Bericht)
+const flach = !!process.env.FLACH;
 for (const seed of seeds) for (const diff of [1, 2, 3]) {
-  const v = verifySync(generate(seed, diff, { d3: true }));
+  const v = verifySync(generate(seed, diff, flach ? {} : { d3: true }));
   for (const [assist, kind] of [['easy', 'nichts'], ['easy', 'zappelig'], ['medium', 'normal']]) {
     const race = new Race(v.env, { assist, countdown: 0.5 });
     const b = bot(kind, seed + kind.length);
