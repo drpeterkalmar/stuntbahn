@@ -5,6 +5,7 @@
 import { TILE, LEVEL_H, ROAD_HW, ROAD_Y, GRID, DIRS, tileX, tileZ, MAT, ROAD_MATS, SURF_MAT, GRIP, WORLD_SCALE, WORLD_HALF } from './defs.js';
 import { PIECES, JUMP, LOOP, pieceCells } from './pieces.js';
 import './pieces_trk.js';
+import { PROFILES_3D } from './pieces_3d.js';
 import { buildTrkTerrain, carveUnderRoads } from './trkterrain.js';
 import { buildScenery } from './scenery.js';
 import { adaptiveGrid, gridExt, FINE_DT } from './terrgrid.js';
@@ -185,6 +186,44 @@ const PROFILES = {
   },
 };
 
+Object.assign(PROFILES, PROFILES_3D);   // Querschnitte der 3D-Teile (pieces_3d.js)
+
+// Fahrbahnen unter einem Punkt (3D-Strecken, n19): Pfeiler einer Hochstraße dürfen nicht auf einer tieferen Fahrbahn
+// stehen. Belegung je Feld aus dem Layout; gerade Stücke als Streifen entlang ihrer Achse (Kreuzungen sind immer
+// rechtwinklig über Geraden), andere Stücke sperren das ganze Feld. Nur für Stücke, die mehrfach belegte Felder
+// haben – flache Strecken bleiben unverändert.
+const STRIP_TYPES = new Set(['straight', 'checkpoint', 'start']);
+function belowIndex(layout, LH) {
+  const cellMap = new Map();
+  const all = [...layout.pieces.map((pc, k) => [pc, k]), ...(layout.decor || []).map((pc, k) => [pc, -1 - k])];
+  for (const [pc, k] of all) {
+    if (!PIECES[pc.type]) continue;
+    const lo = Math.min(pc.lvl || 0, pc.h1 ?? pc.lvl ?? 0) * LH + ROAD_Y;
+    for (const [ci, cj] of pieceCells(pc.type, pc.i, pc.j, pc.d, pc.m || 1).cells) {
+      const key = ci + ',' + cj;
+      if (!cellMap.has(key)) cellMap.set(key, []);
+      cellMap.get(key).push({ k, pc, lo, ci, cj });
+    }
+  }
+  // (x, z, y) liegt über einer Fahrbahn eines anderen Stücks (mindestens 2 m tiefer)?
+  return (self, x, z, y) => {
+    const i0 = Math.floor(x / TILE + GRID / 2), j0 = Math.floor(z / TILE + GRID / 2);
+    for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
+      const L = cellMap.get((i0 + di) + ',' + (j0 + dj));
+      if (!L) continue;
+      for (const q of L) {
+        if (q.k === self || q.lo > y - 2) continue;
+        const cx = tileX(q.ci), cz = tileZ(q.cj), dx = x - cx, dz = z - cz;
+        if (STRIP_TYPES.has(q.pc.type)) {
+          const D = DIRS[q.pc.d], along = dx * D[0] + dz * D[1], across = -dx * D[1] + dz * D[0];
+          if (Math.abs(along) <= TILE / 2 + 0.5 && Math.abs(across) < ROAD_HW + 1.8) return true;
+        } else if (Math.abs(dx) < TILE / 2 + 1 && Math.abs(dz) < TILE / 2 + 1) return true;
+      }
+    }
+    return false;
+  };
+}
+
 // ---------- Hauptfunktion ----------
 export function buildTrack(layout, opt = {}) {
   const LH = layout.levelH ?? LEVEL_H;
@@ -207,6 +246,7 @@ export function buildTrack(layout, opt = {}) {
   let startMark = null;
   const occupied = new Uint8Array(GRID * GRID);
   const pieceInfo = [];
+  let belowAt = null;   // erst bei Bedarf (Pfeiler der 3D-Teile)
 
   const batch = (chunk, mat) => {
     const k = chunk + '|' + mat;
@@ -279,7 +319,7 @@ export function buildTrack(layout, opt = {}) {
         const p = W(s.f, s.y, s.r);
         return {
           p, up: s.up ? norm(Wv(s.up)) : [0, 1, 0], bank: s.bank || 0, hw: s.hw ?? o.hw ?? ROAD_HW,
-          surf: s.surf ?? 1, air: s.air || 0, loop: s.loop || 0, tube: s.tube || 0, f: s.f,
+          surf: s.surf ?? 1, air: s.air || 0, loop: s.loop || 0, tube: s.tube || 0, wave: s.wave || 0, f: s.f,
           hg: s.y + lvl * LH - (trkTerr ? groundAt(p[0], p[2]) : 0), prof: s.prof || (o.profile === 'loop' ? (s.loop ? 'loopLane' : 'road') : o.profile === 'tube' ? (s.tube ? 'tube' : 'road') : o.profile),
           lo: s.lo, hi: s.hi, bankH: s.bankH,
         };
@@ -313,7 +353,7 @@ export function buildTrack(layout, opt = {}) {
         const M = 1.3;
         let lo = s.lo ?? (-s.hw + M), hi = s.hi ?? (s.hw - M);
         if (lo > hi) lo = hi = (lo + hi) / 2;
-        line.push({ p: s.p, T: s.T, N: s.N, B: s.B, hw: s.hw, lo, hi, air: s.air, loop: s.loop, tube: s.tube, piece: pidx, f: s.f, surf: s.surf, kind: o.kind || '', grip });
+        line.push({ p: s.p, T: s.T, N: s.N, B: s.B, hw: s.hw, lo, hi, air: s.air, loop: s.loop, tube: s.tube, wave: s.wave, piece: pidx, f: s.f, surf: s.surf, kind: o.kind || '', grip });
       }
       // Läufe gleicher Oberfläche/Profil bauen
       let i0 = 0;
@@ -431,6 +471,7 @@ export function buildTrack(layout, opt = {}) {
       m, lvl, pc, LH, decor, T: TILE, base, F, R, E,
       W, Wv, wbox,
       ground: (f, r) => { const q = W(f, 0, r); return groundAt(q[0], q[2]); },
+      below: (f, r, y) => { if (!belowAt) belowAt = belowIndex(layout, LH); const q = W(f, y, r); return belowAt(pidx, q[0], q[2], q[1]); },
       lastLine: () => line[line.length - 1],
       tri: (p0, p1, p2, mat, collide, col) => {
         const b = batch(chunk, mat);
@@ -561,7 +602,7 @@ export function buildTrack(layout, opt = {}) {
     tx: new Float32Array(n), ty: new Float32Array(n), tz: new Float32Array(n),
     nx: new Float32Array(n), ny: new Float32Array(n), nz: new Float32Array(n),
     bx: new Float32Array(n), by: new Float32Array(n), bz: new Float32Array(n),
-    s: new Float32Array(n), hw: new Float32Array(n), lo: new Float32Array(n), hi: new Float32Array(n), air: new Uint8Array(n), loop: new Uint8Array(n), tube: new Uint8Array(n),
+    s: new Float32Array(n), hw: new Float32Array(n), lo: new Float32Array(n), hi: new Float32Array(n), air: new Uint8Array(n), loop: new Uint8Array(n), tube: new Uint8Array(n), wave: new Uint8Array(n),
     piece: new Uint16Array(n), grip: new Float32Array(n), total: 0, closed: false,
   };
   let acc = 0;
@@ -572,7 +613,7 @@ export function buildTrack(layout, opt = {}) {
     L.tx[i] = q.T[0]; L.ty[i] = q.T[1]; L.tz[i] = q.T[2];
     L.nx[i] = q.N[0]; L.ny[i] = q.N[1]; L.nz[i] = q.N[2];
     L.bx[i] = q.B[0]; L.by[i] = q.B[1]; L.bz[i] = q.B[2];
-    L.s[i] = acc; L.hw[i] = q.hw; L.lo[i] = q.lo; L.hi[i] = q.hi; L.air[i] = q.air; L.loop[i] = q.loop; L.tube[i] = q.tube; L.piece[i] = q.piece; L.grip[i] = q.grip ?? 1.25;
+    L.s[i] = acc; L.hw[i] = q.hw; L.lo[i] = q.lo; L.hi[i] = q.hi; L.air[i] = q.air; L.loop[i] = q.loop; L.tube[i] = q.tube; L.wave[i] = q.wave || 0; L.piece[i] = q.piece; L.grip[i] = q.grip ?? 1.25;
   }
   L.total = acc;
   // Rundkurs? (Ende == Anfang)

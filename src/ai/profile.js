@@ -2,6 +2,7 @@
 // Grenzen aus der Geometrie: Querhaftung (inkl. Überhöhung), Mindest-Anpressdruck im Looping,
 // maximale Last, Sprung-Fenster (ballistisch gelöst). Danach Brems-Rückwärtslauf.
 import { jumpWindow, JUMP_T } from '../track/pieces.js';
+import { WAVE, WALL } from '../track/pieces_3d.js';
 import { G, flightPath, pathAt } from '../physics/air.js';
 import { CAR_DEF, GRIP_ALT, driveAccel, brakeDecel, topSpeed, aeroLoad } from '../physics/car.js';
 import { WORLD_SCALE, TILE, ROAD_HW } from '../track/defs.js';
@@ -145,7 +146,10 @@ export function computeProfile(L, opts = {}) {
     cons(-A - mu * (C + dAero), mu * gN + gB, kc);
     // Anpressdruck (x*C + gN, mit PROF.crestAero samt Abtrieb) zwischen Nmin und Nmax
     const Cn = PROF.crestAero ? C + dAero : C;
-    cons(-Cn, gN - Nmin, 'kuppe');           // x*Cn + gN >= Nmin
+    // Achterbahn-Wellen (n19, L.wave = 1): an den Kuppen leicht negativer Anpressdruck erlaubt → kurze Luftphase;
+    // Steilwand (L.wave = 2): im verwundenen Übergang steigt die Fahrbahnmitte auf die Wand (Kuppe) – dort genügt WALL.nmin
+    const wv = L.wave ? L.wave[i] : 0;
+    cons(-Cn, gN - (wv === 1 ? (opts.waveN ?? WAVE.nmin * G) : wv === 2 ? WALL.nmin * G : Nmin), 'kuppe');           // x*Cn + gN >= Nmin
     cons(Cn, Nmax - gN, 'last');            // x*Cn + gN <= Nmax
     vmax[i] = Math.sqrt(Math.max(0, hi));
     if (D && pre[i]) {
@@ -177,7 +181,8 @@ export function computeProfile(L, opts = {}) {
   const windows = [];
   for (const j of jumpsIdx) {
     const li = j.lipIdx;
-    const w = j.gen ? genericJumpWindow(L, li, j.landIdx) : jw;
+    // Klippensprung (n19): eigenes Fenster aus derselben Luft-Physik und Lippe (pieces_3d.js cliffDesign)
+    const w = j.win ? j.win : j.gen ? genericJumpWindow(L, li, j.landIdx) : jw;
     windows.push(w);
     if (!w) continue;
     // Anlauf bis zur Lippe: Zieltempo vbest, Mindesttempo vmin

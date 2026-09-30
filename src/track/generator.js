@@ -5,6 +5,8 @@
 import { GRID } from './defs.js';
 import { rng } from '../core/util.js';
 import { pieceCells } from './pieces.js';
+import './pieces_3d.js';
+import './pieces_trk.js';
 
 export const DIFFS = {
   1: { name: 'Sanft', w: [9, 12], h: [6, 8], bumps: [1, 3], large: 0.9, bank: 0.25, density: 0.18, must: ['loop', 'crest'], types: { bumps: 3, crest: 3, chicane: 2, bridge: 3 } },
@@ -275,17 +277,28 @@ export function demoLayout() {
   return { pieces, seed: 0, diff: 2, meta: { seed: 0, diff: 2, key: 'demo', name: 'Teststrecke', diffName: 'Sportlich' } };
 }
 
-// Baustein-Galerie (offen): jedes Element einmal, für Sichtprüfung/Tests
+// Baustein-Galerie (offen): jedes Element einmal, für Sichtprüfung/Tests. Einträge: 'typ', ['typ', m] oder
+// { t: 'typ', m, h1 } (h1 = Ebene an der Ausfahrt). Seit n19 mit den 3D-Teilen (Wellen, Steilwand, Steilkurve,
+// Korkenzieher, Wendel, Steilauffahrt, Hochstraßen-Kurven, Überführung, Klippensprünge, Spiralen).
 export function galleryLayout() {
   const list = ['start', 'straight', 'bumps', 'straight', 'crest', ['chicane', 1], 'straight', 'loop', 'straight', 'jump', 'straight', ['turnL', 1],
-    'straight', 'rampUp', 'bridge', 'rampDown', 'straight', ['bank', 1], 'straight', 'tube', 'straight', ['turnS', -1], 'straight', ['turnS', 1], 'checkpoint', 'straight', 'straight'];
+    'straight', 'rampUp', 'bridge', 'rampDown', 'straight', ['bank', 1], 'straight', 'tube', 'straight', ['turnS', -1], 'straight', ['turnS', 1], 'checkpoint', 'straight', 'straight',
+    // n19: 3D-Teile – Wellen, Steilwand, Korkenzieher, Überführung (Steilauffahrt → Hochstraße → quer über die eigene
+    // Anfahrt), Klippensprung über 2 Ebenen, Spirale hinauf, Klippensprung, Steilkurve, Wendel, Spirale über 2 Ebenen,
+    // lange Steilabfahrt über 3 Ebenen
+    ['turnL', -1], 'waves', 'straight', ['wall', -1], 'straight', 'tr_corklr', 'straight', 'straight', 'straight',
+    { t: 'slope3', h1: 2 }, ['turnS', -1], 'straight', ['turnS', -1], 'straight', 'straight', 'straight', 'straight', ['turnS', -1], 'straight', 'straight',
+    { t: 'cliff2', h1: 0 }, ['turnS', -1], 'straight', { t: 'spiral', m: -1, h1: 1 }, 'straight', { t: 'cliff', h1: 0 }, 'straight', ['tr_bankC', -1],
+    { t: 'tr_corkud', m: 1, h1: 1 }, 'straight', ['turnS', -1], 'straight', ['turnS', 1], { t: 'spiral', m: 1, h1: 3 }, 'straight', { t: 'slope4', h1: 0 }, 'checkpoint', 'straight'];
   let i = 2, j = 4, d = 0, lvl = 0;
   const pieces = [];
   for (const it of list) {
-    const [type, m = 1] = Array.isArray(it) ? it : [it];
-    pieces.push({ type, i, j, d, m, lvl });
-    [i, j, d] = pieceCells(type, i, j, d, m).next;
-    lvl += type === 'rampUp' ? 1 : type === 'rampDown' ? -1 : 0;
+    const o = Array.isArray(it) ? { t: it[0], m: it[1] } : typeof it === 'string' ? { t: it } : it;
+    const pc = { type: o.t, i, j, d, m: o.m || 1, lvl };
+    if (o.h1 != null) pc.h1 = o.h1;
+    pieces.push(pc);
+    [i, j, d] = pieceCells(pc.type, i, j, d, pc.m).next;
+    lvl = o.h1 != null ? o.h1 : lvl + (o.t === 'rampUp' ? 1 : o.t === 'rampDown' ? -1 : 0);
   }
   return { pieces, seed: 1, diff: 3, meta: { seed: 1, diff: 3, key: 'galerie', name: 'Baustein-Galerie', diffName: 'Irre' } };
 }

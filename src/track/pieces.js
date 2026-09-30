@@ -60,7 +60,7 @@ export function setLip(deg) {
   const v = q ? +new URLSearchParams(q).get('lip') : 0;
   if (v >= 8 && v <= 35) setLip(v);
 }
-function kickerY(f) { // Kreisbogen von Steigung 0 bis lipDeg, endet bei f = JUMP_T (ab Anfang des Anlaufs)
+export function kickerY(f) { // Kreisbogen von Steigung 0 bis lipDeg, endet bei f = JUMP_T (ab Anfang des Anlaufs)
   const L = JUMP_T - JUMP.kickStart, th = JUMP.lipDeg * PI / 180, R = L / th;
   if (f <= JUMP.kickStart) return { y: 0, slope: 0 };
   const a = (f - JUMP.kickStart) / R;
@@ -136,11 +136,16 @@ function pillars(pb, f, r0 = 0) {
 // Pfeilerpaare alle ~20 m (im 20-m-Feld eines in der Mitte)
 function deckPillars(pb) { const k = Math.max(1, Math.round(T / 20)); for (let q = 0; q < k; q++) pillars(pb, T * (q + 0.5) / k); }
 
+// Erweiterungen der 3D-Teile (pieces_3d.js setzt sie; kein Import von dort – sonst Import-Zyklus): Hochstraßen-
+// Kurven und -Geraden mit hoher Brüstung und Pfeilern neben unterquerten Fahrbahnen. Auf Ebene 0 bleibt alles wie bisher.
+export const HOOK = {};
+
 export const PIECES = {
   // ---------------- Grundelemente ----------------
   straight: {
     name: 'Gerade', cells: [[0, 0]], next: [1, 0], turn: 0, dl: 0,
     build(pb) {
+      if (pb.lvl > 0 && HOOK.deckPiers) { pb.path(straightSamples(T), { profile: 'deck3' }); HOOK.deckPiers(pb); return; }
       pb.path(straightSamples(T), { profile: pb.lvl > 0 ? 'deck' : 'road' });
       if (pb.lvl > 0) deckPillars(pb);
     },
@@ -156,21 +161,25 @@ export const PIECES = {
   checkpoint: {
     name: 'Checkpoint', cells: [[0, 0]], next: [1, 0], turn: 0, dl: 0,
     build(pb) {
-      pb.path(straightSamples(T), { profile: pb.lvl > 0 ? 'deck' : 'road', mark: 'cp', markAt: 10 });
+      const d3 = pb.lvl > 0 && HOOK.deckPiers;
+      pb.path(straightSamples(T), { profile: d3 ? 'deck3' : pb.lvl > 0 ? 'deck' : 'road', mark: 'cp', markAt: 10 });
       pb.checkpoint(10);
       pb.gate('cp', 10);
-      if (pb.lvl > 0) deckPillars(pb);
+      if (d3) HOOK.deckPiers(pb);
+      else if (pb.lvl > 0) deckPillars(pb);
     },
   },
   turnS: {
     name: 'Kurve eng', cells: [[0, 0]], next: [0, 1], turn: 1, dl: 0,
     build(pb) {
+      if (pb.lvl > 0 && HOOK.deckTurn) return HOOK.deckTurn(pb, T / 2);
       pb.path(arcSamples(T / 2, pb.m, 0.8), { profile: 'road', kerbIn: true, kerbOut: true, turn: pb.m });
     },
   },
   turnL: {
     name: 'Kurve weit', cells: [[0, 0], [1, 0], [0, 1], [1, 1]], next: [1, 2], turn: 1, dl: 0,
     build(pb) {
+      if (pb.lvl > 0 && HOOK.deckTurn) return HOOK.deckTurn(pb, 1.5 * T);
       pb.path(arcSamples(1.5 * T, pb.m, 1.2), { profile: 'road', kerbIn: true, kerbOut: true, turn: pb.m });
     },
   },
