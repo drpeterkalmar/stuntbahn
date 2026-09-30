@@ -18,6 +18,8 @@ spielbar am Handy (quer oder hochkant), mit Gamepad oder Tastatur. Als App insta
 - **Bestzeiten und Geisterautos** (Mittel und Original) werden je Strecke, je Fahrhilfe *und* je Totalschaden-Einstellung
   getrennt gespeichert. **Leicht wertet nicht** (seit 29.09.2026): kein Bestzeit-Jubel, kein Geisterauto – nur „Deine Zeit“
   und die letzten 5 Zeiten je Strecke mit Datum. Alte Leicht-Bestzeiten bleiben gespeichert, werden nicht mehr gezeigt.
+  **Mittel wertet seit 30.09.2026 (n16) neu** (ohne Zug zur Linie, mehr Haftung): die bisherigen Mittel-Zeiten bleiben
+  und stehen im Menü als „alte Physik“.
 - **Doppelt so schnell** (seit 27.09.2026): Vmax ~586 km/h, 0–200 in 3,8 s, Rennreifen und Abtrieb (Details:
   `TEMPO_BERICHT.md`). Bestzeiten der alten Physik bleiben gespeichert und stehen im Menü als „erste Physik“.
 - **Mehr Bodenhaftung und schnellere Ideallinie** (seit 29.09.2026): Reifen mu 1,7 statt 1,5, mehr Abtrieb (wirkt nur mit
@@ -83,7 +85,7 @@ spielbar am Handy (quer oder hochkant), mit Gamepad oder Tastatur. Als App insta
 | Stufe | Was hilft |
 |---|---|
 | 🟢 **Leicht** | Gas automatisch (Bremse des Spielers geht vor). **Mitlenken statt Schienen** (seit 29.09.2026): Die Hilfe hält das Auto auf der Fahrbahn und lenkt einen Teil jeder Kurve; die Ideallinie trifft man mit etwas Mitlenken, ohne Lenken driftet das Auto nach außen und wird langsamer (`?lk=0` = alte Schienen, `?lk=0.5` weniger mitlenken). Wer deutlich über den Rand hinaus drückt, hat Vorrang – auch quer durchs Gelände, Loslassen führt weich zurück. Loopings, Röhren, Korkenzieher und Sprünge lenkt das Auto selbst (mit Ansage im HUD), Engstellen und Steilkurven hält es eng auf der Linie. Handy: linke/rechte Bildschirmhälfte halten (oder Neigen). |
-| 🟡 **Mittel** | Du bremst selbst: farbige Ideallinie (grün = Gas, gelb = vom Gas, rot = bremsen, aus dem Tempo-Profil) und kurzer Brems-Hinweis „Bremsen!“ mit Ton. Optionen → „Bremshilfe“ Aus / **Hinweis** / Sanft (bremst leicht mit bei > 15 % Übertempo ohne Vollgas). Leichter Zug zur Linie (in Stunts stärker), Stabilitätshilfe beim Rutschen (gibt bei deutlichem Gegenlenken nach), Rückspul-Knopf. |
+| 🟡 **Mittel** | Du lenkst und bremst selbst: farbige Ideallinie (grün = Gas, gelb = vom Gas, rot = bremsen, aus dem Tempo-Profil) und kurzer Brems-Hinweis „Bremsen!“ mit Ton. Optionen → „Bremshilfe“ Aus / **Hinweis** / Sanft (bremst leicht mit bei > 15 % Übertempo ohne Vollgas). **Kein Zug zur Ideallinie** (seit 30.09.2026, n16), dafür mehr Bodenhaftung als Original (Kurvengrenztempo +10–15 %; rutscht bei Übertempo weiterhin). Im Looping/in der Röhre eine Spurhilfe zur Fahrbahnmitte (HUD „Looping – Spurhilfe“, deutliches Lenken schaltet sie in ¼ s ab). Stabilitätshilfe beim Rutschen (richtet nur den Kurs aus, gibt bei deutlichem Gegenlenken nach), Rückspul-Knopf. |
 | 🔴 **Original** | Keine Hilfen – so tricky wie damals. |
 
 Die Fahrhilfe ist jederzeit im Pause-Menü umschaltbar.
@@ -148,7 +150,7 @@ node tests/node/test_verify_batch.mjs 10  # Generator: 10 Seeds × 3 Stufen per 
 node tests/node/test_assists.mjs          # Fahrhilfen mit simulierten Spielern
 node tests/node/test_reset.mjs            # Crash in Looping/Sprung/Wand: Reset +5 s bzw. Wrack; nie Endlosschleife
 node tests/node/test_free_steer.mjs       # Leicht: Spieler-Vorrang, weiche Rückführung, Abkürz-Regel, Stunt-Ansage
-node tests/node/test_fahrgefuehl.mjs      # Leicht mitlenken, Tempo-Regler, Linienfarben = Pedale, Mittel ohne Zwangsbremse, Haftung
+node tests/node/test_fahrgefuehl.mjs      # Leicht mitlenken, Tempo-Regler, Linienfarben = Pedale, Mittel ohne Zwangsbremse, Haftung, Mittel n16 (Grenztempo, Spurhilfe)
 node tools/fahr_analyse.mjs               # Bremsleistung Plan/Physik, Bremszeit + Zeitverlust je Ursache, Haftung (--root=Kopie)
 node tools/linie_analyse.mjs --laps       # Ideallinie: Scheitel-Nutzung, Löser-Zeit, Autopilot-Runden auf allen Stufen
 python3 tests/linie_shots.py              # Fotos: Linie mit Scheitel-Keilen, HUD-Ansagen (tests/shots/linie/)
@@ -196,6 +198,8 @@ Cockpit: `?eye=0.45` (Augenhöhe in m über dem Auto-Ursprung), `?hz=0.32` (Hori
 `?dash=0.7` (Oberkante Armaturenbrett, Anteil von oben), `?cpsusp=1` (Federungs-Ausgleich, 0,5 = Stand bis 28.09.).
 `?auto=alt` (alte, langsamere Abstimmung bis 27.09.2026 zum Vergleich; wertet in der alten Bestzeiten-Liste).
 `?grip=1` (Haftung und Ideallinie bis 28.09.2026 zum A/B-Vergleich; wertet unter „alte Physik“).
+`?mgrip=1` (Mittel wie bis 29.09.2026: Zug zur Ideallinie, weniger Haftung – A/B-Vergleich; wertet in der alten
+Mittel-Liste, die sonst als „alte Physik“ erscheint). Messung: `MITTEL_BERICHT.md`.
 `?lk=0…1` (Leicht: Anteil der Kurve, den der Spieler selbst lenkt, Standard 0.8; `?lk=0` = alte Schienen) und
 `?lkband=3.5` (Leicht: Band um die Linie in m, in dem die Hilfe nicht zur Linie zieht – größer = mehr Treiben bei „Hände weg“).
 `?welt=1` (alter, kleiner Weltmaßstab bis 27.09.2026 zum A/B-Vergleich, Standard 2 = Felder 40 statt 20 m;

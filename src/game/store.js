@@ -2,6 +2,7 @@
 // UND Totalschaden-Einstellung.
 import { PHYS } from '../physics/car.js';
 import { WORLD_TAG } from '../track/defs.js';
+import { MED_ALT } from './race.js';
 
 const KEY = 'stuntbahn.v1';
 const GHOST_MAX = 40;
@@ -20,9 +21,13 @@ const TIMES_MAX = 5;   // Leicht: so viele letzte Zeiten je Strecke
 // (Option „Hüpfer & Nitro“ aus, für Puristen); das Menü zeigt sie als „ohne Extras“.
 // Mehr Bodenhaftung (29.09.2026, n14): Physik 3 → Zusatz „@t3“. Die Zeiten der Physik 2 (gleiche Welt, gleiche
 // Extras-Einstellung) bleiben stehen und erscheinen im Menü als „alte Physik“; ?grip=1 wertet wieder dort.
-export function modeKey(assist, wreck, phys = PHYS, world = WORLD_TAG, extras = true) {
+// Mittel ohne Linien-Magnet, mit mehr Haftung (30.09.2026, n16): nur Mittel bekommt den Zusatz „@m2“ (MED_TAG). Die
+// Mittel-Zeiten bis n15 (gleiche Physik, Welt, Extras) bleiben stehen und erscheinen im Menü als „alte Physik“;
+// ?mgrip=1 fährt und wertet wieder dort. Leicht und Original behalten ihre Schlüssel.
+export const MED_TAG = MED_ALT ? '' : '@m2';
+export function modeKey(assist, wreck, phys = PHYS, world = WORLD_TAG, extras = true, med = MED_TAG) {
   const legacy = assist === 'easy' ? !wreck : !!wreck;
-  return (legacy ? assist : assist + (wreck ? '+wrack' : '+reset')) + (phys >= 2 ? '@t' + phys : '') + world + (extras ? '@x' : '');
+  return (legacy ? assist : assist + (wreck ? '+wrack' : '+reset')) + (phys >= 2 ? '@t' + phys : '') + world + (extras ? '@x' : '') + (assist === 'medium' && phys >= 3 ? med : '');
 }
 
 export class Store {
@@ -73,7 +78,12 @@ export class Store {
   otherExtrasBestFor(key, assist, wreck = this.settings.wreck) { return this.bestFor(key, assist, wreck, !this.settings.extras); }
   // Bestzeit derselben Wertung mit der Physik vor n14 (bis 28.09.2026, weniger Haftung; gleiche Welt und Extras) –
   // nur zur Anzeige, nicht vergleichbar
-  prevPhysBestFor(key, assist, wreck = this.settings.wreck, extras = this.settings.extras) { return PHYS >= 3 ? this.best[key + '|' + modeKey(assist, wreck, 2, WORLD_TAG, extras)] || null : null; }
+  // Mittel (n16): zuerst die Mittel-Zeit bis n15 (Physik 3, mit Linien-Zug), sonst die der Physik 2
+  prevPhysBestFor(key, assist, wreck = this.settings.wreck, extras = this.settings.extras) {
+    if (PHYS < 3) return null;
+    const m15 = assist === 'medium' && MED_TAG ? this.best[key + '|' + modeKey(assist, wreck, 3, WORLD_TAG, extras, '')] : null;
+    return m15 || this.best[key + '|' + modeKey(assist, wreck, 2, WORLD_TAG, extras)] || null;
+  }
   // Bestzeit derselben Wertung mit der ersten Physik (bis 27.09.2026, alte Welt, ohne Extras) – nur zur Anzeige
   oldBestFor(key, assist, wreck = this.settings.wreck) { return PHYS >= 2 ? this.best[key + '|' + modeKey(assist, wreck, 1, '', false)] || null : null; }
   // Bestzeit derselben Wertung in der alten Welt (Maßstab 1, Physik 2, bis 27.09.2026, ohne Extras) – nur zur Anzeige

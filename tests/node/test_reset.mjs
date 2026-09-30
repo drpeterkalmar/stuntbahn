@@ -7,7 +7,7 @@ import { verifySync } from '../../src/track/verify.js';
 import { PHYS } from '../../src/physics/car.js';
 import { Race, PENALTY, REC_HZ, REC_STRIDE } from '../../src/game/race.js';
 import { Replay } from '../../src/game/replay.js';
-import { modeKey } from '../../src/game/store.js';
+import { modeKey, MED_TAG, Store } from '../../src/game/store.js';
 import { WORLD_TAG } from '../../src/track/defs.js';
 import { fmtTime, rng } from '../../src/core/util.js';
 
@@ -189,7 +189,8 @@ console.log('--- E: Bestzeiten-Schlüssel ---');
 {
   // Schlüssel ohne Extras (Option „Hüpfer & Nitro“ aus) = die bisherigen Listen; mit Extras kommt „@x“ dazu
   const keys = [], old = [], mid = [], xk = [];
-  for (const a of ['easy', 'medium', 'original']) for (const w of [false, true]) { keys.push(modeKey(a, w, undefined, undefined, false)); old.push(modeKey(a, w, 1, '', false)); mid.push(modeKey(a, w, 2, '', false)); xk.push(modeKey(a, w)); }
+  // (Physik-3-Schlüssel hier ohne den Mittel-Zusatz der n16 – der wird unten eigens geprüft)
+  for (const a of ['easy', 'medium', 'original']) for (const w of [false, true]) { keys.push(modeKey(a, w, undefined, undefined, false, '')); old.push(modeKey(a, w, 1, '', false)); mid.push(modeKey(a, w, 2, '', false)); xk.push(modeKey(a, w, undefined, undefined, true, '')); }
   const ok = new Set(old).size === 6 && modeKey('easy', false, 1, '', false) === 'easy' && modeKey('medium', true, 1, '', false) === 'medium' && modeKey('original', true, 1, '', false) === 'original';
   check(ok, `6 getrennte Wertungen (alte Physik): ${old.join(', ')} (bisherige Schlüssel easy/medium/original = Leicht aus, Mittel/Original an)`);
   // Tempo-Umbau 27.09.: neue Physik wertet getrennt (Zusatz @t2), alte Einträge bleiben unberührt
@@ -202,6 +203,19 @@ console.log('--- E: Bestzeiten-Schlüssel ---');
   check(PHYS === 3 && new Set([...keys, ...w2, ...mid, ...old]).size === 24 && keys.every((k, i) => k === w2[i].replace('@t2', '@t3')), `mehr Haftung eigene Wertungen (@t3): ${keys.join(', ')}`);
   // Extras 28.09.: mit Hüpfer & Nitro eigene Liste (Standard), die bisherigen Zeiten = Liste „ohne Extras“
   check(new Set([...xk, ...keys, ...w2, ...mid, ...old]).size === 30 && xk.every((k, i) => k === keys[i] + '@x'), `Extras eigene Wertungen (@x): ${xk.join(', ')}`);
+  // Mittel ohne Linien-Magnet (30.09., n16): nur Mittel bekommt „@m2“, Leicht/Original unverändert, die Mittel-Zeiten
+  // bis n15 (Schlüssel ohne Zusatz) bleiben und erscheinen als „alte Physik“
+  const now = [], n15 = [];
+  for (const a of ['easy', 'medium', 'original']) for (const w of [false, true]) for (const x of [false, true]) { now.push(modeKey(a, w, undefined, undefined, x)); n15.push(modeKey(a, w, undefined, undefined, x, '')); }
+  const diff = now.filter((k, i) => k !== n15[i]);
+  check(MED_TAG === '@m2' && diff.length === 4 && diff.every((k) => k.startsWith('medium') && k.endsWith('@m2')) && now.filter((k) => !k.startsWith('medium')).every((k) => n15.includes(k)) && new Set([...now, ...n15]).size === 16,
+    `Mittel n16 eigene Wertung (@m2): ${diff.join(', ')}; Leicht/Original unverändert`);
+  const st = Object.create(Store.prototype); st.settings = { wreck: false, extras: true }; st.best = {};
+  st.best['T|' + modeKey('medium', false, 3, WORLD_TAG, true, '')] = { time: 50 };
+  st.best['T|' + modeKey('medium', false, 2, WORLD_TAG, true)] = { time: 60 };
+  st.best['T|' + modeKey('original', false, 2, WORLD_TAG, true)] = { time: 70 };
+  check(st.bestFor('T', 'medium') === null && st.prevPhysBestFor('T', 'medium').time === 50 && st.prevPhysBestFor('T', 'original').time === 70,
+    'Mittel-Bestzeit bis n15 erscheint als „alte Physik“, neue Mittel-Liste startet leer');
 }
 
 console.log(fails ? `${fails} Fehlschläge` : 'Reset mit Zeitstrafe + Totalschaden-Option ok');

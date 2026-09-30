@@ -143,7 +143,7 @@ export class UI {
     };
     const xOn = this.store.settings.extras;
     const old = row((k) => this.store.otherExtrasBestFor(id, k), xOn ? 'ohne Extras' : 'mit Extras', xOn ? 'Bestzeiten ohne Hüpfer & Nitro (eigene Liste, Option aus)' : 'Bestzeiten mit Hüpfer & Nitro (eigene Liste)')
-      + row((k) => this.store.prevPhysBestFor(id, k), 'alte Physik', 'Bestzeiten mit der Physik bis 28.09.2026 (weniger Bodenhaftung, anderes Tempo-Profil)')
+      + row((k) => this.store.prevPhysBestFor(id, k), 'alte Physik', 'Bestzeiten mit der Physik bis 28.09.2026 (weniger Bodenhaftung, anderes Tempo-Profil); Mittel: bis 30.09.2026 (mit Zug zur Ideallinie)')
       + row((k) => this.store.oldWorldBestFor(id, k), 'alte Welt', 'Bestzeiten in der alten, kleineren Welt (bis 27.09.2026)')
       + row((k) => this.store.oldBestFor(id, k), 'erste Physik', 'Bestzeiten mit der ersten, langsameren Physik (bis 27.09.2026)');
     const last = this.store.timesFor(id)[0];
@@ -220,7 +220,7 @@ export class UI {
       : `Crash? Sofort zurück auf die Fahrbahn, +${PENALTY} s.`;
     return {
       easy: 'Ohne Bestzeit-Wertung – deine Zeit wird nur notiert. Gas und Stunts macht das Auto selbst, deine Bremse geht immer vor. Die Hilfe hält dich auf der Fahrbahn und lenkt einen Teil der Kurven – die Ideallinie triffst du, wenn du etwas mitlenkst (ohne Lenken driftet das Auto in Kurven nach außen und wird langsamer). Drückst du deutlich über den Rand hinaus, hast du Vorrang – auch quer durchs Gelände. Loslassen führt sanft zurück. Abkürzen zählt nicht (zurück an die Stelle). ',
-      medium: 'Du bremst selbst – die farbige Ideallinie (grün Gas, gelb vom Gas, rot bremsen) und ein kurzer Hinweis „Bremsen!“ mit Ton zeigen, wo. Leichter Zug zur Linie, Stabilitätshilfe beim Rutschen, Rückspul-Knopf. ',
+      medium: 'Du lenkst und bremst selbst – die farbige Ideallinie (grün Gas, gelb vom Gas, rot bremsen) und ein kurzer Hinweis „Bremsen!“ mit Ton zeigen, wo. Kein Zug zur Linie, dafür mehr Bodenhaftung als Original. Im Looping und in der Röhre hält eine Spurhilfe die Fahrbahnmitte (deutlich lenken schaltet sie ab). Stabilitätshilfe beim Rutschen, Rückspul-Knopf. ',
       original: 'Keine Hilfen – wie 1990. ',
     }[k] + crash;
   }
@@ -472,6 +472,7 @@ export class UI {
     this.sheet('Steuerung', `
       <p><b>Handy (quer oder hochkant):</b> Fahrhilfe <i>Leicht</i>: linke/rechte Bildschirmhälfte halten zum Lenken – Gas macht das Auto. Oder in den Optionen „Lenken durch Neigen“ (hochkant: seitlich kippen oder wie ein Lenkrad drehen). Drehst du das Handy im Rennen, pausiert es kurz – weiter mit „▶ Weiter“.</p>
       <p><b>Leicht:</b> Die Hilfe hält das Auto sicher auf der Fahrbahn und lenkt einen Teil jeder Kurve. Die Ideallinie triffst du, wenn du in Kurven etwas mitlenkst – ohne Lenken driftet das Auto nach außen und verliert Zeit. Drückst du deutlich über den Rand hinaus (kurz halten), hast <b>du Vorrang</b>: Die Hilfe lässt los, du kannst die Fahrbahn verlassen und durchs Gelände fahren. Loslassen – die Hilfe blendet weich ein und führt dich sanft zurück. Deine Bremse geht immer vor. Loopings, Röhren, Korkenzieher und Sprünge lenkt weiter das Auto; vorher steht oben „… voraus – Autopilot lenkt“. Gilt für Tastatur, Gamepad, Touch und Neigen.</p>
+      <p><b>Mittel:</b> Du lenkst selbst – kein Zug zur Ideallinie. Das Auto hat mehr Bodenhaftung als auf Original, rutscht aber, wenn du zu schnell in die Kurve fährst. Im Looping und in der Röhre hält eine Spurhilfe die Fahrbahnmitte (oben „Looping – Spurhilfe“); deutliches Lenken schaltet sie sofort ab.</p>
       <p><i>Mittel/Original</i>: links ◀ ▶ lenken, rechts GAS und BREMSE (hochkant alle unten in einer Reihe). Bremse im Stand = Rückwärtsgang.</p>
       <p><b>Tastatur:</b> Pfeile oder WASD (bremsen: Pfeil runter/S), <b>Leertaste</b> Hüpfer, <b>Shift</b> oder <b>N</b> Nitro, <b>R</b> zurückspulen, <b>C</b> Kamera (Verfolger, Cockpit, Hubschrauber, Stoßstange, Strecke), <b>L</b> Ideallinie ein/aus, <b>Esc</b> Pause.</p>
       <p><b>Gamepad:</b> linker Stick lenken, RT/A Gas, LT/X Bremse, <b>B</b> Hüpfer, <b>RB</b> Nitro, Y zurückspulen, LB Kamera, Back Ideallinie, Start Pause.</p>
@@ -524,7 +525,7 @@ export class UI {
     if (ht !== this._hint) {
       this._hint = ht;
       const E = $('#hud .hint2');
-      if (ht) E.textContent = (hd.kind === 'stunt' ? '🤖 ' : hd.kind === 'brake' ? '▼ ' : '') + ht;
+      if (ht) E.textContent = (hd.kind === 'stunt' ? '🤖 ' : hd.kind === 'brake' ? '▼ ' : hd.kind === 'lane' ? '🛣️ ' : '') + ht;
       E.className = 'hint2' + (ht ? ' show ' + hd.kind : '');
     }
     const t = race.state === 'countdown' ? 0 : race.time;

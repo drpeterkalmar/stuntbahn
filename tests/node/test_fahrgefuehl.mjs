@@ -1,11 +1,13 @@
 // Fahrgefühl (n14, 29.09.2026): Leicht mitlenken statt Schienen, Autopilot-Tempo ohne Pendeln, Farben der Ideallinie
 // passen zum Autopiloten, Mittel ohne Zwangsbremse (Bremshilfe Hinweis/Sanft, ESP gibt nach), ruhige Räder an
 // Steilkurven (verwundene Fahrbahn fein geteilt). Ausführliche Messungen: tools/fahr_analyse.mjs, FAHRGEFUEHL_BERICHT.md
+// n16 (E): Mittel ohne Linien-Magnet – Haftung/Kurvengrenztempo festgenagelt, rutscht bei Übertempo, Spurhilfe im Looping
 import { generate, demoLayout } from '../../src/track/generator.js';
 import { verifySync } from '../../src/track/verify.js';
-import { Race, LEICHT, BRAKE_HELP } from '../../src/game/race.js';
+import { Race, LEICHT, BRAKE_HELP, ASSISTS, MEDIUM_N15, MEDIUM_N16, SPUR } from '../../src/game/race.js';
 import { pedalPlan, PROF } from '../../src/ai/profile.js';
-import { CAR_DEF, PHYS } from '../../src/physics/car.js';
+import { Car, CAR_DEF, PHYS } from '../../src/physics/car.js';
+import { MAT } from '../../src/track/defs.js';
 import { rng } from '../../src/core/util.js';
 
 const DT = 1 / 120;
@@ -140,5 +142,61 @@ console.log('--- D: Haftung ---');
   check(lift <= 6, `S4711/3 perfekter Fahrer auf Original: ${lift}× abgehoben außerhalb von Sprüngen (≤ 6)`);
 }
 
-console.log(fails ? `${fails} Fehlschläge` : 'Fahrgefühl n14: alle Prüfungen grün');
+// ---- E: Mittel n16 – mehr Haftung (festgenagelt), rutscht bei Übertempo, Spurhilfe nur im Looping/in der Röhre ----
+console.log('--- E: Mittel n16 ---');
+{
+  // Kreisbahn (Ebene, Asphalt): höchste stationäre Querbeschleunigung a(v); Grenztempo für Radius R aus v²/R = a(v)
+  const PLANE = { ray(ox, oy, oz, dx, dy, dz, len) { if (dy >= -1e-9) return null; const t = -oy / dy; if (t < 0 || t > len) return null; return { t, x: ox + dx * t, y: 0, z: oz + dz * t, nx: 0, ny: 1, nz: 0, mat: MAT.ROAD }; } };
+  const skid = (set, v0, full) => {
+    const car = new Car(CAR_DEF);
+    car.assist = { level: 0, magnet: set.magnet || 0, air: 0, grip: set.grip || 1, slipK: set.slipK || 1 };
+    car.place([0, 0, 0], [0, 0, -1], [0, 1, 0], v0);
+    const hold = () => { car.input.throttle = full ? 1 : Math.max(0, Math.min(1, 0.3 + (v0 - car.fwdSpeed()) * 0.6)); car.input.brake = !full && v0 < car.fwdSpeed() - 1 ? 0.2 : 0; };
+    for (let k = 0; k < 120; k++) { hold(); car.step(DT, PLANE); }
+    let best = 0, beta = 0; const win = [];
+    for (let k = 0; k < (full ? 180 : 720); k++) {
+      car.input.steer = full ? 1 : Math.min(1, k / 720); hold(); car.step(DT, PLANE);
+      const F = car.frame, vv = Math.hypot(car.v.x, car.v.z);
+      win.push(Math.abs((car.w.x * F.u.x + car.w.y * F.u.y + car.w.z * F.u.z) * vv)); if (win.length > 30) win.shift();
+      if (win.length === 30 && Math.abs(vv - v0) < 0.08 * v0) best = Math.max(best, win.reduce((a, b) => a + b, 0) / 30);
+      beta = Math.max(beta, Math.abs(Math.atan2(car.v.x * F.r.x + car.v.y * F.r.y + car.v.z * F.r.z, Math.abs(car.fwdSpeed()))) * 180 / Math.PI);
+    }
+    return full ? beta : best;
+  };
+  const vLim = (set, R) => { let p = null; for (let v = 10; v <= 90; v += 5) { const f = v * v / R - skid(set, v); if (f > 0) return p ? p.v + 5 * (-p.f) / (f - p.f) : v; p = { v, f }; } return null; };
+  const rel = [25, 50, 100].map((R) => vLim(MEDIUM_N16, R) / vLim(MEDIUM_N15, R) - 1);
+  check(rel.every((r) => r >= 0.09 && r <= 0.16), `Kurvengrenztempo Mittel n16 gegen n15 (Radius 25/50/100 m): ${rel.map((r) => '+' + (100 * r).toFixed(1) + ' %').join(' / ')} (Ziel 10–15 %)`);
+  const b = [20, 30, 45].map((v) => skid(MEDIUM_N16, v, true));
+  check(b.every((x) => x >= 4), `Kurve zu schnell (volle Lenkung + Vollgas bei 20/30/45 m/s): Auto rutscht, Schwimmwinkel ${b.map((x) => x.toFixed(1)).join(' / ')}° (≥ 4°, keine Schiene)`);
+  check(ASSISTS.medium.grip === 1.15 && ASSISTS.medium.magnet === 0.6 && ASSISTS.medium.slipK === 1.25 && ASSISTS.medium.lanePull === 0.6 && MEDIUM_N15.steerPull === 0.28 && MEDIUM_N15.magnet === 0.35,
+    `Regler Mittel: Haftung ×${ASSISTS.medium.grip}, Anpressdruck ${ASSISTS.medium.magnet}, Schräglauf ×${ASSISTS.medium.slipK} (Lenkgefühl unter der Grenze wie bis n15), Spurhilfe ${ASSISTS.medium.lanePull}`);
+  // Spurhilfe im Looping der Demo: HUD kündigt an, hält die Fahrbahnmitte (nicht die Ideallinie), deutliches Lenken
+  // blendet sie in ≤ 0,3 s ganz aus
+  const v = tracks[0][1], L = v.env.track.line;
+  const race = new Race(v.env, { assist: 'medium', countdown: 0.05 });
+  while (race.state === 'countdown') race.step(DT, { steer: 0, throttle: 0, brake: 0 });
+  const z = race.zones.find((q) => q.kinds.includes('loop'));
+  let j = z.i0; while (L.s[z.i0] - L.s[j] < 18 && j > 0) j--;
+  race.place(j, v.env.prof.vt[j], true);
+  let ann = null, inside = null;
+  for (let k = 0; k < 240 && !inside; k++) {
+    const a = race.ap.control(race.car);
+    race.step(DT, { steer: 0, throttle: a.throttle, brake: a.brake }); race.events.length = 0;
+    const t = race.hud && race.hud.text, i = race.ap.tr.idx;
+    if (!ann && t && /voraus – Spurhilfe/.test(t)) ann = t;
+    if (L.loop[i] && race.car.onGround > 0 && t) inside = t;
+  }
+  // Übersteuern: volle Lenkung im Stück → Anteil der Spurhilfe fällt auf 0 (Schritte zählen)
+  const iL = race.ap.tr.idx;
+  let n = 0, k0 = race.laneSteer(DT, { steer: 0 }, iL).k;
+  while (n < 120 && race.laneSteer(DT, { steer: 1 }, iL).k > 0) n++;
+  const tOff = (n + 1) * DT;
+  let m = 0; while (m < 240 && race.laneSteer(DT, { steer: 0 }, iL).k < ASSISTS.medium.lanePull - 1e-9) m++;
+  check(ann === 'Looping voraus – Spurhilfe' && inside === 'Looping – Spurhilfe' && race.laneAp && race.laneAp.L === L,
+    `Spurhilfe angekündigt („${ann}“, im Stück „${inside}“), Ziel ist die Fahrbahnmitte (nicht die Ideallinie)`);
+  check(Math.abs(k0 - ASSISTS.medium.lanePull) < 1e-9 && tOff <= 0.3 && m * DT >= SPUR.back - 0.05,
+    `Spurhilfe: Anteil ${k0}, deutliches Lenken schaltet sie in ${tOff.toFixed(2)} s ab (≤ 0,3), losgelassen kommt sie in ${(m * DT).toFixed(2)} s weich zurück`);
+}
+
+console.log(fails ? `${fails} Fehlschläge` : 'Fahrgefühl n14/n16: alle Prüfungen grün');
 process.exit(fails ? 1 : 0);

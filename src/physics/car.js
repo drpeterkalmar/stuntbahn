@@ -125,7 +125,7 @@ export class Car {
     this.gear = 1; this.rpm = def.idle;
     this.time = 0;
     this.maxG = 0;
-    this.assist = { level: 0, magnet: 0 };
+    this.assist = { level: 0, magnet: 0, grip: 1 };
     this.surfaceKind = 0;
     this.lastImpact = 0;
     this.upsideT = 0;
@@ -272,11 +272,11 @@ export class Car {
       this._pointVel(hit.x, hit.y, hit.z, vp);
       const vLong = vp.x * wfx + vp.y * wfy + vp.z * wfz;
       const vLat = vp.x * wrx + vp.y * wry + vp.z * wrz;
-      const grip = (GRIP[w.mat] ?? 1) * d.mu;
+      const grip = (GRIP[w.mat] ?? 1) * d.mu * (this.assist.grip || 1);   // Fahrhilfe Mittel: mehr Reifenhaftung (n16)
       const fmax = grip * load;
       const slip = vLat / Math.max(Math.abs(vLong), 3.2);
       w.slip = slip;
-      let fLat = -fmax * Math.tanh(slip / d.slip0);
+      let fLat = -fmax * Math.tanh(slip / (d.slip0 * (this.assist.slipK || 1)));
       let fLong = 0;
       const share = w.front ? d.driveFront / 2 : (1 - d.driveFront) / 2;
       fLong += drive * share;

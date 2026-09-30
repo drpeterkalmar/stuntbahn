@@ -75,6 +75,7 @@ button.go { background: linear-gradient(180deg, #ff7a36, #e24e10); border-color:
 #hud .hint2.show { opacity: 1; }
 #hud .hint2.off { color: #ffd23d; border-color: #ffd23d66; }
 /* Mittel, Bremshilfe „Hinweis“ (n14): kurz und deutlich an Bremspunkten */
+#hud .hint2.lane { color: #9fe3ff; border-color: #9fe3ff66; }
 #hud .hint2.brake { color: #fff; background: rgba(200, 30, 20, .78); border-color: #ff6b5b; font-size: 17px; letter-spacing: .04em; transition: opacity .08s; }
 #hud .assistTag { margin-right: 2px; font-size: 13px; opacity: .85; text-shadow: 0 1px 3px #000; pointer-events: none; }
 

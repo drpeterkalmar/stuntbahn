@@ -7,9 +7,24 @@ import { Autopilot, Tracker } from '../ai/autopilot.js';
 import { WORLD_SCALE, ROAD_HW, TILE } from '../track/defs.js';
 import { HOP, NITRO, NITRO_TOTAL, nitroLevel, hopModel, hopHeightAt } from '../physics/extras.js';
 
+// Mittel (n16, Peter 29.09.2026: „Mittlere Schwierigkeit mehr Bodenhaftung und kein Magnet zur Ideallinie“): kein
+// Lenkzug zur Linie mehr (steerPull bis n15 0,28, im Stunt stuntPull 0,6), dafür mehr Reifenhaftung (grip, Faktor auf
+// die Reifen-Reibung, bis n15 1) und mehr Anpressdruck (magnet, bis n15 0,35). URL ?mgrip=1 = Mittel bis n15 (A/B,
+// wertet dann auch in der alten Mittel-Liste). Messung: MITTEL_BERICHT.md, tools/mittel_probe.mjs
+const urlQ = globalThis.location && globalThis.location.search ? new URLSearchParams(globalThis.location.search) : null;
+export const MED_ALT = !!urlQ && urlQ.get('mgrip') === '1';
+// Ohne jeden Zug crasht ein menschenähnlicher Fahrer in Looping/Röhre etwa viermal so oft wie bis n15 (Messung
+// tools/mittel_probe.mjs). Deshalb dort (nur auf dem Stunt-Stück selbst, am Boden) eine reine Spurhilfe: hält
+// die Fahrbahnmitte (nicht die Ideallinie), HUD „Looping – Spurhilfe“, deutliches Lenken übersteuert sie (SPUR).
+export const MEDIUM_N15 = { steerPull: 0.28, stuntPull: 0.6, magnet: 0.35, grip: 1, slipK: 1, lanePull: 0 };
+export const MEDIUM_N16 = { steerPull: 0, stuntPull: 0, magnet: 0.6, grip: 1.15, slipK: 1.25, lanePull: 0.6 };
+// Spurhilfe (Mittel, n16): Anteil lanePull des Spurhalters (Regler auf die Fahrbahnmitte) im Looping/in der Röhre.
+// Lenkt der Spieler deutlich (|Lenkung| > in), blendet sie in out s ganz aus; losgelassen (< keep) in back s wieder
+// ein. Ankündigung im HUD ab ann s vor dem Stück (mindestens annMin m).
+export const SPUR = { in: 0.5, keep: 0.15, out: 0.25, back: 0.6, ann: 1.5, annMin: 25 };
 export const ASSISTS = {
   easy: { name: 'Leicht', icon: '🟢', steerPull: 0.82, autoSpeed: true, autoStunts: true, free: true, magnet: 1, air: 1, autoRewind: true, showLine: true },
-  medium: { name: 'Mittel', icon: '🟡', steerPull: 0.28, stuntPull: 0.6, autoSpeed: false, brakeHelp: true, autoStunts: false, magnet: 0.35, air: 0.4, autoRewind: true, showLine: true },
+  medium: { name: 'Mittel', icon: '🟡', ...(MED_ALT ? MEDIUM_N15 : MEDIUM_N16), autoSpeed: false, brakeHelp: true, autoStunts: false, air: 0.4, autoRewind: true, showLine: true },
   original: { name: 'Original', icon: '🔴', steerPull: 0, autoSpeed: false, autoStunts: false, magnet: 0, air: 0, autoRewind: false, showLine: false },
 };
 
@@ -177,8 +192,9 @@ export class Race {
     let steer = input.steer, thr = input.throttle, brk = input.brake;
     this.hud = null;
     if (this.autopilotOnly) { steer = ap.steer; thr = ap.throttle; brk = ap.brake; }
-    else if (A.steerPull > 0) {
+    else if (A.steerPull > 0 || A.stuntPull > 0 || A.brakeHelp) {
       const pull = stunt && A.stuntPull ? A.stuntPull : A.steerPull;
+      const lane = A.lanePull > 0 ? this.laneSteer(dt, input, idx) : null;
       const zone = A.free ? this.freeSteer(dt, input, idx) : null;
       // Leicht: im Stunt und auf den letzten ~1,2 s davor lenkt allein der Autopilot (sauber ausgerichtet)
       const lead = zone && !zone.inside && zone.dist < Math.max(20, car.fwdSpeed() * 1.2);
@@ -189,6 +205,7 @@ export class Race {
         // Leicht mit Mitlenk-Modell (LEICHT.lk > 0): Teil-Vorsteuerung + Korridor + Spieler; sonst Zug zur Linie
         if (A.free && LEICHT.lk > 0 && !this.back) steer = this.leichtSteer(input.steer, idx);
         else steer = ap.steer * p + steer * (1 - pull) + (pull > 0.5 && !A.stuntPull ? steer * 0.25 : 0);
+        if (lane && lane.k > 0) steer = lane.steer * lane.k + steer * (1 - lane.k);
         if (A.free) steer = steer * (1 - this.own) + input.steer * this.own;   // Spieler hat Vorrang
       }
       steer = Math.max(-1, Math.min(1, steer));
@@ -200,6 +217,7 @@ export class Race {
         steer = s2;
       } else this.calmLag = false;
       if (zone) this.hud = { kind: 'stunt', text: `${zone.name}${zone.inside ? '' : ' voraus'} – Autopilot lenkt` };
+      if (lane && lane.zone) this.hud = { kind: 'lane', text: `${lane.zone.name}${lane.zone.inside ? '' : ' voraus'} – Spurhilfe${lane.k > 0 || !lane.zone.inside ? '' : ' aus'}` };
       // Leicht: außerhalb der toten Zone Tempo raus (wirkt im nächsten Regler-Schritt); sonst unverändert
       // (nicht vor und in Stunts: dort muss das Profil-Tempo stimmen, z. B. das Absprung-Tempo der Schanze)
       this.ap.assistScale = A.free && LEICHT.lk > 0 && !this.manual && !this.back && !stunt && !zone ? 1 - LEICHT.slow * (this.cw || 0) : 1;
@@ -228,12 +246,15 @@ export class Race {
         // Stabilitätshilfe (ESP): bei großem Kurswinkel gegenlenken + Gas weg, falsche Richtung abfangen. Weicher als
         // bis n13 (ab 0,6 statt 0,5 rad, höchstens 50 % statt 80 %) und nie gegen eine deutliche Lenkeingabe: lenkt der
         // Spieler deutlich in die andere Richtung, blendet ESP in espOut s aus
+        // Ohne Linienzug (Mittel ab n16) richtet ESP nur den Kurs nach der Fahrbahn aus (−Kurswinkel) und zieht nicht
+        // zur Ideallinie; bis n15 (?mgrip=1) lenkte es wie der Autopilot (Kurs + Abstand zur Linie)
         const psi = Math.abs(this.ap.psi || 0);
-        const against = Math.abs(input.steer) > FREE.in && Math.sign(input.steer) !== Math.sign(ap.steer);
+        const espS = A.steerPull > 0 ? ap.steer : Math.max(-1, Math.min(1, -(this.ap.psi || 0) / (this.ap.maxSteer || 0.3)));
+        const against = Math.abs(input.steer) > FREE.in && Math.sign(input.steer) !== Math.sign(espS);
         this.espFade = against ? Math.min(1, (this.espFade || 0) + dt / H.espOut) : Math.max(0, (this.espFade || 0) - dt / 0.6);
         if (psi > H.espFrom && v > 3) {
           const k = Math.min(1, (psi - H.espFrom) / H.espRange) * (1 - this.espFade);
-          steer = steer * (1 - H.espMax * k) + ap.steer * H.espMax * k;
+          steer = steer * (1 - H.espMax * k) + espS * H.espMax * k;
           thr = Math.min(thr, 1 - 0.5 * k);
         }
         if (psi > 2.2 && Math.abs(v) < 6) { this.wrongT = (this.wrongT || 0) + dt; if (this.wrongT > 1.5) { this.wrongT = 0; this.car.setCrash('Falsche Richtung'); } }
@@ -244,6 +265,8 @@ export class Race {
     car.input.steer = steer; car.input.throttle = thr; car.input.brake = brk; car.input.hold = !!A.autoSpeed && !this.autopilotOnly && input.brake < 0.5;
     car.assist.magnet = this.autopilotOnly ? 0 : A.magnet;
     car.assist.air = this.autopilotOnly ? 0 : A.air;
+    car.assist.grip = this.autopilotOnly ? 1 : A.grip || 1;
+    car.assist.slipK = this.autopilotOnly ? 1 : A.slipK || 1;
     car.surfaceKind = (L.loop[idx] || L.tube[idx]) ? 1 : 0;
     this.extrasStep(dt, idx);
     car.step(dt, this.env.world);
@@ -311,6 +334,21 @@ export class Race {
     if (need && !this.bhOn && this.simTime - (this.bhT ?? -99) > H.gap) { this.bhT = this.simTime; this.emit('brakehint', { dv: v - vmin }); }
     this.bhOn = need;
     if (need) this.hud = { kind: 'brake', text: 'Bremsen!' };
+  }
+
+  // Mittel: Spurhilfe in Looping/Röhre/Korkenzieher (nicht in der Luft, nicht an Schanzen). Liefert { steer, k, zone }:
+  // steer = Lenkung des Spurhalters (Fahrbahnmitte), k = sein Anteil (0 … lanePull), zone = Stück fürs HUD (oder null)
+  laneSteer(dt, input, idx) {
+    const L = this.env.track.line, car = this.car, A = this.assist;
+    const on = (L.loop[idx] || L.tube[idx]) && !L.air[idx] && car.onGround > 0;
+    const a = Math.abs(input.steer);
+    this.laneOwn = a > SPUR.in ? Math.min(1, (this.laneOwn || 0) + dt / SPUR.out) : a < SPUR.keep ? Math.max(0, (this.laneOwn || 0) - dt / SPUR.back) : (this.laneOwn || 0);
+    let z = this.zoneAhead(idx, Math.max(SPUR.annMin, car.fwdSpeed() * SPUR.ann));
+    if (z && !z.kinds.some((k) => k !== 'jump')) z = null;
+    if (!on) return { steer: 0, k: 0, zone: z };
+    if (!this.laneAp) this.laneAp = new Autopilot(L, this.env.prof);
+    this.laneAp.tr.idx = this.ap.tr.idx; this.laneAp.tr.lap = this.ap.tr.lap;
+    return { steer: this.laneAp.control(car).steer, k: A.lanePull * (1 - this.laneOwn), zone: z };
   }
 
   // Stunt-Zonen der Linie (dort lenkt auf Leicht der Autopilot): zusammenhängende Stücke mit Looping,
