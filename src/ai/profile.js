@@ -76,13 +76,16 @@ export function genericJumpWindow(L, lip, land) {
 //                übrig lässt (Reibung 1,25·mu·Anpressdruck inkl. Abtrieb) + Luftwiderstand; 0 = alter Pauschalwert brake
 //   jumpSafe   > 0: Schanzen-Anlauf auf das höchste sicher landende Tempo (Fenster-Obergrenze minus jumpSafe m/s)
 //              statt vbest (unteres Drittel des Fensters)
+//   haft       Anteil der Bodenhaftung bei Tempo (car.js haftA, n21), den der Plan an Kuppen einrechnet. Bleibt 0: die
+//              Saugkraft ist Reserve für Übertempo (gemessen, normal-Bot Original, 15 Strecken: haft 0 → 28 Crashs,
+//              0,25 → 37, 0,5 → 38; Zeit mit < 4 Rädern 6,5 / 7,2 / 7,3 %)
 // Bis n13 (Vergleich ?grip=1): res 0,82, vNarrow 15,5, crestAero aus, brakeCircle 0 (Pauschalwert brake), jumpSafe 0.
 // n14 (29.09.2026, Messung in FAHRGEFUEHL_BERICHT.md): Kurven 76 % der jetzt höheren Haftung (Bots wie Menschen
 // behalten Reserve), Engstellen 25 m/s (Querfehler in der Slalom-Gasse wächst mit dem Tempo kaum; bei 25 m/s scheitert keine der 244 Slalom-Strecken der Sammlung ohne Hilfen, bei 22 und 30 m/s je eine), Kuppen mit
 // Abtrieb, Bremsplan aus dem Haftungskreis (70 %), Schanze 1,5 m/s unter der Fenster-Obergrenze (Landung bleibt auf der Rampe).
 export const PROF = GRIP_ALT
   ? { res: 0.82, resPre: 0.65, preLen: 25, aero: 0.8, nmin: 0.45, nmax: 6.2, brake: 8, vNarrow: 15.5, rollMax: 3.2, crestAero: false, brakeCircle: 0, jumpSafe: 0 }
-  : { res: 0.76, resPre: 0.65, preLen: 25, aero: 0.8, nmin: 0.45, nmax: 6.2, brake: 8, vNarrow: 25, rollMax: 3.2, crestAero: true, brakeCircle: 0.7, jumpSafe: 1.5 };
+  : { res: 0.76, resPre: 0.65, preLen: 25, aero: 0.8, nmin: 0.45, nmax: 6.2, brake: 8, vNarrow: 25, rollMax: 3.2, crestAero: true, brakeCircle: 0.7, jumpSafe: 1.5, haft: 0 };
 
 export function computeProfile(L, opts = {}) {
   const n = L.n;
@@ -149,7 +152,13 @@ export function computeProfile(L, opts = {}) {
     // Achterbahn-Wellen (n19, L.wave = 1): an den Kuppen leicht negativer Anpressdruck erlaubt → kurze Luftphase;
     // Steilwand (L.wave = 2): im verwundenen Übergang steigt die Fahrbahnmitte auf die Wand (Kuppe) – dort genügt WALL.nmin
     const wv = L.wave ? L.wave[i] : 0;
-    cons(-Cn, gN - (wv === 1 ? (opts.waveN ?? WAVE.nmin * G) : wv === 2 ? WALL.nmin * G : Nmin), 'kuppe');           // x*Cn + gN >= Nmin
+    // Bodenhaftung bei Tempo (n21, car.js haftA): an Kuppen hält die Saugkraft das Auto zusätzlich bis haftA·g am Boden;
+    // der Plan rechnet davon den Anteil PROF.haft ein (Rest = Reserve für Übertempo), aber nur, wo das Tempo dann über
+    // haftV[1] liegt (darunter wirkt sie nur teilweise). Nicht auf Achterbahn-Wellen (dort ist sie aus).
+    const nK = gN - (wv === 1 ? (opts.waveN ?? WAVE.nmin * G) : wv === 2 ? WALL.nmin * G : Nmin);
+    const aH = !wv && PROF.haft > 0 && def.haftA > 0 ? PROF.haft * def.haftA * G : 0;
+    if (aH > 0 && -Cn > 1e-7 && (nK + aH) / -Cn >= def.haftV[1] ** 2) cons(-Cn, nK + aH, 'kuppe');
+    else cons(-Cn, nK, 'kuppe');           // x*Cn + gN >= Nmin
     cons(Cn, Nmax - gN, 'last');            // x*Cn + gN <= Nmax
     vmax[i] = Math.sqrt(Math.max(0, hi));
     if (D && pre[i]) {

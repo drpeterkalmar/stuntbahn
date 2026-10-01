@@ -26,9 +26,16 @@ export const CAR_DEF = {
   ],
   mountY: 0.12, wheelR: 0.345, rest: 0.36, maxComp: 0.33,
   k: 70000, bumpStart: 0.22, bumpK: 260000, cComp: 4300, cReb: 6000,
-  mu: 1.7, slip0: 0.085, rollH: 0.3,
+  // rollH: Kraftangriff der Reifen über dem Kontakt (bis n19 überall 0,3 = rollH0). n21: bei Tempo (ab rollHV[0] m/s
+  // eingeblendet, voll ab rollHV[1]) 0,4 → weniger Lastverlagerung, kurveninnere Räder bleiben unten. Langsam (Slalom,
+  // Engstellen) und in Looping/Röhre/Korkenzieher (surfaceKind) weiter 0,3 – sonst folgt die Karosserie der Verwindung im
+  // Korkenzieher zu träge, und Mittel mit perfekter Eingabe streifte im Slalom (2 von 60 Sammlungs-Strecken)
+  mu: 1.7, slip0: 0.085, rollH: 0.4, rollH0: 0.3, rollHV: [30, 50],
   power: 2200000, maxDrive: 18000, driveFront: 0.5, brake: 27000, brakeFront: 0.6, aeroGrip: 1,
   dragK: 0.48, downK: 2.5, groundFx: 0.5, reverseMax: 9,
+  // Bodenhaftung bei Tempo (n21, CAR_DEF_HAFT_ALT unten): Mindest-Radlast haftN (g) ab haftV[1] m/s (ab haftV[0]
+  // eingeblendet), Zusatzkraft höchstens haftA (g; mit Radkontakt ab haftV[1] mit dem Tempo² wachsend), bis haftR m Abstand
+  haftN: 1.0, haftA: 2.0, haftV: [6, 25], haftR: 1.2, haftK: 0.6,
   steerMax: 0.6, steerSpeed: 3.0,
   gears: [0, 20, 35, 55, 82, 117, 165], idle: 900, redline: 7600,   // Gangspitzen m/s (bis 27.09.: 13 … 70)
 };
@@ -37,7 +44,14 @@ export const CAR_DEF = {
 // 50/50 (weniger Übersteuern beim Gasgeben in der Kurve). Dazu teilt build.js verwundene Fahrbahn fein auf (vorher
 // ließ ein Sägezahn die Räder an Steilkurven-Eingängen abheben). Messung: FAHRGEFUEHL_BERICHT.md, tools/fahr_analyse.mjs.
 // Werte bis n13 – URL ?grip=1 fährt zum Vergleich damit (und wertet in den Bestzeiten der alten Physik).
-export const CAR_DEF_GRIP_ALT = { mu: 1.5, downK: 1.5, groundFx: 0, driveFront: 0.42 };
+export const CAR_DEF_GRIP_ALT = { mu: 1.5, downK: 1.5, groundFx: 0, driveFront: 0.42, haftA: 0, rollH: 0.3 };
+// Bodenhaftung bei hohem Tempo (Peter 30.09.2026: „Viel mehr Bodenhaftung bei hoher Geschwindigkeit“, n21): bis n19
+// hob das Auto an Kuppen ab (Bots auf Original: 170 × Abheben, 78 × an Kuppen, 12,8 % der Zeit mit < 4 Rädern).
+// Neu: „Saugkraft“ wie ein Rennwagen mit Bodeneffekt – fällt die Radlast bei Tempo unter haftN·g (Kuppe, Welle,
+// verwundener Übergang), zieht eine Zusatzkraft (am Schwerpunkt, kein Nicken) das Auto zur Fahrbahn, solange der Boden höchstens haftR m unter der Wagenmitte liegt. Liegt das Auto satt auf (Kurve, Senke),
+// wirkt sie nicht – die Kurvenhaftung bleibt, wie sie ist. Aus: an Schanzen-Lippen und in der Luftstrecke (die
+// Rennlogik setzt car.haftOff), im Hüpfer, in Looping/Röhre/Korkenzieher. URL ?haft=alt = Stand bis n19 (haftA 0).
+export const CAR_DEF_HAFT_ALT = { haftA: 0, rollH: 0.3 };
 // Abstimmung bis 27.09.2026 (Vmax 286 km/h) – zum Vergleich (tools/tempo_measure.mjs, URL ?auto=alt)
 export const CAR_DEF_ALT = {
   ...CAR_DEF, ...CAR_DEF_GRIP_ALT,
@@ -50,7 +64,9 @@ export const CAR_DEF_ALT = {
 // dann auch in der alten Liste). GRIP_ALT: auch Fahrbahn-Aufteilung (build.js) und Profil-Reserven wie bis n13.
 const urlQ = globalThis.location && globalThis.location.search ? new URLSearchParams(globalThis.location.search) : null;
 export const GRIP_ALT = !!urlQ && (urlQ.get('grip') === '1' || urlQ.get('auto') === 'alt');
+export const HAFT_ALT = !!urlQ && urlQ.get('haft') === 'alt';
 export const PHYS = (() => {
+  if (HAFT_ALT) Object.assign(CAR_DEF, CAR_DEF_HAFT_ALT);
   if (urlQ && urlQ.get('auto') === 'alt') { Object.assign(CAR_DEF, CAR_DEF_ALT); return 1; }
   if (GRIP_ALT) { Object.assign(CAR_DEF, CAR_DEF_GRIP_ALT); return 2; }
   return 3;
@@ -239,6 +255,8 @@ export class Car {
     const driveGrass = (drive > 0 ? thr * Math.min(d.maxDrive, d.power / Math.max(Math.abs(vF), 1)) : drive) * grassFade;
     let grassN = 0, gnx = 0, gny = 0, gnz = 0;
 
+    const rollU = d.rollHV ? Math.max(0, Math.min(1, (Math.abs(vF) - d.rollHV[0]) / (d.rollHV[1] - d.rollHV[0]))) : 1;
+
     // Federbeine
     const L = d.rest + d.wheelR;
     let contacts = 0, nAvgX = 0, nAvgY = 0, nAvgZ = 0;
@@ -273,7 +291,8 @@ export class Car {
       // rechts = f × n
       const wrx = wfy * hit.nz - wfz * hit.ny, wry = wfz * hit.nx - wfx * hit.nz, wrz = wfx * hit.ny - wfy * hit.nx;
       // Kraftangriff etwas über dem Kontakt (weniger Wanken)
-      const ax = hit.x + F.u.x * d.rollH, ay = hit.y + F.u.y * d.rollH, az = hit.z + F.u.z * d.rollH;
+      const rH = d.rollH0 == null ? d.rollH : this.surfaceKind ? d.rollH0 : d.rollH0 + (d.rollH - d.rollH0) * rollU;
+      const ax = hit.x + F.u.x * rH, ay = hit.y + F.u.y * rH, az = hit.z + F.u.z * rH;
       this._pointVel(hit.x, hit.y, hit.z, vp);
       const vLong = vp.x * wfx + vp.y * wfy + vp.z * wfz;
       const vLat = vp.x * wrx + vp.y * wry + vp.z * wrz;
@@ -301,6 +320,8 @@ export class Car {
       w.spin += w.spinV * dt;
     }
     this.onGround = contacts;
+    let loadSum = 0;
+    for (const w of this.wheels) loadSum += w.load;
     // Wiese (n21): Gras-Widerstand am Schwerpunkt gegen die Fahrt längs des Bodens, Anteil = Räder im Gras / 4
     const grassShare = grassN / 4;
     this.grass = grassShare;
@@ -336,6 +357,25 @@ export class Car {
     if (d.groundFx > 0) gf = this.hopUp ? gf : this.groundFactor(world, d.groundFx);
     this.downF = down * gf;
     if (gf > 0) { fx -= F.u.x * down * gf; fy -= F.u.y * down * gf; fz -= F.u.z * down * gf; }
+    // Bodenhaftung bei Tempo (n21): Radlast (ohne die Saugkraft des letzten Schritts gerechnet) unter haftN·g → Zusatzkraft
+    // zur Fahrbahn, die die Radlast auf haftN·g auffüllt (je Schritt zum Anteil haftK nachgeführt). Obergrenze haftA·g,
+    // ab haftV[1] mit dem Tempo² wachsend (eine Kuppe braucht κ·v²); ohne Radkontakt linear schwächer bis haftR m über der
+    // Ruhelage (kein Hineinreißen aus der Luft) und nur, wenn der Boden unter dem Wagenboden liegt (nicht Wand/Dach)
+    const hPrev = this.haftF || 0;
+    this.haftF = 0;
+    if (d.haftA > 0 && !this.haftOff && !this.hopUp && !this.surfaceKind && !wrecked) {
+      const av = Math.abs(vF), uV = Math.max(0, Math.min(1, (av - d.haftV[0]) / (d.haftV[1] - d.haftV[0])));
+      if (uV > 0) {
+        const mg = 9.81 * m;
+        const cap = d.haftA * uV * mg * Math.max(1, (av / d.haftV[1]) ** 2);
+        const want = Math.min(cap, Math.max(0, d.haftN * uV * mg - (loadSum - hPrev)));
+        const gH = want > 0 ? this.groundFactor(world, d.haftR, 0.7) : 0;
+        if (gH > 0) {
+          const f = hPrev + (want * (contacts ? 1 : gH) - hPrev) * d.haftK;   // je Schritt nachführen (Federn folgen mit Verzug)
+          this.haftF = f; fx -= F.u.x * f; fy -= F.u.y * f; fz -= F.u.z * f;
+        }
+      }
+    }
     // Magnet-Hilfe (Fahrhilfe "Leicht"/Stunts): drückt auf die Fahrbahn, wenn Räder Kontakt haben
     if (this.assist.magnet > 0 && contacts >= 2) {
       const l = Math.hypot(nAvgX, nAvgY, nAvgZ) || 1;
@@ -394,11 +434,11 @@ export class Car {
 
   // Bodeneffekt-Anteil 0 … 1: Strahl von der Wagenmitte nach unten (Karosserie-Unten); voll bis zur Ruhelage
   // (Bodenfreiheit wie beim Aufsetzen, place()), linear weniger bis range m darüber
-  groundFactor(world, range) {
+  groundFactor(world, range, minDot = -2) {
     const d = this.def, F = this.frame;
     const h0 = d.wheelR + d.rest - d.mass * 9.81 / 4 / d.k - d.mountY;
     const hit = world.ray(this.pos.x, this.pos.y, this.pos.z, -F.u.x, -F.u.y, -F.u.z, h0 + range, true);
-    if (!hit) return 0;
+    if (!hit || hit.nx * F.u.x + hit.ny * F.u.y + hit.nz * F.u.z < minDot) return 0;
     return Math.max(0, Math.min(1, 1 - (hit.t - h0) / range));
   }
 

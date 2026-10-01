@@ -6,6 +6,7 @@ import { chain, setup } from '../tests/node/common.mjs';
 import { Car } from '../src/physics/car.js';
 import { Autopilot } from '../src/ai/autopilot.js';
 import * as pieces from '../src/track/pieces.js';
+import { haftOffAt } from '../src/game/race.js';
 
 const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 ? process.argv[i + 1] : d; };
 let air = null;
@@ -41,6 +42,7 @@ function measure(scale) {
     const o = ap.control(car);
     car.input.steer = o.steer; car.input.throttle = o.throttle; car.input.brake = o.brake;
     car.surfaceKind = L.loop[ap.tr.idx] || L.tube[ap.tr.idx] ? 1 : 0;
+    car.haftOff = haftOffAt(env.track, ap.tr.idx);   // wie die Rennlogik (n21: keine Saugkraft an der Schanze)
     car.step(dt, env.world); t += dt;
     const x = (car.pos.x - lp[0]) * fw[0] + (car.pos.z - lp[2]) * fw[1];
     if (h0 === null && x > -40 && x < -30 && car.onGround === 4) h0 = car.pos.y - L.py[ap.tr.idx]; // Ruhelage über der Fahrbahn

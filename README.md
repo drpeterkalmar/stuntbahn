@@ -29,6 +29,10 @@ spielbar am Handy (quer oder hochkant), mit Gamepad oder Tastatur. Als App insta
 - **Wiese = Wiese** (seit 01.10.2026, n21): Neben der Strecke höchstens **30 km/h** (Vollgas ~27 km/h). Wer mit 200 km/h
   abkommt, ist nach ~1,8 s bei 30 km/h – ohne Überschlag, Lenken geht weiter; Grasbüschel spritzen, die Kamera rumpelt.
   `?wiese=alt` = bisherige Wiese (A/B). Messung: `node tools/wiese_probe.mjs`, Test `tests/node/test_wiese.mjs`.
+- **Bodenhaftung bei Tempo** (seit 01.10.2026, n21): Das Auto klebt bei Tempo wie ein Rennwagen – fällt die Radlast an
+  Kuppen, Wellen oder Übergängen unter das Gewicht, zieht eine „Saugkraft“ es zur Fahrbahn (nicht an Schanzen, nicht im
+  Hüpfer, nicht im Looping). Bots auf Original: Abheben an Kuppen 78 → 6, Crashs 73 → 42, Zeit mit < 4 Rädern 12,8 → 6,3 %.
+  `?haft=alt` = Haftung wie bis n19 (A/B). Messung: `node tools/fahr_analyse.mjs --teil=haftung`, Test `test_haftung.mjs`.
 - **Cockpit-Kamera** (🎥 / `C` / Gamepad LB): Blick durch die Frontscheibe, analoger Tacho (bis 600 km/h), Drehzahlmesser
   (0–8 ×1000, rot ab 7000, Zeiger schwingt leicht nach), Schaltkulisse mit Knauf (R, 1–6), Lenkrad dreht mit.
   Die Kamerawahl bleibt gespeichert. Beim Wrack kurz Verfolger, dann wieder Cockpit (Details: `COCKPIT_BERICHT.md`).

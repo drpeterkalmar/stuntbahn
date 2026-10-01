@@ -276,7 +276,7 @@ function haftungsRunde(env, kind, magnet, seed) {
   const b = bot(kind, seed);
   const lim = Math.max(120, (env.meta?.ap || 80) * 4);
   let t = 0, run = 0, lift = 0, kontakt = 0, abT = 0, ab = null;
-  const crashes = {}, abheben = {}, latU = [], slipU = [];
+  const crashes = {}, abheben = {}, latU = [], slipU = [], liftArt = {};
   const art = (i) => { const pc = env.track.pieces[L.piece[i]]; const k = env.prof.kC[i]; return (pc ? pc.type : '?') + (k < -2e-3 ? '/Kuppe' : ''); };
   // Oberbegriff für die Auswertung: Kuppe, Steilkurve (Übergang), Bodenwellen, Looping/Röhre/Korkenzieher, schnelle Kurve
   const gruppe = (i, v) => {
@@ -302,7 +302,7 @@ function haftungsRunde(env, kind, magnet, seed) {
     if (L.air[i] || race.isJumpZone(i) || car.hopUp) { ab = null; continue; }
     run += DT;
     kontakt += car.onGround / 4 * DT;
-    if (car.onGround < 4) lift += DT;
+    if (car.onGround < 4) { lift += DT; const g = gruppe(i, v); liftArt[g] = (liftArt[g] || 0) + DT; }
     // Abheben: höchstens 1 Rad am Boden, mindestens 0,05 s (Bodenwellen-Hüpfer zählen mit, Sprünge nicht)
     if (car.onGround <= 1) { if (!ab) ab = { i, t: 0, v }; ab.t += DT; }
     else if (ab) { if (ab.t >= 0.05) { const k = gruppe(ab.i, ab.v); const x = abheben[k] || (abheben[k] = { n: 0, t: 0, vMax: 0 }); x.n++; x.t += ab.t; x.vMax = Math.max(x.vMax, ab.v); abT += ab.t; } ab = null; }
@@ -316,7 +316,7 @@ function haftungsRunde(env, kind, magnet, seed) {
   }
   const q = (a, p) => { if (!a.length) return 0; a.sort((x, y) => x - y); return a[Math.min(a.length - 1, Math.floor(p * a.length))]; };
   const nAb = Object.values(abheben).reduce((s, x) => s + x.n, 0);
-  return { ok: race.state === 'finished', time: race.finalTime, crashes: race.crashes, crashArt: crashes, liftPct: 100 * lift / Math.max(1e-9, run), abheben: nAb, abhebenArt: abheben, abT, kontakt: 100 * kontakt / Math.max(1e-9, run), latP90: q(latU, 0.9), slipP90: q(slipU, 0.9), slipP99: q(slipU, 0.99) };
+  return { ok: race.state === 'finished', time: race.finalTime, crashes: race.crashes, crashArt: crashes, liftPct: 100 * lift / Math.max(1e-9, run), abheben: nAb, abhebenArt: abheben, abT, liftArt, kontakt: 100 * kontakt / Math.max(1e-9, run), latP90: q(latU, 0.9), slipP90: q(slipU, 0.9), slipP99: q(slipU, 0.99), run };
 }
 if (TEILE.includes('haftung')) {
   const list = streckenListe(+arg('gen', 6), +arg('samh', 10));
@@ -330,22 +330,25 @@ if (TEILE.includes('haftung')) {
       if (kind === 'perfekt' && m > 0) continue;
       const r = haftungsRunde(env, kind, m, 7 + kind.length);
       const key = `${kind}|${m}`;
-      const T = tot[key] || (tot[key] = { n: 0, ok: 0, crashes: 0, lift: 0, abheben: 0, abT: 0, lat: [], slip: [], crashArt: {}, abArt: {} });
+      const T = tot[key] || (tot[key] = { n: 0, ok: 0, crashes: 0, lift: 0, abheben: 0, abT: 0, lat: [], slip: [], crashArt: {}, abArt: {}, liftArt: {} });
       T.n++; T.ok += r.ok ? 1 : 0; T.crashes += r.crashes; T.lift += r.liftPct; T.abheben += r.abheben; T.abT += r.abT; T.lat.push(r.latP90); T.slip.push(r.slipP90);
       for (const [k, c] of Object.entries(r.crashArt)) T.crashArt[k] = (T.crashArt[k] || 0) + c.n;
+      for (const [k, x] of Object.entries(r.liftArt)) T.liftArt[k] = (T.liftArt[k] || 0) + x;
+      T.run = (T.run || 0) + r.run;
       for (const [k, c] of Object.entries(r.abhebenArt)) { const x = T.abArt[k] || (T.abArt[k] = { n: 0, t: 0 }); x.n += c.n; x.t += c.t; }
       rows.push({ name: S.name, kind, magnet: m, ...r });
       console.log(`| ${S.name} | ${kind} | ${m} | ${r.ok ? fmtTime(r.time) : 'NEIN'} | ${r.crashes}${r.crashes ? ' (' + Object.entries(r.crashArt).map(([k, c]) => `${c.n}× ${k} v/vt ${f2(c.vRel)}`).join(', ') + ')' : ''} | ${f1(r.liftPct)} | ${r.abheben} / ${f2(r.abT)} | ${f1(r.latP90)} | ${f1(r.slipP90)} / ${f1(r.slipP99)} |`);
     }
   }
   console.log('\n### Summe je Bot und Magnet');
-  console.log('| Bot | Magnet | im Ziel | Crashs | Zeit <4 Räder % | Abheben n / s | Querb. p90 (Mittel) | Rutschwinkel p90 (Mittel) | Crash-Arten | Abheben wo |\n|---|---|---|---|---|---|---|---|---|---|');
+  console.log('| Bot | Magnet | im Ziel | Crashs | Zeit <4 Räder % | Abheben n / s | Querb. p90 (Mittel) | Rutschwinkel p90 (Mittel) | Crash-Arten | Abheben wo | Zeit <4 Räder wo (% der Fahrzeit) |\n|---|---|---|---|---|---|---|---|---|---|---|');
   const avg = (a) => a.reduce((x, y) => x + y, 0) / Math.max(1, a.length);
   for (const [k, T] of Object.entries(tot)) {
     const [kind, m] = k.split('|');
     const ca = Object.entries(T.crashArt).sort((a, b) => b[1] - a[1]).map(([x, n]) => `${n}× ${x}`).join(', ');
     const aa = Object.entries(T.abArt).sort((a, b) => b[1].n - a[1].n).map(([x, c]) => `${c.n}× ${x} (${f1(c.t)} s)`).join(', ');
-    console.log(`| ${kind} | ${m} | ${T.ok}/${T.n} | ${T.crashes} | ${f1(T.lift / T.n)} | ${T.abheben} / ${f1(T.abT)} | ${f1(avg(T.lat))} | ${f1(avg(T.slip))} | ${ca} | ${aa} |`);
+    const la = Object.entries(T.liftArt).sort((a, b) => b[1] - a[1]).map(([x, t]) => `${x} ${f1(100 * t / T.run)} %`).join(', ');
+    console.log(`| ${kind} | ${m} | ${T.ok}/${T.n} | ${T.crashes} | ${f1(T.lift / T.n)} | ${T.abheben} / ${f1(T.abT)} | ${f1(avg(T.lat))} | ${f1(avg(T.slip))} | ${ca} | ${aa} | ${la} |`);
   }
   out.haftung = { rows, tot };
 }

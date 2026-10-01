@@ -89,6 +89,14 @@ export function highLine(track) {
   }
   return h;
 }
+// Bodenhaftung bei Tempo (n21, car.js haftA) aus: Schanzen (Anlauf 30 Punkte vor der Lippe bis 12 nach der Landung,
+// wie isJumpZone), Luftstrecken und Achterbahn-Wellen (dort ist die kurze Luftphase gewollt). Auch für Node-Fahrten.
+export function haftOffAt(track, idx) {
+  const L = track.line;
+  if (L.air[idx] || (L.wave && L.wave[idx] === 1)) return true;
+  for (const j of track.jumps) if (idx >= j.lipIdx - 30 && idx <= j.landIdx + 12) return true;
+  return false;
+}
 const STUNT_NAMES = { loop: 'Looping', tube: 'Röhre', cork: 'Korkenzieher', jump: 'Sprung' };
 
 export const REC_HZ = 60;
@@ -288,6 +296,9 @@ export class Race {
     car.assist.grip = this.autopilotOnly ? 1 : A.grip || 1;
     car.assist.slipK = this.autopilotOnly ? 1 : A.slipK || 1;
     car.surfaceKind = (L.loop[idx] || L.tube[idx]) ? 1 : 0;
+    // Bodenhaftung bei Tempo (n21, car.js) nicht an Schanzen (Anlauf, Lippe, Luft, Landung) und nicht auf den
+    // Achterbahn-Wellen (dort ist die kurze Luftphase gewollt)
+    car.haftOff = haftOffAt(this.env.track, idx);
     this.extrasStep(dt, idx);
     car.step(dt, this.env.world);
     // Fortschritt / Checkpoints / Ziel

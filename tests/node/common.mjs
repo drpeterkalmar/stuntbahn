@@ -6,6 +6,7 @@ import { Car } from '../../src/physics/car.js';
 import { computeProfile } from '../../src/ai/profile.js';
 import { Autopilot } from '../../src/ai/autopilot.js';
 import { computeIdeal } from '../../src/ai/ideal.js';
+import { haftOffAt } from '../../src/game/race.js';
 
 export function chain(i, j, d, list, lvl0 = 0) {
   const pieces = [];
@@ -51,6 +52,7 @@ export function drive(env, opt = {}) {
     const c = ap.control(car);
     car.input.steer = c.steer; car.input.throttle = c.throttle; car.input.brake = c.brake;
     car.surfaceKind = L.loop[ap.tr.idx] || L.tube[ap.tr.idx] ? 1 : 0;
+    car.haftOff = haftOffAt(track, ap.tr.idx);   // wie die Rennlogik (n21)
     car.step(dt, world);
     t += dt;
     const idx = ap.tr.idx;

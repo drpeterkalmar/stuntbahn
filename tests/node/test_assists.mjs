@@ -45,7 +45,9 @@ for (const [seed, diff] of [[20260927, 2], [4711, 3], [1000, 1]]) {
     const race = new Race(v.env, { assist, countdown: 0.5 });
     const b = bot(kind, seed + kind.length);
     let t = 0;
-    const lim = (v.apTime || 80) * 4;
+    // n21: Wiese höchstens 30 km/h – der Zappel-Spieler auf Leicht lenkt dauernd frei in die Wiese und braucht dort
+    // länger (1000-1: 161 s bei Grenze 4 × Autopilot); er muss weiter ankommen, aber mit 6 × Autopilot-Zeit
+    const lim = (v.apTime || 80) * (kind === 'zappelig' ? 6 : 4);
     while (t < lim && race.state !== 'finished') {
       race.ap.control(race.car); // Autopilot-Vorschlag aktualisieren (für Bots)
       race.step(DT, b(race)); t += DT;
