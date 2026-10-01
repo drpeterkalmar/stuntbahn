@@ -139,6 +139,8 @@ export class CarFX {
       this.skids.add(k, this.p, this.n, this.side, s * Math.min(1, sp / 6));
       if (emit && onRoad && s > 0.5 && sp > 8) this.parts.spawn(this.p, this.v.set(0, 0.6, 0), 0.6, 2.6, 1.2, 0xd8d8d8, 0.35);
       if (emit && !onRoad && sp > 5 && k >= 2) this.parts.spawn(this.p, this.v.set(car.v.x * 0.1, 0.8, car.v.z * 0.1), 0.5, 2.2, 1.0, 0xb89a6a, 0.4);
+      // Wiese bremst (n21, über 30 km/h): Grasbüschel und Erde spritzen an allen Rädern hoch
+      if (emit && !onRoad && sp > 8.5) this.parts.spawn(this.p, this.v.set(car.v.x * 0.25 + (Math.random() - 0.5) * 2, 1.6 + Math.random() * 1.5, car.v.z * 0.25 + (Math.random() - 0.5) * 2), 0.25, 0.9, 0.6, Math.random() < 0.6 ? 0x5e7d2a : 0x6b5236, 0.9);
     });
     if (state === 'wreck' && emit) {
       this.p.set(car.pos.x, car.pos.y + 0.6, car.pos.z);

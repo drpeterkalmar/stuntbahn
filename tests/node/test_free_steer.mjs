@@ -11,7 +11,7 @@ import { chain, setup } from './common.mjs';
 import { Race, FREE, LEICHT } from '../../src/game/race.js';
 import { generate } from '../../src/track/generator.js';
 import { verifySync } from '../../src/track/verify.js';
-import { WORLD_SCALE } from '../../src/track/defs.js';
+import { WORLD_SCALE, WIESE } from '../../src/track/defs.js';
 
 const DT = 1 / 120;
 let fails = 0;
@@ -52,7 +52,9 @@ const offLine = (race) => { const c = race.car.pos, i = race.ap.tr.idx; return M
   // Weg bis awayEx (~0,1 s) + FREE.hold + FREE.fadeOut + Reserve 0,05 s; bis n13 ab Tastendruck ≤ 0,66 s
   const lim1 = LEICHT.lk <= 0 ? FREE.hold + 0.3 : 0.15 + FREE.hold + FREE.fadeOut + 0.05;
   check(tOwn !== null && tRes !== null && tOwn - tRes <= lim1 + 1e-6, `A1 Übernahme: Hilfe hält ab ${tRes && tRes.toFixed(2)} s gegen, ${tOwn && (tOwn - tRes).toFixed(2)} s später ganz frei (≤ ${lim1.toFixed(2)} s), ab Tastendruck ${tOwn && tOwn.toFixed(2)} s, Tempo vorher ${(v0 * 3.6).toFixed(0)} km/h`);
-  check(side > 8, `A2 nach 2 s voll links: ${side.toFixed(1)} m neben der Fahrbahn (> 8 m)`);
+  // n21 (Wiese = Wiese, höchstens 30 km/h): die Wiese bremst das Auto ab dem Abkommen stark ab, nach 2 s voll links
+  // liegt es ~6–7 m neben der Fahrbahn (bis n19 > 8 m); mit ?wiese=alt (STUNT_WIESE=alt) gilt die alte Grenze
+  check(side > (WIESE.on ? 4 : 8), `A2 nach 2 s voll links: ${side.toFixed(1)} m neben der Fahrbahn (> ${WIESE.on ? 4 : 8} m)`);
   // loslassen
   let back = null, road = null, maxJerk = 0, prevSteer = race.lastInput.steer, jAt = '', maxYaw = 0;
   const ev2 = [];
@@ -80,7 +82,7 @@ const offLine = (race) => { const c = race.car.pos, i = race.ap.tr.idx; return M
   // der Rückführung ~5 m neben der Linie und flacht den Anfahrwinkel ab (sanfter, ~0,6 s länger).
   check(road !== null && road <= 7.5 && !cr.length, `A3 losgelassen: wieder ganz auf der Fahrbahn nach ${road && road.toFixed(1)} s (≤ 7,5 s; auf der Linie < 1 m nach ${back ? back.toFixed(1) + ' s' : '—'}), Crashs/Resets: ${cr.join(', ') || 'keine'}; Verlauf ${steerLog.slice(0, 8).join(' ')}`);
   // Gierrate: mit mu 1,7 (n14) dreht der volle Autopilot-Einschlag auf der Wiese schneller als mit 1,5 → Grenze 1,5 rad/s
-  check(maxJerk <= 4.01 && maxYaw < 1.5, `A4 ohne Ruck: größte Lenkänderung der Hilfe ${maxJerk.toFixed(1)}/s (Grenze 4/s, Tastatur rampt mit 3,2–8/s), größte Gierrate ${maxYaw.toFixed(2)} rad/s (< 1,5)`);
+  check(maxJerk <= 4.01 && maxYaw < 1.5, `A4 ohne Ruck: größte Lenkänderung der Hilfe ${maxJerk.toFixed(1)}/s${maxJerk > 4.01 ? ' (' + jAt + ')' : ''} (Grenze 4/s, Tastatur rampt mit 3,2–8/s), größte Gierrate ${maxYaw.toFixed(2)} rad/s (< 1,5)`);
   run(race, 60, zero);
   check(race.state === 'finished', `A5 danach fährt Leicht allein ins Ziel (${race.state})`);
 }
@@ -145,7 +147,9 @@ for (const [name, env, cheatV] of [['Kehre', envU, 9], ['Schleife', omega, 12]])
   }
 }
 
-check(omegaRule === 3 && omegaGain >= 1, `C  Schleife: Regel greift auf allen 3 Stufen (${omegaRule}/3), ohne Regel wäre die Abkürzung auf ${omegaGain} Stufe(n) schneller gewesen`);
+// n21: mit der Wiese (höchstens 30 km/h) lohnt die Abkürzung schon ohne Regel nicht mehr (omegaGain 0) – die Regel
+// muss trotzdem auf allen Stufen greifen; mit ?wiese=alt muss die Abkürzung ohne Regel wie bisher schneller sein
+check(omegaRule === 3 && (WIESE.on || omegaGain >= 1), `C  Schleife: Regel greift auf allen 3 Stufen (${omegaRule}/3), ohne Regel wäre die Abkürzung auf ${omegaGain} Stufe(n) schneller gewesen${WIESE.on ? ' (Wiese ≤ 30 km/h: lohnt ohnehin nicht)' : ''}`);
 
 // ---- D: Stunt bleibt automatisch, mit Ansage ----
 {

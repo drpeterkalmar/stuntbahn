@@ -2,7 +2,7 @@
 // Haftungskreis, Luftwiderstand/Abtrieb, Karosserie-Kontakte als Impulse, Crash-Erkennung.
 // Eigene Mini-Mathematik (keine Abhängigkeiten) → deterministisch, läuft in Node und im Browser.
 // Körperachsen: x = rechts, y = oben, z = hinten (vorwärts = −z).
-import { GRIP, ROLL, MAT, WORLD_SCALE } from '../track/defs.js';
+import { GRIP, ROLL, MAT, WORLD_SCALE, WIESE } from '../track/defs.js';
 import { G as GRAV, gravStep } from './air.js';
 import { NITRO } from './extras.js';
 
@@ -234,6 +234,11 @@ export class Car {
     if (thr > 0.01) drive = thr * Math.min(d.maxDrive * aero, d.power / Math.max(Math.abs(vF), 1));
     if (brk > 0.01 && vF < 1.0 && thr < 0.01 && !inp.hold && !wrecked) { drive = -brk * d.maxDrive * 0.55 * (vF > -d.reverseMax ? 1 : 0); brake = 0; }
 
+    // Wiese (n21, WIESE in defs.js): Antrieb der Gras-Räder ohne Aero-Last, oberhalb driveFrom linear weniger, 0 ab vMax
+    const grassFade = WIESE.on ? Math.max(0, Math.min(1, (WIESE.vMax - Math.abs(vF)) / (WIESE.vMax - WIESE.driveFrom))) : 1;
+    const driveGrass = (drive > 0 ? thr * Math.min(d.maxDrive, d.power / Math.max(Math.abs(vF), 1)) : drive) * grassFade;
+    let grassN = 0, gnx = 0, gny = 0, gnz = 0;
+
     // Federbeine
     const L = d.rest + d.wheelR;
     let contacts = 0, nAvgX = 0, nAvgY = 0, nAvgZ = 0;
@@ -279,7 +284,9 @@ export class Car {
       let fLat = -fmax * Math.tanh(slip / (d.slip0 * (this.assist.slipK || 1)));
       let fLong = 0;
       const share = w.front ? d.driveFront / 2 : (1 - d.driveFront) / 2;
-      fLong += drive * share;
+      const onGrass = WIESE.on && w.mat === MAT.GRASS;
+      if (onGrass) { grassN++; gnx += hit.nx; gny += hit.ny; gnz += hit.nz; }
+      fLong += (onGrass ? driveGrass : drive) * share;
       if (brake > 0) {
         const bshare = w.front ? d.brakeFront / 2 : (1 - d.brakeFront) / 2;
         fLong -= brake * d.brake * aero * bshare * Math.max(-1, Math.min(1, vLong / 0.6));
@@ -294,9 +301,22 @@ export class Car {
       w.spin += w.spinV * dt;
     }
     this.onGround = contacts;
-    // Nitro: Zusatzschub am Schwerpunkt längs Auto-Vorwärts, anteilig zum Gas, nur mit Radkontakt
+    // Wiese (n21): Gras-Widerstand am Schwerpunkt gegen die Fahrt längs des Bodens, Anteil = Räder im Gras / 4
+    const grassShare = grassN / 4;
+    this.grass = grassShare;
+    if (grassN) {
+      const l = Math.hypot(gnx, gny, gnz) || 1, nx = gnx / l, ny = gny / l, nz = gnz / l;
+      const vn = this.v.x * nx + this.v.y * ny + this.v.z * nz;
+      const tx = this.v.x - vn * nx, ty = this.v.y - vn * ny, tz = this.v.z - vn * nz, vt = Math.hypot(tx, ty, tz);
+      if (vt > WIESE.v0) {
+        const a = Math.min(WIESE.aMax * grassShare, WIESE.k * grassShare * (vt - WIESE.v0), (vt - WIESE.v0) / dt);
+        fx -= tx / vt * a * m; fy -= ty / vt * a * m; fz -= tz / vt * a * m;
+      }
+    }
+    // Nitro: Zusatzschub am Schwerpunkt längs Auto-Vorwärts, anteilig zum Gas, nur mit Radkontakt (auf der Wiese wie
+    // der Antrieb der Gras-Räder: ohne Aero-Last, ab driveFrom weniger)
     if (this.boost > 0 && thr > 0.01 && contacts && !wrecked) {
-      const fn = this.boost * NITRO.k * thr * Math.min(d.maxDrive * aero, d.power / Math.max(Math.abs(vF), 1));
+      const fn = this.boost * NITRO.k * thr * Math.min(d.maxDrive * aero, d.power / Math.max(Math.abs(vF), 1)) * (1 - grassShare + grassShare * grassFade);
       fx += F.f.x * fn; fy += F.f.y * fn; fz += F.f.z * fn;
     }
     // Hüpfer: bis zur Landung (erster Radkontakt nach dem Abheben) Lage halten

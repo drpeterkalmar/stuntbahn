@@ -68,7 +68,10 @@ export class CameraRig {
       for (let i = 0; i < w.length; i++) { const c = w[i].comp || 0; ex += Math.abs(c - this.lastComp[i]); this.lastComp[i] = c; }
       ex /= dt;   // m/s Federweg-Geschwindigkeit (Summe der vier Räder)
     }
-    const want = Math.min(1, Math.max(0, ex - 0.6) / 5);
+    // Wiese (n21): leichtes Rumpeln, solange Räder im Gras rollen (stärker, solange die Wiese noch abbremst)
+    let gr = 0;
+    if (w) for (const x of w) if (x.contact && x.mat === 8) gr += 0.25;
+    const want = Math.min(1, Math.max(0, ex - 0.6) / 5 + gr * Math.min(1, speed / 8) * (speed > 9 ? 0.6 : 0.3));
     this.shake = Math.max(this.shake * Math.exp(-dt * 7), want);
     this.shT += dt;
     const hi = Math.max(0, Math.min(1, (speed - 70) / 90));

@@ -26,6 +26,9 @@ spielbar am Handy (quer oder hochkant), mit Gamepad oder Tastatur. Als App insta
   Radkontakt, nimmt mit dem Bodenabstand ab), ruhige Räder an Steilkurven; der Autopilot fährt im Mittel 11 % schneller,
   pendelt nicht mehr zwischen Gas und Bremse. Bestzeiten davor stehen im Menü als „alte Physik“ (Details:
   `FAHRGEFUEHL_BERICHT.md`).
+- **Wiese = Wiese** (seit 01.10.2026, n21): Neben der Strecke höchstens **30 km/h** (Vollgas ~27 km/h). Wer mit 200 km/h
+  abkommt, ist nach ~1,8 s bei 30 km/h – ohne Überschlag, Lenken geht weiter; Grasbüschel spritzen, die Kamera rumpelt.
+  `?wiese=alt` = bisherige Wiese (A/B). Messung: `node tools/wiese_probe.mjs`, Test `tests/node/test_wiese.mjs`.
 - **Cockpit-Kamera** (🎥 / `C` / Gamepad LB): Blick durch die Frontscheibe, analoger Tacho (bis 600 km/h), Drehzahlmesser
   (0–8 ×1000, rot ab 7000, Zeiger schwingt leicht nach), Schaltkulisse mit Knauf (R, 1–6), Lenkrad dreht mit.
   Die Kamerawahl bleibt gespeichert. Beim Wrack kurz Verfolger, dann wieder Cockpit (Details: `COCKPIT_BERICHT.md`).

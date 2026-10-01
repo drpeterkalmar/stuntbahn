@@ -58,3 +58,17 @@ export const SURF_MAT = { paved: MAT.ROAD, dirt: MAT.DIRT, icy: MAT.ICE };
 export const GRIP = { 0: 1.25, 1: 1.1, 2: 1.05, 3: 1.0, 4: 0.9, 5: 1.0, 6: 1.25, 7: 0.9, 8: 0.72, 9: 0.2, 10: 1, 11: 0.95, 12: 0.5, 13: 0.9, 14: 0.9 };
 // Rollwiderstand je Oberfläche
 export const ROLL = { 0: 0.015, 1: 0.02, 2: 0.016, 3: 0.018, 4: 0.02, 5: 0.02, 6: 0.015, 7: 0.02, 8: 0.09, 9: 0.5, 10: 0.02, 11: 0.03, 12: 0.012, 13: 0.02, 14: 0.02 };
+// Wiese = Wiese (Peter 30.09.2026: „Die Wiese darf nicht schneller sein als 30 km/h. Es ist eine Wiese!“, n21).
+// Bis n19 bremste das Gelände nur über den Rollwiderstand (ROLL 0,09 gegen 2,2 MW): Vollgas auf der Wiese 390 km/h.
+// Jetzt, gleitend nach Anteil der Räder mit Graskontakt (car.js):
+// - Antrieb der Gras-Räder ohne Aero-Last-Verstärkung, ab driveFrom linear weniger, 0 ab vMax (Räder drehen durch);
+//   Nitro genauso.
+// - Gras-Widerstand am Schwerpunkt (kein Nicken, kein Überschlag) gegen die Fahrt längs des Bodens: k·(v − v0) oberhalb
+//   v0, höchstens aMax m/s² – wer mit 200 km/h abkommt, ist nach ~1,7 s bei 30 km/h.
+// - Haftung (GRIP[8] 0,72) bleibt: Lenken geht.
+// URL ?wiese=alt = Verhalten bis n19 (A/B). Messung: tools/wiese_probe.mjs, HAFTUNG_BERICHT.md.
+export const WIESE = {
+  on: !((globalThis.location && globalThis.location.search && new URLSearchParams(globalThis.location.search).get('wiese') === 'alt')
+    || (globalThis.process && globalThis.process.env && globalThis.process.env.STUNT_WIESE === 'alt')),   // Node: STUNT_WIESE=alt
+  v0: 25 / 3.6, vMax: 30 / 3.6, driveFrom: 20 / 3.6, k: 5, aMax: 30,
+};

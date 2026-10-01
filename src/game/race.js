@@ -4,7 +4,7 @@
 import { Car, CAR_DEF, driveAccel, aeroLoad } from '../physics/car.js';
 import { G } from '../physics/air.js';
 import { Autopilot, Tracker } from '../ai/autopilot.js';
-import { WORLD_SCALE, ROAD_HW, TILE, MAT } from '../track/defs.js';
+import { WORLD_SCALE, ROAD_HW, TILE, MAT, WIESE } from '../track/defs.js';
 import { HOP, NITRO, NITRO_TOTAL, nitroLevel, hopModel, hopHeightAt } from '../physics/extras.js';
 
 // Mittel (n16, Peter 29.09.2026: „Mittlere Schwierigkeit mehr Bodenhaftung und kein Magnet zur Ideallinie“): kein
@@ -37,8 +37,9 @@ export const RESET_DELAY = 0.35; // kurzes Aufblitzen zwischen Crash und Reset (
 // Zug zur Linie in fadeOut s aus – dann frei, auch ins Gelände. Loslassen (< keep, 0,3 s): Hilfe blendet in
 // fadeIn s ein, das Ziel des Autopiloten wandert weich (ohne Ruck) von der Autoposition zurück auf die Linie.
 // Vor Stunts (pre s bzw. mindestens preMin m) übernimmt der Autopilot wieder, mit Ansage im HUD.
-// Abseits der Fahrbahn gemäßigtes Gas (höchstens offV m/s).
-export const FREE = { in: 0.5, hold: 0.2, keep: 0.15, rel: 0.2, fadeOut: 0.25, fadeIn: 0.8, back: [1.2, 3.0], pre: 2.5, preMin: 35, offV: 16 };
+// Abseits der Fahrbahn gemäßigtes Gas (höchstens offV m/s; bis n19 16 m/s = 58 km/h – die Wiese erlaubt seit n21 nur
+// noch bis 30 km/h, WIESE in defs.js; mit ?wiese=alt wie bisher).
+export const FREE = { in: 0.5, hold: 0.2, keep: 0.15, rel: 0.2, fadeOut: 0.25, fadeIn: 0.8, back: [1.2, 3.0], pre: 2.5, preMin: 35, offV: WIESE.on ? 7.5 : 16 };
 // URL-Regler (Zahl) für A/B-Vergleiche am Handy
 const urlNum = (k) => { const q = globalThis.location && globalThis.location.search; if (!q) return null; const v = new URLSearchParams(q).get(k); return v !== null && v !== '' && Number.isFinite(+v) ? +v : null; };
 // Mittel: keine Zwangsbremse mehr (Peter 28.09.2026: „Bei Mittel bremst mich die Ideallinie ab“, n14). Bis n13 nahm die
@@ -433,7 +434,10 @@ export class Race {
     const ap = this.ap;
     // Lenk-Glättung läuft von der Übernahme bis 2 s nach Ende der Rückführung
     // (Mitlenk-Modell: nicht schon ab 1 m neben der Linie – dort fährt man jetzt oft, die Glättung bremste den Spieler)
-    this.calmT = this.manual || this.back || this.own > 0 || (LEICHT.lk <= 0 && Math.abs(ap.lat) > 1) ? 1.5 : Math.max(0, (this.calmT || 0) - dt);
+    // (n21: auch solange das Auto noch neben der Fahrbahn ist – auf der Wiese, höchstens 30 km/h, dauert der Rückweg länger
+    // als die Rückführung des Ziels; ohne Glättung ruckte die Lenkung beim Auffahren auf den Asphalt)
+    const offRoad = this.tracker.dist > this.env.track.line.hw[this.tracker.idx] + 0.5;
+    this.calmT = this.manual || this.back || this.own > 0 || (LEICHT.lk <= 0 && Math.abs(ap.lat) > 1) || offRoad ? 1.5 : Math.max(0, (this.calmT || 0) - dt);
     if (this.manual) {
       this.own = Math.min(1, this.own + dt / FREE.fadeOut);
       ap.shift = ap.lat; this.back = null;    // Ziel des Autopiloten = da, wo das Auto gerade ist
