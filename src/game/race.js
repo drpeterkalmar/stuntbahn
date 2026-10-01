@@ -93,7 +93,7 @@ export function highLine(track) {
 // wie isJumpZone), Luftstrecken und Achterbahn-Wellen (dort ist die kurze Luftphase gewollt). Auch für Node-Fahrten.
 export function haftOffAt(track, idx) {
   const L = track.line;
-  if (L.air[idx] || (L.wave && L.wave[idx] === 1)) return true;
+  if (L.air[idx] || (L.wave && (L.wave[idx] === 1 || L.wave[idx] === 3))) return true;   // 3 = Gelände-Kuppe (n22)
   for (const j of track.jumps) if (idx >= j.lipIdx - 30 && idx <= (j.endIdx ?? j.landIdx + 12)) return true;
   return false;
 }
@@ -340,8 +340,12 @@ export class Race {
     // (und nur, wer kurz vorher wirklich oben fuhr: Räder auf der Fahrbahn, hoch über dem Gelände)
     const TR = this.env.track.terrain;
     if (TR && car.onGround > 0 && car.wheels.some((w) => w.contact && w.mat !== MAT.GRASS) && car.pos.y - TR.height(car.pos.x, car.pos.z) > FALL.high) this.upT = this.time;
+    // Gelände-Strecken (n22): auch vom Damm, von der Plateau-Kante oder in die Schlucht – wer eben noch auf der Fahrbahn
+    // war (upT: Räder auf der Fahrbahn) und jetzt im Gelände mehr als FALL.drop m unter ihr steht, ist abgestürzt
+    const gel = TR && TR.gel;
+    if (gel && car.onGround > 0 && car.wheels.some((w) => w.contact && w.mat !== MAT.GRASS)) this.upT = this.time;
     if (!car.crash && car.onGround > 0 && !L.air[ti] && this.time - (this.upT ?? -1e9) < FALL.sec && car.pos.y < L.py[ti] - FALL.drop && Math.hypot(car.pos.x - L.px[ti], car.pos.z - L.pz[ti]) < L.hw[ti] + FALL.near && car.wheels.some((w) => w.contact && w.mat === MAT.GRASS)) {
-      if (L.py[ti] - TR.height(L.px[ti], L.pz[ti]) > FALL.high) car.setCrash('Abgestürzt');
+      if (gel || L.py[ti] - TR.height(L.px[ti], L.pz[ti]) > FALL.high) car.setCrash('Abgestürzt');
     }
     // Sprung zu kurz (n21): über der Lücke einer Schanze (nicht Import-Lücken) etwas berührt – Boden, Wasser, Hindernis
     // (Bus, Container, Zug …) – zwischen 3 m hinter der Lippe und der Vorderkante der Landerampe → Crash „Zu kurz“ und

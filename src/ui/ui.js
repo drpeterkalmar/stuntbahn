@@ -17,9 +17,16 @@ const $ = (s, r = document) => r.querySelector(s);
 const h = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
 const ICON = { loop: '➰', jump: '🛫', tube: '🕳️', bank: '↪️', crest: '⛰️', bumps: '〰️', chicane: '🔀', bridge: '🌉',
   // 3D-Teile (n19)
-  spiral: '🌀', cliff: '🪂', cliff2: '🪂', wall: '🧱', waves: '🎢', slope3: '🎿', slope4: '🎿', tr_corklr: '🍥', tr_corkud: '🌀', tr_bankC: '↪️' };
+  spiral: '🌀', cliff: '🪂', cliff2: '🪂', wall: '🧱', waves: '🎢', slope3: '🎿', slope4: '🎿', tr_corklr: '🍥', tr_corkud: '🌀', tr_bankC: '↪️',
+  // Gelände-Teile (n22)
+  halfpipe: '🛹', gorge: '🏞️', kuppe: '🐪', tunnel: '🚇', tilt: '📐', serp: '〽️', drop: '🪂' };
+const ICON_NAME = { gorge: 'Schluchtsprung', kuppe: 'Kuppe mit Luftphase', tunnel: 'Tunnel', tilt: 'Hang-Querfahrt', serp: 'Serpentine', drop: 'Plateau-Abfahrt', bridge: 'Brücke' };
+// Streckenarten (n22): flach (bis n18), Hochstraße (n19, „3D“), Gelände (Standard ab n22)
+const MODES = [['flat', '▭', 'flach', 'Flache Strecken wie bis n18'], ['3d', '🏗️', 'Hochstraße', 'Hochstraßen-Ebenen, Brücken, Spiralen, Klippensprünge (n19)'], ['gel', '⛰️', 'Gelände', 'Strecke durch Hügel und Täler: Kuppen, Serpentinen, Hänge, Tunnel, Schluchtsprung']];
 // Symbole für importierte Strecken (Elementart → Symbol, Name)
 const TICON = { loop: ['➰', 'Looping'], corklr: ['🌀', 'Korkenzieher'], corkud: ['🌀', 'Wendel'], gap: ['🛫', 'Sprung'], pipe: ['🕳️', 'Röhre'], bankC: ['↪️', 'Steilkurve'], chicane: ['🔀', 'Schikane'], elev: ['🌉', 'Hochstraße'], tunnel: ['🚇', 'Tunnel'], hwy: ['🛣️', 'Autobahn'], slalom: ['🚧', 'Slalom'] };
+// Höhenunterschied der Fahrbahn einer Gelände-Strecke (m)
+function hDiff(env) { const L = env.track.line; let a = 1e9, b = -1e9; for (let i = 0; i < L.n; i++) if (!L.loop[i] && !L.air[i]) { a = Math.min(a, L.py[i]); b = Math.max(b, L.py[i]); } return b - a; }
 function stuntSummary(pieces) {
   const c = {};
   for (const p of pieces) { const k = p.kind === 'pobst' ? 'pipe' : p.kind === 'span' || p.kind === 'solid' ? 'elev' : p.kind; if (TICON[k]) c[k] = (c[k] || 0) + 1; }
@@ -160,19 +167,29 @@ export class UI {
     document.body.dataset.mode = 'menu';
     const S = this.store.settings, m = env.meta, lay = env.layout;
     const stunts = {};
-    for (const p of lay.pieces) { const t = { tr_bankC: 'bank', cliff2: 'cliff', slope4: 'slope3', tr_corkud: 'spiral' }[p.type] || p.type; if (ICON[t]) stunts[t] = (stunts[t] || 0) + 1; }
+    for (const p of lay.pieces) { const t = p.g === 'gorge' ? 'gorge' : p.g === 'drop' ? 'drop' : { tr_bankC: 'bank', cliff2: 'cliff', slope4: 'slope3', tr_corkud: 'spiral' }[p.type] || p.type; if (ICON[t] && (t !== 'straight')) stunts[t] = (stunts[t] || 0) + 1; }
     if (lay.pieces.some((p) => p.type === 'rampUp')) stunts.bridge = lay.pieces.filter((p) => p.type === 'bridge').length;
     if (m.crossings) stunts.bridge = m.crossings;   // 3D: Überführungen
-    const stuntTxt = Object.entries(stunts).map(([t, n]) => `<span title="${t === 'bridge' && m.d3 ? 'Überführung' : PIECES[t] ? PIECES[t].name : t}">${ICON[t]}${n > 1 ? '×' + n : ''}</span>`).join(' ');
+    // Gelände (n22): Elemente aus dem Plan (Tunnel, Brücken entstehen auch von selbst) und den Stück-Markierungen
+    if (m.gel && env.track.gel) {
+      const pl = env.track.gel.plan.pieces, runs = (f) => pl.filter((q, k) => f(q) && !f(pl[(k - 1 + pl.length) % pl.length] || {})).length;
+      const nt = runs((q) => q.tunnel), nb = runs((q) => q.bridge);
+      if (nt) stunts.tunnel = nt; if (nb) stunts.bridge = nb;
+      const nk = lay.pieces.filter((p) => p.g === 'kuppe').length; if (nk) stunts.kuppe = nk;
+      const ntl = lay.pieces.filter((p, k) => p.tilt0 === 0 && p.tilt1).length; if (ntl) stunts.tilt = ntl;
+      if (lay.gel && lay.gel.serp && lay.gel.serp.length) stunts.serp = lay.gel.serp.length;
+      delete stunts.cliff;
+    }
+    const stuntTxt = Object.entries(stunts).map(([t, n]) => `<span title="${t === 'bridge' && m.d3 ? 'Überführung' : ICON_NAME[t] || (PIECES[t] ? PIECES[t].name : t)}">${ICON[t]}${n > 1 ? '×' + n : ''}</span>`).join(' ');
     const bests = this.bestsHtml(m.key);
     const today = daySeed();
-    const isDay = m.seed === today && m.diff === 2 && !m.imported && !m.sam && !!m.d3 === !S.flat;
+    const isDay = m.seed === today && m.diff === 2 && !m.imported && !m.sam && (m.gel ? 'gel' : m.d3 ? '3d' : 'flat') === S.trackMode;
     const km = (env.ideal.total / 1000).toFixed(2);
     const metaLine = m.sam
       ? `⭐ Sammlung · ${SAM_DIFF[m.sam.d][0]} ${SAM_DIFF[m.sam.d][1]}${m.diffName ? ' · ' + m.diffName : ''} · ${(m.sam.m / 1000).toFixed(2).replace('.', ',')} km`
       : m.imported
       ? `📂 Importiert${m.diffName ? ' · ' + m.diffName : ''} · ${km} km${m.closed === false ? ' · offen' : ''}`
-      : `Code <b>${m.key}</b> · ${m.diffName || ''} · ${km} km${m.d3 ? ` · 3D, ${m.levels} ${m.levels === 1 ? 'Ebene' : 'Ebenen'} hoch` : ''}`;
+      : `Code <b>${m.key}</b> · ${m.diffName || ''} · ${km} km${m.d3 ? ` · 3D, ${m.levels} ${m.levels === 1 ? 'Ebene' : 'Ebenen'} hoch` : ''}${m.gel ? ` · <span title="Gelände-Strecke: Höhenunterschied der Fahrbahn">⛰️ ${Math.round(hDiff(env))} m</span>` : ''}`;
     const stuntsHtml = m.imported ? stuntSummary(lay.pieces) : stuntTxt;
     const apLine = m.apTime ? `<div class="tmeta">🤖 Autopilot-Referenz ${fmtTime(m.apTime)}${m.fixes ? ' · ' + m.fixes + '× entschärft' : ''}</div>`
       : m.apFail ? `<div class="tmeta">🤖 Probefahrt ohne Hilfen: ${m.apFail} – Fahrhilfe Leicht hilft</div>` : '';
@@ -194,7 +211,7 @@ export class UI {
         <div class="seg" data-g="assist">${Object.entries(ASSISTS).map(([k, A]) => `<button data-a="assist" data-v="${k}" class="${S.assist === k ? 'on' : ''}">${A.icon} ${A.name}</button>`).join('')}</div>
         <div class="hint">${this.assistHint(S.assist)}</div>
         <div class="lbl">Neue Strecke</div>
-        <div class="segrow"><div class="seg" data-g="diff">${[1, 2, 3].map((d) => `<button data-a="diff" data-v="${d}" class="${(S.diff || 2) === d ? 'on' : ''}">${DIFFS[d].name}</button>`).join('')}</div><button class="flat${S.flat ? '' : ' on'}" data-a="flat" data-v="${S.flat ? 0 : 1}" aria-pressed="${S.flat ? 'false' : 'true'}" title="${S.flat ? 'Flache Strecken wie bisher – tippen für 3D (Ebenen, Brücken, Spiralen, Klippensprünge)' : '3D-Strecken: Ebenen, Brücken, Spiralen, Klippensprünge – tippen für flache Strecken wie bisher'}">${S.flat ? '▭ flach' : '🏗️ 3D'}</button></div>
+        <div class="segrow"><div class="seg" data-g="diff">${[1, 2, 3].map((d) => `<button data-a="diff" data-v="${d}" class="${(S.diff || 2) === d ? 'on' : ''}">${DIFFS[d].name}</button>`).join('')}</div><div class="seg mode" data-g="mode">${MODES.map(([k, ic, nm, tt]) => `<button data-a="mode" data-v="${k}" class="${S.trackMode === k ? 'on' : ''}" aria-pressed="${S.trackMode === k}" aria-label="${nm}" title="${nm}: ${tt}">${ic}</button>`).join('')}</div></div>
         <div class="row">
           <button data-a="random">🎲 Zufall</button>
           <button data-a="today">📅 Tages-Strecke</button>
@@ -209,7 +226,7 @@ export class UI {
       </div>`;
     this.show('menu');
     const tmap = document.querySelector('#menu canvas.tmap');
-    if (tmap) drawLayoutMap(tmap, env.layout);
+    if (tmap) drawLayoutMap(tmap, env.layout, env.track);
     this.wipe(false);
     this.setTouchMode(false);
     $('#hud').classList.remove('show');
@@ -235,11 +252,13 @@ export class UI {
       case 'diff': S.diff = +v; this.store.save(); this.refresh(); break;
       case 'random': A.newTrack((Math.random() * 90000 + 1000) | 0, S.diff || 2); break;
       case 'today': A.newTrack(daySeed(), 2); break;
-      case 'flat': S.flat = v === '1'; this.store.save(); this.refresh(); break;
+      case 'flat': S.trackMode = v === '1' ? 'flat' : 'gel'; this.store.save(); this.refresh(); break;
+      case 'mode': { S.trackMode = v; this.store.save(); this.refresh(); const md = MODES.find((q) => q[0] === v); if (md) this.toast(`${md[1]} ${md[2]}: ${md[3]}`, 2800); break; }
       case 'code': {
-        // „4711-2“ = die bisherige (flache) Strecke wie immer, „4711-2-3d“ = 3D (n19); ohne Stufe die gewählte
-        const c = prompt('Strecken-Code (z. B. 4711-2 oder 4711-2-3d):', this.env && !this.env.meta.imported ? this.env.meta.key : '');
-        if (c) { const m = /^\s*(\d+)(?:\s*-\s*([123]))?(?:\s*-?\s*(3d))?\s*$/i.exec(c); if (m) A.newTrack(+m[1], +(m[2] || S.diff || 2), !!m[3]); else this.toast('Ungültiger Code'); }
+        // „4711-2“ = die bisherige (flache) Strecke wie immer, „4711-2-3d“ = Hochstraße (n19), „4711-2-g“ = Gelände (n22);
+        // ohne Stufe die gewählte
+        const c = prompt('Strecken-Code (z. B. 4711-2-g, 4711-2-3d oder 4711-2):', this.env && !this.env.meta.imported ? this.env.meta.key : '');
+        if (c) { const m = /^\s*(\d+)(?:\s*-\s*([123]))?(?:\s*-?\s*(3d|g))?\s*$/i.exec(c); if (m) A.newTrack(+m[1], +(m[2] || S.diff || 2), m[3] ? (m[3].toLowerCase() === 'g' ? 'gel' : '3d') : 'flat'); else this.toast('Ungültiger Code'); }
         break;
       }
       case 'settings': this.showSettings(); break;

@@ -152,15 +152,21 @@ function patchRoad(mat) {
   addPatch(mat, fn);
 }
 
+// Gelände nach Neigung (n22): an; URL ?gelfarbe=0 = Gras überall wie bis n21 (Vergleich)
+export const rockUniform = { value: globalThis.location && new URLSearchParams(globalThis.location.search).get('gelfarbe') === '0' ? 0 : 1 };
 function patchGrass(mat) {
   // zweite Abtastung in anderem Maßstab + Farbvariation gegen sichtbare Kacheln
   const fn = (sh) => {
+    sh.uniforms.sbRock = rockUniform;
     sh.vertexShader = sh.vertexShader
-      .replace('#include <common>', '#include <common>\nvarying vec2 vGw;')
-      .replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvGw = ( modelMatrix * vec4( transformed, 1.0 ) ).xz;');
+      .replace('#include <common>', '#include <common>\nvarying vec2 vGw;\nvarying vec3 vGn;\nvarying float vGy;')
+      .replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvGw = ( modelMatrix * vec4( transformed, 1.0 ) ).xz;\nvGy = ( modelMatrix * vec4( transformed, 1.0 ) ).y;\nvGn = normalize( mat3( modelMatrix ) * objectNormal );');
     sh.fragmentShader = sh.fragmentShader
       .replace('#include <common>', `#include <common>
       varying vec2 vGw;
+      varying vec3 vGn;
+      varying float vGy;
+      uniform float sbRock;
       float gHash( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) * 43758.5453 ); }
       float gNoise( vec2 p ) { vec2 i = floor( p ), f = fract( p ); f = f * f * ( 3.0 - 2.0 * f );
         return mix( mix( gHash( i ), gHash( i + vec2( 1, 0 ) ), f.x ), mix( gHash( i + vec2( 0, 1 ) ), gHash( i + vec2( 1, 1 ) ), f.x ), f.y ); }`)
@@ -195,6 +201,22 @@ function patchGrass(mat) {
           float hedge = ( 1.0 - smoothstep( 1.5, 4.5, edge ) ) * step( 0.35, gHash( cid + 7.0 ) );
           crop = mix( crop, vec3( 0.03, 0.065, 0.02 ) * detail, hedge );
           diffuseColor.rgb = mix( diffuseColor.rgb, crop, fk );
+        }
+        // Gelände nach Neigung (n22, Gelände-Strecken: „nicht wie grüne Knetmasse“): flach Gras, ab ~22° Erde/Schotter
+        // (Böschungen), ab ~35° Fels mit Schichten; flache Wiesen bleiben unverändert (alte Strecken haben kaum so steile Hänge)
+        if ( sbRock > 0.5 ) {
+          float ny = normalize( vGn ).y;
+          float dirt = smoothstep( 0.93, 0.86, ny ), rock = smoothstep( 0.83, 0.72, ny );
+          if ( dirt > 0.0 ) {
+            float gn = gNoise( vGw * 0.35 ) * 0.5 + gNoise( vGw * 1.7 ) * 0.5;
+            vec3 dcol = mix( vec3( 0.055, 0.038, 0.022 ), vec3( 0.11, 0.08, 0.05 ), gn ) * clamp( lum * 4.0, 0.6, 1.3 );
+            vec2 pr = abs( vGn.x ) > abs( vGn.z ) ? vec2( vGw.y, vGy ) : vec2( vGw.x, vGy );
+            float st = 0.5 + 0.5 * sin( vGy * 1.9 + gNoise( pr * 0.12 ) * 5.0 );
+            float rn = gNoise( pr * 0.45 ) * 0.6 + gNoise( pr * 2.1 ) * 0.4;
+            vec3 rcol = mix( vec3( 0.06, 0.055, 0.05 ), vec3( 0.16, 0.145, 0.125 ), rn ) * ( 0.75 + 0.4 * st );
+            diffuseColor.rgb = mix( diffuseColor.rgb, dcol, dirt * 0.85 );
+            diffuseColor.rgb = mix( diffuseColor.rgb, rcol, rock );
+          }
         }
         if ( rr > ${(820 * WORLD_SCALE).toFixed(1)} ) {   // nur in der Ferne rechnen (nahe der Strecke kostet es nichts)
           float fo = smoothstep( ${(820 * WORLD_SCALE).toFixed(1)}, ${(1150 * WORLD_SCALE).toFixed(1)}, rr ) * smoothstep( 0.42, 0.6, gNoise( vGw * 0.0035 ) * 0.75 + gNoise( vGw * 0.02 ) * 0.25 );

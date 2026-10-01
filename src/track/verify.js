@@ -75,7 +75,7 @@ export function verifySync(layout, maxFix = 6) {
     const lim = Math.max(60, env.track.line.total / 8);
     const ev = evaluate(env, runLapSync(env, lim));
     if (ev.ok) return { env, layout, apTime: ev.time, fixes, ok: true };
-    if (!defuse(layout, ev.piece)) return { env, layout, apTime: null, fixes, ok: false, reason: ev.reason };
+    if (maxFix === 0 || !defuse(layout, ev.piece)) return { env, layout, apTime: null, fixes, ok: false, reason: ev.reason, piece: ev.piece };
     fixes++;
   }
   return { env, layout, apTime: null, fixes, ok: false };

@@ -247,7 +247,8 @@ function buildCliff(pb) {
   const L = PIECES[pc.type].cells.length * T, J = JUMP.lipF;   // Anlauf-Bogen der Standard-Schanze (bis n19 JUMP_T = 20 m)
   const a0 = Math.max(2, (L - C.len) / 2);         // Anfahrt auf der oberen Ebene (Rest hinten: längerer Auslauf)
   const s = [];
-  const up = (y) => y + pb.lvl * pb.LH > 1.2;
+  // Gelände-Strecken (n22): Plateau-Abfahrt – oben und unten liegt Gelände, keine Hochstraße, Landehang als Straße
+  const up = (y) => !pb.gel && y + pb.lvl * pb.LH > 1.2;
   for (const f of lin(0, a0, Math.max(2, Math.round(a0 / 2))).slice(0, -1)) s.push({ f, y: 0, r: 0, surf: 1, prof: up(0) ? 'deck3' : 'road' });
   for (const f of lin(0, J, 40)) { const k = kickerY(f); s.push({ f: a0 + f, y: k.y, r: 0, surf: 1, prof: 'ramp', ...(f < 2 ? {} : { lo: -0.15, hi: 0.15 }) }); }
   const lip = kickerY(J), fl = a0 + J;
@@ -256,15 +257,15 @@ function buildCliff(pb) {
     s.push({ f: fl + x, y: Math.max(C.hill(C.xk), pathAt(P, x).y), r: 0, surf: 0, air: 1, lo: 0, hi: 0 });
   }
   for (const x of lin(C.xk, C.xe, Math.max(12, Math.round((C.xe - C.xk) / 1.2)))) {
-    s.push({ f: fl + x, y: C.hill(x), r: 0, surf: 1, prof: 'ramp', ...(x - C.xk < C.xe - C.xk - 4 ? { lo: -0.6, hi: 0.6 } : {}) });
+    s.push({ f: fl + x, y: C.hill(x), r: 0, surf: 1, prof: pb.gel ? 'road' : 'ramp', ...(x - C.xk < C.xe - C.xk - 4 ? { lo: -0.6, hi: 0.6 } : {}) });
   }
-  const f3 = fl + C.xe, low = (pb.lvl - D / pb.LH) * pb.LH > 1.2;
+  const f3 = fl + C.xe, low = !pb.gel && (pb.lvl - D / pb.LH) * pb.LH > 1.2;
   for (const f of lin(f3, L, Math.max(4, Math.round((L - f3) / 2))).slice(1)) s.push({ f, y: -D, r: 0, surf: 1, prof: low ? 'deck3' : 'road' });
   pb.path(s, { profile: 'ramp', kind: 'cliff' });
   if (up(0)) supportAlong(pb, s.filter((q) => q.f < a0 + 1), { step: 12 });
   if (low) supportAlong(pb, s.filter((q) => q.f > f3 - 1), { step: 13, first: 4 });
   // Wasser in der Lücke, wenn unten Boden ist (wie bei der Schanze); sonst stürzt man ins Gelände (Reset)
-  if (pb.lvl * pb.LH - D < 0.5) pb.pit(fl - 1, fl + C.xk + 1, HW + 3);
+  if (pb.lvl * pb.LH - D < 0.5 && !pb.gel) pb.pit(fl - 1, fl + C.xk + 1, HW + 3);
   pb.jumpInfo({ lipF: fl, lipY: lip.y, lipDeg: JUMP.lipDeg, landF: fl + C.xk, win: C.win, cliff: D });
 }
 

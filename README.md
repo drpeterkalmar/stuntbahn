@@ -68,6 +68,21 @@ spielbar am Handy (quer oder hochkant), mit Gamepad oder Tastatur. Als App insta
   Abstand zu jeder Fahrbahn (auch Hochstraßen/Rampen), nie im Wasser. Dosiert nach Grafikstufe; ruckelt es, blendet die
   Automatik (nach der Unschärfe) zuerst Gras/Büsche/Wolkenschatten aus. `?deko=0` / `?wolken=0` zum Vergleich.
 
+## ⛰️ Gelände-Strecken (seit 01.10.2026, n22) – Standard für neue Strecken
+- Peter: „3D-Gelände wie bei Trackmania“. **Die Strecke fährt durch eine Landschaft** aus Hügeln, Tälern, Plateaus und
+  Hängen (Höhenunterschied der Fahrbahn ~10–60 m, Landschaft 60/90/120 m je Stufe): Bergauf- und Talfahrten (Steigung
+  höchstens 13/18/23 %), **Serpentine** (Kehren den Hang hinauf), **Kuppe mit kurzer Luftphase**, **Hang-Querfahrt**
+  (Fahrbahn 8–12° seitlich geneigt), **Steilkurve in der Mulde**, **Schluchtsprung** (Schanze auf der Kante, Fluss mit
+  Schiffen ~22 m tiefer), **Tunnel durch den Hügel** (Portal, Hügel darüber), **Brücke** über ein Tal (nur dort Pfeiler),
+  Plateau-Abfahrt (Drop) und Halfpipe; Looping, Röhre, Korkenzieher stehen auf Gelände-Sockeln.
+- Neben der Straße liegt das Gelände genau auf Fahrbahnhöhe, dahinter Böschungen (Damm/Einschnitt) bis zur Landschaft;
+  Leitplanken, wo es hinuntergeht. Fels an steilen Hängen, Erde an Böschungen (Shader nach Neigung, `?gelfarbe=0` aus).
+- **Code mit Zusatz „-g“** (z. B. `4711-3-g`), URL `?seed=4711&d=3&g=1`. Menü: Schalter **▭ flach / 🏗️ Hochstraße / ⛰️ Gelände**
+  neben der Schwierigkeit. Alte Codes (`4711-3`, `4711-3-3d`) bleiben bitgleich.
+- Streckenkarte im Menü mit Höhenschattierung. Verfolgerkamera wird auch vom Hang nie verdeckt.
+- Details, Messwerte, Fotos: `GELAENDE_BERICHT.md`. Technik: `src/track/gelaende.js` (Landschaft, Höhenverlauf, Gelände),
+  `src/track/generatorG.js`, `src/track/pieces_gel.js`.
+
 ## 🏗️ 3D-Strecken (seit 30.09.2026, n19)
 - **Neue Zufallsstrecken und die Strecke des Tages sind 3D:** mehrere Ebenen übereinander (Sanft bis 2, Sportlich bis 3,
   Irre bis 4 Ebenen à 6 m), meist eine **Acht**, die sich über eine **Brücke** selbst kreuzt, dazu **Spiralen** hinauf und

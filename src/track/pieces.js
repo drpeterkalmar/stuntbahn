@@ -173,6 +173,7 @@ export const PIECES = {
   straight: {
     name: 'Gerade', cells: [[0, 0]], next: [1, 0], turn: 0, dl: 0,
     build(pb) {
+      if (pb.gx && HOOK.gelStraight && HOOK.gelStraight(pb)) return;   // Gelände (n22): Tunnel / Brücke über ein Tal
       if (pb.lvl > 0 && HOOK.deckPiers) { pb.path(straightSamples(T), { profile: 'deck3' }); HOOK.deckPiers(pb); return; }
       pb.path(straightSamples(T), { profile: pb.lvl > 0 ? 'deck' : 'road' });
       if (pb.lvl > 0) deckPillars(pb);
@@ -189,7 +190,7 @@ export const PIECES = {
   checkpoint: {
     name: 'Checkpoint', cells: [[0, 0]], next: [1, 0], turn: 0, dl: 0,
     build(pb) {
-      const d3 = pb.lvl > 0 && HOOK.deckPiers;
+      const d3 = (pb.lvl > 0 || !!(pb.gx && pb.gx.bridge)) && HOOK.deckPiers;   // n22: auch auf einer Geländebrücke
       pb.path(straightSamples(T), { profile: d3 ? 'deck3' : pb.lvl > 0 ? 'deck' : 'road', mark: 'cp', markAt: 10 });
       pb.checkpoint(10);
       pb.gate('cp', 10);
@@ -200,14 +201,14 @@ export const PIECES = {
   turnS: {
     name: 'Kurve eng', cells: [[0, 0]], next: [0, 1], turn: 1, dl: 0,
     build(pb) {
-      if (pb.lvl > 0 && HOOK.deckTurn) return HOOK.deckTurn(pb, T / 2);
+      if ((pb.lvl > 0 || (pb.gx && pb.gx.bridge)) && HOOK.deckTurn) return HOOK.deckTurn(pb, T / 2);
       pb.path(arcSamples(T / 2, pb.m, 0.8), { profile: 'road', kerbIn: true, kerbOut: true, turn: pb.m });
     },
   },
   turnL: {
     name: 'Kurve weit', cells: [[0, 0], [1, 0], [0, 1], [1, 1]], next: [1, 2], turn: 1, dl: 0,
     build(pb) {
-      if (pb.lvl > 0 && HOOK.deckTurn) return HOOK.deckTurn(pb, 1.5 * T);
+      if ((pb.lvl > 0 || (pb.gx && pb.gx.bridge)) && HOOK.deckTurn) return HOOK.deckTurn(pb, 1.5 * T);
       pb.path(arcSamples(1.5 * T, pb.m, 1.2), { profile: 'road', kerbIn: true, kerbOut: true, turn: pb.m });
     },
   },
@@ -218,10 +219,12 @@ export const PIECES = {
       const s = arcSamples(1.5 * T, pb.m, 1.0).map((p) => {
         const u = p.th / (PI / 2);
         const b = maxB * smootherstep(u / 0.3) * smootherstep((1 - u) / 0.3);
-        // Innenkante bleibt am Boden: Mittellinie um hw*sin(b) angehoben
-        return { ...p, y: hw * Math.sin(b), bank: -pb.m * b, hw };
+        // Innenkante bleibt am Boden: Mittellinie um hw*sin(b) angehoben. Gelände (n22): Drehung um die Mittellinie –
+        // die Innenkante taucht in die Mulde, die Mittellinie bleibt im Höhenverlauf (sonst Kuppe am Kurveneingang)
+        return { ...p, y: pb.gel ? 0 : hw * Math.sin(b), bank: -pb.m * b, hw };
       });
-      pb.path(s, { profile: 'banked', turn: pb.m, hw });
+      // Gelände (n22): Steilkurve in einer Mulde – außen Randstein und Platte, das Gelände steigt dahinter weiter an
+      pb.path(s, { profile: pb.gel ? 'bankedG' : 'banked', turn: pb.m, hw });
     },
   },
   chicane: {
@@ -295,8 +298,12 @@ export const PIECES = {
       if (3 * T - f3 > 0.5) for (const q of straightSamples(3 * T - f3).slice(1)) s.push({ ...q, f: f3 + q.f, surf: 1, prof: 'road' });
       pb.path(s, { profile: 'ramp', kind: 'jump' });
       // Lücke: Hindernisse je Strecke und Stelle per Zufall (obstacles.js; ohne → Wassergraben wie bis n19)
-      const kind = J.obstacles && HOOK.gapObstacles ? HOOK.gapObstacles(pb, { f0: a0 + J.lipF, f1: a0 + J.landF, ceil: (f) => win.ceil[Math.max(0, Math.min(win.ceil.length - 1, Math.round(f - a0 - J.lipF)))], lipY: lip.y, landH: J.landH }) : null;
-      if (!kind) pb.pit(a0 + J.lipF - 1, a0 + J.landF + 1, ROAD_HW + 3);
+      const ceil = (f) => win.ceil[Math.max(0, Math.min(win.ceil.length - 1, Math.round(f - a0 - J.lipF)))];
+      // Gelände (n22): Schluchtsprung – unter der Lücke eine tiefe Schlucht mit Fluss und Schiffen (gelaende.js)
+      const gorge = pb.gel && pb.pc.g === 'gorge';
+      if (gorge) pb.gorge(a0 + J.lipF, a0 + J.landF);
+      const kind = J.obstacles && HOOK.gapObstacles ? HOOK.gapObstacles(pb, { f0: a0 + J.lipF, f1: a0 + J.landF, ceil, lipY: lip.y, landH: J.landH, ...(gorge ? { kind: 'fluss', floorY: HOOK.gorgeWater } : {}) }) : null;
+      if (!kind && !gorge) pb.pit(a0 + J.lipF - 1, a0 + J.landF + 1, ROAD_HW + 3);
       pb.jumpInfo({ lipF: a0 + J.lipF, lipY: lip.y, lipDeg: J.lipDeg, landF: a0 + J.landF, landLen: J.landLen, obstacle: kind, ...(J !== JUMP ? { win, short: true } : {}) });
     },
   },

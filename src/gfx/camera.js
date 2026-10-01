@@ -294,6 +294,8 @@ export class CameraRig {
       const len = t.length(); t.divideScalar(len);
       const hit = world.rayTrack(o.x, o.y, o.z, t.x, t.y, t.z, len, false);
       if (hit) free = Math.min(free, hit.t / len * L - CAM_GAP);
+      // Gelände-Strecken (n22): auch der Hang darf die Sicht nicht verdecken (Einschnitt, Kuppe hinter dem Auto)
+      if (world.terrain.gel) { const th = world.rayTerrain(o.x, o.y, o.z, t.x, t.y, t.z, len, this._otr || (this._otr = {})); if (th) free = Math.min(free, th.t / len * L - CAM_GAP); }
     }
     free = Math.max(0.8, free);
     if (this.camFree == null || !this.hasCp) this.camFree = free;

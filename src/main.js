@@ -146,9 +146,9 @@ async function boot() {
   if (params.has('demo')) await loadTrack(demoLayout(), { name: 'Teststrecke' });
   else if (params.has('gallery')) await loadTrack(galleryLayout());
   else if (params.has('trk')) await loadImported(params.get('trk')).catch((e) => { console.warn(e); return loadGenerated(daySeed(), 2); });
-  // ?seed=…&d=… wie bisher flach (alte Codes, Tests); &3d=1 = 3D. Ohne Seed: Strecke des Tages, ab n19 in 3D
-  // (Schalter „flach“ im Menü = die bisherigen Strecken)
-  else await loadGenerated(q ? +q : daySeed(), +(params.get('d') || 2), q ? params.get('3d') === '1' : !store.settings.flat);
+  // ?seed=…&d=… wie bisher flach (alte Codes, Tests); &3d=1 = Hochstraße (n19), &g=1 = Gelände (n22). Ohne Seed: Strecke
+  // des Tages in der gewählten Streckenart (ab n22 Standard „Gelände“; Schalter im Menü)
+  else await loadGenerated(q ? +q : daySeed(), +(params.get('d') || 2), q ? (params.get('g') === '1' ? 'gel' : params.get('3d') === '1' ? '3d' : 'flat') : store.settings.trackMode);
   ui.loading(1, 'Fertig');
   app.ready = true;
   ui.bind({ startRace, newTrack, setAssist, toMenu, retry, startReplay, cycleCam, rewind: () => race && race.requestRewind(), pause: togglePause,
@@ -163,20 +163,24 @@ async function boot() {
 // Generierte Strecke: aus Cache (bereits geprüft) oder Autopilot-Prüfung mit Fortschrittsanzeige.
 // 3D (n19): scheitert der Autopilot auch nach dem Entschärfen, nimmt der Generator die nächste Variante desselben
 // Codes (deterministisch – alle bekommen dieselbe Strecke), höchstens 4.
-async function loadGenerated(seed, diff, d3 = false) {
-  let lay = generate(seed, diff, d3 ? { d3: true } : {});
+// Streckenart: 'flat' | '3d' (Hochstraße, n19) | 'gel' (Gelände, n22); true/false wie bis n21 (3D/flach)
+const modeOf = (m) => (m === true ? '3d' : m === false ? 'flat' : m === '3d' || m === 'gel' || m === 'flat' ? m : store.settings.trackMode || 'gel');
+async function loadGenerated(seed, diff, mode = 'flat') {
+  mode = modeOf(mode);
+  const gopt = (variant) => (mode === '3d' ? { d3: true, variant } : mode === 'gel' ? { gel: true, variant } : {});
+  let lay = generate(seed, diff, gopt(0));
   const key = lay.meta.key;
   const cached = store.getVerified(key + WORLD_TAG, VBUILD);
   if (cached) {
-    if (cached.variant) lay = generate(seed, diff, { d3: true, variant: cached.variant });
+    if (cached.variant) lay = generate(seed, diff, gopt(cached.variant));
     lay.pieces = cached.pieces;
     return loadTrack(lay, { apTime: cached.ap, fixes: cached.fixes });
   }
   for (let variant = 0; ; variant++) {
-    if (variant) lay = generate(seed, diff, { d3: true, variant });
+    if (variant) lay = generate(seed, diff, gopt(variant));
     ui.loading(0.82, 'Autopilot prüft die Strecke …');
     const res = await verify(lay, (p, f) => ui.loading(0.82 + 0.16 * p, `Autopilot prüft die Strecke … ${Math.round(p * 100)} %${f ? ' (entschärft: ' + f + ')' : ''}`));
-    if (res.ok || !d3 || variant >= 3) {
+    if (res.ok || mode === 'flat' || variant >= 3) {
       store.setVerified(key + WORLD_TAG, VBUILD, res.layout.pieces, res.apTime, res.fixes, variant);
       return loadTrack(res.layout, { apTime: res.apTime, fixes: res.fixes }, res.env);
     }
@@ -342,10 +346,10 @@ function startRace(opts = {}) {
   prevPose = null;
 }
 function retry() { startRace(); }
-async function newTrack(seed, diff, d3 = !store.settings.flat) {
+async function newTrack(seed, diff, mode) {
   ui.loading(0.5, 'Strecke bauen …');
   await new Promise((r) => setTimeout(r, 30));
-  await loadGenerated(seed, diff, d3);
+  await loadGenerated(seed, diff, modeOf(mode));
   ui.loading(1);
   ui.showMenu(env);
   mode = 'menu';
@@ -581,7 +585,7 @@ window.__game = {
       charges: race && { ...race.charges }, used: race && { ...race.used }, x: race && race.xstate(), onGround: c && c.onGround, extras: race && race.extrasOn };
   },
   start: (o) => startRace(o || {}),
-  newTrack: (s, d, d3) => newTrack(s, d, d3),
+  newTrack: (s, d, mode) => newTrack(s, d, mode),
   setAssist,
   setLine,
   toggleLine,

@@ -38,6 +38,9 @@ export class Store {
     this.timesMig = d.timesMig;
     this.reset = d.reset || 0;
     if (this.reset < RESET_MARK) { this.clearBests(); this.reset = RESET_MARK; this.save(); }
+    // Streckenart (n22): flach / Hochstraße (n19, „3D“) / Gelände (Standard ab n22). Bisher nur der Schalter „flach“:
+    // wer flach gewählt hatte, behält flach; alle anderen bekommen das neue Gelände
+    if (!this.settings.trackMode) this.settings.trackMode = this.settings.flat ? 'flat' : 'gel';
     try { this.verified = JSON.parse(localStorage.getItem(KEY + '.verified') || '{}'); } catch { this.verified = {}; }
   }
   // Einmalig (n21): alle Bestzeiten und Geisterautos löschen – auch die der alten Physik/Welt/Mittel-Listen und die

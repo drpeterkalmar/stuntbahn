@@ -10,8 +10,10 @@ import { PROFILES_3D } from './pieces_3d.js';
 import { buildTrkTerrain, carveUnderRoads } from './trkterrain.js';
 import { buildScenery } from './scenery.js';
 import { adaptiveGrid, gridExt, FINE_DT } from './terrgrid.js';
-import { clamp, smoothstep, makeNoise2, rng } from '../core/util.js';
+import { clamp, smoothstep, smootherstep, makeNoise2, rng } from '../core/util.js';
 import { GRIP_ALT } from '../physics/car.js';
+import { makeLandscape, planElevation, buildGelTerrain, ENV } from './gelaende.js';
+import { PROFILES_GEL } from './pieces_gel.js';   // Gelände-Teile (n22): Halfpipe, Tunnel, Geländebrücke
 
 const WS = WORLD_SCALE;
 // Chunk-Kante wächst mit dem Maßstab: gleich viele Draw-Calls wie im alten Raster (bis 27.09.2026: 100 m)
@@ -187,7 +189,7 @@ const PROFILES = {
   },
 };
 
-Object.assign(PROFILES, PROFILES_3D);   // Querschnitte der 3D-Teile (pieces_3d.js)
+Object.assign(PROFILES, PROFILES_3D, PROFILES_GEL);   // Querschnitte der 3D-Teile (pieces_3d.js) und Gelände-Teile (n22)
 
 // Fahrbahnen unter einem Punkt (3D-Strecken, n19): Pfeiler einer Hochstraße dürfen nicht auf einer tieferen Fahrbahn
 // stehen. Belegung je Feld aus dem Layout; gerade Stücke als Streifen entlang ihrer Achse (Kreuzungen sind immer
@@ -228,6 +230,14 @@ function belowIndex(layout, LH) {
 // ---------- Hauptfunktion ----------
 export function buildTrack(layout, opt = {}) {
   const LH = layout.levelH ?? LEVEL_H;
+  // Gelände-Strecken (n22, gelaende.js): erst flach bauen (Fahrlinie), daraus den Höhenverlauf je Stück planen, dann
+  // ein zweites Mal bauen – jedes Stück um seinen Verlauf D(f) angehoben (Sockel-Stücke um einen festen Wert)
+  let gel = null;
+  if (layout.gel && !opt._flat) {
+    const land = makeLandscape(layout.seed || 1, layout.diff || 2);
+    const p1 = buildTrack(layout, { ...opt, _flat: true });
+    gel = { land, plan: planElevation(layout, p1.line, p1._line, p1.pieces, land, layout.diff || 2) };
+  }
   // Importierte Strecke: Gelände steht vorher fest (Pfeiler/Dämme reichen bis zum Boden)
   let trkTerr = null;
   if (layout.trk) {
@@ -275,7 +285,20 @@ export function buildTrack(layout, opt = {}) {
     // abgesenkte Deko-Spur (Kreuzung/Abzweig unter der befahrenen Spur) gegen Z-Fighting
     const base = lvl * LH + ROAD_Y - (pc.sub ? 0.025 : 0);
     const surfMat = pc.surf ? SURF_MAT[pc.surf] : null;
-    const W = (f, y, r) => [E[0] + F[0] * f + R[0] * r, y + base, E[2] + F[2] * f + R[2] * r];
+    // Gelände (n22): Höhenverlauf dieses Stücks – Sockel (fest) oder Tabelle D(f) über die Mittellinie (Kurven: f aus
+    // dem Winkel um den Kurvenmittelpunkt); waagrecht bleibt alles, wie es ist
+    const gx = gel && !decor ? gel.plan.pieces[pidx] : null;
+    let Dat = null;
+    if (gx) {
+      const tab = (f) => { const fs = gx.fs, us = gx.us, nn = fs.length; if (f <= fs[0]) return us[0]; if (f >= fs[nn - 1]) return us[nn - 1]; let a = 0, b = nn - 1; while (b - a > 1) { const mm = (a + b) >> 1; if (fs[mm] <= f) a = mm; else b = mm; } return us[a] + (us[b] - us[a]) * (f - fs[a]) / (fs[b] - fs[a]); };
+      if (gx.rigid) { const c = gx.c; Dat = () => c; }
+      else if (gx.turnR) { const Rt = gx.turnR, mt = gx.m; Dat = (f, r) => tab(Rt * Math.sin(clamp(Math.atan2(f, Rt - mt * r), 0, Math.PI / 2))); }
+      else Dat = (f) => tab(f);
+    }
+    const W = Dat ? (f, y, r) => [E[0] + F[0] * f + R[0] * r, y + base + Dat(f, r), E[2] + F[2] * f + R[2] * r] : (f, y, r) => [E[0] + F[0] * f + R[0] * r, y + base, E[2] + F[2] * f + R[2] * r];
+    // Boden unter einem Weltpunkt relativ zum (unangehobenen) Stück: Gelände-Strecken messen gegen die Landschaft
+    const gAt = Dat ? (x, z) => { const dx = x - E[0], dz = z - E[2]; return gel.land.h(x, z) - Dat(dx * F[0] + dz * F[2], dx * R[0] + dz * R[2]); } : groundAt;
+    const tiltAt = Dat && pc.tilt0 != null ? (f) => pc.tilt0 + (pc.tilt1 - pc.tilt0) * smootherstep(f / TILE) : null;
     const Wv = (v) => [F[0] * v[0] + R[0] * v[2], v[1], F[2] * v[0] + R[2] * v[2]];
     const nd = (d + (P.turn ? (m > 0 ? 1 : 3) : 0)) % 4;
     const exitDir = [DIRS[nd][0], 0, DIRS[nd][1]];
@@ -319,10 +342,10 @@ export function buildTrack(layout, opt = {}) {
       const S = samples.map((s) => {
         const p = W(s.f, s.y, s.r);
         return {
-          p, up: s.up ? norm(Wv(s.up)) : [0, 1, 0], bank: s.bank || 0, hw: s.hw ?? o.hw ?? ROAD_HW,
+          p, up: s.up ? norm(Wv(s.up)) : [0, 1, 0], bank: (s.bank || 0) + (tiltAt ? tiltAt(s.f) : 0), hw: s.hw ?? o.hw ?? ROAD_HW,
           surf: s.surf ?? 1, air: s.air || 0, loop: s.loop || 0, tube: s.tube || 0, wave: s.wave || 0, f: s.f,
-          hg: s.y + lvl * LH - (trkTerr ? groundAt(p[0], p[2]) : 0), prof: s.prof || (o.profile === 'loop' ? (s.loop ? 'loopLane' : 'road') : o.profile === 'tube' ? (s.tube ? 'tube' : 'road') : o.profile),
-          lo: s.lo, hi: s.hi, bankH: s.bankH,
+          hg: s.y + lvl * LH - (trkTerr || Dat ? gAt(p[0], p[2]) : 0), prof: s.prof || (o.profile === 'loop' ? (s.loop ? 'loopLane' : 'road') : o.profile === 'tube' ? (s.tube ? 'tube' : 'road') : o.profile),
+          lo: s.lo, hi: s.hi, bankH: s.bankH, ex: s.ex,
         };
       });
       // Randtangenten exakt waagrecht in Ein-/Ausfahrtsrichtung (glatte Übergänge) – außer das Stück
@@ -441,7 +464,7 @@ export function buildTrack(layout, opt = {}) {
     };
 
     const addRibbon = (samples, o) => {
-      const S = samples.map((s) => { const p = W(s.f, s.y, s.r); return { p, up: [0, 1, 0], bank: 0, hw: s.hw ?? ROAD_HW, surf: 1, f: s.f, hg: s.y + lvl * LH - (trkTerr ? groundAt(p[0], p[2]) : 0), prof: o.profile }; });
+      const S = samples.map((s) => { const p = W(s.f, s.y, s.r); return { p, up: [0, 1, 0], bank: 0, hw: s.hw ?? ROAD_HW, surf: 1, f: s.f, hg: s.y + lvl * LH - (trkTerr || Dat ? gAt(p[0], p[2]) : 0), prof: o.profile }; });
       for (let i = 0; i < S.length; i++) {
         const T = i === 0 ? norm(sub(S[1].p, S[0].p)) : i === S.length - 1 ? norm(sub(S[i].p, S[i - 1].p)) : norm(sub(S[i + 1].p, S[i - 1].p));
         S[i].T = T; S[i].N = [0, 1, 0]; S[i].B = cross(T, [0, 1, 0]);
@@ -471,8 +494,10 @@ export function buildTrack(layout, opt = {}) {
     const pb = {
       m, lvl, pc, LH, decor, T: TILE, base, F, R, E,
       W, Wv, wbox,
-      ground: (f, r) => { const q = W(f, 0, r); return groundAt(q[0], q[2]); },
-      below: (f, r, y) => { if (!belowAt) belowAt = belowIndex(layout, LH); const q = W(f, y, r); return belowAt(pidx, q[0], q[2], q[1]); },
+      // Gelände-Strecke (n22): gel = an, gx = Plan dieses Stücks (Brücke, Tunnel, Portale …), D(f) = Anhebung
+      gel: !!gel, gx, D: Dat,
+      ground: (f, r) => { const q = W(f, 0, r); return gAt(q[0], q[2]); },
+      below: gel ? null : (f, r, y) => { if (!belowAt) belowAt = belowIndex(layout, LH); const q = W(f, y, r); return belowAt(pidx, q[0], q[2], q[1]); },
       lastLine: () => line[line.length - 1],
       tri: (p0, p1, p2, mat, collide, col) => {
         const b = batch(chunk, mat);
@@ -507,8 +532,10 @@ export function buildTrack(layout, opt = {}) {
       },
       // Grube unter einer Lücke (Wasser 1,2 m unter dem Rand); o.depth/o.slope anders, o.water false = trockener Einschnitt
       pit: (f0, f1, hwid, o = {}) => {
-        shapes.push({ type: 'pit', E, F, R, f0, f1, hw: hwid, depth: o.depth ?? 3.8, slope: o.slope ?? 2.5, base: 0, water: o.water !== false });
+        shapes.push({ type: 'pit', E, F, R, f0, f1, hw: hwid, depth: o.depth ?? 3.8, slope: o.slope ?? 2.5, base: 0, water: o.water !== false, ...(Dat ? { dy: Dat((f0 + f1) / 2, 0) } : {}) });
       },
+      // Schlucht unter einer Sprunglücke (Gelände-Strecken, gelaende.js): Fluss in der Sohle
+      gorge: (f0, f1) => { if (Dat) shapes.push({ type: 'gorge', E, F, R, f0, f1, dy: Dat((f0 + f1) / 2, 0) }); },
       // nur Kollision (unsichtbar), Dreieck in Weltlage (Hindernisse in Sprunglücken, obstacles.js)
       colTri: (p0, p1, p2, mat) => { const nrm = norm(cross(sub(p1, p0), sub(p2, p0))); addColTri(p0, p1, p2, nrm, nrm, nrm, mat); },
       seed: layout.seed || 0,
@@ -517,9 +544,9 @@ export function buildTrack(layout, opt = {}) {
       mound: (f0, f1, hy, hwid, slope) => {
         const N = 40, arr = [];
         for (let k = 0; k <= N; k++) arr.push(hy(f0 + (f1 - f0) * k / N));
-        shapes.push({ type: 'mound', E, F, R, f0, f1, arr, hw: hwid, slope });
+        shapes.push({ type: 'mound', E, F, R, f0, f1, arr, hw: hwid, slope, ...(Dat ? { dy: Dat((f0 + f1) / 2, 0) } : {}) });
       },
-      river: (f0, f1) => { shapes.push({ type: 'pond', E, F, R, f0, f1, c: [(f0 + f1) / 2, 0], rx: (f1 - f0) * 0.45, rz: 30 * WS, depth: 3 }); },
+      river: (f0, f1) => { shapes.push({ type: 'pond', E, F, R, f0, f1, c: [(f0 + f1) / 2, 0], rx: (f1 - f0) * 0.45, rz: 30 * WS, depth: 3, ...(Dat ? { dy: Dat((f0 + f1) / 2, 0) } : {}) }); },
       arch: (len) => {
         // Bogenhöhe wächst mit √Maßstab (Spannweite = Feld), Segmente/Hänger mit der Länge
         const H = 7.5 * Math.sqrt(WS), hw = ROAD_HW + 0.55, n = Math.round(10 * WS), nh = Math.round(8 * WS);
@@ -549,7 +576,7 @@ export function buildTrack(layout, opt = {}) {
         }
         addBox(fc, top + 0.2, 0, 1.0, 0.6, 2 * off + 0.6, MAT.STEEL, {});
       },
-      jumpInfo: (j) => { if (!decor) jumps.push({ piece: pidx, ...j, E, F, R, base }); },
+      jumpInfo: (j) => { if (!decor) jumps.push({ piece: pidx, ...j, E, F, R, base: Dat ? base + Dat(j.lipF, 0) : base }); },
       portal: (f, facingOpt) => {
         // Betonfassade um die Röhrenöffnung (Ring zwischen Innenkontur und Rechteck)
         const b0 = 2.2, R0 = 3.5, Wx = Math.max(7.2, ROAD_HW + 1.6), Yb = -0.5, Yt = 2 * R0 + 1.4, n = 10;   // Fassade deckt die Fahrbahn
@@ -628,6 +655,14 @@ export function buildTrack(layout, opt = {}) {
     const dx = L.px[n - 1] - L.px[0], dy = L.py[n - 1] - L.py[0], dz = L.pz[n - 1] - L.pz[0];
     L.closed = Math.hypot(dx, dy, dz) < 0.5;
   }
+  // Gelände-Strecke, erster (flacher) Bau: nur die Fahrlinie wird gebraucht
+  if (opt._flat) return { line: L, _line: line, pieces: pieceInfo };
+  // Kuppen mit Luftphase (n22): dort wie auf den Achterbahn-Wellen leicht negativer Anpressdruck im Tempo-Profil erlaubt,
+  // keine Saugkraft (race.js haftOffAt) – die kurze Luftphase am Scheitel ist gewollt
+  if (gel) for (const z of gel.plan.zones) {
+    const pi = pieceInfo[z.k], sm = L.s[(pi.lineStart + pi.lineEnd) >> 1], half = (z.s1 - z.s0) / 2;
+    for (let i = 0; i < n; i++) if (Math.abs(L.s[i] - sm) < half && !L.air[i]) L.wave[i] = 3;
+  }
   const idxAt = (pieceIdx, f) => {
     const pi = pieceInfo[pieceIdx];
     let best = pi.lineStart, bd = 1e9;
@@ -652,7 +687,9 @@ export function buildTrack(layout, opt = {}) {
   }
 
   // ----- Gelände -----
-  const terrain = trkTerr || buildTerrain(occupied, shapes, layout.seed || 1);
+  const terrain = trkTerr || (gel ? buildGelTerrain({ line: L, layout, plan: gel.plan, land: gel.land, shapes, occupied, pieces: pieceInfo }) : buildTerrain(occupied, shapes, layout.seed || 1));
+  // Leitplanken, wo es neben der Fahrbahn hinuntergeht (Gelände-Strecken)
+  if (gel) addRails(L, terrain, layout, gel.plan, batch, chunkOf, addColTri);
   // ----- Bäume ----- (Import: Tannen aus der Szenerie + Wald außerhalb des Rasters)
   // Anzahl wächst mit der Fläche (Maßstab²), damit die große Welt gleich dicht bewaldet ist; Bäume selbst
   // behalten ihre Größe. Die Grafik dünnt auf Qualitätsstufe 0 aus (world.js).
@@ -672,6 +709,7 @@ export function buildTrack(layout, opt = {}) {
     });
   }
   if (trkTerr) carveUnderRoads(trkTerr, outBatches, (m) => ROAD_MATS.has(m));
+  if (gel) carveUnderRoads(terrain, outBatches, (m) => ROAD_MATS.has(m));
   let minX = 1e9, maxX = -1e9, minZ = 1e9, maxZ = -1e9, maxY = 0;
   for (let i = 0; i < colPos.length; i += 3) {
     minX = Math.min(minX, colPos[i]); maxX = Math.max(maxX, colPos[i]);
@@ -683,6 +721,7 @@ export function buildTrack(layout, opt = {}) {
     col: { pos: new Float32Array(colPos), nrm: new Float32Array(colNrm), mat: new Uint8Array(colMat) },
     checkpoints, start, jumps, decals, shapes, terrain, trees, pieces: pieceInfo,
     bounds: { minX, maxX, minZ, maxZ, maxY },
+    ...(gel ? { gel } : {}),
   };
 }
 
@@ -773,6 +812,80 @@ export function buildTerrain(occupied, shapes, seed) {
   return { ext, step, nx, H, Hv, height, heightFn, distTiles, waters, fine, nb };
 }
 
+// Leitplanken (Gelände-Strecken, n22, Brief: „Randsteine/Leitplanken wo es runtergeht“): wo das Gelände RAIL.probe m
+// neben der Fahrbahnkante mehr als RAIL.drop m tiefer liegt (Damm, Hangseite, Plateau-Kante), steht auf dieser Seite
+// eine Stahl-Leitplanke (Holm 0,45–0,8 m, Pfosten alle RAIL.post m). Kollision als senkrechte Wand bis 0,85 m. Nicht an
+// Stunt-Sockeln, Brücken (eigene Brüstung), im Tunnel, an Sprüngen und Loopings. Läufe kürzer als RAIL.minLen entfallen,
+// Lücken bis RAIL.gap m werden geschlossen.
+const RAIL = { off: 1.15, drop: 1.6, probe: 7, minLen: 24, gap: 14, post: 4, y0: 0.45, y1: 0.8, col: 0.85 };
+function addRails(L, terrain, layout, plan, batch, chunkOf, addColTri) {
+  const n = L.n, P = layout.pieces, rails = [];
+  const ok = (i) => { const pl = plan.pieces[L.piece[i]] || {}; return !L.air[i] && !L.loop[i] && !L.tube[i] && !pl.rigid && !pl.bridge && !pl.tunnel; };
+  const side = (i, sg, l) => { const bl = Math.hypot(L.bx[i], L.bz[i]) || 1; return [L.px[i] + L.bx[i] / bl * sg * l, L.py[i] + L.by[i] / bl * sg * l, L.pz[i] + L.bz[i] / bl * sg * l]; };
+  for (const sg of [-1, 1]) {
+    const need = new Uint8Array(n);
+    for (let i = 0; i < n; i++) {
+      if (!ok(i)) continue;
+      const e = side(i, sg, L.hw[i] + RAIL.off), q = side(i, sg, L.hw[i] + RAIL.probe);
+      if (e[1] - terrain.height(q[0], q[2]) > RAIL.drop) need[i] = 1;
+    }
+    // Lücken schließen, kurze Läufe weglassen (über die Bogenlänge)
+    let i = 0;
+    while (i < n) {
+      if (!need[i]) { i++; continue; }
+      let e = i;
+      for (;;) {
+        let k = e + 1;
+        while (k < n && !need[k] && ok(k) && L.s[k] - L.s[e] < RAIL.gap) k++;
+        if (k < n && need[k]) e = k; else break;
+      }
+      if (L.s[e] - L.s[i] >= RAIL.minLen) rails.push({ sg, a: i, b: e });
+      i = e + 1;
+    }
+  }
+  const up = [0, 1, 0];
+  for (const { sg, a, b } of rails) {
+    let last = -1e9, prev = null, postAt = -1e9;
+    for (let i = a; i <= b; i++) {
+      if (L.s[i] - last < 1.8 && i !== b) continue;
+      last = L.s[i];
+      const p = side(i, sg, L.hw[i] + RAIL.off);
+      const bl = Math.hypot(L.bx[i], L.bz[i]) || 1, nrm = [-sg * L.bx[i] / bl, 0, -sg * L.bz[i] / bl];   // zur Fahrbahn
+      if (prev) {
+        const bt = batch(chunkOf(p[0], p[2]), MAT.STEEL);
+        const q0 = [prev.p[0], prev.p[1] + RAIL.y0, prev.p[2]], q1 = [p[0], p[1] + RAIL.y0, p[2]], q2 = [p[0], p[1] + RAIL.y1, p[2]], q3 = [prev.p[0], prev.p[1] + RAIL.y1, prev.p[2]];
+        for (const f of [1, -1]) {
+          const nn = [nrm[0] * f, 0, nrm[2] * f];
+          const v = [q0, q1, q2, q3].map((qq, k) => bt.v(qq, nn, k === 1 || k === 2 ? 1 : 0, k >= 2 ? 1 : 0));
+          const fn = cross(sub(q1, q0), sub(q2, q0));
+          if (dot(fn, nn) > 0) bt.idx.push(v[0], v[1], v[2], v[0], v[2], v[3]); else bt.idx.push(v[0], v[2], v[1], v[0], v[3], v[2]);
+          // Kollision: Wand vom Boden bis RAIL.col (beidseitig)
+          const c0 = [prev.p[0], prev.p[1] - 0.4, prev.p[2]], c1 = [p[0], p[1] - 0.4, p[2]], c2 = [p[0], p[1] + RAIL.col, p[2]], c3 = [prev.p[0], prev.p[1] + RAIL.col, prev.p[2]];
+          const cn = cross(sub(c1, c0), sub(c2, c0));
+          if (dot(cn, nn) > 0) { addColTri(c0, c1, c2, nn, nn, nn, MAT.STEEL); addColTri(c0, c2, c3, nn, nn, nn, MAT.STEEL); }
+          else { addColTri(c0, c2, c1, nn, nn, nn, MAT.STEEL); addColTri(c0, c3, c2, nn, nn, nn, MAT.STEEL); }
+        }
+      }
+      if (L.s[i] - postAt >= RAIL.post) {
+        postAt = L.s[i];
+        // Pfosten (schmaler Quader hinter dem Holm)
+        const bt = batch(chunkOf(p[0], p[2]), MAT.STEEL), o = [p[0] - nrm[0] * 0.12, p[1], p[2] - nrm[2] * 0.12];
+        const ax = [nrm[0], 0, nrm[2]], az = [-nrm[2], 0, nrm[0]], hs = [0.07, 0.06];
+        for (const [A, h] of [[ax, hs[0]], [az, hs[1]]]) for (const f of [1, -1]) {
+          const nn = mul(A, f), c = add(o, mul(A, f * h)), w = A === ax ? az : ax, hw2 = A === ax ? hs[1] : hs[0];
+          const qd = [add(c, mul(w, -hw2)), add(c, mul(w, hw2)), add(add(c, mul(w, hw2)), [0, RAIL.y1 + 0.05 + 0.4, 0]), add(add(c, mul(w, -hw2)), [0, RAIL.y1 + 0.05 + 0.4, 0])].map((qq) => [qq[0], qq[1] - 0.4, qq[2]]);
+          const v = qd.map((qq, k) => bt.v(qq, nn, k === 1 || k === 2 ? 0.1 : 0, k >= 2 ? 1 : 0));
+          const fn = cross(sub(qd[1], qd[0]), sub(qd[2], qd[0]));
+          if (dot(fn, nn) > 0) bt.idx.push(v[0], v[1], v[2], v[0], v[2], v[3]); else bt.idx.push(v[0], v[2], v[1], v[0], v[3], v[2]);
+        }
+      }
+      prev = { p };
+    }
+  }
+  void up;
+  return rails.length;
+}
+
 function placeTrees(terrain, seed, count, keepOut = 0) {
   const r = rng(seed * 13 + 5);
   const noise = makeNoise2(seed * 3 + 1);
@@ -790,7 +903,9 @@ function placeTrees(terrain, seed, count, keepOut = 0) {
     const near = dt < 0.5 + 70 / TILE ? 0.55 : 1;
     if (r() > dens * dens * 2.2 * near) continue;
     const y = terrain.height(x, z);
-    if (y < -0.5) continue;
+    if (terrain.wet ? terrain.wet(x, z) : y < -0.5) continue;
+    // Gelände-Strecken: keine Bäume an Felshängen (über ~40°)
+    if (terrain.gel && Math.max(Math.abs(terrain.height(x + 3, z) - terrain.height(x - 3, z)), Math.abs(terrain.height(x, z + 3) - terrain.height(x, z - 3))) / 6 > 0.85) continue;
     let ok = true;
     for (const w of terrain.waters) {
       const dx = x - w.E[0], dz = z - w.E[2];

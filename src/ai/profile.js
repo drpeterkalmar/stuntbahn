@@ -87,6 +87,7 @@ export const PROF = GRIP_ALT
   ? { res: 0.82, resPre: 0.65, preLen: 25, aero: 0.8, nmin: 0.45, nmax: 6.2, brake: 8, vNarrow: 15.5, rollMax: 3.2, crestAero: false, brakeCircle: 0, jumpSafe: 0 }
   : { res: 0.76, resPre: 0.65, preLen: 25, aero: 0.8, nmin: 0.45, nmax: 6.2, brake: 8, vNarrow: 25, rollMax: 3.2, crestAero: true, brakeCircle: 0.7, jumpSafe: 1.5, haft: 0 };
 
+export const KUPPE_N = -0.45;
 export function computeProfile(L, opts = {}) {
   const n = L.n;
   // Querhaftung = Belag × Reifen (def.mu) × Reserve PROF.res (bis 27.09.2026 Reifen fest 1,0)
@@ -155,7 +156,9 @@ export function computeProfile(L, opts = {}) {
     // Bodenhaftung bei Tempo (n21, car.js haftA): an Kuppen hält die Saugkraft das Auto zusätzlich bis haftA·g am Boden;
     // der Plan rechnet davon den Anteil PROF.haft ein (Rest = Reserve für Übertempo), aber nur, wo das Tempo dann über
     // haftV[1] liegt (darunter wirkt sie nur teilweise). Nicht auf Achterbahn-Wellen (dort ist sie aus).
-    const nK = gN - (wv === 1 ? (opts.waveN ?? WAVE.nmin * G) : wv === 2 ? WALL.nmin * G : Nmin);
+    // Gelände-Kuppe mit Luftphase (n22, L.wave = 3): kurz abheben erlaubt, aber nur knapp (KUPPE_N) – im Flug zieht die
+    // Luft-Schwerkraft (0,7 g) das Auto langsamer herunter, als der Hang dahinter abfällt
+    const nK = gN - (wv === 1 ? (opts.waveN ?? WAVE.nmin * G) : wv === 2 ? WALL.nmin * G : wv === 3 ? KUPPE_N * G : Nmin);
     const aH = !wv && PROF.haft > 0 && def.haftA > 0 ? PROF.haft * def.haftA * G : 0;
     if (aH > 0 && -Cn > 1e-7 && (nK + aH) / -Cn >= def.haftV[1] ** 2) cons(-Cn, nK + aH, 'kuppe');
     else cons(-Cn, nK, 'kuppe');           // x*Cn + gN >= Nmin

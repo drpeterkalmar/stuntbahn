@@ -128,6 +128,24 @@ const VARIANTS = {
     }
     return 'kanal';
   },
+  // Fluss in einer Schlucht (n22, Gelände-Strecken): Lastkahn und Schlepper auf dem Wasser der Schluchtsohle (o.floorY =
+  // Wasserspiegel), ohne eigene Grube – die Schlucht ist schon tief. Nur auf ausdrücklichen Wunsch (kind 'fluss').
+  fluss(k, pb, o) {
+    const G = o.f1 - o.f0, wy = o.floorY;
+    const fk = o.f0 + G * 0.45, kl = 34, kw = 8;
+    k.box(fk, wy + 0.4, -14, kw, 1.8, kl, C.hull, true);
+    k.box(fk, wy + 1.35, -14, kw + 0.1, 0.12, kl + 0.1, C.white);
+    k.box(fk, wy + 2.1, -14 - kl / 2 + 2.5, kw - 1.4, 1.6, 3.5, C.white, true);
+    k.box(fk, wy + 2.3, -14 - kl / 2 + 2.5, kw - 1.36, 0.5, 3.55, C.glass, false, 0, MAT.GLASS);
+    for (let q = 0; q < 4; q++) container(k, fk, wy + 1.4, -14 - kl / 2 + 7.5 + q * 6.6, C.ctr[q], 6.1);
+    const fs = o.f0 + G * 0.55, sw = 4.6;
+    k.box(fs, wy + 0.45, 16, sw, 1.7, 13, C.hullRed, true);
+    k.box(fs, wy + 1.35, 16, sw + 0.08, 0.12, 13.1, C.white);
+    k.box(fs, wy + 2.3, 18, sw - 1.2, 1.8, 4.2, C.white, true);
+    k.box(fs, wy + 2.6, 18, sw - 1.16, 0.6, 4.25, C.glass, false, 0, MAT.GLASS);
+    k.box(fs, wy + 3.6, 19.2, 0.7, 1.0, 0.7, C.hull);
+    return 'fluss';
+  },
   // Busse Seite an Seite quer zur Fahrt (wie bei den großen Motorrad-Sprüngen), so viele die Decke erlaubt
   busse(k, pb, o, top) {
     const cols = [C.busY, C.busY, C.busR, C.busB, C.busY, C.busW];

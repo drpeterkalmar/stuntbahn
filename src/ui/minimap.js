@@ -1,5 +1,5 @@
 // Vorschau-Minikarte einer .TRK-Strecke (30×30 Felder): Gelände, Deko-Straßen, Fahrweg, Start.
-import { DIRS } from '../track/defs.js';
+import { DIRS, GRID, TILE } from '../track/defs.js';
 import { pieceCells, PIECES } from '../track/pieces.js';
 
 const TERR = (c) => (c === 1 ? '#2f6f9a' : c >= 2 && c <= 5 ? '#4f7f6a' : c === 6 ? '#8a9a4a' : c >= 7 ? '#6e8a3e' : '#3d6a2c');
@@ -67,7 +67,7 @@ export function drawMinimap(cv, trk, layout) {
 // mit der Höhe weiter versetzt ist. Stücke nach Höhe sortiert gezeichnet: an Kreuzungen liegt die obere Fahrbahn
 // (samt Schatten) über der unteren. Spiralen/Wendeln als Kreis, Klippensprünge mit gestrichelter Flugstrecke.
 const LVL_COL = ['#5f676e', '#98a1a9', '#c3cad0', '#e6eaed', '#ffffff'];
-export function drawLayoutMap(cv, layout) {
+export function drawLayoutMap(cv, layout, track) {
   const g = cv.getContext('2d'), W = cv.width, H = cv.height;
   const P = layout.pieces || [];
   let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
@@ -76,6 +76,7 @@ export function drawLayoutMap(cv, layout) {
   const ox = (W - (x1 - x0 + 1) * S) / 2 - x0 * S, oy = (H - (y1 - y0 + 1) * S) / 2 - y0 * S;
   const X = (i) => ox + i * S, Y = (j) => oy + j * S;
   g.clearRect(0, 0, W, H);
+  if (track && track.gel) return drawGelMap(g, W, H, S, ox, oy, P, track);
   g.fillStyle = '#2f5a26'; g.beginPath(); g.roundRect ? g.roundRect(0, 0, W, H, S * 0.8) : g.rect(0, 0, W, H); g.fill();
   const edge = (i, j, d, back) => { const [dx, dy] = DIRS[d]; const k = back ? -0.5 : 0.5; return [X(i + 0.5 + dx * k), Y(j + 0.5 + dy * k)]; };
   const pathOf = (pc) => {
@@ -118,6 +119,62 @@ export function drawLayoutMap(cv, layout) {
   const st = P.find((p) => p.type === 'start') || P[0];
   if (st) {
     g.fillStyle = '#e8291c'; g.beginPath(); g.arc(X(st.i + 0.5), Y(st.j + 0.5), Math.max(3, S * 0.45), 0, Math.PI * 2); g.fill();
+    g.strokeStyle = '#fff'; g.lineWidth = 1.5; g.stroke();
+  }
+}
+
+// Streckenkarte einer Gelände-Strecke (n22): Höhenschattierung des Geländes (Licht von Nordwesten, tiefer = grüner,
+// höher = heller/brauner, Fels an steilen Hängen grau, Wasser blau) und die Fahrbahn nach Höhe eingefärbt (hell = hoch);
+// Tunnel gestrichelt, Brücken mit Schatten, Sprünge als Lücke, Start rot
+function drawGelMap(g, W, H, S, ox, oy, P, track) {
+  const T = track.terrain, L = track.line;
+  // Raster-Pixel → Welt: Feld i (Kante) bei x = (i − GRID/2)·TILE
+  const wx = (px) => ((px - ox) / S - GRID / 2) * TILE, wz = (py) => ((py - oy) / S - GRID / 2) * TILE;
+  const sx = (x) => ox + (x / TILE + GRID / 2) * S, sy = (z) => oy + (z / TILE + GRID / 2) * S;
+  let hmin = 1e9, hmax = -1e9;
+  for (let i = 0; i < L.n; i += 4) { hmin = Math.min(hmin, L.py[i]); hmax = Math.max(hmax, L.py[i]); }
+  hmin -= 15; hmax += 25;
+  const img = g.createImageData(W, H), D = img.data, e = TILE / S;
+  for (let py = 0; py < H; py++) for (let px = 0; px < W; px++) {
+    const x = wx(px + 0.5), z = wz(py + 0.5), h = T.height(x, z);
+    const gx = (T.height(x + e, z) - T.height(x - e, z)) / (2 * e), gz = (T.height(x, z + e) - T.height(x, z - e)) / (2 * e);
+    const sh = Math.max(0.35, Math.min(1.35, 0.95 + (gx + gz) * 0.9));   // Licht von Nordwesten (−x, −z)
+    const t = Math.max(0, Math.min(1, (h - hmin) / (hmax - hmin))), steep = Math.min(1, Math.max(0, (Math.hypot(gx, gz) - 0.55) / 0.5));
+    let r = 52 + 88 * t, gg = 92 + 50 * t, b = 40 + 30 * t;
+    r += (128 - r) * steep; gg += (124 - gg) * steep; b += (118 - b) * steep;
+    if (T.wet && T.wet(x, z)) { r = 40; gg = 92; b = 130; }
+    const k = (py * W + px) * 4;
+    D[k] = Math.min(255, r * sh); D[k + 1] = Math.min(255, gg * sh); D[k + 2] = Math.min(255, b * sh); D[k + 3] = 255;
+  }
+  g.putImageData(img, 0, 0);
+  const pl = track.gel.plan.pieces;
+  const seg = (i0, i1, col, w, dash, off) => {
+    g.strokeStyle = col; g.lineWidth = w; g.lineCap = 'round'; g.lineJoin = 'round'; g.setLineDash(dash || []);
+    g.beginPath();
+    for (let i = i0; i <= i1; i++) { const X = sx(L.px[i]) + (off || 0), Y = sy(L.pz[i]) + (off || 0); if (i === i0) g.moveTo(X, Y); else g.lineTo(X, Y); }
+    g.stroke(); g.setLineDash([]);
+  };
+  const w = Math.max(2.2, S * 0.36);
+  // Läufe gleicher Art (Luft, Tunnel, Brücke, normal) zeichnen
+  const kind = (i) => (L.air[i] ? 'air' : (pl[L.piece[i]] || {}).tunnel ? 'tun' : (pl[L.piece[i]] || {}).bridge ? 'br' : 'n');
+  for (let i = 0; i < L.n - 1;) {
+    let e = i; const k = kind(i);
+    while (e + 1 < L.n && kind(e + 1) === k && e - i < 6) e++;
+    const hh = Math.max(0, Math.min(1, (L.py[i] - hmin) / (hmax - hmin)));
+    const c = Math.round(110 + 145 * hh), col = `rgb(${c},${c},${Math.round(c * 0.97)})`;
+    const j = Math.min(L.n - 1, e + 1);
+    if (k === 'air') seg(i, j, 'rgba(160,215,255,0.95)', w * 0.45, [w * 0.6, w * 0.7]);
+    else if (k === 'tun') { seg(i, j, '#1c1e20', w + 2); seg(i, j, 'rgba(255,200,90,0.9)', w * 0.55, [w * 0.8, w * 0.6]); }
+    else {
+      if (k === 'br') seg(i, j, 'rgba(0,0,0,0.45)', w * 1.1, null, S * 0.25);
+      seg(i, j, '#1c1e20', w + 2); seg(i, j, col, w);
+    }
+    i = e + 1;
+  }
+  const st = P.find((p) => p.type === 'start') || P[0];
+  if (st) {
+    const i0 = track.start ? track.start.idx : 0;
+    g.fillStyle = '#e8291c'; g.beginPath(); g.arc(sx(L.px[i0]), sy(L.pz[i0]), Math.max(3, S * 0.45), 0, Math.PI * 2); g.fill();
     g.strokeStyle = '#fff'; g.lineWidth = 1.5; g.stroke();
   }
 }

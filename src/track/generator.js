@@ -8,6 +8,7 @@ import { pieceCells, PIECES } from './pieces.js';
 import './pieces_3d.js';
 import './pieces_trk.js';
 import { generate3d } from './generator3d.js';
+import { generateGel } from './generatorG.js';
 
 export const DIFFS = {
   1: { name: 'Sanft', w: [9, 12], h: [6, 8], bumps: [1, 3], large: 0.9, bank: 0.25, density: 0.18, must: ['loop', 'crest'], types: { bumps: 3, crest: 3, chicane: 2, bridge: 3 } },
@@ -106,6 +107,8 @@ export function generate(seed, diff = 2, opts = {}) {
   diff = Math.max(1, Math.min(3, diff | 0));
   // 3D-Strecken (n19): eigener Generator, eigener Schlüssel; ohne Option bleibt alles wie bisher (alte Codes)
   if (opts.d3) return generate3d(seed, diff, opts);
+  // Gelände-Strecken (n22): eigener Generator, Schlüssel „-g“
+  if (opts.gel) return generateGel(seed, diff, opts);
   const D = DIFFS[diff];
   const r = rng((seed >>> 0) * 7919 + diff * 104729);
   let cyc = makeCycle(r, D);
@@ -258,7 +261,7 @@ export function defuse(layout, pieceIdx) {
   const p = layout.pieces[pieceIdx];
   if (!p) return false;
   const repl = { loop: ['straight', 'straight'], tube: ['straight', 'straight'], jump: ['straight', 'straight', 'straight'], crest: ['straight', 'straight'], chicane: ['straight', 'straight'], bumps: ['straight'], bank: null,
-    waves: ['straight', 'straight', 'straight'], tr_corklr: ['straight', 'straight'] };
+    waves: ['straight', 'straight', 'straight'], tr_corklr: ['straight', 'straight'], halfpipe: ['straight', 'straight', 'straight'] };
   if (p.type === 'bank') { p.type = 'turnL'; return true; }
   // 3D-Teile (n19): Ersatz mit gleicher Form und gleichem Ebenenwechsel – Steilwand/Steilkurve → weite Kurve,
   // Klippensprung → Steilrampe gleicher Länge, Spirale/Wendel → Rampe über die beiden geraden Felder
@@ -269,6 +272,7 @@ export function defuse(layout, pieceIdx) {
   if (!r) return false;
   const F = [[1, 0], [0, 1], [-1, 0], [0, -1]][p.d];
   const add = r.map((t, k) => ({ ...p, type: t, i: p.i + F[0] * k, j: p.j + F[1] * k }));
+  if (layout.gel) for (const q of add) delete q.g;   // Gelände (n22): ersetzte Schlucht wird normale Gerade
   layout.pieces.splice(pieceIdx, 1, ...add);
   return true;
 }

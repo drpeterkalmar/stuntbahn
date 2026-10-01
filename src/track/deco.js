@@ -80,7 +80,7 @@ export function planDeco(track, o = {}) {
   // Grundprüfung für einen Standort: Abstand zur Fahrbahn, kein Wasser, keine Szenerie, nicht zu steil
   const ok = (x, z, clear, rad = 1, maxSlope = 0.45) => {
     if (H.dist(x, z, clear + rad + 2) < clear + rad) return false;
-    if (ground(x, z) < -0.3) return false;
+    if (T.wet ? T.wet(x, z) : ground(x, z) < -0.3) return false;   // Gelände-Strecken (n22): Wasser per Wasserflächen
     if (onScenery(x, z)) return false;
     if (rad > 0.5 && slope(x, z, Math.max(1, rad)) > maxSlope) return false;
     return true;
@@ -203,7 +203,7 @@ export function planDeco(track, o = {}) {
     const flush = () => { if (run && run.length >= 9) out.rails.push(run); run = null; };
     for (const i of S4) {
       const d = railD(i), [x, z] = side(i, sg, d);
-      const good = flat[i] && kap[i] < KS && ok(x, z, MIN_CLEAR.rail, 0.3) && occ.free(x, z, 0.4);
+      const good = flat[i] && kap[i] < KS && ok(x, z, MIN_CLEAR.rail, 0.3) && occ.free(x, z, 0.4) && (!T.gel || Math.abs(ground(x, z) - L.py[i]) < 1.2);
       if (!good) { flush(); continue; }
       if (!run) run = [];
       run.push({ x, z, i, sg, rot: faceRoad(i, sg) });
