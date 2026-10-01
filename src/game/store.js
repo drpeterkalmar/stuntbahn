@@ -1,33 +1,28 @@
-// Speicher (localStorage): Einstellungen, Bestzeiten + Geisterautos getrennt je Strecke, Fahrhilfe
-// UND Totalschaden-Einstellung.
-import { PHYS } from '../physics/car.js';
-import { WORLD_TAG } from '../track/defs.js';
-import { MED_ALT } from './race.js';
+// Speicher (localStorage): Einstellungen, Bestzeiten + Geisterautos getrennt je Strecke, Fahrhilfe, Totalschaden-
+// Einstellung und Extras-Einstellung.
+import { WORLD_SCALE_DEFAULT } from '../track/defs.js';
 
 const KEY = 'stuntbahn.v1';
 const GHOST_MAX = 40;
 const TIMES_MAX = 5;   // Leicht: so viele letzte Zeiten je Strecke
 
-// Wertungsklasse aus Fahrhilfe + Totalschaden. Migration ohne Umkopieren: die bisherigen Schlüssel
-// (nur Fahrhilfe) behalten ihre Bedeutung – Leicht fuhr bisher ohne Wrack (→ Totalschaden aus),
-// Mittel/Original mit Wrack (→ Totalschaden an). Nur die jeweils andere Variante bekommt einen Zusatz.
-// Physik-Version (27.09.2026, doppelt so schnell): Zeiten der neuen Physik bekommen „@t2“ angehängt.
-// Die alten Einträge bleiben unverändert stehen und werden im Menü als „erste Physik“ gezeigt (bis n14 „alte
-// Physik“) – nichts wird gelöscht oder umgeschrieben; mit ?auto=alt (PHYS 1) gelten wieder die alten Schlüssel.
-// Weltmaßstab (27.09.2026, n12): neue Welt = neue Wertung, Zusatz „@w2“ (defs.js WORLD_TAG). Die Zeiten der
-// alten Welt bleiben unverändert und erscheinen im Menü als „alte Welt“; ?welt=1 wertet wieder dort.
-// Extras (28.09.2026, Hüpfer + Nitro): Zeiten mit Extras bekommen „@x“ – eine eigene Liste. Die bisherigen
-// Zeiten (ohne Extras gefahren) bleiben unverändert und sind genau die Liste mit ausgeschalteten Extras
-// (Option „Hüpfer & Nitro“ aus, für Puristen); das Menü zeigt sie als „ohne Extras“.
-// Mehr Bodenhaftung (29.09.2026, n14): Physik 3 → Zusatz „@t3“. Die Zeiten der Physik 2 (gleiche Welt, gleiche
-// Extras-Einstellung) bleiben stehen und erscheinen im Menü als „alte Physik“; ?grip=1 wertet wieder dort.
-// Mittel ohne Linien-Magnet, mit mehr Haftung (30.09.2026, n16): nur Mittel bekommt den Zusatz „@m2“ (MED_TAG). Die
-// Mittel-Zeiten bis n15 (gleiche Physik, Welt, Extras) bleiben stehen und erscheinen im Menü als „alte Physik“;
-// ?mgrip=1 fährt und wertet wieder dort. Leicht und Original behalten ihre Schlüssel.
-export const MED_TAG = MED_ALT ? '' : '@m2';
-export function modeKey(assist, wreck, phys = PHYS, world = WORLD_TAG, extras = true, med = MED_TAG) {
-  const legacy = assist === 'easy' ? !wreck : !!wreck;
-  return (legacy ? assist : assist + (wreck ? '+wrack' : '+reset')) + (phys >= 2 ? '@t' + phys : '') + world + (extras ? '@x' : '') + (assist === 'medium' && phys >= 3 ? med : '');
+// Bestzeiten ohne Versions-Schachtelung (Peter 30.09.2026: „Bestzeiten streichen“, n21). Bis n19 bekam jede neue
+// Abstimmung einen Schlüssel-Zusatz (Physik @t2/@t3, Welt @w2, Mittel @m2) und die alten Listen erschienen im Menü als
+// „alte Physik“/„alte Welt“/„erste Physik“. Jetzt: einmalig beim Laden alle bisherigen Bestzeiten und Geister löschen
+// (RESET_MARK, idempotent), danach gibt es je Strecke nur noch die Wertung Fahrhilfe + Totalschaden + Extras – ohne
+// Physik-Version. Leicht wertet weiter nicht (nur die letzten Zeiten, die bleiben stehen).
+// A/B-Vergleiche per URL (alte Physik, alte Welt, alte Wiese/Haftung/Schanze, Luft-/Lippen-Regler) werten nicht: keine
+// Bestzeit, kein Geist (sonst stünde eine Zeit mit anderer Physik in der Liste).
+const RESET_MARK = 21;
+const AB_PARAMS = [['auto', 'alt'], ['grip', '1'], ['mgrip', '1'], ['wiese', 'alt'], ['haft', 'alt'], ['schanze', 'alt'], ['welt', null], ['air', null], ['lip', null]];
+export function abMode(search = globalThis.location ? globalThis.location.search : '') {
+  if (!search) return false;
+  const q = new URLSearchParams(search);
+  return AB_PARAMS.some(([k, v]) => q.has(k) && (k === 'welt' ? Math.abs(parseFloat(q.get(k)) - WORLD_SCALE_DEFAULT) > 1e-6 : v === null ? q.get(k) !== '' : q.get(k) === v));
+}
+export const AB = abMode();
+export function modeKey(assist, wreck, extras = true) {
+  return assist + (wreck ? '+wrack' : '+reset') + (extras ? '@x' : '');
 }
 
 export class Store {
@@ -38,12 +33,22 @@ export class Store {
     this.best = d.best || {};      // key|modeKey -> { time, date, name, pen }
     this.ghostIndex = d.ghostIndex || []; // Reihenfolge für LRU
     // Leicht (n15, Peter 28.09.: „keine Highscores, nur Zeit notieren“): letzte Zeiten je Strecke, neueste zuerst,
-    // { t, d (Datum), pen, x (Extras), w (Totalschaden), old (aus einer früheren Leicht-Bestzeit übernommen) }.
-    // Die Leicht-Bestzeiten in best bleiben unverändert gespeichert, werden aber nicht mehr gezeigt; die der
-    // aktuellen Wertung (Physik/Welt) kommen einmalig als Einträge in diese Liste.
+    // { t, d (Datum), pen, x (Extras), w (Totalschaden) }
     this.times = d.times || {};
-    if (!d.timesMig) { this.migrateEasyBests(); this.timesMig = 1; } else this.timesMig = d.timesMig;
+    this.timesMig = d.timesMig;
+    this.reset = d.reset || 0;
+    if (this.reset < RESET_MARK) { this.clearBests(); this.reset = RESET_MARK; this.save(); }
     try { this.verified = JSON.parse(localStorage.getItem(KEY + '.verified') || '{}'); } catch { this.verified = {}; }
+  }
+  // Einmalig (n21): alle Bestzeiten und Geisterautos löschen – auch die der alten Physik/Welt/Mittel-Listen und die
+  // aus früheren Leicht-Bestzeiten übernommenen Einträge („früher“) der Leicht-Zeiten-Liste
+  clearBests() {
+    this.best = {};
+    this.ghostIndex = [];
+    const ghosts = [];
+    for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && k.startsWith('stuntbahn.ghost.')) ghosts.push(k); }
+    for (const k of ghosts) localStorage.removeItem(k);
+    for (const [id, L] of Object.entries(this.times)) { const f = L.filter((e) => !e.old); if (f.length) this.times[id] = f; else delete this.times[id]; }
   }
   // Geprüfte Strecken (Autopilot) cachen: Layout nach Entschärfen + Referenzzeit
   getVerified(key, build) {
@@ -59,36 +64,13 @@ export class Store {
     try { localStorage.setItem(KEY + '.verified', JSON.stringify(this.verified)); } catch { /* voll */ }
   }
   save() {
-    try { localStorage.setItem(KEY, JSON.stringify({ settings: this.settings, best: this.best, ghostIndex: this.ghostIndex, times: this.times, timesMig: this.timesMig })); } catch { /* voll */ }
-  }
-  migrateEasyBests() {
-    for (const w of [false, true]) for (const x of [true, false]) {
-      const mk = '|' + modeKey('easy', w, PHYS, WORLD_TAG, x);
-      for (const [k, b] of Object.entries(this.best)) {
-        if (!k.endsWith(mk) || !b || !(b.time > 0)) continue;
-        const id = k.slice(0, -mk.length), L = this.times[id] || (this.times[id] = []);
-        L.push({ t: b.time, d: b.date || '', pen: b.pen || 0, x: x ? 1 : 0, w: w ? 1 : 0, old: 1 });
-      }
-    }
-    for (const L of Object.values(this.times)) { L.sort((a, b) => (b.d || '').localeCompare(a.d || '')); L.length = Math.min(L.length, TIMES_MAX); }
+    try { localStorage.setItem(KEY, JSON.stringify({ settings: this.settings, best: this.best, ghostIndex: this.ghostIndex, times: this.times, timesMig: this.timesMig, reset: this.reset })); } catch { /* voll */ }
   }
   // Leicht: letzte Zeiten dieser Strecke (neueste zuerst, nicht nach Zeit sortiert)
   timesFor(key) { return this.times[key] || []; }
-  bestFor(key, assist, wreck = this.settings.wreck, extras = this.settings.extras) { return this.best[key + '|' + modeKey(assist, wreck, PHYS, WORLD_TAG, extras)] || null; }
+  bestFor(key, assist, wreck = this.settings.wreck, extras = this.settings.extras) { return this.best[key + '|' + modeKey(assist, wreck, extras)] || null; }
   // Bestzeit derselben Wertung mit der jeweils anderen Extras-Einstellung (nur Anzeige: „ohne/mit Extras“)
   otherExtrasBestFor(key, assist, wreck = this.settings.wreck) { return this.bestFor(key, assist, wreck, !this.settings.extras); }
-  // Bestzeit derselben Wertung mit der Physik vor n14 (bis 28.09.2026, weniger Haftung; gleiche Welt und Extras) –
-  // nur zur Anzeige, nicht vergleichbar
-  // Mittel (n16): zuerst die Mittel-Zeit bis n15 (Physik 3, mit Linien-Zug), sonst die der Physik 2
-  prevPhysBestFor(key, assist, wreck = this.settings.wreck, extras = this.settings.extras) {
-    if (PHYS < 3) return null;
-    const m15 = assist === 'medium' && MED_TAG ? this.best[key + '|' + modeKey(assist, wreck, 3, WORLD_TAG, extras, '')] : null;
-    return m15 || this.best[key + '|' + modeKey(assist, wreck, 2, WORLD_TAG, extras)] || null;
-  }
-  // Bestzeit derselben Wertung mit der ersten Physik (bis 27.09.2026, alte Welt, ohne Extras) – nur zur Anzeige
-  oldBestFor(key, assist, wreck = this.settings.wreck) { return PHYS >= 2 ? this.best[key + '|' + modeKey(assist, wreck, 1, '', false)] || null : null; }
-  // Bestzeit derselben Wertung in der alten Welt (Maßstab 1, Physik 2, bis 27.09.2026, ohne Extras) – nur zur Anzeige
-  oldWorldBestFor(key, assist, wreck = this.settings.wreck) { return WORLD_TAG && PHYS >= 2 ? this.best[key + '|' + modeKey(assist, wreck, 2, '', false)] || null : null; }
   // Rennen beendet: Bestzeit prüfen, Geist speichern (rec inkl. Strafzeit-Stillstand, Race.ghostRec)
   submit(key, assist, wreck, time, rec, meta = {}) {
     // Leicht: keine Wertung, kein Geist – nur die Zeit mit Datum vorne in die Liste
@@ -98,8 +80,10 @@ export class Store {
       this.save();
       return { easy: true, isBest: false, prev: null, time, list: L };
     }
-    const k = key + '|' + modeKey(assist, wreck, PHYS, WORLD_TAG, meta.extras !== false);
+    const k = key + '|' + modeKey(assist, wreck, meta.extras !== false);
     const prev = this.best[k];
+    // A/B-Vergleich per URL: Zeit zeigen, aber nicht werten (n21)
+    if (this.ab ?? AB) return { isBest: false, prev: prev ? prev.time : null, time, ab: true };
     const isBest = !prev || time < prev.time;
     if (isBest) {
       this.best[k] = { time, date: new Date().toISOString().slice(0, 10), name: meta.name || '', pen: meta.penalties || 0 };
@@ -133,7 +117,8 @@ export class Store {
     } catch { /* Speicher voll: Geist verwerfen */ }
   }
   loadGhost(key, assist, wreck = this.settings.wreck, extras = this.settings.extras) {
-    const k = key + '|' + modeKey(assist, wreck, PHYS, WORLD_TAG, extras);
+    if (this.ab ?? AB) return null;
+    const k = key + '|' + modeKey(assist, wreck, extras);
     const s = localStorage.getItem('stuntbahn.ghost.' + k);
     if (!s) return null;
     const nitro = (this.best[k] && this.best[k].nx) || [];

@@ -132,10 +132,9 @@ export class UI {
     W.classList.toggle('in', !!on);
   }
   flash() { this.wipe(true); clearTimeout(this._wt); this._wt = setTimeout(() => this.wipe(false), 90); }
-  // Bestzeiten je Fahrhilfe (aktuelle Physik und Welt) + ggf. Zeilen mit den Zeiten der alten Physik (bis 28.09.2026),
-  // der alten Welt (Maßstab 1) und der ersten Physik (beides bis 27.09.2026) – nicht vergleichbar, nur Anzeige,
-  // gespeichert bleiben sie unverändert
-  // Leicht (seit n15) hat keine Bestzeiten mehr → nur Mittel und Original; dazu (Menü) die letzte Leicht-Zeit
+  // Bestzeiten je Fahrhilfe (Mittel und Original; Leicht hat seit n15 keine) + Zeile mit der Liste der anderen
+  // Extras-Einstellung; dazu (Menü) die letzte Leicht-Zeit. Die Zeilen „alte Physik“/„alte Welt“/„erste Physik“ sind
+  // seit n21 weg (Bestzeiten einmalig gelöscht, keine Versions-Schachtelung mehr, store.js)
   bestsHtml(id) {
     const ks = Object.keys(ASSISTS).filter((k) => k !== 'easy');
     const now = ks.map((k) => { const b = this.store.bestFor(id, k); return `<span>${ASSISTS[k].icon} ${b ? fmtTime(b.time) : '–'}</span>`; }).join('');
@@ -144,10 +143,7 @@ export class UI {
       return l.length ? `<span class="oldp" title="${title}">${label}: ${l.map(([k, b]) => ASSISTS[k].icon + ' ' + fmtTime(b.time)).join(' ')}</span>` : '';
     };
     const xOn = this.store.settings.extras;
-    const old = row((k) => this.store.otherExtrasBestFor(id, k), xOn ? 'ohne Extras' : 'mit Extras', xOn ? 'Bestzeiten ohne Hüpfer & Nitro (eigene Liste, Option aus)' : 'Bestzeiten mit Hüpfer & Nitro (eigene Liste)')
-      + row((k) => this.store.prevPhysBestFor(id, k), 'alte Physik', 'Bestzeiten mit der Physik bis 28.09.2026 (weniger Bodenhaftung, anderes Tempo-Profil); Mittel: bis 30.09.2026 (mit Zug zur Ideallinie)')
-      + row((k) => this.store.oldWorldBestFor(id, k), 'alte Welt', 'Bestzeiten in der alten, kleineren Welt (bis 27.09.2026)')
-      + row((k) => this.store.oldBestFor(id, k), 'erste Physik', 'Bestzeiten mit der ersten, langsameren Physik (bis 27.09.2026)');
+    const old = row((k) => this.store.otherExtrasBestFor(id, k), xOn ? 'ohne Extras' : 'mit Extras', xOn ? 'Bestzeiten ohne Hüpfer & Nitro (eigene Liste, Option aus)' : 'Bestzeiten mit Hüpfer & Nitro (eigene Liste)');
     const last = this.store.timesFor(id)[0];
     const lastEasy = last ? `<span class="lastt" title="Leicht: keine Bestzeit, nur die letzte Zeit">${ASSISTS.easy.icon} zuletzt ${fmtTime(last.t)}</span>` : '';
     return { now, old, lastEasy };
@@ -643,7 +639,8 @@ export class UI {
     this.wipe(false);
     const pen = race.penalties ? `<div class="rpen">💥 ${race.penalties} Strafe${race.penalties > 1 ? 'n' : ''} × ${PENALTY} s = +${race.penalties * PENALTY} s</div>` : (race.wreckOn ? '' : '<div class="rpen ok">✨ Ohne Crash – keine Strafzeit</div>');
     // Leicht (n15): keine Bestzeit-Wertung – „Deine Zeit“ und die letzten Zeiten auf dieser Strecke
-    const best = res.easy ? this.timesHtml(res.list, true) : res.isBest ? '<div class="rec">🏆 Neue Bestzeit!</div>' : (res.prev ? `<div class="prev">Bestzeit ${fmtTime(res.prev)} (${(res.time - res.prev >= 0 ? '+' : '') + (res.time - res.prev).toFixed(2).replace('.', ',')} s)</div>` : '');
+    // A/B-Vergleich per URL (n21): keine Wertung
+    const best = res.easy ? this.timesHtml(res.list, true) : res.ab ? '<div class="prev">A/B-Vergleich (Link-Zusatz) – keine Bestzeit</div>' : res.isBest ? '<div class="rec">🏆 Neue Bestzeit!</div>' : (res.prev ? `<div class="prev">Bestzeit ${fmtTime(res.prev)} (${(res.time - res.prev >= 0 ? '+' : '') + (res.time - res.prev).toFixed(2).replace('.', ',')} s)</div>` : '');
     $('#result').innerHTML = `<div class="card"><h2>🏁 Ziel!</h2>${res.easy ? '<div class="ryour">Deine Zeit</div>' : ''}
       <div class="rtime">${fmtTime(res.time)}</div>${pen}${best}
       <div class="rmeta">${A.icon} ${A.name} · ${race.wreckOn ? '💥 Totalschaden an' : 'Totalschaden aus'} · ${race.extrasOn ? `Extras: 🦘 ${race.used.hop ? '✓' : '–'} 🔥 ${race.used.nitro ? '✓' : '–'}` : 'ohne Extras'} · ${env.meta.name} (${env.meta.key}) · Crashs ${race.crashes}${race.rewinds ? ' · Rückspulen ' + race.rewinds : ''}</div>

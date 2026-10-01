@@ -140,7 +140,9 @@ with Server() as srv, sync_playwright() as pw:
     s.pg.keyboard.up('ArrowUp')
     check(st['used']['hop'] == 1 or st['x']['hop'] in ('lock', 'air', 'roof', 'tilt'), f"Desktop: Leertaste → Hüpfer ({st['used']}, {st['x']['hop']})")
     s.ev("__game.sim(3)")
-    s.ev("__game.sim(200)")   # ins Ziel
+    # ins Ziel: der Autopilot fährt (bis n20 kam das Auto ohne Eingabe über Festgefahren-Resets ins Ziel; seit die
+    # Wiese bremst, bleibt es dort schneller stehen und braucht länger als 200 s)
+    s.ev("__game.race.autopilotOnly = true"); s.ev("__game.sim(200)")
     st = s.state()
     check(st['state'] == 'finished', f"Rennen im Ziel ({st['state']})")
     rm = s.ev("document.querySelector('#result .rmeta').textContent")
@@ -159,7 +161,7 @@ with Server() as srv, sync_playwright() as pw:
     s.pg.keyboard.press('Space'); s.pg.keyboard.press('KeyN'); time.sleep(0.3)
     st = s.state()
     check(st['used'] == {'hop': 0, 'nitro': 0} and not st['extras'], 'Option aus: Tasten wirkungslos')
-    k = s.ev("[__game.modeKey('medium', false), __game.modeKey('medium', false, undefined, undefined, false)]")
+    k = s.ev("[__game.modeKey('medium', false), __game.modeKey('medium', false, false)]")
     check(k[0].endswith('@x') and not k[1].endswith('@x'), f'Bestzeiten getrennt: mit Extras „{k[0]}“, ohne „{k[1]}“')
     check(not s.errors, f'Desktop: 0 Fehler {s.errors[:3]}')
     s.close()

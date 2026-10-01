@@ -59,9 +59,9 @@ export const CAR_DEF_ALT = {
   gears: [0, 13, 22, 31, 41, 53, 70],
 };
 
-// Physik-Version für Bestzeiten/Geister (store.js): 1 = bis 27.09.2026, 2 = „doppelt so schnell“, 3 = mehr
-// Bodenhaftung (n14, 29.09.2026). URL ?auto=alt / ?grip=1 fährt zum Vergleich mit der alten Abstimmung (und wertet
-// dann auch in der alten Liste). GRIP_ALT: auch Fahrbahn-Aufteilung (build.js) und Profil-Reserven wie bis n13.
+// Abstimmung per URL (A/B): 1 = bis 27.09.2026 (?auto=alt), 2 = „doppelt so schnell“ bis n13 (?grip=1), 3 = aktuell.
+// Bis n19 hingen daran auch getrennte Bestzeiten-Listen; seit n21 werten A/B-Links gar nicht (store.js AB).
+// GRIP_ALT: auch Fahrbahn-Aufteilung (build.js) und Profil-Reserven wie bis n13.
 const urlQ = globalThis.location && globalThis.location.search ? new URLSearchParams(globalThis.location.search) : null;
 export const GRIP_ALT = !!urlQ && (urlQ.get('grip') === '1' || urlQ.get('auto') === 'alt');
 export const HAFT_ALT = !!urlQ && urlQ.get('haft') === 'alt';

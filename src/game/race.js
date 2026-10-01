@@ -10,7 +10,7 @@ import { HOP, NITRO, NITRO_TOTAL, nitroLevel, hopModel, hopHeightAt } from '../p
 // Mittel (n16, Peter 29.09.2026: „Mittlere Schwierigkeit mehr Bodenhaftung und kein Magnet zur Ideallinie“): kein
 // Lenkzug zur Linie mehr (steerPull bis n15 0,28, im Stunt stuntPull 0,6), dafür mehr Reifenhaftung (grip, Faktor auf
 // die Reifen-Reibung, bis n15 1) und mehr Anpressdruck (magnet, bis n15 0,35). URL ?mgrip=1 = Mittel bis n15 (A/B,
-// wertet dann auch in der alten Mittel-Liste). Messung: MITTEL_BERICHT.md, tools/mittel_probe.mjs
+// seit n21 wertet ein A/B-Link nicht, store.js). Messung: MITTEL_BERICHT.md, tools/mittel_probe.mjs
 const urlQ = globalThis.location && globalThis.location.search ? new URLSearchParams(globalThis.location.search) : null;
 export const MED_ALT = !!urlQ && urlQ.get('mgrip') === '1';
 // Ohne jeden Zug crasht ein menschenähnlicher Fahrer in Looping/Röhre etwa viermal so oft wie bis n15 (Messung

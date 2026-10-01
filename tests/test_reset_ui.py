@@ -1,6 +1,6 @@
 # Totalschaden-Option + Fahrbahn-Reset mit Zeitstrafe im Browser (Pixel 7 quer + hoch):
 # Optionen-Schalter, „+5 s“-Anzeige mit Aufblitzen, Ergebnis mit Strafenzähler, Bestzeit je Wertung,
-# alte Bestzeit (Schlüssel ohne Zusatz) zählt als „Totalschaden an“ für Mittel, Replay-Schnitt + Overlay.
+# keine Zeilen „alte Physik“ mehr (n21), Replay-Schnitt + Overlay.
 import sys, time, json
 sys.path.insert(0, 'tests')
 from util import *
@@ -19,15 +19,10 @@ with Server() as srv, sync_playwright() as pw:
     key = s.ev("__game.env.meta.key")
     check(s.ev("__game.store.settings.wreck") is False, 'Standard: Totalschaden aus')
     s.ev("__game.setAssist('medium')")
-    # alte Bestzeit (vor dieser Änderung gespeichert: Schlüssel nur mit Fahrhilfe) → gilt als „Totalschaden an“
-    s.ev(f"() => {{ __game.store.best['{key}|medium'] = {{ time: 51.23, date: '2026-09-26', name: 'alt' }}; __game.store.save(); __game.ui.refresh(); }}")
-    # Bestzeit der neuen Physik in der alten Welt (Maßstab 1, Schlüssel @t2 ohne Welt-Zusatz) → „alte Welt“
-    old_world = s.ev("__game.worldScale") != 1
-    if old_world: s.ev(f"() => {{ __game.store.best['{key}|medium@t2'] = {{ time: 44.44, date: '2026-09-27', name: 'alt' }}; __game.store.save(); __game.ui.refresh(); }}")
-    # Bestzeit der Physik bis 28.09.2026 (weniger Haftung, @t2, gleiche Welt + Extras) → „alte Physik“ (seit n14)
-    s.ev(f"() => {{ __game.store.best['{key}|' + __game.modeKey('medium', true, 2)] = {{ time: 47.77, date: '2026-09-28', name: 'alt' }}; __game.store.save(); __game.ui.refresh(); }}")
+    # Bestzeit der Liste „Totalschaden an“ (n21: Schlüssel ohne Versions-Zusatz) → nur bei Totalschaden an gezeigt
+    s.ev(f"() => {{ __game.store.best['{key}|' + __game.modeKey('medium', true)] = {{ time: 51.23, date: '2026-10-01', name: 'an' }}; __game.store.save(); __game.ui.refresh(); }}")
     menu_off = s.ev("document.querySelector('#menu .bests').textContent")
-    check('0:51,23' not in menu_off and '0:47,77' not in menu_off and 'Reset +5 s' in menu_off, f'Menü (aus): alte Mittel-Zeiten nicht gezeigt, Kennzeichnung da: {menu_off!r}')
+    check('0:51,23' not in menu_off and 'Reset +5 s' in menu_off, f'Menü (aus): Zeit der Liste „Totalschaden an“ nicht gezeigt, Kennzeichnung da: {menu_off!r}')
     s.shot('reset_01_menu', 'reset')
     # Optionen: Schalter
     s.tap('button[data-a=settings]')
@@ -38,9 +33,8 @@ with Server() as srv, sync_playwright() as pw:
     s.shot('reset_03_optionen_an', 'reset')
     s.tap('#sheet [data-a=close]')
     menu_on = s.ev("document.querySelector('#menu .bests').textContent")
-    check('0:51,23' in menu_on and 'Totalschaden' in menu_on and 'erste Physik' in menu_on, f'Menü (an): alte Mittel-Bestzeit erscheint (als erste Physik): {menu_on!r}')
-    check('alte Physik: 🟡 0:47,77' in menu_on, f'Menü (an): Bestzeit vor n14 erscheint (als alte Physik): {menu_on!r}')
-    if old_world: check('alte Welt' in menu_on and '0:44,44' in menu_on, f'Menü (an): Bestzeit der alten Welt erscheint (als alte Welt): {menu_on!r}')
+    check('0:51,23' in menu_on and 'Totalschaden' in menu_on, f'Menü (an): Bestzeit der Liste „Totalschaden an“ erscheint: {menu_on!r}')
+    check(not any(w in menu_on + menu_off for w in ('alte Physik', 'erste Physik', 'alte Welt')), 'Menü: keine Zeilen „alte Physik/erste Physik/alte Welt“ mehr (n21)')
     s.tap('button[data-a=settings]'); s.tap('#sheet [data-a=toggle][data-v=wreck]'); s.tap('#sheet [data-a=close]')
     check(s.ev("__game.store.settings.wreck") is False, 'wieder aus')
 
@@ -75,9 +69,9 @@ with Server() as srv, sync_playwright() as pw:
     meta = s.ev("document.querySelector('#result .rmeta').textContent")
     check(rp and '1 Strafe' in rp and '+5 s' in rp, f'Ergebnis mit Strafenzähler: {rp!r} / {meta!r}')
     s.shot('reset_06_ergebnis_quer', 'reset')
-    best = s.ev(f"__game.store.best['{key}|' + __game.modeKey('medium', false)]")  # neue Physik + Welt: eigene Wertung
-    check(best and abs(best['time'] - st['time']) < 0.01 and best.get('pen') == 1 and s.ev(f"__game.store.best['{key}|medium'].time") == 51.23,
-          f'Bestzeit unter eigener Wertung gespeichert ({best}), alte bleibt unberührt')
+    best = s.ev(f"__game.store.best['{key}|' + __game.modeKey('medium', false)]")  # Totalschaden aus: eigene Wertung
+    check(best and abs(best['time'] - st['time']) < 0.01 and best.get('pen') == 1 and s.ev(f"__game.store.best['{key}|' + __game.modeKey('medium', true)].time") == 51.23,
+          f'Bestzeit unter eigener Wertung gespeichert ({best}), Liste „Totalschaden an“ bleibt unberührt')
     small = s.small_buttons()
     check(not small, f'Ergebnis: alle Knöpfe ≥ 48 px {small}')
 

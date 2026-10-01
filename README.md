@@ -15,17 +15,17 @@ spielbar am Handy (quer oder hochkant), mit Gamepad oder Tastatur. Als App insta
   Seine Rundenzeit steht als „Autopilot-Referenz“ im Menü.
 - **Crash = kein Totalschaden** (Standard): das Auto steht sofort wieder auf der Fahrbahn vor dem Stunt,
   mit Schwung, **+5 s** auf die Rennzeit. Wer es wie früher mag: Optionen → **💥 Totalschaden** (Wrack).
-- **Bestzeiten und Geisterautos** (Mittel und Original) werden je Strecke, je Fahrhilfe *und* je Totalschaden-Einstellung
-  getrennt gespeichert. **Leicht wertet nicht** (seit 29.09.2026): kein Bestzeit-Jubel, kein Geisterauto – nur „Deine Zeit“
-  und die letzten 5 Zeiten je Strecke mit Datum. Alte Leicht-Bestzeiten bleiben gespeichert, werden nicht mehr gezeigt.
-  **Mittel wertet seit 30.09.2026 (n16) neu** (ohne Zug zur Linie, mehr Haftung): die bisherigen Mittel-Zeiten bleiben
-  und stehen im Menü als „alte Physik“.
+- **Bestzeiten und Geisterautos** (Mittel und Original) werden je Strecke, je Fahrhilfe, je Totalschaden- *und*
+  Extras-Einstellung getrennt gespeichert. **Seit 01.10.2026 (n21) neu gestartet:** alle bisherigen Bestzeiten und Geister
+  wurden einmalig gelöscht (Peter: „Bestzeiten streichen“), es gibt keine Listen „alte Physik/alte Welt/erste Physik“ mehr.
+  Links mit A/B-Zusatz (`?wiese=alt`, `?haft=alt`, `?schanze=alt`, `?grip=1`, `?welt=1` …) werten nicht.
+  **Leicht wertet nicht** (seit 29.09.2026): kein Bestzeit-Jubel, kein Geisterauto – nur „Deine Zeit“ und die letzten
+  5 Zeiten je Strecke mit Datum.
 - **Doppelt so schnell** (seit 27.09.2026): Vmax ~586 km/h, 0–200 in 3,8 s, Rennreifen und Abtrieb (Details:
-  `TEMPO_BERICHT.md`). Bestzeiten der alten Physik bleiben gespeichert und stehen im Menü als „erste Physik“.
+  `TEMPO_BERICHT.md`).
 - **Mehr Bodenhaftung und schnellere Ideallinie** (seit 29.09.2026): Reifen mu 1,7 statt 1,5, mehr Abtrieb (wirkt nur mit
   Radkontakt, nimmt mit dem Bodenabstand ab), ruhige Räder an Steilkurven; der Autopilot fährt im Mittel 11 % schneller,
-  pendelt nicht mehr zwischen Gas und Bremse. Bestzeiten davor stehen im Menü als „alte Physik“ (Details:
-  `FAHRGEFUEHL_BERICHT.md`).
+  pendelt nicht mehr zwischen Gas und Bremse (Details: `FAHRGEFUEHL_BERICHT.md`).
 - **Wiese = Wiese** (seit 01.10.2026, n21): Neben der Strecke höchstens **30 km/h** (Vollgas ~27 km/h). Wer mit 200 km/h
   abkommt, ist nach ~1,8 s bei 30 km/h – ohne Überschlag, Lenken geht weiter; Grasbüschel spritzen, die Kamera rumpelt.
   `?wiese=alt` = bisherige Wiese (A/B). Messung: `node tools/wiese_probe.mjs`, Test `tests/node/test_wiese.mjs`.
@@ -207,7 +207,12 @@ python3 tests/cockpit_shots.py quer       # Cockpit-Fotos + Zeigerprüfung (quer
 python3 tests/cockpit_sicht.py nachher    # Cockpit: Fahrbahn-Anteil, ab wie viel m, Horizont, Brett-Oberkante, Wackeln (hoch+quer)
 python3 tests/stossstange_shots.py x      # Stoßstangen-Kamera: Anteil eigenes Auto im Bild (soll 0), Rennen + Replay
 python3 tests/test_leicht_zeiten.py       # Leicht: keine Bestzeit/kein Geist, Zeiten-Liste; Mittel wertet wie bisher
-node tests/node/test_leicht_zeiten.mjs    # Speicher: Leicht-Zeiten, Übernahme alter Leicht-Bestzeiten, Mittel unverändert
+node tests/node/test_leicht_zeiten.mjs    # Speicher: Bestzeiten einmalig gelöscht (n21, Alt-Profil), Leicht-Zeiten, Mittel, A/B wertet nicht
+python3 tests/test_bestzeiten_reset.py    # n21 im Browser: Alt-Profil per add_init_script → gelöscht, Menü ohne alte Listen, Neuladen, A/B
+node tests/node/test_wiese.mjs            # n21: Wiese ≤ 30 km/h, Abkommen 200/300 km/h, Rückweg aus Senken, ?wiese=alt
+node tests/node/test_haftung.mjs          # n21: Bodenhaftung an Kuppen, Schanze unverändert, ?haft=alt
+node tools/wiese_probe.mjs                # n21: Wiese messen (STUNT_WIESE=alt für vorher)
+python3 tests/wiese_shots.py quer         # n21: Fotos Auto auf der Wiese mit Tacho (quer|hoch)
 python3 tests/test_zoom.py                # kein Doppeltipp-Zoom: touch-action je Scrollbereich, Eingaben ≥ 16 px, Doppel-Taps
 node tools/jump_measure.mjs               # Sprung-Messung: Scheitel, Airtime, Weite (--air 1 --lip 15 = alt)
 node tools/jump_easy_batch.mjs 10         # Generator-Strecken auf „Leicht“: im Ziel ohne Crash, Flugzeiten
@@ -235,15 +240,14 @@ Nützliche URL-Parameter: `?seed=4711&d=3`, `?demo`, `?gallery` (alle Bausteine)
 `?blur=off|light|strong` (Bewegungsunschärfe übersteuern).
 Cockpit: `?eye=0.45` (Augenhöhe in m über dem Auto-Ursprung), `?hz=0.32` (Horizont, Anteil der Bildhöhe von oben),
 `?dash=0.7` (Oberkante Armaturenbrett, Anteil von oben), `?cpsusp=1` (Federungs-Ausgleich, 0,5 = Stand bis 28.09.).
-`?auto=alt` (alte, langsamere Abstimmung bis 27.09.2026 zum Vergleich; wertet in der alten Bestzeiten-Liste).
+`?auto=alt` (alte, langsamere Abstimmung bis 27.09.2026 zum Vergleich; wertet nicht).
 `?snd=alt` (bisheriger Synthesizer-Ton statt der Aufnahmen, A/B).
-`?grip=1` (Haftung und Ideallinie bis 28.09.2026 zum A/B-Vergleich; wertet unter „alte Physik“).
-`?mgrip=1` (Mittel wie bis 29.09.2026: Zug zur Ideallinie, weniger Haftung – A/B-Vergleich; wertet in der alten
-Mittel-Liste, die sonst als „alte Physik“ erscheint). Messung: `MITTEL_BERICHT.md`.
+`?grip=1` (Haftung und Ideallinie bis 28.09.2026 zum A/B-Vergleich; wertet nicht).
+`?mgrip=1` (Mittel wie bis 29.09.2026: Zug zur Ideallinie, weniger Haftung – A/B-Vergleich; wertet nicht). Messung: `MITTEL_BERICHT.md`.
 `?lk=0…1` (Leicht: Anteil der Kurve, den der Spieler selbst lenkt, Standard 0.8; `?lk=0` = alte Schienen) und
 `?lkband=3.5` (Leicht: Band um die Linie in m, in dem die Hilfe nicht zur Linie zieht – größer = mehr Treiben bei „Hände weg“).
 `?welt=1` (alter, kleiner Weltmaßstab bis 27.09.2026 zum A/B-Vergleich, Standard 2 = Felder 40 statt 20 m;
-erlaubt 1 … 2,5; wertet in der Bestzeiten-Liste der jeweiligen Welt). In Node: `STUNT_WELT=1 node …`.
+erlaubt 1 … 2,5; andere Welt als 2 wertet nicht). In Node: `STUNT_WELT=1 node …`.
 
 ## Credits
 - **Auto:** „Fictional supercar – V12 Goblin“ von **Olli Teittinen (ollitei)**, CC-BY 4.0 (Sketchfab), für das Spiel optimiert.
