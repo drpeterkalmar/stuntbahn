@@ -16,7 +16,7 @@
 //     5-m-Höhenraster (im Tunnel liegt das Physik-Gelände unter der Fahrbahn, die Grafik zeigt den Hügel).
 import { TILE, GRID, WORLD_SCALE, WORLD_HALF, ROAD_HW, tileX, tileZ } from './defs.js';
 import { makeNoise2, smoothstep, smootherstep, clamp } from '../core/util.js';
-import { adaptiveGrid, gridExt, FINE_DT } from './terrgrid.js';
+import { adaptiveGrid, gridExt } from './terrgrid.js';
 
 const WS = WORLD_SCALE, T = TILE;
 
@@ -32,6 +32,10 @@ export const GEL = {
 // Fahrbahn folgt (normal / Stunt-Sockel / Steilkurve / Halfpipe; mindestens Fahrbahn + Bankett + eine Rasterzelle, damit
 // das 5-m-Raster nie durch die Fahrbahn sticht), Böschungen (Einschnitt kUp, Damm kLo, Klippe kCliff je m), Tunnel
 // (halbe Breite, Deckung über dem Scheitel), Schlucht (Tiefe, halbe Länge quer), Brücke (Luft unter dem Deck)
+// Grafik-Raster: fein bis GEL_FINE Felder um die Strecke; grobe Blöcke dürfen bis 2,5 Felder um die Strecke GEL_ERR[0] m,
+// weiter draußen GEL_ERR[1] m vom exakten Gelände abweichen (flache Strecken: 1,5 Felder / 0,5 m überall)
+const envNum = (k, d) => +((globalThis.process && process.env[k]) || d);
+export const GEL_FINE = envNum('GEL_FINE', 1.2), GEL_ERR = [envNum('GEL_ERR0', 1.5), envNum('GEL_ERR1', 5.0)];
 export const ENV = {
   delta: 0.15, w0: ROAD_HW + 8, w0Rigid: 20, w0Bank: 22, kUp: 0.9, kLo: 0.7, kCliff: 4,
   tunnelHW: ROAD_HW + 1.6, tunnelH: 7.2, cover: 11, gorgeDepth: 22, gorgeLen: 110, bridgeGap: 3.5, reach: 140,
@@ -235,7 +239,7 @@ export function planElevation(layout, L, line1, info1, land, diff) {
       fill[k] = Math.max(fill[k], uu - lh); cut[k] = Math.min(cut[k], lh - uu);
     }
   }
-  const BR = new Set(['straight', 'checkpoint', 'turnS', 'turnL']);
+  const BR = new Set(['straight', 'checkpoint', 'turnL']);   // enge Kurven nicht (Kehre: Ideallinie schneidet in die Brüstung)
   P.forEach((pc, k) => {
     if (gid[k] >= 0 || inKuppe(k) || pc.tilt0 != null) return;
     // nicht direkt vor/nach einem Stunt (nach der Landung braucht das Auto Platz ohne Brüstung)
@@ -244,7 +248,8 @@ export function planElevation(layout, L, line1, info1, land, diff) {
   });
   // Tunnel: Läufe gerader Stücke (ohne Checkpoint), mindestens 2 Felder, durchgehend tief genug – oder vom Generator
   // gewollt (pc.g = 'tunnel', dann hebt das Gelände einen Hügel darüber)
-  const tun = P.map((pc, k) => pc.type === 'straight' && gid[k] < 0 && !inKuppe(k) && !pieces[k].bridge && pc.tilt0 == null && (pc.g === 'tunnel' || cut[k] > G.tunnel));
+  const nearStunt = (k) => [-1, 1].some((q) => { const j = (k + q + NP) % NP; return gid[j] >= 0 && P[j].type !== 'start'; });
+  const tun = P.map((pc, k) => pc.type === 'straight' && gid[k] < 0 && !inKuppe(k) && !pieces[k].bridge && pc.tilt0 == null && (pc.g === 'tunnel' || (cut[k] > G.tunnel && !nearStunt(k))));
   // höchstens 2 Tunnel je Strecke: der gewollte zuerst, dann die tiefsten Einschnitte (sonst wird jede Kuppe zum Tunnel)
   const truns = [];
   for (let k = 0; k < NP;) {
@@ -376,6 +381,14 @@ export function buildGelTerrain(ctx) {
     sl[i] = L.by[i] / bh;
   }
   // Querschnitt neben der Fahrbahn: Höhe bei Querabstand l (rechts +) relativ zur Bezugshöhe
+  // Drop (Klippe): Seite je Punkt – 1 = Plateau vor der Kante, 2 = Landehang/Auslauf danach
+  const dropSide = new Uint8Array(n);
+  for (let k = 0; k < P.length; k++) {
+    if (P[k].type !== 'cliff' && P[k].type !== 'cliff2') continue;
+    const pi = ctx.pieces[k];
+    let seenAir = false;
+    for (let i = pi.lineStart; i <= pi.lineEnd; i++) { if (L.air[i]) seenAir = true; else dropSide[i] = seenAir ? 2 : 1; }
+  }
   // Halfpipe: Öffnungswinkel je Punkt wie im Stück (über die Bogenlänge im Stück)
   const hpA = new Float32Array(n);
   for (let i = 0; i < n; i++) if (kindOf[i] === 'hp') {
@@ -385,10 +398,11 @@ export function buildGelTerrain(ctx) {
   const side = (i, l) => {
     const kd = kindOf[i], a = Math.abs(l), s = sl[i];
     if (kd === 'hp') {
-      const e = a - HALFPIPE.hf, Rq = HALFPIPE.R;
-      if (e <= 0) return 0;
-      const q = Math.min(e, Rq * Math.sin(hpA[i]));
-      return Rq - Math.sqrt(Rq * Rq - q * q);
+      // unter den (hohlen) Viertelröhren bleibt das Gelände auf Bodenhöhe – im 5-m-Raster läge die Sehne sonst über der
+      // Rundung (Gras durch die Wand, Räder auf Gras); erst eine Rasterzelle hinter der Kante auf Kantenhöhe
+      const e = a - HALFPIPE.hf, Rq = HALFPIPE.R, ex = Rq * Math.sin(hpA[i]);
+      if (e <= ex + 6) return 0;
+      return Rq - Math.sqrt(Rq * Rq - ex * ex);
     }
     if (kd === 'bank') {   // außen (hoch) der Fahrbahnneigung weiter folgen (Mulde), innen waagrecht
       if (Math.sign(l) === Math.sign(s)) return Math.min(s * l, Math.abs(s) * 16);
@@ -411,6 +425,8 @@ export function buildGelTerrain(ctx) {
   // hinaus – nicht nur über das Abschnittsende – entscheidet über steile Kante an der Lücke / Hügel über dem Tunnel)
   const sc = new Uint8Array(nSeg), sLen = new Float64Array(nSeg);
   for (let q = 0; q < nSeg; q++) { sc[q] = segC(q); sLen[q] = Math.hypot(L.px[use[q + 1]] - L.px[use[q]], L.pz[use[q + 1]] - L.pz[use[q]]); }
+  const segTx = new Float64Array(nSeg), segTz = new Float64Array(nSeg);
+  for (let q = 0; q < nSeg; q++) { const a = use[q], b = use[q + 1], l = Math.hypot(L.px[b] - L.px[a], L.pz[b] - L.pz[a]) || 1; segTx[q] = (L.px[b] - L.px[a]) / l; segTz[q] = (L.pz[b] - L.pz[a]) / l; }
   const runNext = new Uint8Array(nSeg), runPrev = new Uint8Array(nSeg), dEnd = new Float64Array(nSeg), dStart = new Float64Array(nSeg);
   for (let q = nSeg - 1; q >= 0; q--) { const same = q < nSeg - 1 && sc[q + 1] === sc[q]; runNext[q] = q === nSeg - 1 ? sc[q] : same ? runNext[q + 1] : sc[q + 1]; dEnd[q] = same ? dEnd[q + 1] + sLen[q + 1] : 0; }
   for (let q = 0; q < nSeg; q++) { const same = q > 0 && sc[q - 1] === sc[q]; runPrev[q] = q === 0 ? sc[q] : same ? runPrev[q - 1] : sc[q - 1]; dStart[q] = same ? dStart[q - 1] + sLen[q - 1] : 0; }
@@ -431,18 +447,18 @@ export function buildGelTerrain(ctx) {
     // Formen der Elemente
     const isGorge = c === 1 && pc && pc.type === 'jump' && pc.g === 'gorge';
     const isDropAir = c === 1 && pc && (pc.type === 'cliff' || pc.type === 'cliff2');
-    const isPlateau = c === 0 && pc && (pc.type === 'cliff' || pc.type === 'cliff2') && ub[i] > (pl.c ?? 0) + 1;
+    const isPlateau = c === 0 && dropSide[i] === 1, isLand = c === 0 && dropSide[i] === 2;
     const isTilt = kd === 'tilt' && Math.abs(sl[i]) > 0.02;
     // Reichweite: so weit, wie eine Böschung bis zur Landschaft reicht (Landschaft neben dem Abschnitt abgetastet)
     let reach;
-    if (c === 1) reach = isGorge ? ENV.gorgeLen + 40 : 30;
+    if (c === 1) reach = isGorge ? ENV.gorgeLen + 40 : isDropAir ? 75 : 30;
     else {
       const mx = (ax + bx) / 2, mz = (az + bz) / 2, um = (ub[i] + ub[j]) / 2;
       let dmax = Math.abs(land.h(mx, mz) - um);
       for (const o of [-80, -35, 35, 80]) dmax = Math.max(dmax, Math.abs(land.h(mx + nxv * o, mz + nzv * o) - um));
       reach = Math.min(ENV.reach, ww + 8 + dmax / kLo);
       if (c === 2) reach = Math.max(reach, 85);
-      if (isTilt || isPlateau) reach = Math.max(reach, 90);
+      if (isTilt || isPlateau || isLand) reach = Math.max(reach, 90);
       if (kd === 'hp') reach = Math.max(reach, 70);
     }
     const x0 = Math.min(ax, bx) - reach, x1 = Math.max(ax, bx) + reach, z0 = Math.min(az, bz) - reach, z1 = Math.max(az, bz) + reach;
@@ -458,6 +474,11 @@ export function buildGelTerrain(ctx) {
         let o = 0;   // Überstand über das Abschnittsende hinaus (m)
         if (t < 0) { o = -t * len; t = 0; } else if (t > 1) { o = (t - 1) * len; t = 1; }
         const beyondStart = o > 0 && t === 0, beyondEnd = o > 0 && t === 1;
+        // über ein inneres Abschnittsende hinaus zählt nur der Keil außen an einer Kurve – was der Nachbar-Abschnitt
+        // abdeckt, gehört ihm (sonst drückt am Hang die ein paar Meter weiter unten liegende Fahrbahn das Gelände neben
+        // der Straße hinunter: Räder über der Kante ohne Boden)
+        if (beyondEnd && q < nSeg - 1 && sc[q + 1] === c && (px - L.px[use[q + 1]]) * segTx[q + 1] + (pz - L.pz[use[q + 1]]) * segTz[q + 1] >= 0) continue;
+        if (beyondStart && q > 0 && sc[q - 1] === c && (px - L.px[use[q]]) * segTx[q - 1] + (pz - L.pz[use[q]]) * segTz[q - 1] <= 0) continue;
         // über das Laufende hinaus (Lippe, Landung, Portal): Überstand ab dem Laufende
         const oEnd = beyondEnd ? o - dEnd[q] : -1, oStart = beyondStart ? o - dStart[q] : -1;
         const d = Math.hypot(l, o);
@@ -481,15 +502,17 @@ export function buildGelTerrain(ctx) {
             const base = (pl.c ?? u0) - ENV.gorgeDepth * (1 - smoothstep(ENV.gorgeLen - 80, ENV.gorgeLen, Math.abs(l)));
             if (base < C[g]) C[g] = base;
           } else if (isDropAir) {
-            const base = (pl.c ?? u0) - 1;
+            // Plateau-Kante quer zur Fahrt: unten auf Höhe des Auslaufs, seitlich weit, am Ende auslaufend
+            const base = (pl.c ?? u0) - del + 0.6 * Math.max(0, Math.abs(l) - 55);
             if (base < C[g]) C[g] = base;
           }
           continue;
         }
         // Fahrbahn: Streifen genau auf Fahrbahnhöhe, dahinter Böschungen
         const al = Math.abs(l);
-        const surfAt = (q) => u0 + side(ii, q) - del;
+        const surfAt = (q) => u0 + side(ii, q) - (kd === 'bank' || kd === 'tilt' ? del + 0.25 : del);   // Steilkurve, Hang-Querfahrt: verwunden → mehr Luft
         let sLo, sHi;
+        const cliffEdge = (oEnd > 0 && runNext[q] === 1) || (oStart > 0 && runPrev[q] === 1);
         if (d <= ww) { sLo = sHi = surfAt(l); }
         else {
           const edge = surfAt(Math.sign(l || 1) * Math.min(al, ww));
@@ -525,8 +548,12 @@ export function buildGelTerrain(ctx) {
           // Tal um die Halfpipe: Gelände steigt hinter dem Rand weiter an
           const v = ub[ii] + side(ii, ww) + Math.min(14, 0.5 * Math.max(0, d - ww)) * (1 - smoothstep(45, 70, d));
           if (v > R[g]) R[g] = v;
-        } else if (isPlateau) {
-          // Plateau vor dem Drop: breite Hochfläche auf Fahrbahnhöhe
+        } else if (isLand && d > ww) {
+          // neben dem Landehang liegt das Gelände unten (Auslauf-Höhe): der Hang steht als Rampe vor der Klippe
+          const v = (pl.c ?? u0) - del + 0.6 * Math.max(0, d - 55);
+          if (v < C[g]) C[g] = v;
+        } else if (isPlateau && !(oEnd > 0 && runNext[q] === 1)) {
+          // Plateau vor dem Drop: breite Hochfläche auf Fahrbahnhöhe, endet an der Kante (nicht über die Lücke hinaus)
           const v = u0 - del - 1.2 * Math.max(0, d - 55);
           if (v > R[g]) R[g] = v;
         }
@@ -552,9 +579,11 @@ export function buildGelTerrain(ctx) {
   const tB = globalThis.performance ? performance.now() : 0;
   // Abstand zur Strecke in Feldern (für Bäume, AO, feines Raster) wie beim flachen Gelände
   const distTiles = makeDistTiles(occupied);
-  const fineBlock = (x0, z0, x1, z1) => Math.min(distTiles(x0, z0), distTiles(x1, z0), distTiles(x0, z1), distTiles(x1, z1), distTiles((x0 + x1) / 2, (z0 + z1) / 2)) < FINE_DT;
+  const fineBlock = (x0, z0, x1, z1) => Math.min(distTiles(x0, z0), distTiles(x1, z0), distTiles(x0, z1), distTiles(x1, z1), distTiles((x0 + x1) / 2, (z0 + z1) / 2)) < GEL_FINE;
   const node = (x, z) => { const gi = Math.round((x - gx0) / step), gj = Math.round((z - gx0) / step); return Hvis[gj * nx + gi]; };
-  const { nb, H: Hgrid, Hv, fine } = adaptiveGrid(ext, step, node, fineBlock);
+  // grobe Blöcke dürfen hier GEL_COARSE m abweichen (hügelige Landschaft: bei 0,5 m wären fast alle Blöcke fein,
+  // +170 % Gelände-Dreiecke); nahe der Strecke bleibt alles fein (Physik nutzt ohnehin das volle Raster)
+  const { nb, H: Hgrid, Hv, fine } = adaptiveGrid(ext, step, node, fineBlock, (x, z) => (distTiles(x, z) < 2.5 ? GEL_ERR[0] : GEL_ERR[1]));
   const bil = (A) => (x, z) => {
     const fx = (x + ext) / step, fz = (z + ext) / step;
     if (fx < 0 || fz < 0 || fx >= nx - 1 || fz >= nx - 1) return land.h(x, z);

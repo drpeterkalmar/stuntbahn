@@ -12,7 +12,7 @@ import { displayGear } from './gfx/gauges.js';
 import { Input } from './game/input.js';
 import { Race, ASSISTS } from './game/race.js';
 import { UI } from './ui/ui.js';
-import { generate, demoLayout, galleryLayout } from './track/generator.js';
+import { generate, demoLayout, galleryLayout, galleryGelLayout } from './track/generator.js';
 import { verify, prepare, probeLap } from './track/verify.js';
 import { parseTrk } from './track/trk.js';
 import { trkToLayout } from './track/trkimport.js';
@@ -144,7 +144,7 @@ async function boot() {
   ui.loading(0.8, 'Strecke bauen …');
   const q = params.get('seed');
   if (params.has('demo')) await loadTrack(demoLayout(), { name: 'Teststrecke' });
-  else if (params.has('gallery')) await loadTrack(galleryLayout());
+  else if (params.has('gallery')) await loadTrack(params.get('gallery') === 'gel' ? galleryGelLayout() : galleryLayout());   // ?gallery=gel: Gelände-Galerie (n22)
   else if (params.has('trk')) await loadImported(params.get('trk')).catch((e) => { console.warn(e); return loadGenerated(daySeed(), 2); });
   // ?seed=…&d=… wie bisher flach (alte Codes, Tests); &3d=1 = Hochstraße (n19), &g=1 = Gelände (n22). Ohne Seed: Strecke
   // des Tages in der gewählten Streckenart (ab n22 Standard „Gelände“; Schalter im Menü)

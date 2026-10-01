@@ -24,7 +24,7 @@ export function triLerp(a, b, c, d, u, v) {
 }
 
 // heightFn(x, z) exakt; nearTrack(x0, z0, x1, z1) → true = Block wegen Streckennähe fein
-export function adaptiveGrid(ext, step, heightFn, nearTrack) {
+export function adaptiveGrid(ext, step, heightFn, nearTrack, coarseErr = COARSE_ERR) {
   const nx = Math.round(2 * ext / step) + 1, nb = (nx - 1) / TB;
   if (nb !== Math.floor(nb)) throw new Error('Gelände-Raster: (nx − 1) muss Vielfaches von ' + TB + ' sein');
   const BS = TB * step;
@@ -36,7 +36,8 @@ export function adaptiveGrid(ext, step, heightFn, nearTrack) {
     let f = nearTrack(x0, z0, x0 + BS, z0 + BS);
     if (!f) {
       const k0 = bj * TB * nx + bi * TB, a = H[k0], b = H[k0 + TB], c = H[k0 + TB * nx], d = H[k0 + TB * nx + TB];
-      for (let q = 0; q <= TB && !f; q++) for (let p = 0; p <= TB; p++) if (Math.abs(H[k0 + q * nx + p] - triLerp(a, b, c, d, p / TB, q / TB)) > COARSE_ERR) { f = true; break; }
+      const ce = typeof coarseErr === 'function' ? coarseErr(x0 + BS / 2, z0 + BS / 2) : coarseErr;   // n22: je Block
+      for (let q = 0; q <= TB && !f; q++) for (let p = 0; p <= TB; p++) if (Math.abs(H[k0 + q * nx + p] - triLerp(a, b, c, d, p / TB, q / TB)) > ce) { f = true; break; }
     }
     fine[bj * nb + bi] = f ? 1 : 0;
   }

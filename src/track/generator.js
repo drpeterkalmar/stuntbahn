@@ -290,6 +290,20 @@ export function demoLayout() {
   return { pieces, seed: 0, diff: 2, meta: { seed: 0, diff: 2, key: 'demo', name: 'Teststrecke', diffName: 'Sportlich' } };
 }
 
+// Gelände-Galerie (n22, ?gallery=gel): eine Gelände-Strecke mit allen Gelände-Elementen – Serpentine, Kuppe mit
+// Luftphase, Hang-Querfahrt, Steilkurve in der Mulde, Tunnel, Schluchtsprung, Plateau-Abfahrt, Halfpipe, Looping auf dem
+// Sockel. Erste passende Strecke der Stufe Sportlich (deterministisch, Suche über die Seeds ab 1).
+export const GEL_GALLERY_NEED = ['serpentine', 'kuppe', 'tilt', 'tunnel', 'gorge', 'drop', 'halfpipe', 'loop'];
+export function galleryGelLayout() {
+  for (let s = 1; s < 5000; s++) {
+    const l = generate(s, 2, { gel: true });
+    if (!GEL_GALLERY_NEED.every((k) => l.meta.elems[k]) || !l.pieces.some((p) => p.type === 'bank')) continue;
+    l.meta = { ...l.meta, key: 'galerie-g', name: 'Gelände-Galerie', gallerySeed: s };
+    return l;
+  }
+  throw new Error('Gelände-Galerie: keine Strecke gefunden');
+}
+
 // Baustein-Galerie (offen): jedes Element einmal, für Sichtprüfung/Tests. Einträge: 'typ', ['typ', m] oder
 // { t: 'typ', m, h1 } (h1 = Ebene an der Ausfahrt). Seit n19 mit den 3D-Teilen (Wellen, Steilwand, Steilkurve,
 // Korkenzieher, Wendel, Steilauffahrt, Hochstraßen-Kurven, Überführung, Klippensprünge, Spiralen).

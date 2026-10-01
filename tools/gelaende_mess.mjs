@@ -26,7 +26,7 @@ for (const diff of [1, 2, 3]) for (let q = 0; q < N; q++) {
     race.step(DT, zero); t += DT;
     const c = race.car, i = race.tracker.idx, k = zoneKind(i);
     const vel = [c.v.x, c.v.y, c.v.z];
-    if (k !== (cur && cur.k)) { if (cur) { const A = acc[cur.k]; A.n++; A.vin.push(cur.vin); A.vmax.push(cur.vmax); A.air.push(cur.air); A.g.push(cur.g); } cur = k ? { k, vin: c.speed() * 3.6, vmax: 0, air: 0, g: 0 } : null; }
+    if (k !== (cur && cur.k)) { if (cur && process.env.MESS_DBG === cur.k && cur.g > 6) console.log('  hoch', cur.k, seed, diff, cur.g.toFixed(1), i); if (cur) { const A = acc[cur.k]; A.n++; A.vin.push(cur.vin); A.vmax.push(cur.vmax); A.air.push(cur.air); A.g.push(cur.g); } cur = k ? { k, vin: c.speed() * 3.6, vmax: 0, air: 0, g: 0 } : null; }
     if (cur) {
       cur.vmax = Math.max(cur.vmax, c.speed() * 3.6);
       const ground = c.onGround > 0;

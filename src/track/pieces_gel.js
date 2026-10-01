@@ -54,8 +54,9 @@ export const PROFILES_GEL = {
     const eR = R0[n - 1].b, eL = L0[n - 1].a;
     segs.push(...R0, ...L0);
     // Kante oben (waagrecht nach außen) und Rückseite ins Gelände
-    segs.push({ a: eR, b: [eR[0] + 1.2, eR[1]], mat: MAT.CONCRETE, col: 1 }, { a: [eR[0] + 1.2, eR[1]], b: [eR[0] + 1.4, eR[1] - 1.2], mat: MAT.CONCRETE, col: 0 });
-    segs.push({ a: [eL[0] - 1.2, eL[1]], b: eL, mat: MAT.CONCRETE, col: 1 }, { a: [eL[0] - 1.4, eL[1] - 1.2], b: [eL[0] - 1.2, eL[1]], mat: MAT.CONCRETE, col: 0 });
+    // Rückwand bis unter Bodenhöhe (das Gelände liegt hinter der Wand erst eine Rasterzelle weiter auf Kantenhöhe)
+    segs.push({ a: eR, b: [eR[0] + 1.2, eR[1]], mat: MAT.CONCRETE, col: 1 }, { a: [eR[0] + 1.2, eR[1]], b: [eR[0] + 1.3, -0.6], mat: MAT.CONCRETE, col: 0 });
+    segs.push({ a: [eL[0] - 1.2, eL[1]], b: eL, mat: MAT.CONCRETE, col: 1 }, { a: [eL[0] - 1.3, -0.6], b: [eL[0] - 1.2, eL[1]], mat: MAT.CONCRETE, col: 0 });
     return segs;
   },
   // Steilkurve in der Mulde (für Rechtskurve gebaut, links gespiegelt): statt der Betonwand außen Randstein und Platte,

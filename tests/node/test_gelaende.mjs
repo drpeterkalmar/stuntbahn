@@ -3,10 +3,10 @@
 // viele Seeds, Lösbarkeit per Autopilot ohne Entschärfen, Bauzeit, alte Codes bitgleich (build_hash).
 // Aufruf: node tests/node/test_gelaende.mjs [Seeds je Stufe=8]
 import { spawnSync } from 'child_process';
-import { generate } from '../../src/track/generator.js';
+import { generate, galleryGelLayout, GEL_GALLERY_NEED } from '../../src/track/generator.js';
 import { buildTrack } from '../../src/track/build.js';
 import { verifySync } from '../../src/track/verify.js';
-import { GEL, ENV } from '../../src/track/gelaende.js';
+import { GEL, ENV, HALFPIPE } from '../../src/track/gelaende.js';
 import { ROAD_HW } from '../../src/track/defs.js';
 
 const N = +(process.argv[2] || 8);
@@ -47,9 +47,9 @@ for (const diff of [1, 2, 3]) for (const seed of seeds) {
     const k = L.piece[i];
     if (!pl[k].rigid && i > 2 && !pl[L.piece[i - 2]].rigid && L.s[i] - L.s[i - 2] > 0.5) gmax = Math.max(gmax, Math.abs(L.py[i] - L.py[i - 2]) / (L.s[i] - L.s[i - 2]));
     // Physik-Gelände nie über der Fahrbahn (Mitte und ±(Breite − 0,6 m), entlang der Querneigung)
-    const bl = Math.hypot(L.bx[i], L.bz[i]) || 1;
+    // (quer entlang der geneigten Fahrbahn: B ist der Einheitsvektor nach rechts in der Fahrbahn-Ebene)
     for (const q of [-(L.hw[i] - 0.6), 0, L.hw[i] - 0.6]) {
-      const x = L.px[i] + L.bx[i] / bl * q, z = L.pz[i] + L.bz[i] / bl * q, y = L.py[i] + L.by[i] / bl * q;
+      const x = L.px[i] + L.bx[i] * q, z = L.pz[i] + L.bz[i] * q, y = L.py[i] + L.by[i] * q;
       if (T.height(x, z) > y - 0.03) { above++; if (!aboveAt) aboveAt = `${i} ${lay.pieces[k].type} q=${q.toFixed(1)} ${(T.height(x, z) - y).toFixed(2)}`; }
     }
   }
@@ -70,6 +70,17 @@ for (const diff of [1, 2, 3]) for (const seed of seeds) {
     ok(L.py[j.lipIdx] - T.height(L.px[m], L.pz[m]) > ENV.gorgeDepth - 4, `${tag}: Schlucht ${(L.py[j.lipIdx] - T.height(L.px[m], L.pz[m])).toFixed(0)} m tief`);
     ok(T.waters.some((w) => w.river), `${tag}: Fluss in der Schlucht`);
   }
+  // Halfpipe: Gelände unter den Viertelröhren (sonst Gras durch die Wand / Räder auf Gras)
+  for (let k = 0; k < lay.pieces.length; k++) {
+    if (lay.pieces[k].type !== 'halfpipe') continue;
+    const pi = tr.pieces[k], i = (pi.lineStart + pi.lineEnd) >> 1, bl = Math.hypot(L.bx[i], L.bz[i]) || 1;
+    let worst = -1e9;
+    for (const fr of [0.3, 0.6, 0.9]) for (const sg of [-1, 1]) {
+      const a = HALFPIPE.A * fr, e = HALFPIPE.hf + HALFPIPE.R * Math.sin(a), y = L.py[i] + HALFPIPE.R * (1 - Math.cos(a));
+      worst = Math.max(worst, T.height(L.px[i] + L.bx[i] / bl * sg * e, L.pz[i] + L.bz[i] / bl * sg * e) - y);
+    }
+    ok(worst < 0, `${tag}: Gelände unter der Halfpipe-Wand (${worst.toFixed(2)} m)`);
+  }
   void ROAD_HW;
 }
 console.log('Elemente', JSON.stringify(elems));
@@ -77,7 +88,15 @@ for (const k of ['kuppe', 'tilt', 'tunnel', 'gorge', 'serpentine']) ok((elems[k]
 times.sort((a, b) => a - b);
 ok(times[times.length >> 1] < 250, `Bauzeit Median ${times[times.length >> 1].toFixed(0)} ms`);
 
-// 3) Lösbarkeit: Autopilot ohne Entschärfen
+// 3) Gelände-Galerie (?gallery=gel): alle Elemente, Autopilot im Ziel
+{
+  const g = galleryGelLayout();
+  ok(GEL_GALLERY_NEED.every((k) => g.meta.elems[k]) && g.pieces.some((p) => p.type === 'bank') && g.meta.key === 'galerie-g', 'Gelände-Galerie mit allen Elementen (Seed ' + g.meta.gallerySeed + ')');
+  const v = verifySync(galleryGelLayout(), 0);
+  ok(v.ok, 'Gelände-Galerie: Autopilot im Ziel ' + (v.ok ? v.apTime.toFixed(1) + ' s' : v.reason));
+}
+
+// 4) Lösbarkeit: Autopilot ohne Entschärfen
 let fine = 0, tot = 0;
 for (const diff of [1, 2, 3]) for (const seed of seeds.slice(0, Math.max(3, N >> 1))) {
   const v = verifySync(generate(seed, diff, { gel: true }), 0);
