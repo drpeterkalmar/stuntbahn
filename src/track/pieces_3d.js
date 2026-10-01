@@ -187,7 +187,12 @@ function buildWaves(pb) {
 // verträgt ~13 m/s): D = 6 m → 13,4 … 18,9 m/s, D = 12 m ebenso (Standard-Schanze 14,2 … 19,5). Steiler (wie eine
 // Skisprung-Anlage) wäre sanfter, fängt aber nur ein ~3 m/s schmales Fenster – der Hang muss bis −D reichen.
 // Unterbau massiv bis zum Boden (Klippe), unter der Lücke Wasser, wenn unten Boden ist.
-export const CLIFF = { xk: 18, yk: 3.0, alpha: 17 * PI / 180, Rk: 20, Ra: 25, vnMax: 8.5, runout: 26, a0: 8 };
+// n21: mit der neuen, flachen Lippe (11°, pieces.js JUMP) neu gesucht (tests/out/n21/cliff.mjs, gleiche Feldzahl 3/4 wie
+// bis n19, damit 3D-Codes ihr Layout behalten): Kuppe tiefer und näher, Hang flacher → D = 6 m 53–97 km/h, D = 12 m
+// 53–111 km/h. Bis n19 (28°-Lippe): { xk: 18, yk: 3.0, alpha: 17° } → 48–64 bzw. 48–65 km/h.
+export const CLIFF = { xk: 10, yk: 0.5, alpha: 8 * PI / 180, Rk: 40, Ra: 25, vnMax: 8.5, runout: 26, a0: 8 };
+const CLIFF_N19 = { xk: 18, yk: 3.0, alpha: 17 * PI / 180, Rk: 20, Ra: 25 };
+if (JUMP.span === 60) Object.assign(CLIFF, CLIFF_N19);   // ?schanze=alt: Klippe wie bis n19
 const cliffCache = new Map();
 function cliffHill(D) {
   const { xk, yk, alpha, Rk, Ra } = CLIFF, sa = Math.sin(alpha), ca = Math.cos(alpha), ta = Math.tan(alpha);
@@ -231,7 +236,7 @@ export function cliffDesign(D) {
   }
   const vmin = best ? best.a : 0, vmax = best ? best.b : 0;
   const vbest = best ? Math.min(vmax, Math.max(vmin, bv)) : 0;
-  const len = JUMP_T + xe + CLIFF.runout;            // Schanze + Flug/Hang + Auslauf (ohne Anfahrt)
+  const len = JUMP.lipF + xe + CLIFF.runout;         // Schanze + Flug/Hang + Auslauf (ohne Anfahrt; bis n19 Schanze JUMP_T)
   const cells = Math.ceil((len + CLIFF.a0) / T);
   const d = { D, xk, xe, hill, lipY, cells, win: { vmin, vmax, vbest, air: best ? landAt(vbest).t : 0 }, len };
   cliffCache.set(key, d);
@@ -239,7 +244,7 @@ export function cliffDesign(D) {
 }
 function buildCliff(pb) {
   const pc = pb.pc, D = -dlOf(pc) * pb.LH, C = cliffDesign(D);
-  const L = PIECES[pc.type].cells.length * T, J = JUMP_T;
+  const L = PIECES[pc.type].cells.length * T, J = JUMP.lipF;   // Anlauf-Bogen der Standard-Schanze (bis n19 JUMP_T = 20 m)
   const a0 = Math.max(2, (L - C.len) / 2);         // Anfahrt auf der oberen Ebene (Rest hinten: längerer Auslauf)
   const s = [];
   const up = (y) => y + pb.lvl * pb.LH > 1.2;

@@ -127,7 +127,9 @@ for (const [nm, lay, dl] of [
   for (const [nm, type, lvl, h1] of [['Klippe 1→0', 'cliff', 1, 0], ['Klippe 2→1', 'cliff', 2, 1], ['Klippe 2→0', 'cliff2', 2, 0]]) {
     const D = (lvl - h1) * LEVEL_H, C = cliffDesign(D);
     ok(C.win.vmax - C.win.vmin >= 3.5, `${nm}: Tempo-Fenster zu schmal ${C.win.vmin.toFixed(1)}–${C.win.vmax.toFixed(1)}`);
-    ok(Math.abs(C.win.vmin - jw.vmin) < 2, `${nm}: Fenster passt nicht zur Schanze (${C.win.vmin.toFixed(1)} vs ${jw.vmin.toFixed(1)})`);
+    // n21: gleiche Lippe wie die Standard-Schanze (11°), aber als Fall-Sprung langsamer (Hang direkt hinter der Lippe;
+    // die Standard-Schanze fliegt ~100 m und passt so nicht in 3 Felder) – bis n19 lagen beide Fenster gleich
+    ok(C.win.vmin >= 12 && C.win.vmin < jw.vmin && C.lipY === JUMP.lipH, `${nm}: Fenster ${C.win.vmin.toFixed(1)}–${C.win.vmax.toFixed(1)} m/s (Schanze ${jw.vmin.toFixed(1)}–${jw.vmax.toFixed(1)}), Lippe ${C.lipY.toFixed(2)} m`);
     const lay = chain([...S3, { type, h1 }, 'straight', 'straight'], 3, 15, 0, lvl);
     const { env, res } = run(nm, lay);
     const j = env.track.jumps[0];

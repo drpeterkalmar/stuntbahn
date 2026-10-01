@@ -343,6 +343,17 @@ export class Race {
     if (!car.crash && car.onGround > 0 && !L.air[ti] && this.time - (this.upT ?? -1e9) < FALL.sec && car.pos.y < L.py[ti] - FALL.drop && Math.hypot(car.pos.x - L.px[ti], car.pos.z - L.pz[ti]) < L.hw[ti] + FALL.near && car.wheels.some((w) => w.contact && w.mat === MAT.GRASS)) {
       if (L.py[ti] - TR.height(L.px[ti], L.pz[ti]) > FALL.high) car.setCrash('Abgestürzt');
     }
+    // Sprung zu kurz (n21): über der Lücke einer Schanze (nicht Import-Lücken) etwas berührt – Boden, Wasser, Hindernis
+    // (Bus, Container, Zug …) – zwischen 3 m hinter der Lippe und der Vorderkante der Landerampe → Crash „Zu kurz“ und
+    // Reset wie jeder Crash
+    if (!car.crash && (car.onGround > 0 || car._bodyTouch) && L.air[ti]) {
+      const J = this.env.track.jumps.find((j) => !j.gen && ti > j.lipIdx && ti < j.landIdx);
+      if (J) {
+        const ax = L.px[J.landIdx] - L.px[J.lipIdx], az = L.pz[J.landIdx] - L.pz[J.lipIdx], al = Math.hypot(ax, az) || 1;
+        const x = ((car.pos.x - L.px[J.lipIdx]) * ax + (car.pos.z - L.pz[J.lipIdx]) * az) / al;   // ab Lippe (Hinterräder ab ~1,4 m frei)
+        if (x > 3 && x < al - 1) car.setCrash('Zu kurz');
+      }
+    }
     // Abseits: zu weit weg von der Linie (großzügig, OFF); Hinweis im HUD schon vorher
     if (this.tracker.dist > OFF.far) { this.offT += dt; if (this.offT > OFF.sec) { this.car.setCrash('Abseits'); } } else this.offT = 0;
     if (this.tracker.dist > OFF.hint && !this.autopilotOnly) this.hud = { kind: 'off', text: 'Zurück zur Strecke ↺' };

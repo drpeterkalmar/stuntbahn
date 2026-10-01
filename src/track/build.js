@@ -5,6 +5,7 @@
 import { TILE, LEVEL_H, ROAD_HW, ROAD_Y, GRID, DIRS, tileX, tileZ, MAT, ROAD_MATS, SURF_MAT, GRIP, WORLD_SCALE, WORLD_HALF } from './defs.js';
 import { PIECES, JUMP, LOOP, pieceCells } from './pieces.js';
 import './pieces_trk.js';
+import './obstacles.js';   // Hindernisse in Sprunglücken (n21, HOOK.gapObstacles)
 import { PROFILES_3D } from './pieces_3d.js';
 import { buildTrkTerrain, carveUnderRoads } from './trkterrain.js';
 import { buildScenery } from './scenery.js';
@@ -504,9 +505,13 @@ export function buildTrack(layout, opt = {}) {
         if (fn[1] > 0) { addColTri(q[0], q[1], q[2], up, up, up, MAT.PAD); addColTri(q[0], q[2], q[3], up, up, up, MAT.PAD); }
         else { addColTri(q[0], q[2], q[1], up, up, up, MAT.PAD); addColTri(q[0], q[3], q[2], up, up, up, MAT.PAD); }
       },
-      pit: (f0, f1, hwid) => {
-        shapes.push({ type: 'pit', E, F, R, f0, f1, hw: hwid, depth: 3.8, slope: 2.5, base: 0 });
+      // Grube unter einer Lücke (Wasser 1,2 m unter dem Rand); o.depth/o.slope anders, o.water false = trockener Einschnitt
+      pit: (f0, f1, hwid, o = {}) => {
+        shapes.push({ type: 'pit', E, F, R, f0, f1, hw: hwid, depth: o.depth ?? 3.8, slope: o.slope ?? 2.5, base: 0, water: o.water !== false });
       },
+      // nur Kollision (unsichtbar), Dreieck in Weltlage (Hindernisse in Sprunglücken, obstacles.js)
+      colTri: (p0, p1, p2, mat) => { const nrm = norm(cross(sub(p1, p0), sub(p2, p0))); addColTri(p0, p1, p2, nrm, nrm, nrm, mat); },
+      seed: layout.seed || 0,
       mound: (f0, f1, hy, hwid, slope) => {
         const N = 40, arr = [];
         for (let k = 0; k <= N; k++) arr.push(hy(f0 + (f1 - f0) * k / N));
@@ -756,7 +761,7 @@ export function buildTerrain(occupied, shapes, seed) {
     const a = H[j * nx + i], b = H[j * nx + i + 1], c = H[(j + 1) * nx + i], d = H[(j + 1) * nx + i + 1];
     return (a * (1 - tx) + b * tx) * (1 - tz) + (c * (1 - tx) + d * tx) * tz;
   };
-  const waters = shapes.filter((s) => s.type === 'pit' || s.type === 'pond').map((s) => {
+  const waters = shapes.filter((s) => (s.type === 'pit' && s.water !== false) || s.type === 'pond').map((s) => {
     if (s.type === 'pit') return { E: s.E, F: s.F, R: s.R, f0: s.f0 - 1, f1: s.f1 + 1, r0: -s.hw - 1, r1: s.hw + 1, y: -2.6 };
     return { E: s.E, F: s.F, R: s.R, f0: s.c[0] - s.rx, f1: s.c[0] + s.rx, r0: -s.rz, r1: s.rz, y: -1.4 };
   });

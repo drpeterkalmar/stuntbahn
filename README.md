@@ -33,6 +33,12 @@ spielbar am Handy (quer oder hochkant), mit Gamepad oder Tastatur. Als App insta
   Kuppen, Wellen oder Übergängen unter das Gewicht, zieht eine „Saugkraft“ es zur Fahrbahn (nicht an Schanzen, nicht im
   Hüpfer, nicht im Looping). Bots auf Original: Abheben an Kuppen 78 → 6, Crashs 73 → 42, Zeit mit < 4 Rädern 12,8 → 6,3 %.
   `?haft=alt` = Haftung wie bis n19 (A/B). Messung: `node tools/fahr_analyse.mjs --teil=haftung`, Test `test_haftung.mjs`.
+- **Neue Schanze: weit statt hoch** (seit 01.10.2026, n21): flache Lippe (11°), Absprung mit ~140–168 km/h, ~100 m weit,
+  ~4 m hoch, ~2,3 s Flug (auch mit 240 km/h höchstens ~10 m statt bis zu 34 m). **In der Lücke liegen Hindernisse**, je
+  Schanze per Strecken-Code gewählt: Kanal mit Lastkahn und Schlepper, Busse in Reihe, Bauernhof (Heuballen, Traktor),
+  Hafen (Container), Bahnübergang (Güterzug im Einschnitt), Zirkus (Zelt, Wagen). Alles unter der tiefsten Flugbahn;
+  zu kurz gesprungen = „Zu kurz“/Aufprall → Reset. Gleiches Layout für alle Codes (Element bleibt 3 Felder).
+  `?schanze=alt` = Schanze bis n19, `?hindernis=kanal|busse|bauernhof|hafen|zug|zirkus` erzwingt eine Variante.
 - **Cockpit-Kamera** (🎥 / `C` / Gamepad LB): Blick durch die Frontscheibe, analoger Tacho (bis 600 km/h), Drehzahlmesser
   (0–8 ×1000, rot ab 7000, Zeiger schwingt leicht nach), Schaltkulisse mit Knauf (R, 1–6), Lenkrad dreht mit.
   Die Kamerawahl bleibt gespeichert. Beim Wrack kurz Verfolger, dann wieder Cockpit (Details: `COCKPIT_BERICHT.md`).
@@ -143,8 +149,8 @@ zurückgesetzt, an der er die Fahrbahn verlassen hat (Uhr läuft weiter). Ab 18 
 - **Eigene Arcade-Physik** (feste 120 Hz, entkoppelt vom Rendering): Starrkörper mit 4 Raycast-Federbeinen,
   Reifenkräfte mit Haftungskreis, Abtrieb, Karosserie-Kontakte als Impulse, Crash-Erkennung.
   Kollision = exakt die gerenderte Streckengeometrie. Echte Loopings: das Auto fährt kopfüber (bis ~6 g).
-  **Sprünge wie im Original:** im Flug wirkt nur 70 % der Schwerkraft, 28°-Schanze → ~2× so hoch, ~+65 % Flugzeit
-  (Details: `SPRUNG_BERICHT.md`).
+  **Sprünge wie im Original:** im Flug wirkt nur 70 % der Schwerkraft (Details: `SPRUNG_BERICHT.md`); seit n21 flache
+  11°-Schanze für das echte Tempo mit Hindernissen in der Lücke (`HAFTUNG_BERICHT.md`).
 - **Streckenbausteine** als Spline-Extrusion mit Querschnittsprofilen (Straße, Hochstraße, Steilkurve,
   Looping-Spur, Röhre, Schanze) auf dem 30×30-Raster.
 - **Ideallinie** (Minimal-Krümmung innerhalb der Fahrbahn) + **Tempo-Profil** aus Querhaftung, Überhöhung,
@@ -214,7 +220,10 @@ node tests/node/test_haftung.mjs          # n21: Bodenhaftung an Kuppen, Schanze
 node tools/wiese_probe.mjs                # n21: Wiese messen (STUNT_WIESE=alt für vorher)
 python3 tests/wiese_shots.py quer         # n21: Fotos Auto auf der Wiese mit Tacho (quer|hoch)
 python3 tests/test_zoom.py                # kein Doppeltipp-Zoom: touch-action je Scrollbereich, Eingaben ≥ 16 px, Doppel-Taps
-node tools/jump_measure.mjs               # Sprung-Messung: Scheitel, Airtime, Weite (--air 1 --lip 15 = alt)
+node tools/jump_measure.mjs               # Sprung-Messung: Scheitel, Airtime, Weite (--schanze alt = bis n19; --air 1 --lip 15 = bis 27.09.)
+node tools/sprung_hindernis.mjs           # n21: jede Hindernis-Variante bei vmin/vbest/vmax, zu kurz = Crash, Dreiecke
+node tests/node/test_sprung.mjs           # n21: Fenster/Scheitel/Flug, 6 Varianten überflogen, ?schanze=alt
+python3 tests/sprung_hindernis_shots.py quer   # n21: Fotos je Variante (Strecke seitlich, Verfolger, Hubschrauber; quer|hoch)
 node tools/jump_easy_batch.mjs 10         # Generator-Strecken auf „Leicht“: im Ziel ohne Crash, Flugzeiten
 python3 tests/jump_shots.py               # Fotos am Sprung-Scheitel (neu gegen alt) nach tests/shots/sprung/
 node tools/tempo_measure.mjs --laps      # Tempo: Vmax, 0–200/0–400, Bremswege alt/neu, Autopilot-Runden aller Stufen

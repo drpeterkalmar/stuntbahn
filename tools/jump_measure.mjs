@@ -1,7 +1,7 @@
 // Sprung-Messung (Node): Standard-Schanze auf gerader Strecke, Autopilot fährt an.
 // Misst Tempo an der Lippe, Scheitelhöhe über der Lippe (Fahrzeugmitte relativ zur Ruhelage),
 // Airtime (alle Räder in der Luft), Weite (Lippe → erster Radkontakt), Aufprall, Crash.
-// Aufruf: node tools/jump_measure.mjs [--air 0.7] [--lip 24] [--scale 0.9,1,1.1] [--assist 0|1]
+// Aufruf: node tools/jump_measure.mjs [--schanze alt] [--air 0.7] [--lip 24] [--scale 0.9,1,1.1] [--assist 0|1]
 import { chain, setup } from '../tests/node/common.mjs';
 import { Car } from '../src/physics/car.js';
 import { Autopilot } from '../src/ai/autopilot.js';
@@ -12,6 +12,7 @@ const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 ?
 let air = null;
 try { air = await import('../src/physics/air.js'); } catch { /* vor der Umstellung: kein Luft-Modul */ }
 if (air && arg('air')) air.setAir({ factor: +arg('air') });
+if (arg('schanze') === 'alt') pieces.setSchanze(true);   // n21: Schanze bis n19 zum Vergleich
 if (arg('lip')) pieces.setLip(+arg('lip'));
 if (arg('aim')) pieces.JUMP.aim = +arg('aim');
 if (arg('landH')) pieces.JUMP.landH = +arg('landH');
@@ -70,7 +71,7 @@ function measure(scale) {
   const apexOverLip = apex - (lipY + (h0 ?? 0));
   return { scale, vLip: vLip && +vLip.toFixed(1), vbest: +env.prof.jump.vbest.toFixed(1), vmin: +env.prof.jump.vmin.toFixed(1), vmax: +env.prof.jump.vmax.toFixed(1),
     lipY: +lipY.toFixed(2), apex: +apexOverLip.toFixed(2), air: +maxAir.toFixed(2), takeoff: takeoffX && +takeoffX.toFixed(1), weite: land && +land.toFixed(1),
-    landAuf: land && +(land - 20).toFixed(1), pitch: pitchLand && +pitchLand.toFixed(0), impact: +lastImpact.toFixed(1), maxComp: +maxComp.toFixed(3), crash: car.crash ? car.crash.reason : '' };
+    landAuf: land && +(land - (pieces.JUMP.landF - pieces.JUMP.lipF)).toFixed(1), pitch: pitchLand && +pitchLand.toFixed(0), impact: +lastImpact.toFixed(1), maxComp: +maxComp.toFixed(3), crash: car.crash ? car.crash.reason : '' };
 }
 const jw = pieces.jumpWindow ? pieces.jumpWindow() : null;
 console.log(`Luft-Faktor ${air ? air.AIR.factor : 1} · Lippe ${pieces.JUMP.lipDeg}° · Lippe ${pieces.JUMP.lipH.toFixed(2)} m · Air-Hilfe ${assistAir}` + (jw && jw.air ? ` · Rechnung vbest ${jw.vbest.toFixed(1)}: Flug ${jw.air.toFixed(2)} s, Scheitel ${jw.apex.toFixed(2)} m, Landung ${jw.fl.toFixed(1)} m in der Rampe` : ''));
