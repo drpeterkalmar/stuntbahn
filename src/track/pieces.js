@@ -51,13 +51,26 @@ export const LOOP = (() => {
 // Lagen im Element: Anlauf-Bogen kickStart … lipF, Luft bis landF, Landerampe landF … landF + landLen (f ab Element-
 // Anfang, Element span m lang, mittig im Feld). URL ?schanze=alt = Schanze bis n19 (samt ?lip=…), ohne Hindernisse.
 export const JUMP_N21 = { kickStart: 0, lipF: 15, lipDeg: 11, landF: 75, landH: 2.5, landLen: 45, aim: 0.85, landShape: 'smooth', span: 120, obstacles: true };
+// Kurzer Anlauf (n21): liegt vor der Schanze keine Gerade (Bodenwellen, Kuppe, Schikane, Röhre …), erreicht das Auto
+// auf den 15 m Bogen die ~140 km/h nicht (Prüffahrt hätte die Schanze entschärft). Dann beginnt der Bogen erst nach
+// 30 m Anlauf im Element: Lücke 30 m, Fenster ~111–143 km/h, Scheitel ~2,7 m – gleiche Lippe, gleiche Landerampe.
+export const JUMP_N21_KURZ = { kickStart: 30, lipF: 45 };
 export const JUMP_N19 = { kickStart: 4, lipF: 20, lipDeg: 28, landF: 40, landH: 3.5, landLen: 20, aim: 0.85, landShape: 'smooth', span: 60, obstacles: false };
 const OLD_LAND = { landH: 2.5, landLen: 18, aim: 0.45, landShape: 'quad' };
 export const SCHANZE_ALT = !!(globalThis.location && globalThis.location.search && new URLSearchParams(globalThis.location.search).get('schanze') === 'alt');
 export const JUMP = {
   ...(SCHANZE_ALT ? JUMP_N19 : JUMP_N21),
-  get lipH() { return kickerY(this.lipF).y; }, // Lippenhöhe folgt aus dem Kreisbogen (11° → 1,4 m; bis n19 28° → 3,8 m)
+  get lipH() { return kickerY(this.lipF, this).y; }, // Lippenhöhe folgt aus dem Kreisbogen (11° → 1,4 m; bis n19 28° → 3,8 m)
 };
+// Schanze mit kurzem Anlauf (vor ihr liegt keine Gerade): gleiche Werte, Bogen später (nur n21-Schanze)
+// (auch, wenn danach keine Gerade kommt: aus ~160 km/h reicht die Landerampe nicht zum Abbremsen vor Bodenwellen + Looping)
+export function jumpFor(prevType, nextType) {
+  const plain = (t) => !t || t === 'straight' || t === 'checkpoint' || t === 'start';
+  if ((plain(prevType) && plain(nextType)) || JUMP.span !== JUMP_N21.span) return JUMP;
+  const J = { ...JUMP, ...JUMP_N21_KURZ };
+  Object.defineProperty(J, 'lipH', { get() { return kickerY(this.lipF, this).y; } });
+  return J;
+}
 // Für Tests/Messungen (Node): Schanze umschalten ('alt' = bis n19, sonst n21); Tempo-Fenster rechnen sich neu
 export function setSchanze(alt) { Object.assign(JUMP, alt ? JUMP_N19 : JUMP_N21); }
 export function setLip(deg) {
@@ -69,19 +82,19 @@ export function setLip(deg) {
   const v = q ? +new URLSearchParams(q).get('lip') : 0;
   if (v >= 5 && v <= 35) setLip(v);
 }
-export function kickerY(f) { // Kreisbogen von Steigung 0 bis lipDeg, endet an der Lippe (f ab Anfang der Schanze)
-  const L = JUMP.lipF - JUMP.kickStart, th = JUMP.lipDeg * PI / 180, R = L / th;
-  if (f <= JUMP.kickStart) return { y: 0, slope: 0 };
-  const a = (f - JUMP.kickStart) / R;
+export function kickerY(f, J = JUMP) { // Kreisbogen von Steigung 0 bis lipDeg, endet an der Lippe (f ab Anfang der Schanze)
+  const L = J.lipF - J.kickStart, th = J.lipDeg * PI / 180, R = L / th;
+  if (f <= J.kickStart) return { y: 0, slope: 0 };
+  const a = (f - J.kickStart) / R;
   const s = Math.min(a, th);
   return { y: R * (1 - Math.cos(s)), slope: Math.tan(s) };
 }
-export function landY(x) { // x ab Vorderkante der Landung; 'smooth': oben/unten flach, Mitte am steilsten
-  const L = JUMP.landLen;
-  if (x <= 0) return JUMP.landH;
+export function landY(x, J = JUMP) { // x ab Vorderkante der Landung; 'smooth': oben/unten flach, Mitte am steilsten
+  const L = J.landLen;
+  if (x <= 0) return J.landH;
   if (x >= L) return 0;
   const u = 1 - x / L;
-  return JUMP.landH * (JUMP.landShape === 'smooth' ? u * u * (3 - 2 * u) : u * u);
+  return J.landH * (J.landShape === 'smooth' ? u * u * (3 - 2 * u) : u * u);
 }
 
 // Tempo-Fenster der Standard-Schanze (Lippe bei lipF, Landung ab landF): Flugbahn der Radaufstandspunkte mit derselben
@@ -89,7 +102,8 @@ export function landY(x) { // x ab Vorderkante der Landung; 'smooth': oben/unten
 // Lücke: tiefste Flugbahn aller Tempi im Fenster je Meter (ceil[x], x ab Lippe).
 const AIR_DRAG = CAR_DEF.dragK / CAR_DEF.mass;
 const jwCache = new Map();
-export function jumpWindow() {
+export function jumpWindow(J0 = JUMP) {
+  const JUMP = J0;   // (Name wie bisher; Standard = aktuelle Schanze)
   const key = `${AIR.factor}|${JUMP.lipDeg}|${JUMP.lipF}|${JUMP.kickStart}|${JUMP.landF}|${JUMP.landH}|${JUMP.landLen}|${JUMP.aim}|${JUMP.landShape}`;
   if (jwCache.has(key)) return jwCache.get(key);
   const th = JUMP.lipDeg * PI / 180, lipY = JUMP.lipH, gap = JUMP.landF - JUMP.lipF;
@@ -100,7 +114,7 @@ export function jumpWindow() {
       const fl = x - gap;           // Position relativ zur Vorderkante der Landung
       if (fl < 0) { if (y < 0) return { fail: 'kurz' }; continue; }
       if (fl < 0.6 && y < JUMP.landH + 0.55) return { fail: 'Kante' };
-      if (y <= landY(fl)) return { fl, t: P.t[k], apex: Math.max(...P.y) - lipY, P };
+      if (y <= landY(fl, JUMP)) return { fl, t: P.t[k], apex: Math.max(...P.y) - lipY, P };
     }
     return { fl: 1e9 };
   };
@@ -266,24 +280,24 @@ export const PIECES = {
     name: 'Sprungschanze', cells: [[0, 0], [1, 0], [2, 0]], next: [3, 0], turn: 0, dl: 0, stunt: 1,
     build(pb) {
       // Schanze mittig im Element (n21: füllt die 3 Felder; bis n19 60 m in Auto-Maßstab, davor/dahinter gerade Straße)
-      const J = JUMP, a0 = Math.max(0, (3 * T - J.span) / 2), land1 = J.landF + J.landLen;
+      const J = jumpFor(pb.prev && pb.prev.type, pb.next && pb.next.type), a0 = Math.max(0, (3 * T - J.span) / 2), land1 = J.landF + J.landLen;
       const s = a0 > 0.5 ? straightSamples(a0).slice(0, -1).map((q) => ({ ...q, surf: 1, prof: 'road' })) : [];
       const fix = (f) => (f < 2 ? {} : { lo: -0.15, hi: 0.15 });
-      for (const f of lin(0, J.lipF, 40)) { const k = kickerY(f); s.push({ f: a0 + f, y: k.y, r: 0, surf: 1, prof: f < J.kickStart ? 'road' : 'ramp', ...fix(f) }); }
+      for (const f of lin(0, J.lipF, J === JUMP ? 40 : 100)) { const k = kickerY(f, J); s.push({ f: a0 + f, y: k.y, r: 0, surf: 1, prof: f < J.kickStart ? 'road' : 'ramp', ...fix(f) }); }
       // Flugphase: Linie ohne Fahrbahn (Flugbahn bei vbest nur für Kamera/Anzeige, Physik fliegt frei)
-      const lip = kickerY(J.lipF), gap = J.landF - J.lipF, win = jumpWindow();
+      const lip = kickerY(J.lipF, J), gap = J.landF - J.lipF, win = jumpWindow(J);
       const P = flightPath(lip.y, Math.atan(lip.slope), win.vbest, { xMax: gap + 1, drag: AIR_DRAG });
       for (const x of lin(0, gap, Math.max(10, Math.round(gap / 2))).slice(1, -1)) {
-        s.push({ f: a0 + J.lipF + x, y: Math.max(landY(0), pathAt(P, x).y), r: 0, surf: 0, air: 1, lo: 0, hi: 0 });
+        s.push({ f: a0 + J.lipF + x, y: Math.max(landY(0, J), pathAt(P, x).y), r: 0, surf: 0, air: 1, lo: 0, hi: 0 });
       }
-      for (const x of lin(0, J.landLen, Math.max(30, Math.round(J.landLen / 1.5)))) s.push({ f: a0 + J.landF + x, y: landY(x), r: 0, surf: 1, prof: x < J.landLen ? 'ramp' : 'road', ...(x < 12 ? { lo: -0.6, hi: 0.6 } : {}) });
+      for (const x of lin(0, J.landLen, Math.max(30, Math.round(J.landLen / 1.5)))) s.push({ f: a0 + J.landF + x, y: landY(x, J), r: 0, surf: 1, prof: x < J.landLen ? 'ramp' : 'road', ...(x < 12 ? { lo: -0.6, hi: 0.6 } : {}) });
       const f3 = a0 + land1;
       if (3 * T - f3 > 0.5) for (const q of straightSamples(3 * T - f3).slice(1)) s.push({ ...q, f: f3 + q.f, surf: 1, prof: 'road' });
       pb.path(s, { profile: 'ramp', kind: 'jump' });
       // Lücke: Hindernisse je Strecke und Stelle per Zufall (obstacles.js; ohne → Wassergraben wie bis n19)
       const kind = J.obstacles && HOOK.gapObstacles ? HOOK.gapObstacles(pb, { f0: a0 + J.lipF, f1: a0 + J.landF, ceil: (f) => win.ceil[Math.max(0, Math.min(win.ceil.length - 1, Math.round(f - a0 - J.lipF)))], lipY: lip.y, landH: J.landH }) : null;
       if (!kind) pb.pit(a0 + J.lipF - 1, a0 + J.landF + 1, ROAD_HW + 3);
-      pb.jumpInfo({ lipF: a0 + J.lipF, lipY: lip.y, lipDeg: J.lipDeg, landF: a0 + J.landF, obstacle: kind });
+      pb.jumpInfo({ lipF: a0 + J.lipF, lipY: lip.y, lipDeg: J.lipDeg, landF: a0 + J.landF, landLen: J.landLen, obstacle: kind, ...(J !== JUMP ? { win, short: true } : {}) });
     },
   },
   loop: {

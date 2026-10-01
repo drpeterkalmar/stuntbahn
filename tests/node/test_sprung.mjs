@@ -21,6 +21,12 @@ for (const kind of OBSTACLES) {
   check(ok && b.weite > 90 && top.apex <= 10 && top.air <= 4 && b.tris > 100 && b.tris < 4000,
     `${kind.padEnd(9)}: ${res.map((r) => `${r.nm} ${r.crash ? '„' + r.crash + '“' : 'ok'}`).join(', ')}; vbest Weite ${b.weite && b.weite.toFixed(0)} m, Scheitel ${b.apex.toFixed(1)} m; vmax Scheitel ${top.apex.toFixed(1)} m, Flug ${top.air.toFixed(1)} s; ${b.tris} Dreiecke`);
 }
+// kurzer Anlauf (Bodenwellen davor): eigenes Fenster, im Fenster ohne Crash, zu kurz = Crash
+{
+  const r0 = sprung('busse', 'ap', true), wk = r0.win;
+  const res = [['zu kurz', 0.85 * wk.vmin], ['Profil', 'ap']].map(([nm, v]) => ({ nm, ...sprung('busse', v, true) }));
+  check(wk && wk.vmin * 3.6 > 95 && res.every((r) => (r.nm === 'zu kurz' ? !!r.crash : !r.crash)), `kurzer Anlauf (Bodenwellen davor): Fenster ${kmh(wk.vmin)}–${kmh(wk.vmax)} km/h, ${res.map((r) => `${r.nm}${r.vLip ? ' ' + kmh(r.vLip) + ' km/h' : ''} ${r.crash ? '„' + r.crash + '“' : 'ok'}`).join(', ')}, Hindernis ${res[1].obst || 'Wassergraben'}`);
+}
 check(seen.size >= 5, `${seen.size} Hindernis-Varianten gebaut (≥ 5)`);
 setSchanze(true);
 const a = jumpWindow();

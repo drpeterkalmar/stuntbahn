@@ -94,7 +94,7 @@ export function highLine(track) {
 export function haftOffAt(track, idx) {
   const L = track.line;
   if (L.air[idx] || (L.wave && L.wave[idx] === 1)) return true;
-  for (const j of track.jumps) if (idx >= j.lipIdx - 30 && idx <= j.landIdx + 12) return true;
+  for (const j of track.jumps) if (idx >= j.lipIdx - 30 && idx <= (j.endIdx ?? j.landIdx + 12)) return true;
   return false;
 }
 const STUNT_NAMES = { loop: 'Looping', tube: 'Röhre', cork: 'Korkenzieher', jump: 'Sprung' };
@@ -609,7 +609,7 @@ export class Race {
     // zurücksetzen: auf die Linie an der Ausfahrt-Stelle, Checkpoints/Runde wie dort – liegt die in einer
     // Sprungzone (Anlauf/Lippe/Landung), 45 m vor die Lippe: mit Rücksetz-Tempo sprang das Auto sonst zu kurz
     let j = S.idx, lap = S.lap;
-    for (const J of this.env.track.jumps) if (j >= J.lipIdx - 30 && j <= J.landIdx + 12) { const b = this.backFrom(J.lipIdx, 45); if (b > J.lipIdx) lap--; j = b; break; }
+    for (const J of this.env.track.jumps) if (j >= J.lipIdx - 30 && j <= (J.endIdx ?? J.landIdx + 12)) { const b = this.backFrom(J.lipIdx, 45); if (b > J.lipIdx) lap--; j = b; break; }
     this.place(j, Math.min(this.env.prof.vt[j] || 12, 15), true);
     this.tracker.lap = lap; this.cpNext = S.cp;
     this.shortcuts = (this.shortcuts || 0) + 1;
@@ -632,7 +632,7 @@ export class Race {
   }
 
   isJumpZone(idx) {
-    for (const j of this.env.track.jumps) if (idx >= j.lipIdx - 30 && idx <= j.landIdx + 12) return true;
+    for (const j of this.env.track.jumps) if (idx >= j.lipIdx - 30 && idx <= (j.endIdx ?? j.landIdx + 12)) return true;
     return false;
   }
 

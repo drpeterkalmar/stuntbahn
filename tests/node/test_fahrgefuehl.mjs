@@ -45,7 +45,9 @@ for (const [name, v] of tracks.slice(0, 2)) {
   const a = leicht(v, 'nichts'), b = leicht(v, 'normal'), c = leicht(v, 'daumen');
   check(a.ok && !a.crashes && a.off === 0 && a.lat >= 1.0 && a.lat <= 3.5 && a.dt >= 0.04 && a.dt <= 0.25, `${name} Hände weg: Ø ${f2(a.lat)} m neben der Linie (1–3,5), Runde ${(100 * a.dt).toFixed(0)} % langsamer (4–25), Crashs ${a.crashes}, neben dem Asphalt ${f2(a.off)} s`);
   check(b.ok && !b.crashes && b.lat <= 0.6 && b.dt <= 0.03, `${name} mitlenken („normal“): Ø ${f2(b.lat)} m (≤ 0,6), Runde ${(100 * b.dt).toFixed(1)} % (≤ +3)`);
-  check(c.ok && !c.crashes && c.lat >= 0.9, `${name} Daumen 0,3: Ø ${f2(c.lat)} m versetzt (≥ 0,9), ohne Übernahme im Ziel`);
+  // n21: die neue Schanze hat eine 45 m lange Landerampe; die Sprung-Zone (dort lenkt Leicht selbst) reicht bis dahinter →
+  // auf der Demo 0,97 → 0,89 m; Grenze 0,85
+  check(c.ok && !c.crashes && c.lat >= 0.85, `${name} Daumen 0,3: Ø ${f2(c.lat)} m versetzt (≥ 0,85), ohne Übernahme im Ziel`);
 }
 
 // ---- B: Autopilot-Tempo und Farben der Linie ----

@@ -512,6 +512,8 @@ export function buildTrack(layout, opt = {}) {
       // nur Kollision (unsichtbar), Dreieck in Weltlage (Hindernisse in Sprunglücken, obstacles.js)
       colTri: (p0, p1, p2, mat) => { const nrm = norm(cross(sub(p1, p0), sub(p2, p0))); addColTri(p0, p1, p2, nrm, nrm, nrm, mat); },
       seed: layout.seed || 0,
+      prev: decor ? null : layout.pieces[(pidx - 1 + layout.pieces.length) % layout.pieces.length],   // Stück davor (Schanze: Anlauf)
+      next: decor ? null : layout.pieces[(pidx + 1) % layout.pieces.length],
       mound: (f0, f1, hy, hwid, slope) => {
         const N = 40, arr = [];
         for (let k = 0; k <= N; k++) arr.push(hy(f0 + (f1 - f0) * k / N));
@@ -644,6 +646,9 @@ export function buildTrack(layout, opt = {}) {
     }
     j.lipIdx = idxAt(j.piece, j.lipF);
     j.landIdx = idxAt(j.piece, j.landF);
+    // Ende der Sprung-Zone (Hüpfer gesperrt, keine Saugkraft, Stunt-Zone): ganze Landerampe + 10 m (n21: 45 m lang;
+    // bis n19 fest 12 Punkte hinter der Landung)
+    if (j.landLen) j.endIdx = idxAt(j.piece, j.landF + j.landLen + 10);
   }
 
   // ----- Gelände -----

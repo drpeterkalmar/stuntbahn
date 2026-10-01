@@ -16,8 +16,9 @@ const DT = 1 / 120;
 const kinds = arg('nur') ? String(arg('nur')).split(',') : (JUMP.obstacles ? OBSTACLES : ['ohne']);
 const extra = String(arg('extra', '')).split(',').filter(Boolean).map(Number);
 
-export function sprung(kind, vT) {
-  const c = chain(5, 15, 0, ['start', 'straight', 'straight', 'straight', 'straight', 'jump', 'straight', 'straight', 'straight']);
+// kurz: Bodenwellen direkt vor der Schanze → Schanze mit kurzem Anlauf (pieces.js jumpFor)
+export function sprung(kind, vT, kurz = false) {
+  const c = chain(5, 15, 0, ['start', 'straight', 'straight', 'straight', kurz ? 'bumps' : 'straight', 'jump', 'straight', 'straight', 'straight']);
   const jp = c.pieces.find((p) => p.type === 'jump');
   if (kind !== 'ohne') jp.obst = kind;
   gapObstacles.lastTris = 0;
@@ -32,7 +33,9 @@ export function sprung(kind, vT) {
     const a = race.ap.control(race.car);
     const x = (race.car.pos.x - lip[0]) * fw[0] + (race.car.pos.z - lip[2]) * fw[1];
     const v = race.car.fwdSpeed();
-    const inp = x < 0 ? { steer: a.steer, throttle: v < vT - 0.3 ? 1 : v < vT ? 0.3 : 0, brake: v > vT + 0.6 ? 0.5 : 0 } : { steer: 0, throttle: land ? 1 : 0, brake: 0 };
+    // vT = 'ap': Pedale des Autopiloten (Profil) bis zur Lippe; kurz: bis 60 m vor der Lippe Profil (Bodenwellen), dann vT
+    const own = vT !== 'ap' && (!kurz || x > -60);
+    const inp = x >= 0 ? { steer: 0, throttle: land ? 1 : 0, brake: 0 } : !own ? { steer: a.steer, throttle: a.throttle, brake: a.brake } : { steer: a.steer, throttle: v < vT - 0.3 ? 1 : v < vT ? 0.3 : 0, brake: v > vT + 0.6 ? 0.5 : 0 };
     race.step(DT, inp); t += DT;
     for (const e of race.events) if (e.type === 'crash' && !crash) crash = e.reason;
     race.events.length = 0;
@@ -44,7 +47,7 @@ export function sprung(kind, vT) {
     if (crash || (race.state !== 'running' && race.state !== 'countdown')) break;
     if (land && x > land + 40) break;
   }
-  return { kind, vT, vLip, apex: apex - lip[1] - (y0 ?? 0), air: maxAir, weite: land, crash, tris };
+  return { kind, vT, vLip, apex: apex - lip[1] - (y0 ?? 0), air: maxAir, weite: land, crash, tris, win: J.win, obst: J.obstacle };
 }
 
 const main = process.argv[1] && import.meta.url.endsWith(process.argv[1].split('/').pop());
