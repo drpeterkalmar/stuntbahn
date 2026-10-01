@@ -68,7 +68,8 @@ with Server() as srv, sync_playwright() as pw:
         check('empty' in cls, f'{prof}: Nitro verbraucht → ausgegraut ({cls})')
         # Hüpfer per Touch (auf der Geraden: vorher an eine sichere Stelle)
         s.ev("""(() => { const G = __game, r = G.race, L = G.env.track.line; for (let i = 20; i < L.n - 200; i += 10) { r.place(i, 20, true); r.ap.tr.reset(i); r.car.step(1/120, G.env.world);
-          if (r.hopBlock(i) === null) return i; } return -1; })()""")
+          let far = true; for (let k = i; k < i + 160 && k < L.n; k++) if (r.isJumpZone(k) || L.loop[k] || L.tube[k]) far = false;   // n21: Schanzen-Zone reicht weiter vor
+          if (r.hopBlock(i) === null && far) return i; } return -1; })()""")
         s.ev("__game.sim(0.3)"); s.frames(2)
         tap_xb(s, 'hop')
         s.ev("__game.sim(0.5)"); s.frames(2)
