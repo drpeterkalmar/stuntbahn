@@ -9,6 +9,8 @@ Echtzeit-Techniken, die WebGL2 auf einem Mittelklasse-Handy schafft. **Ergebnis:
 Konsolen-Niveau.**
 
 ## Kurz
+- **Live:** https://drpeterkalmar.github.io/stuntbahn/ – Build **604499754c** (Commit f68ca0f), headless geprüft: Standard (Handy quer),
+  Kino (Desktop) und `?look=alt` laden mit 0 Fehlern, 15 KTX2-Texturen, Übertragung 6,98 MB (gzip; unkomprimiert 9,28 MB).
 - **Einstellung „Grafik“: Automatisch / Einfach / Standard / Kino** (Optionen). Handy startet mit Standard, Desktop mit Kino,
   die Automatik regelt nach Bildrate (zuerst Renderauflösung, dann Deko, dann Stufe). A/B per Link: `?look=0|1|2`,
   **`?look=alt` = Bild wie bis n22**, einzelne Stufen `?kl=-bloom,+ssao` (Namen siehe unten).
