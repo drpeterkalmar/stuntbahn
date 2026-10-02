@@ -22,6 +22,8 @@ export const shadowUniforms = {
   sbCloudTex: { value: cloudTexture() },
   sbCloudOn: { value: 1 },
   sbTime: { value: 0 },
+  // Kino-Look (n17): Fahrbahn-Details (Flicken, versiegelte Fugen, Längsnaht) ab Grafik „Standard“; 0 = wie bis n22
+  sbKino: { value: 0 },
 };
 
 // Kachelbares Wertrauschen (fbm, 256²) für die Wolkenschatten – einmal erzeugt, keine Datei
@@ -120,14 +122,55 @@ export function patchStaticShadow(mat) {
   return mat;
 }
 
-function patchRoad(mat) {
+function patchRoad(mat, detail = true) {
   const fn = (sh) => {
+    sh.uniforms.sbKino = shadowUniforms.sbKino;
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', '#include <common>\nattribute vec4 aRoad;\nvarying vec4 vRoad;')
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nvRoad = aRoad;');
     sh.fragmentShader = sh.fragmentShader
-      .replace('#include <common>', '#include <common>\nvarying vec4 vRoad;')
+      .replace('#include <common>', `#include <common>
+      varying vec4 vRoad;
+      uniform float sbKino;
+      float rRough = 0.0;
+      float rHash( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) * 43758.5453 ); }
+      float rNoise( vec2 p ) { vec2 i = floor( p ), f = fract( p ); f = f * f * ( 3.0 - 2.0 * f );
+        return mix( mix( rHash( i ), rHash( i + vec2( 1, 0 ) ), f.x ), mix( rHash( i + vec2( 0, 1 ) ), rHash( i + vec2( 1, 1 ) ), f.x ), f.y ); }`)
+      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = clamp( roughnessFactor + rRough, 0.04, 1.0 );')
       .replace('#include <map_fragment>', `#include <map_fragment>
+      ${detail ? `
+      // Kino (n17): Asphalt wie auf echten Strecken – Flicken (frischer, dunkler, eigene Kante), mit Bitumen versiegelte
+      // Risse (dunkel, glänzend); prozedural in Streckenkoordinaten
+      // (s entlang, x quer), damit nichts kachelt. Großflächige Helligkeitsflecken brechen die Textur-Wiederholung.
+      if ( sbKino > 0.5 ) {
+        float x = vRoad.x, s = vRoad.z, hw = vRoad.y - floor( vRoad.y / 100.0 + 0.001 ) * 100.0;
+        float fw = max( fwidth( s ), 0.002 );
+        float big = rNoise( vec2( x * 0.12, s * 0.05 ) ) * 0.6 + rNoise( vec2( x * 0.4, s * 0.17 ) ) * 0.4;
+        diffuseColor.rgb *= mix( 0.86, 1.1, big );
+        float cell = floor( s / 31.0 ), h = rHash( vec2( cell, 7.7 ) );
+        if ( h < 0.45 ) {
+          float len = 3.0 + 9.0 * fract( h * 17.3 ), w = 0.9 + 1.4 * fract( h * 29.1 );
+          float s0 = cell * 31.0 + fract( h * 5.3 ) * ( 31.0 - len ), x0 = ( fract( h * 11.7 ) * 2.0 - 1.0 ) * max( 0.0, hw - w - 0.6 );
+          vec2 q = vec2( abs( x - x0 ) - w, abs( s - s0 - len * 0.5 ) - len * 0.5 );
+          float inside = 1.0 - smoothstep( -fw, fw, max( q.x, q.y ) );
+          float seam = 1.0 - smoothstep( 0.0, 0.06 + fw, abs( max( q.x, q.y ) ) );
+          diffuseColor.rgb = mix( diffuseColor.rgb, diffuseColor.rgb * vec3( 0.66, 0.66, 0.68 ), inside );
+          diffuseColor.rgb *= 1.0 - 0.45 * seam;
+          rRough += 0.06 * inside - 0.25 * seam;
+        }
+        // versiegelte Querrisse (Temperaturrisse, mit Bitumen vergossen): je ~13 m Zelle höchstens einer, leicht gewellt,
+        // nicht immer über die ganze Breite; dazu selten ein Längsriss in der Radspur
+        float cc = floor( s / 13.0 ), hc = rHash( vec2( cc, 1.3 ) );
+        float sc = cc * 13.0 + 2.0 + 9.0 * fract( hc * 7.1 ) + ( rNoise( vec2( x * 0.9, cc ) ) - 0.5 ) * 0.9 + x * ( fract( hc * 3.7 ) - 0.5 ) * 0.25;
+        float span = step( abs( x - ( fract( hc * 13.1 ) - 0.5 ) * hw ), hw * ( 0.45 + 0.6 * fract( hc * 5.9 ) ) );
+        float crack = ( 1.0 - smoothstep( 0.025, 0.025 + fw * 1.5, abs( s - sc ) ) ) * step( hc, 0.5 ) * span;
+        float lc = floor( s / 47.0 ), hl = rHash( vec2( lc, 9.1 ) );
+        float xc = ( hl > 0.5 ? 1.0 : -1.0 ) * hw * 0.45 + ( rNoise( vec2( s * 0.15, lc ) ) - 0.5 ) * 0.5;
+        float lon = ( 1.0 - smoothstep( 0.02, 0.02 + fwidth( x ) * 1.5, abs( x - xc ) ) ) * step( hl, 0.3 ) * smoothstep( 0.2, 0.5, rNoise( vec2( s * 0.06, lc + 4.0 ) ) );
+        crack = max( crack, lon );
+        diffuseColor.rgb *= 1.0 - 0.5 * crack;
+        rRough -= 0.35 * crack;
+      }` : ''}
       {
         float x = vRoad.x, typ = floor( vRoad.y / 100.0 + 0.001 ), hw = vRoad.y - typ * 100.0;
         float s = vRoad.z, md = vRoad.w;
@@ -148,7 +191,7 @@ function patchRoad(mat) {
         diffuseColor.rgb = mix( diffuseColor.rgb, paint, amt );
       }`);
   };
-  fn.tag = 'road';
+  fn.tag = detail ? 'road2' : 'road';
   addPatch(mat, fn);
 }
 
@@ -244,17 +287,38 @@ function patchWater(mat) {
   addPatch(mat, fn);
 }
 
+// Randsteine (n17): rot/weiß wie bisher, dazu abgefahrene Farbe, Gummiabrieb und Schmutz an der Kante (Canvas,
+// keine Datei). Querrillen kommen aus der Beton-Normalenkarte.
 function kerbTexture() {
   const c = document.createElement('canvas');
-  c.width = 16; c.height = 64;
+  c.width = 64; c.height = 256;
   const g = c.getContext('2d');
-  g.fillStyle = '#c21d14'; g.fillRect(0, 0, 16, 32);
-  g.fillStyle = '#f2f2ee'; g.fillRect(0, 32, 16, 32);
+  g.fillStyle = '#c21d14'; g.fillRect(0, 0, 64, 128);
+  g.fillStyle = '#f2f2ee'; g.fillRect(0, 128, 64, 128);
+  let seed = 4242; const R = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  // abgeplatzte Farbe (Beton schaut durch), feine Sprenkel
+  for (let i = 0; i < 520; i++) {
+    const x = R() * 64, y = R() * 256, r = 0.4 + R() * (R() < 0.08 ? 3.2 : 1.1);
+    g.fillStyle = R() < 0.5 ? `rgba(120,116,108,${0.25 + R() * 0.45})` : `rgba(0,0,0,${0.05 + R() * 0.12})`;
+    g.beginPath(); g.ellipse(x, y, r * (1 + R()), r, R() * 3, 0, 7); g.fill();
+  }
+  // Gummiabrieb (dunkle Schlieren quer zur Fahrtrichtung, zur Innenkante dichter)
+  for (let i = 0; i < 26; i++) {
+    const x = R() * 64, y = R() * 256;
+    const gr = g.createLinearGradient(x - 18, 0, x + 18, 0);
+    gr.addColorStop(0, 'rgba(20,18,16,0)'); gr.addColorStop(0.5, `rgba(20,18,16,${0.12 + R() * 0.18})`); gr.addColorStop(1, 'rgba(20,18,16,0)');
+    g.fillStyle = gr; g.fillRect(x - 18, y, 36, 2 + R() * 6);
+  }
+  // Schmutz am äußeren Rand
+  const dg = g.createLinearGradient(0, 0, 64, 0);
+  dg.addColorStop(0, 'rgba(70,58,40,0.35)'); dg.addColorStop(0.18, 'rgba(70,58,40,0)'); dg.addColorStop(0.85, 'rgba(70,58,40,0)'); dg.addColorStop(1, 'rgba(70,58,40,0.3)');
+  g.fillStyle = dg; g.fillRect(0, 0, 64, 256);
   const t = new THREE.CanvasTexture(c);
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
   t.colorSpace = THREE.SRGBColorSpace;
   t.repeat.set(1, 0.5);
   t.magFilter = THREE.LinearFilter;
+  t.anisotropy = 4;
   return t;
 }
 
@@ -282,9 +346,9 @@ export function makeMaterials(renderer, q = {}) {
   M[MAT.STEEL] = new THREE.MeshStandardMaterial({ color: 0x9aa3ad, roughness: 0.35, metalness: 0.9 });
   // Import-Beläge: Schotter (heller, rauer, braun) und Eis (bläulich, glatter) – gleiche Markierungen
   M[MAT.DIRT] = new THREE.MeshStandardMaterial({ ...set('pad', 1 / 3), roughness: 1, metalness: 0, color: lin(1.55, 1.12, 0.72), aoMapIntensity: 0.6 });
-  patchRoad(M[MAT.DIRT]);
+  patchRoad(M[MAT.DIRT], false);
   M[MAT.ICE] = new THREE.MeshStandardMaterial({ ...set('asphalt', 1 / 5), roughness: 0.22, metalness: 0.05, color: lin(1.9, 2.25, 2.7), normalScale: new THREE.Vector2(0.35, 0.35), envMapIntensity: 1.3 });
-  patchRoad(M[MAT.ICE]);
+  patchRoad(M[MAT.ICE], false);
   // Szenerie: Vertexfarben (Häuser, Palmen, Schiff …) + Glas
   M[MAT.PAINT] = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.78, metalness: 0.02, color: 0xffffff });
   M[MAT.GLASS] = new THREE.MeshStandardMaterial({ color: 0x1b2a38, roughness: 0.06, metalness: 0.7, envMapIntensity: 1.6 });

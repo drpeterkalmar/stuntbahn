@@ -1,13 +1,25 @@
 // Effekte: Bremsspuren (Ringpuffer-Band), Rauch/Staub/Funken als instanzierte Partikel.
 import * as THREE from 'three';
 
+// Rauch-/Staubwolke (n17): weicher Rand + Wolken-Rauschen (statt glatter Scheibe), Alpha in der Textur, kein Bild nötig
 function smokeTexture() {
-  const c = document.createElement('canvas'); c.width = c.height = 64;
-  const g = c.getContext('2d');
-  const gr = g.createRadialGradient(32, 32, 2, 32, 32, 31);
-  gr.addColorStop(0, 'rgba(255,255,255,0.9)'); gr.addColorStop(0.45, 'rgba(255,255,255,0.35)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
-  g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
-  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+  const N = 64, data = new Uint8Array(N * N * 4);
+  let seed = 77; const R = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const oct = [[4, 0.5], [8, 0.3], [16, 0.2]].map(([g, a]) => { const v = new Float32Array(g * g); for (let i = 0; i < v.length; i++) v[i] = R(); return { g, a, v }; });
+  const sm = (t) => t * t * (3 - 2 * t);
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    let n = 0;
+    for (const { g, a, v } of oct) {
+      const fx = x / N * g, fy = y / N * g, x0 = Math.floor(fx), y0 = Math.floor(fy), tx = sm(fx - x0), ty = sm(fy - y0);
+      const V = (i, j) => v[((j % g + g) % g) * g + ((i % g + g) % g)];
+      n += a * ((V(x0, y0) * (1 - tx) + V(x0 + 1, y0) * tx) * (1 - ty) + (V(x0, y0 + 1) * (1 - tx) + V(x0 + 1, y0 + 1) * tx) * ty);
+    }
+    const r = Math.hypot(x + 0.5 - N / 2, y + 0.5 - N / 2) / (N / 2);
+    const a = Math.max(0, 1 - r) ** 1.4 * (0.45 + 0.9 * n);
+    const k = (y * N + x) * 4; data[k] = data[k + 1] = data[k + 2] = Math.round(225 + 30 * n); data[k + 3] = Math.round(255 * Math.min(1, a));
+  }
+  const t = new THREE.DataTexture(data, N, N); t.colorSpace = THREE.SRGBColorSpace;
+  t.magFilter = THREE.LinearFilter; t.minFilter = THREE.LinearMipmapLinearFilter; t.generateMipmaps = true; t.needsUpdate = true;
   return t;
 }
 
@@ -71,9 +83,14 @@ export class Particles {
     const mat = new THREE.ShaderMaterial({
       uniforms: { map: { value: smokeTexture() } },
       vertexShader: `attribute float iAlpha; attribute vec3 iColor; varying float vA; varying vec3 vC; varying vec2 vUv;
-        void main(){ vUv = uv; vA = iAlpha; vC = iColor; gl_Position = projectionMatrix * modelViewMatrix * instanceMatrix * vec4(position, 1.0); }`,
+        void main(){ vUv = uv; vC = iColor;
+          vec4 mv = modelViewMatrix * instanceMatrix * vec4(position, 1.0);
+          vA = iAlpha * smoothstep(0.6, 2.2, -mv.z);   // nah an der Kamera ausblenden (keine bildfüllenden Flächen)
+          gl_Position = projectionMatrix * mv; }`,
       fragmentShader: `uniform sampler2D map; varying float vA; varying vec3 vC; varying vec2 vUv;
-        void main(){ vec4 t = texture2D(map, vUv); if (t.a * vA < 0.01) discard; gl_FragColor = vec4(vC, t.a * vA); }`,
+        void main(){ vec4 t = texture2D(map, vUv); if (t.a * vA < 0.01) discard; gl_FragColor = vec4(vC * t.rgb, t.a * vA);
+          #include <colorspace_fragment>
+        }`,
       transparent: true, depthWrite: false,
     });
     this.mesh = new THREE.InstancedMesh(g, mat, max);
@@ -82,12 +99,14 @@ export class Particles {
     this.mesh.renderOrder = 3;
     scene.add(this.mesh);
     this.m4 = new THREE.Matrix4(); this.q = new THREE.Quaternion(); this.s = new THREE.Vector3(); this.c = new THREE.Color(); this.t = new THREE.Vector3();
+    this.qr = new THREE.Quaternion(); this.zAx = new THREE.Vector3(0, 0, 1);
     this.next = 0; this.alive = 0;
   }
   spawn(pos, vel, size, grow, life, color, alpha = 0.6) {
     const P = this.p[this.next]; this.next = (this.next + 1) % this.max;
     P.x = pos.x; P.y = pos.y; P.z = pos.z; P.vx = vel.x; P.vy = vel.y; P.vz = vel.z;
     P.size = size; P.grow = grow; P.life = life; P.max = life; P.col = color; P.a = alpha;
+    P.rot = Math.random() * 6.283; P.spin = (Math.random() - 0.5) * 1.2;
   }
   update(dt, camera) {
     this.q.copy(camera.quaternion);
@@ -101,7 +120,9 @@ export class Particles {
       P.vx *= 1 - dt * 1.5; P.vz *= 1 - dt * 1.5; P.vy += dt * 0.6;
       const t = 1 - P.life / P.max, sz = P.size + P.grow * t;
       this.s.set(sz, sz, sz);
-      this.m4.compose(this.t.set(P.x, P.y, P.z), this.q, this.s);
+      P.rot += P.spin * dt;
+      this.qr.setFromAxisAngle(this.zAx, P.rot).premultiply(this.q);
+      this.m4.compose(this.t.set(P.x, P.y, P.z), this.qr, this.s);
       this.mesh.setMatrixAt(k, this.m4);
       this.c.setHex(P.col);
       this.iColor.array[k * 3] = this.c.r; this.iColor.array[k * 3 + 1] = this.c.g; this.iColor.array[k * 3 + 2] = this.c.b;
@@ -114,11 +135,63 @@ export class Particles {
   }
 }
 
+// Funken (n17): kurze, glühende Striche entlang der Flugrichtung (Bewegungsspur), fallen mit Schwerkraft, prallen ab.
+// Ein Mesh mit 4 Ecken je Funke, Ecken jedes Bild auf der CPU zur Kamera gedreht; additiv und heller als Weiß
+// (toneMapped: false) → der Bloom des Kino-Looks lässt sie glühen. 1 Draw-Call.
+export class Sparks {
+  constructor(scene, max = 160) {
+    this.max = max; this.p = []; for (let i = 0; i < max; i++) this.p.push({ life: 0 });
+    this.pos = new Float32Array(max * 4 * 3); this.col = new Float32Array(max * 4 * 4);
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(this.pos, 3).setUsage(THREE.DynamicDrawUsage));
+    g.setAttribute('color', new THREE.BufferAttribute(this.col, 4).setUsage(THREE.DynamicDrawUsage));
+    const idx = new Uint16Array(max * 6);
+    for (let i = 0; i < max; i++) { const a = i * 4; idx.set([a, a + 1, a + 2, a + 1, a + 3, a + 2], i * 6); }
+    g.setIndex(new THREE.BufferAttribute(idx, 1));
+    const m = new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false, fog: false });
+    this.mesh = new THREE.Mesh(g, m); this.mesh.frustumCulled = false; this.mesh.renderOrder = 4; this.mesh.name = 'sparks';
+    scene.add(this.mesh);
+    this.next = 0; this.alive = 0;
+    this.a = new THREE.Vector3(); this.b = new THREE.Vector3(); this.d = new THREE.Vector3(); this.v = new THREE.Vector3(); this.sd = new THREE.Vector3();
+  }
+  spawn(x, y, z, vx, vy, vz, life) {
+    const P = this.p[this.next]; this.next = (this.next + 1) % this.max;
+    Object.assign(P, { x, y, z, vx, vy, vz, life, max: life, y0: y - 0.05 });
+  }
+  update(dt, camera) {
+    let alive = 0; const cp = camera.position;
+    for (let k = 0; k < this.max; k++) {
+      const P = this.p[k], o = k * 12, oc = k * 16;
+      if (P.life <= 0) { this.col.fill(0, oc, oc + 16); continue; }
+      alive++;
+      P.life -= dt;
+      P.vy -= 9.81 * dt; P.vx *= 1 - dt * 0.8; P.vz *= 1 - dt * 0.8;
+      P.x += P.vx * dt; P.y += P.vy * dt; P.z += P.vz * dt;
+      if (P.y < P.y0 && P.vy < 0) { P.y = P.y0; P.vy *= -0.35; P.vx *= 0.6; P.vz *= 0.6; }   // vom Boden abprallen
+      const t = Math.max(0, P.life / P.max);
+      this.a.set(P.x, P.y, P.z);
+      this.b.set(P.x - P.vx * 0.035, P.y - P.vy * 0.035, P.z - P.vz * 0.035);
+      this.d.subVectors(this.a, this.b); this.v.subVectors(this.a, cp);
+      this.sd.crossVectors(this.d, this.v).normalize().multiplyScalar(0.012 + 0.01 * t);
+      const q = [this.a.x + this.sd.x, this.a.y + this.sd.y, this.a.z + this.sd.z, this.a.x - this.sd.x, this.a.y - this.sd.y, this.a.z - this.sd.z,
+        this.b.x + this.sd.x, this.b.y + this.sd.y, this.b.z + this.sd.z, this.b.x - this.sd.x, this.b.y - this.sd.y, this.b.z - this.sd.z];
+      this.pos.set(q, o);
+      // weißgelb → orange → rot beim Abkühlen; Kopf hell, Schweif dunkel
+      const hot = t * t, r = 4.5 * (0.5 + 0.5 * t), gC = 3.4 * hot + 0.8 * t, bC = 1.8 * hot * hot;
+      for (let v = 0; v < 4; v++) { const tail = v >= 2 ? 0.25 : 1; this.col.set([r * tail, gC * tail, bC * tail, t], oc + v * 4); }
+    }
+    this.alive = alive; this.mesh.visible = alive > 0;
+    const g = this.mesh.geometry; g.attributes.position.needsUpdate = true; g.attributes.color.needsUpdate = true;
+  }
+}
+
 // Effekte am Fahrzeug steuern: Spuren, Reifenqualm, Staub auf Gras, Wrack-Rauch, Funken bei Aufprall
 export class CarFX {
   constructor(scene) {
     this.skids = new SkidMarks(scene);
     this.parts = new Particles(scene);
+    this.sparks = new Sparks(scene);
+    this.rich = true;   // Kino-Look: mehr Rauch/Staub, Funken (Grafik „Einfach“: wie bisher)
     this.v = new THREE.Vector3(); this.n = new THREE.Vector3(); this.side = new THREE.Vector3(); this.p = new THREE.Vector3();
     this.acc = 0;
   }
@@ -137,8 +210,15 @@ export class CarFX {
       const onRoad = w.mat !== 8;
       const s = onRoad ? Math.max(0, Math.min(1, (slip - 0.18) * 3)) + braking * 0.6 : 0;
       this.skids.add(k, this.p, this.n, this.side, s * Math.min(1, sp / 6));
-      if (emit && onRoad && s > 0.5 && sp > 8) this.parts.spawn(this.p, this.v.set(0, 0.6, 0), 0.6, 2.6, 1.2, 0xd8d8d8, 0.35);
-      if (emit && !onRoad && sp > 5 && k >= 2) this.parts.spawn(this.p, this.v.set(car.v.x * 0.1, 0.8, car.v.z * 0.1), 0.5, 2.2, 1.0, 0xb89a6a, 0.4);
+      if (emit && onRoad && s > 0.5 && sp > 8) {
+        // Reifenrauch: Kino dichter, größer, steigt und treibt hinter dem Auto her
+        if (this.rich) this.parts.spawn(this.p.setY(this.p.y + 0.4), this.v.set(car.v.x * 0.18 + (Math.random() - 0.5), 0.5 + Math.random() * 0.6, car.v.z * 0.18 + (Math.random() - 0.5)), 0.8, 4.2, 1.7, 0xc4c4c2, 0.3 + 0.15 * Math.min(1, s - 0.5));
+        else this.parts.spawn(this.p, this.v.set(0, 0.6, 0), 0.6, 2.6, 1.2, 0xd8d8d8, 0.35);
+      }
+      if (emit && !onRoad && sp > 5 && k >= 2) {
+        if (this.rich) this.parts.spawn(this.p.setY(this.p.y + 0.35), this.v.set(car.v.x * 0.2 + (Math.random() - 0.5) * 1.5, 0.7 + Math.random() * 0.8, car.v.z * 0.2 + (Math.random() - 0.5) * 1.5), 0.7, 3.6 + Math.min(3, sp * 0.05), 1.6, Math.random() < 0.5 ? 0xa88a5e : 0x8f7a58, 0.42);
+        else this.parts.spawn(this.p, this.v.set(car.v.x * 0.1, 0.8, car.v.z * 0.1), 0.5, 2.2, 1.0, 0xb89a6a, 0.4);
+      }
       // Wiese bremst (n21, über 30 km/h): Grasbüschel und Erde spritzen an allen Rädern hoch
       if (emit && !onRoad && sp > 8.5) this.parts.spawn(this.p, this.v.set(car.v.x * 0.25 + (Math.random() - 0.5) * 2, 1.6 + Math.random() * 1.5, car.v.z * 0.25 + (Math.random() - 0.5) * 2), 0.25, 0.9, 0.6, Math.random() < 0.6 ? 0x5e7d2a : 0x6b5236, 0.9);
     });
@@ -154,7 +234,20 @@ export class CarFX {
         for (let i = 0; i < 3; i++) this.parts.spawn(this.p, this.v.set((Math.random() - 0.5) * 3 + car.v.x * 0.15, 0.5 + Math.random(), (Math.random() - 0.5) * 3 + car.v.z * 0.15), 0.7, 3.2, 1.1, 0xcfc6b4, 0.45);
       }
     }
-    if (car.lastImpact > 6) {
+    if (this.rich) {
+      // Funken: Karosserie schleift über Asphalt/Beton/Metall (nicht auf Wiese) bzw. harter Aufschlag (Landung, Wand)
+      const SP = car.scrapeP, onGrass = car.wheels.every((w) => !w.contact || w.mat === 8);
+      const scr = car.scrape || 0, imp = car.lastImpact || 0;
+      if (SP && !onGrass && (scr > 2.5 || imp > 3) && (scr > 2.5 ? Math.random() < Math.min(1, scr / 8) : true)) {
+        const n = imp > 3 ? Math.min(18, 4 + Math.round(imp * 1.6)) : 1 + Math.round(Math.random() * Math.min(3, scr / 6));
+        for (let i = 0; i < n; i++) {
+          const sv = 0.55 + Math.random() * 0.4;
+          this.sparks.spawn(SP[0], SP[1] + 0.03, SP[2], car.v.x * sv + (Math.random() - 0.5) * 4, Math.abs(car.v.y) * 0.2 + 0.8 + Math.random() * 2.5, car.v.z * sv + (Math.random() - 0.5) * 4, 0.25 + Math.random() * 0.45);
+        }
+      }
+      // Landung auf Wiese: Staub- und Erdwolke
+      if (imp > 4 && onGrass) for (let i = 0; i < 5; i++) this.parts.spawn(this.p.set(car.pos.x, car.pos.y - 0.4, car.pos.z), this.v.set(car.v.x * 0.15 + (Math.random() - 0.5) * 4, 0.6 + Math.random(), car.v.z * 0.15 + (Math.random() - 0.5) * 4), 1.0, 4.0, 1.4, 0x9a8460, 0.45);
+    } else if (car.lastImpact > 6) {
       for (let i = 0; i < 6; i++) this.parts.spawn(this.p.set(car.pos.x, car.pos.y, car.pos.z), this.v.set((Math.random() - 0.5) * 6, Math.random() * 4, (Math.random() - 0.5) * 6), 0.18, 0.1, 0.35, 0xffc060, 1);
     }
     car.lastImpact = 0;
@@ -162,5 +255,6 @@ export class CarFX {
   // pro Frame: Partikel bewegen
   update(dt, camera) {
     this.parts.update(dt, camera);
+    this.sparks.update(dt, camera);
   }
 }

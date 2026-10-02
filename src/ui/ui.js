@@ -486,10 +486,11 @@ export class UI {
       <div class="lbl">Lackfarbe</div>
       <div class="row">${PAINTS.map((p, i) => `<button data-a="paint" data-v="${i}" class="sw ${S.paint === p.color ? 'on' : ''}" style="--c:#${p.color.toString(16).padStart(6, '0')}">${p.name}</button>`).join('')}</div>
       <div class="lbl">Grafik</div>
-      <div class="row">${[['auto', 'Automatisch'], ['0', 'Sparsam'], ['1', 'Mittel'], ['2', 'Hoch']].map(([v, n]) => `<button data-a="quality" data-v="${v}" class="${String(S.quality || 'auto') === v ? 'on' : ''}">${n}</button>`).join('')}</div>
+      <div class="row">${[['auto', 'Automatisch'], ['0', 'Einfach'], ['1', 'Standard'], ['2', 'Kino']].map(([v, n]) => `<button data-a="quality" data-v="${v}" class="${String(S.quality || 'auto') === v ? 'on' : ''}">${n}</button>`).join('')}</div>
       <div class="lbl">Bewegungsunschärfe</div>
       <div class="seg" data-g="blur">${Object.entries(BLUR_LEVELS).map(([k, L]) => `<button data-a="blur" data-v="${k}" class="${(S.blur || 'light') === k ? 'on' : ''}">${L.name}</button>`).join('')}</div>
-      <p class="hint">Verwischt die Umgebung ab ~80 km/h (mit Nitro stärker), das Auto bleibt scharf. Nicht auf Grafik „Sparsam“ – dort nur Tempo-Streifen am Rand. Ruckelt es, schaltet die Automatik sie zuerst ab.</p>`);
+      <p class="hint">Verwischt die Umgebung ab ~80 km/h (mit Nitro stärker), das Auto bleibt scharf. Nicht auf Grafik „Einfach“ – dort nur Tempo-Streifen am Rand. Ruckelt es, schaltet die Automatik sie zuerst ab.</p>
+      <p class="hint"><b>Grafik:</b> Einfach = schlank wie früher · Standard = Kino-Look fürs Handy (Licht, Farbe, Glanz, Dunst, schärferes Hochrechnen) · Kino = dazu Schattentiefe, Kantenglättung, Hitzeflimmern. Automatisch passt Auflösung und Stufe der Bildrate an.</p>`);
   }
   showHelp() {
     this.sheet('Steuerung', `
@@ -605,7 +606,7 @@ export class UI {
     }
   }
   // Nitro-Effekt über dem Bild (Tempo-Streifen statt teurer Bewegungsunschärfe), 0 … 1
-  // lines: reine Tempo-Streifen ohne Nitro-Glut (Grafik „Sparsam“ statt Bewegungsunschärfe), 0 … 1
+  // lines: reine Tempo-Streifen ohne Nitro-Glut (Grafik „Einfach“ statt Bewegungsunschärfe), 0 … 1
   boost(level, lines = 0) {
     const v = Math.max(level > 0.01 ? Math.round(level * 20) / 20 : 0, lines > 0.02 ? Math.round(lines * 20) / 20 : 0);
     const pure = level <= 0.01 && v > 0;

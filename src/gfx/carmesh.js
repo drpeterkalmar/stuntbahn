@@ -6,6 +6,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { CAR_DEF } from '../physics/car.js';
 import { patchStaticShadow } from './materials.js';
+import { makeContactShadow } from './kinolook.js';
 
 let gltfPromise = null;
 
@@ -282,8 +283,16 @@ export async function makeCar(opts = {}) {
   const order = ['FL', 'FR', 'BL', 'BR'];
   const flames = makeFlames();
   root.add(flames.grp);
+  // Kontaktschatten (n17): weicher dunkler Fleck auf der Aufstandsfläche – erdet das Auto (Echtzeit-Schatten allein wirkt
+  // auf Stufe 1 schwebend); blendet im Sprung aus. opts.contact = false (Geist, ?look=alt): keiner.
+  const wy0 = Math.min(...Object.values(wheels).map((W) => W.base.y)) - rVis;
+  const trackW = Math.abs(FR.clone().applyMatrix4(M).x - FL.clone().applyMatrix4(M).x);
+  const wb = Math.abs(wheels.FL.base.z - wheels.BL.base.z);
+  const contact = opts.contact === false ? null : makeContactShadow({ width: trackW + 0.55, length: wb + 1.75, y: wy0 + 0.03 });
+  if (contact) { contact.position.z = (wheels.FL.base.z + wheels.BL.base.z) / 2; root.add(contact); }
+  let contactA = 1;
   const car = {
-    root, body, wheels, mats, rVis, tris, flames,
+    root, body, wheels, mats, rVis, tris, flames, contact,
     setPaint(c) { paint.color.set(c); },
     setNitro(level, dt = 1 / 60) { flames.set(level, dt); },
     // aus Physik-Zustand aktualisieren
@@ -298,6 +307,15 @@ export async function makeCar(opts = {}) {
         W.pivot.rotation.set(0, -w.steer, 0);
         W.spin.rotation.x = -w.spin;
       });
+      if (contact) {
+        // Bodenkontakt: Physik (Räder mit Kontakt) bzw. Replay (Einfederung); im Flug rasch aus, nach der Landung weich an
+        const ws = phys.wheels, n = ws.reduce((a, w) => a + ((w.contact ?? (w.comp > 0.004)) ? 1 : 0), 0);
+        const air = P.air || n === 0;
+        contactA += ((air ? 0 : 1) - contactA) * (air ? 0.25 : 0.15);
+        let yy = 0; for (const k of order) yy += wheels[k].pivot.position.y; yy = yy / 4 - rVis + 0.03;
+        contact.position.y = yy;
+        contact.set(contactA);
+      }
     },
   };
   return car;

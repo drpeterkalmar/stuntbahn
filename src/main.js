@@ -5,7 +5,7 @@ import { BUILD } from './build.js';
 import { makeMaterials, shadowUniforms } from './gfx/materials.js';
 import { makeSky, makeEnvironment, loadSkyInfo, sunDirFromUV, bakeStaticShadow } from './gfx/env.js';
 import { buildWorld, STATIC_LAYER } from './gfx/world.js';
-import { makeCar, loadCarModel, parkedCarGeometry } from './gfx/carmesh.js';
+import { makeCar, loadCarModel, parkedCarGeometry, EXHAUST } from './gfx/carmesh.js';
 import { CameraRig, CAM_MODES, CAM_NAMES, cockpitDash, clearLens } from './gfx/camera.js';
 import { Cockpit } from './gfx/cockpit.js';
 import { displayGear } from './gfx/gauges.js';
@@ -28,6 +28,7 @@ import { LineViz, LINE_LEVELS } from './gfx/lineviz.js';
 import { Sound } from './audio/sound.js';
 import { CarFX } from './gfx/fx.js';
 import { Post } from './gfx/post.js';
+import { KinoLook } from './gfx/kinolook.js';
 import { loadDecoAssets, decoUniforms } from './gfx/deco.js';
 import { daySeed } from './core/util.js';
 import { WORLD_TAG, WORLD_SCALE } from './track/defs.js';
@@ -44,7 +45,7 @@ const canvas = document.getElementById('c');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance', stencil: false });
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 const TM = { aces: THREE.ACESFilmicToneMapping, neutral: THREE.NeutralToneMapping, agx: THREE.AgXToneMapping };
-renderer.toneMapping = TM[params.get('tm') || 'neutral'];
+renderer.toneMapping = TM[params.get('tm')] || TM.neutral;
 renderer.toneMappingExposure = +(params.get('exp') || 1.05);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFShadowMap;
@@ -52,9 +53,15 @@ renderer.info.autoReset = false;   // zwei Durchgänge (Welt + Cockpit) → Zäh
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(62, 1, 0.25, 4000 * WORLD_SCALE);   // Fernring/Bergkranz wachsen mit
 camera.layers.enable(STATIC_LAYER);
-const quality = new Quality(renderer, params.get('q'));
-const post = new Post(renderer);   // Bewegungsunschärfe (nur wenn sie wirkt, sonst direktes Zeichnen)
-quality.post = post;
+// Kino-Look (n17): ?look=0|1|2 erzwingt Einfach/Standard/Kino (A/B), ?look=alt = Bild wie bis n22 (alter Weg mit post.js),
+// ?kl=-bloom,+ssao schaltet einzelne Stufen. Ohne ?look folgt der Look der Grafik-Stufe (Einstellung bzw. Automatik).
+const LOOK = params.get('look');
+const LOOK_FIX = LOOK != null && /^[012]$/.test(LOOK) ? +LOOK : null;
+const quality = new Quality(renderer, params.get('q') ?? (LOOK_FIX != null ? String(LOOK_FIX) : null));
+const kino = LOOK === 'alt' ? null : new KinoLook(renderer, { level: LOOK_FIX ?? quality.tier, stages: params.get('kl') || '' });
+// Bewegungsunschärfe: im Kino-Look Teil derselben Pipeline (ein Szenen-Durchlauf); ?look=alt: bisheriges post.js
+const post = kino || new Post(renderer);
+quality.post = post; quality.kino = kino;
 let sun, skyInfo, envMap, M, carVis, ghostVis, sky, cockpit;
 
 let sizeW = 0, sizeH = 0, portrait = null;
@@ -125,11 +132,11 @@ async function boot() {
   quality.apply(sun, renderer);
   M = makeMaterials(renderer);
   ui.loading(0.6, 'Auto lackieren …');
-  carVis = await makeCar({ color: store.settings.paint });
+  carVis = await makeCar({ color: store.settings.paint, contact: !!kino });
   scene.add(carVis.root);
   rig.carBox = carLocalBox(carVis);   // Stoßstangen-Kamera: vor die Nase
   post.setCarBox(rig.carBox);
-  ghostVis = await makeCar({ color: 0xffffff });
+  ghostVis = await makeCar({ color: 0xffffff, contact: false });
   ghostVis.root.traverse((o) => {
     if (o.isMesh && !o.userData.fx) {   // Nitro-Flammen des Geists bleiben Flammen
       o.castShadow = false; o.receiveShadow = false;
@@ -489,7 +496,8 @@ function carLocalBox(cv) {
 const tmpQ = new THREE.Quaternion(), tmpQ2 = new THREE.Quaternion();
 function render(rdt) {
   let pose = null;
-  decoUniforms.uTime.value = shadowUniforms.sbTime.value = performance.now() / 1000;   // Wind im Gras, Wolkenschatten, Wellen
+  decoUniforms.uTime.value = shadowUniforms.sbTime.value = app.fixTime ?? performance.now() / 1000;   // Wind im Gras, Wolkenschatten, Wellen (Tests: feste Zeit)
+  shadowUniforms.sbKino.value = kino && kino.pipeline ? 1 : 0;   // Fahrbahn-Details des Kino-Looks
   shadowUniforms.sbCloudOn.value = quality.tier > 0 && !quality.decoLite && params.get('wolken') !== '0' ? 1 : 0;
   // Automatik „Deko sparsam“: Gras/Blumen und Büsche ausblenden (Welt nicht neu bauen)
   if (worldGroup && worldGroup.userData.lite !== !!quality.decoLite) {
@@ -541,10 +549,11 @@ function render(rdt) {
     sun.target.updateMatrixWorld();
   }
   carVis.setNitro(boost, frozen || (replay && replay.paused) ? 0 : rdt);
-  // Grafik „Sparsam“ (keine Bewegungsunschärfe): dezente Tempo-Streifen am Rand ab ~260 km/h
+  // Grafik „Einfach“ (keine Bewegungsunschärfe): dezente Tempo-Streifen am Rand ab ~260 km/h
   const lineSpd = mode === 'race' && race && !frozen && quality.tier === 0 && (store.settings.blur || 'light') !== 'off' ? race.car.speed() * 3.6 : 0;
   ui.boost(mode === 'menu' ? 0 : boost, Math.max(0, Math.min(1, (lineSpd - 260) / 240)) * 0.55);
   if (ghost && ghostVis.root.visible && mode === 'race') { ghost.sync(ghostVis); ghostVis.setNitro(ghost.nitro(), frozen ? 0 : rdt); }
+  if (fx) fx.rich = !!(kino && kino.pipeline);
   if (fx && mode === 'race' && !frozen) fx.update(rdt, camera);
   if (lineViz) lineViz.update(camera, race, store.settings.assist, mode, store.settings.line);
   sky.position.copy(camera.position);
@@ -556,19 +565,41 @@ function render(rdt) {
   const camTag = mode === 'menu' ? 'menu' : rig.view;
   if (document.body.dataset.cam !== camTag) document.body.dataset.cam = camTag;
   // Bewegungsunschärfe: nur im laufenden Rennen/Replay (nicht Menü, Pause, Replay-Standbild, Test-Standbild)
-  post.setting = params.get('blur') || store.settings.blur || 'light';
-  post.tier = quality.tier;
   const running = !frozen && !app.freezeCam && ((mode === 'race' && race && race.state !== 'countdown') || (mode === 'replay' && replay && !replay.paused));
   const spd = !pose ? 0 : mode === 'replay' && replay ? Math.abs(replay.speed()) : race ? race.car.speed() : 0;
-  if (!post.render(scene, camera, { run: running, speed: spd, boost, car: carVis.root, dt: rdt, cut: blurCut })) renderer.render(scene, camera);
-  blurCut = false;
   if (inCockpit) {
     cockpit.layout({ ...cockpitZone(), vfov: camera.fov });
     const cv = cockpitValues();
     cockpit.update(frozen ? 0 : rdt * (mode === 'replay' && replay ? replay.speedMul * (replay.paused ? 0 : 1) : 1), cv, camera, sun.userData.dir);
-    cockpit.render(renderer);
     ui.cockpitMode(cockpit.gaugePx, cv.gear);
   }
+  drawFrame({ run: running, speed: spd, boost, dt: rdt, cut: blurCut, cockpit: inCockpit, heat: !inCockpit && pose && mode !== 'menu' ? heatOf(spd, boost) : null });
+  blurCut = false;
+}
+
+// Bild zeichnen: Kino-Look (eine Pipeline: Szene, Unschärfe, Licht/Farbe, Cockpit darüber) bzw. ?look=alt wie bis n22
+function drawFrame(o) {
+  post.setting = params.get('blur') || store.settings.blur || 'light';
+  post.tier = quality.tier;
+  const overlay = o.cockpit ? (r) => cockpit.render(r) : null;
+  if (kino) {
+    kino.setLevel(LOOK_FIX ?? quality.tier);
+    kino.render(scene, camera, { run: o.run, speed: o.speed, boost: o.boost, car: carVis.root, dt: o.dt, cut: o.cut, sunDir: sun.userData.dir, heat: o.heat, overlay, time: app.fixTime });
+    return;
+  }
+  if (!post.render(scene, camera, { run: o.run, speed: o.speed, boost: o.boost, car: carVis.root, dt: o.dt, cut: o.cut })) renderer.render(scene, camera);
+  if (overlay) overlay(renderer);
+}
+
+// Hitzeflimmern hinter den Endrohren (Kino): stark im Stand/beim Anfahren mit Gas und mit Nitro, bei Tempo weht es weg
+const heatA = [new THREE.Vector3(), new THREE.Vector3()], heatB = [new THREE.Vector3(), new THREE.Vector3()];
+function heatOf(speed, boost) {
+  if (!kino || !kino.stages.haze || !carVis.root.visible) return null;
+  const thr = mode === 'race' && race ? race.car.input.throttle || 0 : 0.3;
+  const k = Math.max(boost, (0.35 + 0.65 * thr) * (1 - Math.min(1, Math.max(0, (speed - 4) / 30))));
+  if (k < 0.02) return null;
+  carVis.root.updateMatrixWorld();
+  return EXHAUST.map(([x, y, z], i) => ({ a: carVis.root.localToWorld(heatA[i].set(x, y + 0.02, z + 0.12)), b: carVis.root.localToWorld(heatB[i].set(x * 1.3, y + 0.32, z + 1.5)), r: 0.2, k }));
 }
 
 // ---------- Debug-API ----------
@@ -595,6 +626,7 @@ window.__game = {
   setTimeScale(s) { timeScale = s; },
   cam(m) { rig.mode = m; rig.init = false; },
   get cockpit() { return cockpit; },
+  get fx() { return fx; },
   get carVis() { return carVis; }, get ghostVis() { return ghostVis; }, get ghost() { return ghost; },
   // Physik ohne Rendering vorspulen (Headless: schneller als Echtzeit)
   sim(seconds, inp = null) {
@@ -605,7 +637,10 @@ window.__game = {
     return this.state();
   },
   teleport(idx, speed = 20) { race.place(idx, speed); prevPose = null; blurCut = true; },
-  post, shadowUniforms,
+  post, kino, shadowUniforms,
+  // ein Bild wie im Spiel zeichnen (Tests/Messung, Szene angehalten): o = { run, speed, boost, cockpit }
+  drawOnce(o = {}) { renderer.info.reset(); drawFrame({ run: !!o.run, speed: o.speed || 0, boost: o.boost || 0, dt: 1 / 60, cut: false, cockpit: !!o.cockpit, heat: o.heat === false ? null : (o.cockpit ? null : heatOf(o.speed || 0, o.boost || 0)) }); },
+  setLook(l) { if (kino) { kino.setLevel(l); } },
   hop() { race.requestHop(); }, nitro() { race.requestNitro(); },
 };
 

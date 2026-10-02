@@ -144,6 +144,7 @@ export class Car {
     this.assist = { level: 0, magnet: 0, grip: 1 };
     this.surfaceKind = 0;
     this.lastImpact = 0;
+    this.scrapeP = [0, 0, 0]; this.scrapeN = [0, 1, 0]; this.scrapeK = -1;   // Funken (n17)
     this.upsideT = 0;
     this._t = { x: 0, y: 0, z: 0 };
     this.frame = { r: { x: 1, y: 0, z: 0 }, u: { x: 0, y: 1, z: 0 }, f: { x: 0, y: 0, z: -1 } };
@@ -456,7 +457,11 @@ export class Car {
     const doContact = (px, py, pz, nx, ny, nz, pen, fric, rest, kind) => {
       this._pointVel(px, py, pz, vp);
       const vn = vp.x * nx + vp.y * ny + vp.z * nz;
-      if (kind !== 4) this.scrape = Math.max(this.scrape, Math.hypot(vp.x - vn * nx, vp.y - vn * ny, vp.z - vn * nz));
+      if (kind !== 4) {
+        const sv = Math.hypot(vp.x - vn * nx, vp.y - vn * ny, vp.z - vn * nz);
+        // Ort und Normale für Funken (n17, nur Grafik – ändert die Physik nicht)
+        if (sv > this.scrape) { this.scrape = sv; this.scrapeP[0] = px; this.scrapeP[1] = py; this.scrapeP[2] = pz; this.scrapeN[0] = nx; this.scrapeN[1] = ny; this.scrapeN[2] = nz; this.scrapeK = kind; }
+      }
       if (vn < 0) {
         if (!this.crash) {
           const info = { kind, vn: +vn.toFixed(1), n: [+nx.toFixed(2), +ny.toFixed(2), +nz.toFixed(2)], p: [+px.toFixed(1), +py.toFixed(1), +pz.toFixed(1)] };

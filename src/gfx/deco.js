@@ -248,7 +248,7 @@ export function buildDeco(track, M, surfaceY, add, opts = {}) {
     const pos = [], col = [], uv = [], nrm = [], idx = [];
     for (const st of plan.strips) {
       const gravel = st.kind === 'gravel';
-      const tint = gravel ? [1.0, 0.97, 0.9] : [0.55, 0.49, 0.4];
+      const tint = gravel ? [0.74, 0.7, 0.62] : [0.55, 0.49, 0.4];   // Kies (n17): bisher fast weiß wie Schnee
       const nP = st.pts.length;
       st.pts.forEach((p, k) => {
         const endA = Math.min(1, Math.min(k, nP - 1 - k) / 2);
@@ -256,7 +256,7 @@ export function buildDeco(track, M, surfaceY, add, opts = {}) {
         const pts = [[p.x0, p.z0, 1], [p.x0 + (p.x1 - p.x0) * 0.7, p.z0 + (p.z1 - p.z0) * 0.7, 0.95], [p.x1, p.z1, 0]];
         for (const [x, z, a] of pts) {
           pos.push(x, gy(x, z) + (gravel ? 0.035 : 0.025), z);
-          nrm.push(0, 1, 0); uv.push(x / 3.2, z / 3.2);
+          nrm.push(0, 1, 0); uv.push(x / 2.2, z / 2.2);
           col.push(tint[0], tint[1], tint[2], a * endA * (gravel ? 1 : 0.9));
         }
         if (k > 0) { const b = pos.length / 3 - 6; for (const [a0, a1] of [[0, 1], [1, 2]]) idx.push(b + a0, b + 3 + a0, b + a1, b + a1, b + 3 + a0, b + 3 + a1); }
