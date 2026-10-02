@@ -87,6 +87,9 @@ resize();
 
 const input = new Input();
 const store = new Store();
+// Gespeicherte Grafik-Wahl (Einfach/Standard/Kino) beim Start übernehmen; ohne Wahl startet die Automatik mit Kino
+{ const q = String(store.settings.quality || 'auto');
+  if (params.get('q') == null && LOOK_FIX == null && /^[012]$/.test(q)) { quality.forced = q; quality.tier = +q; resize(); } }
 const ui = new UI(app, store);
 const rig = new CameraRig(camera);
 const sound = new Sound(store);
