@@ -4,8 +4,8 @@ export class Quality {
   constructor(renderer, forced) {
     this.r = renderer;
     this.forced = forced;
-    const mobile = /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
-    this.tier = forced ? +forced : (mobile ? 1 : 2);   // 0 niedrig, 1 mittel, 2 hoch
+    // Start immer mit Kino (Peter 02.10.2026, auch am Handy); ruckelt es, senkt die Automatik zuerst die Renderskala, dann Deko, dann die Stufe
+    this.tier = forced ? +forced : 2;   // 0 niedrig, 1 mittel, 2 hoch
     this.fps = 60; this.acc = 0; this.n = 0; this.cool = 3;
     this.scale = 1;
   }

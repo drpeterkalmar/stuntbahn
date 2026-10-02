@@ -74,7 +74,8 @@ spielbar am Handy (quer oder hochkant), mit Gamepad oder Tastatur. Als App insta
   Ferne, zur Sonne warm), Bloom, Sonnen-Blendung, Vignette, Kontaktschatten unter dem Auto, Umgebungsverdeckung (Kino),
   Hitzeflimmern hinter den Endrohren (Kino), Funken beim Schleifen/Aufsetzen, dichterer Reifenrauch, Staub; Asphalt mit
   Flicken und vergossenen Rissen, abgenutzte Randsteine, Fels mit Klüften. Die Bewegungsunschärfe läuft in derselben Pipeline.
-- **Grafik: Automatisch / Einfach / Standard / Kino** (Optionen). Standard rechnet mit ~84 % Auflösung und schärft
+- **Grafik: Automatisch / Einfach / Standard / Kino** (Optionen). **Start immer mit Kino** (seit 02.10.2026, auch am Handy;
+  die Automatik senkt bei Ruckeln zuerst die Renderauflösung, dann Deko, dann die Stufe). Standard rechnet mit ~84 % Auflösung und schärft
   kantenbewusst hoch (spart die Leistung für die Effekte), die Automatik regelt die Renderauflösung nach Bildrate.
 - A/B: `?look=0|1|2`, `?look=alt` (Bild wie bis n22), einzelne Stufen `?kl=-bloom,-grade,+ssao …`, `?ktx=0` (WebP statt KTX2).
 - Texturen der Strecke als **KTX2** (GPU-komprimiert, ~¼ Grafikspeicher). Modul `src/gfx/kinolook.js` für andere Spiele:
