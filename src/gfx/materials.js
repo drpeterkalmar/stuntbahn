@@ -7,6 +7,28 @@ import { MAT, WORLD_HALF, WORLD_SCALE } from '../track/defs.js';
 
 const loader = new THREE.TextureLoader();
 const cache = new Map();
+// KTX2 (n17): kachelnde PBR-Texturen GPU-komprimiert (Basis ETC1S → ETC2/ASTC/BC je Gerät, ~¼ Grafikspeicher). Vorab
+// geladen (preloadKtx2), damit Materialien gleich mit Textur kompiliert werden. Scheitert etwas (kein WASM, Fehler) oder
+// ?ktx=0: WebP wie bisher.
+const ktx2 = new Map();
+export const KTX2_SETS = ['asphalt', 'concrete', 'grass', 'pad', 'metal'];
+export async function preloadKtx2(renderer) {
+  if (typeof location !== 'undefined' && new URLSearchParams(location.search).get('ktx') === '0') return 0;
+  try {
+    const { KTX2Loader } = await import('three/addons/loaders/KTX2Loader.js');
+    const L = new KTX2Loader().detectSupport(renderer);
+    const names = KTX2_SETS.flatMap((s) => ['diff', 'nor', 'arm'].map((k) => `${s}_${k}`));
+    const res = await Promise.all(names.map((n) => L.loadAsync(`assets/tex/${n}.ktx2`).then((t) => [n, t])));
+    for (const [n, t] of res) ktx2.set(n, t);
+    L.dispose();
+    return ktx2.size;
+  } catch (e) {
+    console.warn('KTX2 nicht verfügbar, WebP', e && e.message);
+    ktx2.clear();
+    return 0;
+  }
+}
+export function ktx2Count() { return ktx2.size; }
 // 1×1-Tiefentextur mit Vergleichsmodus als Platzhalter (sampler2DShadow braucht Depth-Format)
 const dummyDepth = new THREE.DepthTexture(1, 1);
 dummyDepth.type = THREE.UnsignedIntType;
@@ -22,7 +44,7 @@ export const shadowUniforms = {
   sbCloudTex: { value: cloudTexture() },
   sbCloudOn: { value: 1 },
   sbTime: { value: 0 },
-  // Kino-Look (n17): Fahrbahn-Details (Flicken, versiegelte Fugen, Längsnaht) ab Grafik „Standard“; 0 = wie bis n22
+  // Kino-Look (n17): 0 = wie bis n22, ≥ 1 Fahrbahn-Details (Flicken, Risse) und Fels, 2 = dazu weiche Schattenkanten
   sbKino: { value: 0 },
 };
 
@@ -50,7 +72,8 @@ function cloudTexture() {
 function tex(url, srgb, repeat, aniso) {
   const key = url + '|' + repeat;
   if (cache.has(key)) return cache.get(key);
-  const t = loader.load(url);
+  const kn = /assets\/tex\/(\w+)\.webp$/.exec(url), k = kn && ktx2.get(kn[1]);
+  const t = k ? k.clone() : loader.load(url);   // clone teilt die GPU-Daten (gleiche Quelle), eigene Wiederholung
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
   t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
   t.repeat.set(repeat, repeat);
@@ -91,7 +114,7 @@ export function patchStaticShadow(mat) {
       uniform float sbTexel;
       uniform float sbBias;
       uniform sampler2D sbCloudTex;
-      uniform float sbCloudOn, sbTime;
+      uniform float sbCloudOn, sbTime, sbKino;
       // Wolkenschatten: driften langsam mit dem Wind (≈ 9 m/s), dämpfen die Sonne um bis zu 55 %
       float sbCloud() {
         if ( sbCloudOn < 0.5 ) return 1.0;
@@ -111,6 +134,14 @@ export function patchStaticShadow(mat) {
                 + texture( sbShadowMap, vec3( c.xy + vec2(  d, -d ), z ) )
                 + texture( sbShadowMap, vec3( c.xy + vec2( -d,  d ), z ) )
                 + texture( sbShadowMap, vec3( c.xy + vec2(  d,  d ), z ) );
+        if ( sbKino > 1.5 ) {
+          // Kino (n17): 4 weitere, gedrehte Abtastungen (Poisson, Drehung je Pixel) → weiche Halbschatten statt Treppen
+          float a = fract( 52.9829189 * fract( dot( gl_FragCoord.xy, vec2( 0.06711056, 0.00583715 ) ) ) ) * 6.2831853;
+          mat2 R = mat2( cos( a ), sin( a ), -sin( a ), cos( a ) ) * sbTexel * 2.2;
+          s += texture( sbShadowMap, vec3( c.xy + R * vec2( 0.94, 0.34 ), z ) ) + texture( sbShadowMap, vec3( c.xy + R * vec2( -0.4, 0.92 ), z ) )
+             + texture( sbShadowMap, vec3( c.xy + R * vec2( -0.92, -0.38 ), z ) ) + texture( sbShadowMap, vec3( c.xy + R * vec2( 0.36, -0.93 ), z ) );
+          return s * 0.125 * cl;
+        }
         return s * 0.25 * cl;
       }`)
       // Chunk selbst einsetzen: #include wird erst NACH onBeforeCompile aufgelöst
@@ -131,8 +162,7 @@ function patchRoad(mat, detail = true) {
     sh.fragmentShader = sh.fragmentShader
       .replace('#include <common>', `#include <common>
       varying vec4 vRoad;
-      uniform float sbKino;
-      float rRough = 0.0;
+      float rRough = 0.0;   // sbKino: Uniform aus patchStaticShadow
       float rHash( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) * 43758.5453 ); }
       float rNoise( vec2 p ) { vec2 i = floor( p ), f = fract( p ); f = f * f * ( 3.0 - 2.0 * f );
         return mix( mix( rHash( i ), rHash( i + vec2( 1, 0 ) ), f.x ), mix( rHash( i + vec2( 0, 1 ) ), rHash( i + vec2( 1, 1 ) ), f.x ), f.y ); }`)
@@ -159,15 +189,11 @@ function patchRoad(mat, detail = true) {
           rRough += 0.06 * inside - 0.25 * seam;
         }
         // versiegelte Querrisse (Temperaturrisse, mit Bitumen vergossen): je ~13 m Zelle höchstens einer, leicht gewellt,
-        // nicht immer über die ganze Breite; dazu selten ein Längsriss in der Radspur
+        // nicht immer über die ganze Breite
         float cc = floor( s / 13.0 ), hc = rHash( vec2( cc, 1.3 ) );
         float sc = cc * 13.0 + 2.0 + 9.0 * fract( hc * 7.1 ) + ( rNoise( vec2( x * 0.9, cc ) ) - 0.5 ) * 0.9 + x * ( fract( hc * 3.7 ) - 0.5 ) * 0.25;
         float span = step( abs( x - ( fract( hc * 13.1 ) - 0.5 ) * hw ), hw * ( 0.45 + 0.6 * fract( hc * 5.9 ) ) );
         float crack = ( 1.0 - smoothstep( 0.025, 0.025 + fw * 1.5, abs( s - sc ) ) ) * step( hc, 0.5 ) * span;
-        float lc = floor( s / 47.0 ), hl = rHash( vec2( lc, 9.1 ) );
-        float xc = ( hl > 0.5 ? 1.0 : -1.0 ) * hw * 0.45 + ( rNoise( vec2( s * 0.15, lc ) ) - 0.5 ) * 0.5;
-        float lon = ( 1.0 - smoothstep( 0.02, 0.02 + fwidth( x ) * 1.5, abs( x - xc ) ) ) * step( hl, 0.3 ) * smoothstep( 0.2, 0.5, rNoise( vec2( s * 0.06, lc + 4.0 ) ) );
-        crack = max( crack, lon );
         diffuseColor.rgb *= 1.0 - 0.5 * crack;
         rRough -= 0.35 * crack;
       }` : ''}
@@ -201,6 +227,7 @@ function patchGrass(mat) {
   // zweite Abtastung in anderem Maßstab + Farbvariation gegen sichtbare Kacheln
   const fn = (sh) => {
     sh.uniforms.sbRock = rockUniform;
+    sh.uniforms.sbKino = shadowUniforms.sbKino;
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', '#include <common>\nvarying vec2 vGw;\nvarying vec3 vGn;\nvarying float vGy;')
       .replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvGw = ( modelMatrix * vec4( transformed, 1.0 ) ).xz;\nvGy = ( modelMatrix * vec4( transformed, 1.0 ) ).y;\nvGn = normalize( mat3( modelMatrix ) * objectNormal );');
@@ -257,6 +284,14 @@ function patchGrass(mat) {
             float st = 0.5 + 0.5 * sin( vGy * 1.9 + gNoise( pr * 0.12 ) * 5.0 );
             float rn = gNoise( pr * 0.45 ) * 0.6 + gNoise( pr * 2.1 ) * 0.4;
             vec3 rcol = mix( vec3( 0.06, 0.055, 0.05 ), vec3( 0.16, 0.145, 0.125 ), rn ) * ( 0.75 + 0.4 * st );
+            if ( sbKino > 0.5 ) {
+              // Kino (n17): Fels mit Klüften (dunkle, fast senkrechte Spalten), feiner Körnung und Flechten-Flecken
+              float fine = gNoise( pr * 7.0 ) * 0.5 + gNoise( pr * 19.0 ) * 0.5;
+              float kluft = smoothstep( 0.035, 0.0, abs( gNoise( vec2( pr.x * 0.35, vGy * 0.06 ) ) - 0.5 ) - 0.002 );
+              float flechte = smoothstep( 0.62, 0.75, gNoise( pr * 0.9 + 7.0 ) );
+              rcol *= ( 0.78 + 0.44 * fine ) * ( 1.0 - 0.6 * kluft );
+              rcol = mix( rcol, vec3( 0.13, 0.135, 0.08 ), flechte * 0.45 );
+            }
             diffuseColor.rgb = mix( diffuseColor.rgb, dcol, dirt * 0.85 );
             diffuseColor.rgb = mix( diffuseColor.rgb, rcol, rock );
           }

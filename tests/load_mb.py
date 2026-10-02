@@ -15,6 +15,10 @@ with Server(root) as srv, sync_playwright() as pw:
     s.pg.on('response', on_resp)
     s.open(f'?nosw&{q}')
     time.sleep(1.0)
+    # n17: zuverlässiger über die Resource-Timing-Liste der Seite (body() scheitert gelegentlich bei großen Antworten)
+    rt = s.ev("() => [...performance.getEntriesByType('navigation'), ...performance.getEntriesByType('resource')].map((e) => [e.name, e.encodedBodySize || e.decodedBodySize || 0])")
+    for name, sz in rt:
+        if sz and sz > sizes.get(name, 0): sizes[name] = sz
     tot = sum(sizes.values())
     big = sorted(((v, k.split('/')[-1]) for k, v in sizes.items()), reverse=True)[:8]
     print(json.dumps({'wurzel': os.path.basename(root), 'dateien': len(sizes), 'mb': round(tot / 1e6, 2), 'groesste': [(n, round(v / 1e6, 2)) for v, n in big], 'fehler': s.errors[:2]}, ensure_ascii=False))

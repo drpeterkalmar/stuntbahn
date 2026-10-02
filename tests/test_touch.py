@@ -16,7 +16,8 @@ BB = r"""async () => {
   // Auto im Bild: Ecken der Modell-Box projiziert (nur Verfolger)
   let carR = null;
   if (G.rig.view === 'chase' && car.visible) {
-    const box = new THREE.Box3().setFromObject(car), W = innerWidth, H = innerHeight, xs = [], ys = [];
+    const box = new THREE.Box3(); car.updateMatrixWorld(true); car.traverse((o) => { if (o.isMesh && !o.userData.fx) box.expandByObject(o); });   // ohne Effekte (Kontaktschatten n17, Flammen)
+    const W = innerWidth, H = innerHeight, xs = [], ys = [];
     for (const x of [box.min.x, box.max.x]) for (const y of [box.min.y, box.max.y]) for (const z of [box.min.z, box.max.z]) {
       const p = new THREE.Vector3(x, y, z).project(cam); xs.push((p.x + 1) / 2 * W); ys.push((1 - p.y) / 2 * H); }
     carR = [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];

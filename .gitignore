@@ -4,6 +4,15 @@ node_modules/
 # Test-Artefakte (Auswahl in tests/shots/final bleibt)
 tests/shots/*
 !tests/shots/final/
+# Kino-Look (n17): Vergleichs-Collagen für Peter (Einzelbilder bleiben lokal)
+!tests/shots/kinolook/
+tests/shots/kinolook/*/
+tests/shots/kinolook/*.png
+tests/shots/kinolook/ktxcmp_*
+tests/shots/kinolook/tm_*
+tests/shots/kinolook/iso_*
+tests/shots/kinolook/mat_*
+tests/shots/kinolook/fx*
 tests/out/
 __pycache__/
 *.pyc

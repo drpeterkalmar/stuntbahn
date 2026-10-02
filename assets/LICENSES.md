@@ -92,3 +92,18 @@ geglättet und zu Loops gemacht, zusammen als AAC (mono, 96 kbit/s) gespeichert.
 | [S012_Engine_Backfire_Mono.wav](https://freesound.org/people/P%C3%B3l/sounds/385935/) | Pól | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | Fehlzündung (hell) |
 
 Countdown-, Checkpoint-, Ziel- und Brems-Töne, Fahrtwind, Nitro und Hüpfer sind weiter eigene Synthese (`src/audio/sound.js`).
+
+## Kino-Look (n17)
+
+| Datei(en) | Quelle | Lizenz | Änderungen |
+|---|---|---|---|
+| `tex/{asphalt,concrete,grass,pad,metal}_{diff,nor,arm}.ktx2` | dieselben Poly-Haven-Texturen wie oben (CC0) | CC0 | als KTX2 (Basis Universal ETC1S, Mipmaps) mit `tools/build_ktx2.mjs` kodiert, senkrecht gespiegelt |
+| `../lib/addons/loaders/KTX2Loader.js`, `utils/WorkerPool.js`, `math/ColorSpaces.js` | three.js r186 (examples/jsm) | MIT | unverändert |
+| `../lib/addons/libs/basis/basis_transcoder.{js,wasm}` | [Basis Universal](https://github.com/BinomialLLC/basis_universal) (Binomial LLC), Build aus three.js r186 | Apache-2.0 | unverändert |
+| `../lib/addons/libs/ktx-parse.module.js` | [ktx-parse](https://github.com/donmccurdy/KTX-Parse) (Don McCurdy) | MIT | unverändert |
+| `../lib/addons/libs/zstddec.module.js` | [zstddec](https://github.com/donmccurdy/zstddec-wasm) (Don McCurdy) | MIT (zstd: BSD) | unverändert |
+
+Kino-Look-Pipeline (`src/gfx/kinolook.js`: Hochskalieren/Kantenglättung/Nachschärfen, Bloom, Blendung, Dunst,
+Umgebungsverdeckung, Farbkorrektur), Asphalt-Flicken/-Risse, Randstein-Abnutzung, Fels-Klüfte, Rauch-Textur und Funken
+sind eigene Arbeit (prozedural, keine Bilddateien). Kantenglättung und Nachschärfen folgen bekannten, frei beschriebenen
+Ideen (FXAA-Art, kontrastadaptives Schärfen wie AMD CAS/FSR1), es wurde kein fremder Code übernommen.

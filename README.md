@@ -56,7 +56,7 @@ spielbar am Handy (quer oder hochkant), mit Gamepad oder Tastatur. Als App insta
 - **Bewegungsunschärfe (seit 28.09.2026):** Optionen → Grafik → „Bewegungsunschärfe“ Aus / **Leicht** (Standard) / Stark.
   Verwischt die Umgebung ab ~80 km/h (volle Stärke ab ~190 km/h, mit Nitro kräftiger), das Auto bleibt scharf. Kamera-
   Bewegungsunschärfe aus Tiefe + voriger/aktueller Kamera, Drehungen nur zu 45 % (Kurven bleiben lesbar). Nicht in Menü,
-  Pause, Replay-Standbild. Grafik „Sparsam“: keine Unschärfe, nur Tempo-Streifen am Rand ab ~260 km/h. Kostet die
+  Pause, Replay-Standbild. Grafik „Einfach“: keine Unschärfe, nur Tempo-Streifen am Rand ab ~260 km/h. Kostet die
   Unschärfe spürbar Bildrate (> 8 % unter der Bildrate ohne, unter 58 fps), schaltet die Automatik sie für die Sitzung ab.
   Dazu sehr dezentes Kameraschütteln auf Bodenwellen (Verfolger). Details: `OPTIK_BERICHT.md`.
 
@@ -67,6 +67,18 @@ spielbar am Handy (quer oder hochkant), mit Gamepad oder Tastatur. Als App insta
   und Bauernhöfe in der Ferne, Wald am Bergkranz, wandernde Wolkenschatten, Wasser mit Wellen. Keine Kollision, immer mit
   Abstand zu jeder Fahrbahn (auch Hochstraßen/Rampen), nie im Wasser. Dosiert nach Grafikstufe; ruckelt es, blendet die
   Automatik (nach der Unschärfe) zuerst Gras/Büsche/Wolkenschatten aus. `?deko=0` / `?wolken=0` zum Vergleich.
+
+## 🎬 Kino-Look (seit 02.10.2026, n17)
+- Peter: „Mehr Details und realistische Grafik, Effekte wie Forza mit DLSS.“ Echtes DLSS geht im Browser nicht – der Kino-Look
+  holt den Eindruck mit Echtzeit-Techniken fürs Handy: Farbkorrektur mit Film-Kontrast, Luftperspektive (Dunst in der
+  Ferne, zur Sonne warm), Bloom, Sonnen-Blendung, Vignette, Kontaktschatten unter dem Auto, Umgebungsverdeckung (Kino),
+  Hitzeflimmern hinter den Endrohren (Kino), Funken beim Schleifen/Aufsetzen, dichterer Reifenrauch, Staub; Asphalt mit
+  Flicken und vergossenen Rissen, abgenutzte Randsteine, Fels mit Klüften. Die Bewegungsunschärfe läuft in derselben Pipeline.
+- **Grafik: Automatisch / Einfach / Standard / Kino** (Optionen). Standard rechnet mit ~84 % Auflösung und schärft
+  kantenbewusst hoch (spart die Leistung für die Effekte), die Automatik regelt die Renderauflösung nach Bildrate.
+- A/B: `?look=0|1|2`, `?look=alt` (Bild wie bis n22), einzelne Stufen `?kl=-bloom,-grade,+ssao …`, `?ktx=0` (WebP statt KTX2).
+- Texturen der Strecke als **KTX2** (GPU-komprimiert, ~¼ Grafikspeicher). Modul `src/gfx/kinolook.js` für andere Spiele:
+  `KINOLOOK.md`. Messungen, Fotos, Grenzen: `KINOLOOK_BERICHT.md`.
 
 ## ⛰️ Gelände-Strecken (seit 01.10.2026, n22) – Standard für neue Strecken
 - Peter: „3D-Gelände wie bei Trackmania“. **Die Strecke fährt durch eine Landschaft** aus Hügeln, Tälern, Plateaus und

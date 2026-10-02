@@ -181,9 +181,22 @@ const BLOOM_UP_FS = `
     gl_FragColor = vec4( c / 12.0 * uK, 1.0 );
   }`;
 
+// Sonnen-Sichtbarkeit: ein Pixel, 9 Tiefen-Abtastungen um die Sonne, zeitlich geglättet (Mischung mit dem Vorbild)
+const SUNVIS_FS = `
+  uniform sampler2D tDepth; uniform vec3 uSunScr; uniform vec2 uRes; uniform float uK;
+  void main() {
+    float vis = 0.0;
+    for ( int i = 0; i < 9; i++ ) {
+      vec2 o = vec2( float( i - ( i / 3 ) * 3 ) - 1.0, float( i / 3 ) - 1.0 ) * vec2( uRes.y / uRes.x, 1.0 ) * 0.012;
+      vec2 q = uSunScr.xy + o;
+      vis += ( q.x > 0.0 && q.x < 1.0 && q.y > 0.0 && q.y < 1.0 && texture2D( tDepth, q ).x >= 1.0 ) ? 1.0 : 0.0;
+    }
+    gl_FragColor = vec4( vec3( vis / 9.0 * uSunScr.z ), uK );
+  }`;
+
 // Endbild
 const COMP_FS = `
-  uniform sampler2D tColor, tDepth, tAO, tBloom, tBlur;
+  uniform sampler2D tColor, tDepth, tAO, tBloom, tBlur, tSunVis;
   uniform vec2 uSrcTexel, uRes, uAOTexel;
   uniform float uTime, uSharp, uAOStr, uBloomStr, uVig, uBlurOn, uDither;
   uniform mat4 uInvProj; uniform mat3 uCamRot; uniform vec3 uCamPos;
@@ -237,17 +250,15 @@ const COMP_FS = `
     return m * vec2( sin( q.y * 0.9 - uTime * 19.0 ) + 0.5 * sin( q.x * 1.7 + uTime * 13.0 ), cos( q.x * 0.8 - uTime * 23.0 ) + 0.5 * sin( q.y * 1.3 - uTime * 11.0 ) );
   }
 
+  vec3 kGhost( vec2 uv, vec2 p, float rad, float warm ) {
+    float r = length( ( uv - p ) * vec2( uRes.x / uRes.y, 1.0 ) ) / rad;
+    if ( r >= 1.0 ) return vec3( 0.0 );
+    float disc = ( 1.0 - smoothstep( 0.75, 1.0, r ) ) * ( 0.55 + 0.45 * smoothstep( 0.3, 0.95, r ) );
+    return mix( vec3( 0.55, 0.75, 1.0 ), vec3( 1.0, 0.7, 0.45 ), warm ) * disc;
+  }
   vec3 kFlare( vec2 uv ) {
-    if ( uSunScr.z <= 0.0 ) return vec3( 0.0 );
-    // Sichtbarkeit der Sonne: 9 Tiefen-Abtastungen um die Sonnenposition (für alle Pixel dieselben → billig)
-    float vis = 0.0;
-    for ( int i = 0; i < 9; i++ ) {
-      vec2 o = vec2( float( i - ( i / 3 ) * 3 ) - 1.0, float( i / 3 ) - 1.0 ) * vec2( uRes.y / uRes.x, 1.0 ) * 0.012;
-      vec2 q = uSunScr.xy + o;
-      vis += ( q.x > 0.0 && q.x < 1.0 && q.y > 0.0 && q.y < 1.0 && texture2D( tDepth, q ).x >= 1.0 ) ? 1.0 : 0.0;
-    }
-    vis = vis / 9.0 * uSunScr.z;
-    if ( vis <= 0.0 ) return vec3( 0.0 );
+    float vis = texture2D( tSunVis, vec2( 0.5 ) ).r;   // Sichtbarkeit aus dem 1-Pixel-Durchgang
+    if ( vis <= 0.004 ) return vec3( 0.0 );
     vec2 asp = vec2( uRes.x / uRes.y, 1.0 );
     vec2 dv = ( uv - uSunScr.xy ) * asp;
     float d = length( dv );
@@ -255,14 +266,13 @@ const COMP_FS = `
     c += uSunCol * exp( -abs( dv.y ) * 140.0 ) * exp( -abs( dv.x ) * 4.0 ) * 0.05;        // flacher Streifen
     vec2 axis = vec2( 0.5 ) - uSunScr.xy;
     float edge = 1.0 - smoothstep( 0.35, 0.8, length( axis * asp ) );                         // Geister nur, wenn die Sonne nicht am Rand steht
-    // Geister entlang der Achse Sonne → Bildmitte (dezent, leicht farbig)
-    vec4 G[4]; G[0] = vec4( 0.55, 0.035, 0.6, 0.9 ); G[1] = vec4( 1.25, 0.06, 0.45, 0.8 ); G[2] = vec4( 1.7, 0.028, 0.9, 0.55 ); G[3] = vec4( 2.2, 0.1, 0.5, 0.35 );
-    for ( int i = 0; i < 4; i++ ) {
-      vec2 p = uSunScr.xy + axis * G[i].x;
-      float r = length( ( uv - p ) * asp ) / G[i].y;
-      float disc = ( 1.0 - smoothstep( 0.75, 1.0, r ) ) * ( 0.55 + 0.45 * smoothstep( 0.3, 0.95, r ) );
-      vec3 tint = mix( vec3( 0.55, 0.75, 1.0 ), vec3( 1.0, 0.7, 0.45 ), G[i].z );
-      c += tint * disc * G[i].w * 0.03 * edge;
+    // Geister entlang der Achse Sonne → Bildmitte (dezent, leicht farbig); ausgeschrieben statt Schleife über ein Array
+    // (dynamisch indizierte Arrays landen auf manchen GPUs im langsamen Speicher – gemessen ~3 ms bei 8 MP)
+    if ( edge > 0.0 ) {
+      c += kGhost( uv, uSunScr.xy + axis * 0.55, 0.035, 0.6 ) * 0.9 * 0.03 * edge;
+      c += kGhost( uv, uSunScr.xy + axis * 1.25, 0.06, 0.45 ) * 0.8 * 0.03 * edge;
+      c += kGhost( uv, uSunScr.xy + axis * 1.7, 0.028, 0.9 ) * 0.55 * 0.03 * edge;
+      c += kGhost( uv, uSunScr.xy + axis * 2.2, 0.1, 0.5 ) * 0.35 * 0.03 * edge;
     }
     return c * vis * uFlare;
   }
@@ -380,7 +390,7 @@ export class KinoLook {
     const M4 = () => ({ value: new THREE.Matrix4() });
     // gemeinsame Uniforms aller Durchgänge
     this.u = {
-      tColor: { value: null }, tDepth: { value: null }, tAO: { value: null }, tBloom: { value: null }, tBlur: { value: null }, tSrc: { value: null },
+      tColor: { value: null }, tDepth: { value: null }, tSunVis: { value: null }, tAO: { value: null }, tBloom: { value: null }, tBlur: { value: null }, tSrc: { value: null },
       uSrcTexel: V2(), uRes: V2(), uAOTexel: V2(), uTexel: V2(), uProj: V2(), uDepthSize: V2(),
       uTime: F(), uSharp: F(0.3), uAOStr: F(0.6), uBloomStr: F(0.4), uVig: F(0.2), uBlurOn: F(0), uDither: F(1),
       uInvProj: M4(), uCamRot: { value: new THREE.Matrix3() }, uCamPos: V3(),
@@ -395,6 +405,7 @@ export class KinoLook {
     };
     this.mats = new Map();
     this.rt = null; this.aoRT = null; this.blurRT = null; this.bloomRT = [];
+    this.sunRT = new THREE.WebGLRenderTarget(1, 1, rtOpts({ minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter }));
     this._sz = new THREE.Vector2(); this._v = new THREE.Vector3(); this._v2 = new THREE.Vector3(); this._m = new THREE.Matrix4(); this._m2 = new THREE.Matrix4();
     this._q = new THREE.Quaternion(); this._one = new THREE.Vector3(1, 1, 1);
     this.t0 = performance.now();
@@ -580,6 +591,10 @@ export class KinoLook {
       const front = this._v2.copy(sun).applyQuaternion(this._q.copy(camera.quaternion).invert()).z < 0;
       U.uSunScr.value.set(this._v.x * 0.5 + 0.5, this._v.y * 0.5 + 0.5, front && Math.abs(this._v.x) < 1.6 && Math.abs(this._v.y) < 1.6 ? 1 : 0);
       U.uFlare.value = this.level >= 2 ? 1 : 0.8;
+      // Sichtbarkeit: weich überblenden (Bäume/Pfeiler vor der Sonne flackern sonst), nach Schnitten sofort
+      U.uK.value = o.cut ? 1 : Math.min(1, (o.dt || 1 / 60) * 12);
+      this.pass(this.mat('sunvis', {}, SUNVIS_FS, { blending: THREE.CustomBlending, blendSrc: THREE.SrcAlphaFactor, blendDst: THREE.OneMinusSrcAlphaFactor, transparent: true }), this.sunRT, false);
+      U.tSunVis.value = this.sunRT.texture;
     } else U.uSunScr.value.z = 0;
     let haze = false;
     if (st.haze && o.heat && o.heat.length) {
@@ -640,7 +655,7 @@ export class KinoLook {
   }
 
   dispose() {
-    for (const t of [this.rt, this.aoRT, this.blurRT, ...this.bloomRT]) if (t) { if (t.depthTexture) t.depthTexture.dispose(); t.dispose(); }
+    for (const t of [this.rt, this.aoRT, this.blurRT, this.sunRT, ...this.bloomRT]) if (t) { if (t.depthTexture) t.depthTexture.dispose(); t.dispose(); }
     this.rt = this.aoRT = this.blurRT = null; this.bloomRT = [];
     for (const m of this.mats.values()) m.dispose();
     this.mats.clear();

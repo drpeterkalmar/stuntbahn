@@ -2,7 +2,7 @@
 // Debug-API window.__game für Headless-Tests.
 import * as THREE from 'three';
 import { BUILD } from './build.js';
-import { makeMaterials, shadowUniforms } from './gfx/materials.js';
+import { makeMaterials, shadowUniforms, preloadKtx2 } from './gfx/materials.js';
 import { makeSky, makeEnvironment, loadSkyInfo, sunDirFromUV, bakeStaticShadow } from './gfx/env.js';
 import { buildWorld, STATIC_LAYER } from './gfx/world.js';
 import { makeCar, loadCarModel, parkedCarGeometry, EXHAUST } from './gfx/carmesh.js';
@@ -111,7 +111,7 @@ async function boot() {
   skyInfo = await loadSkyInfo();
   const sunDir = sunDirFromUV(skyInfo.u, skyInfo.v);
   const [envTex] = await Promise.all([makeEnvironment(renderer), loadCarModel().then(() => ui.loading(0.45, 'Auto …')),
-    loadDecoAssets().catch((e) => console.warn('Deko nicht geladen', e))]);
+    loadDecoAssets().catch((e) => console.warn('Deko nicht geladen', e)), preloadKtx2(renderer).then((n) => { app.ktx2 = n; })]);
   envMap = envTex;
   scene.environment = envMap;
   scene.environmentIntensity = +(params.get('env') || 1.8);
@@ -497,7 +497,7 @@ const tmpQ = new THREE.Quaternion(), tmpQ2 = new THREE.Quaternion();
 function render(rdt) {
   let pose = null;
   decoUniforms.uTime.value = shadowUniforms.sbTime.value = app.fixTime ?? performance.now() / 1000;   // Wind im Gras, Wolkenschatten, Wellen (Tests: feste Zeit)
-  shadowUniforms.sbKino.value = kino && kino.pipeline ? 1 : 0;   // Fahrbahn-Details des Kino-Looks
+  shadowUniforms.sbKino.value = kino && kino.pipeline ? kino.level : 0;   // Fahrbahn-Details des Kino-Looks
   shadowUniforms.sbCloudOn.value = quality.tier > 0 && !quality.decoLite && params.get('wolken') !== '0' ? 1 : 0;
   // Automatik „Deko sparsam“: Gras/Blumen und Büsche ausblenden (Welt nicht neu bauen)
   if (worldGroup && worldGroup.userData.lite !== !!quality.decoLite) {
@@ -548,6 +548,7 @@ function render(rdt) {
     sun.position.copy(sun.target.position).addScaledVector(sun.userData.dir, 60);
     sun.target.updateMatrixWorld();
   }
+  if (carVis.contact && kino && !kino.stages.contact) carVis.contact.visible = false;   // ?kl=-contact
   carVis.setNitro(boost, frozen || (replay && replay.paused) ? 0 : rdt);
   // Grafik „Einfach“ (keine Bewegungsunschärfe): dezente Tempo-Streifen am Rand ab ~260 km/h
   const lineSpd = mode === 'race' && race && !frozen && quality.tier === 0 && (store.settings.blur || 'light') !== 'off' ? race.car.speed() * 3.6 : 0;

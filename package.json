@@ -12,6 +12,7 @@
     "@gltf-transform/extensions": "4.5.0",
     "@gltf-transform/functions": "4.5.0",
     "esbuild": "*",
+    "ktx2-encoder": "^0.6.0",
     "meshoptimizer": "*",
     "sharp": "*"
   }

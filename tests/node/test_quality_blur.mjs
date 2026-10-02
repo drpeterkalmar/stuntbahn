@@ -40,5 +40,24 @@ ok(!r.off, `feste Grafikstufe (Nutzerwahl): Automatik greift nicht (${JSON.strin
   for (let i = 0; i < 38 * 12; i++) q.sample(1 / 38, () => {});
   ok(q.scale < 1, `danach 38 fps: Auflösung sinkt (${q.scale})`);
 }
+// Kino-Look (n17): bei Ruckeln zuerst die Renderskala (dynamische Auflösung im Render-Target), Bildschirm-Auflösung bleibt;
+// erst am Minimum der Renderskala eine Stufe tiefer; bei Luft wieder hoch
+{
+  const kino = { pipeline: true, stages: { scale: true }, renderScale: 0.84, scaleRange: [0.84, 0.62, 0.92],
+    adapt(fps) { const s0 = this.renderScale; if (fps < 52) this.renderScale = Math.max(0.62, this.renderScale - 0.08); else if (fps > 58.5) this.renderScale = Math.min(0.92, this.renderScale + 0.04); return s0 !== this.renderScale; } };
+  const q = new Quality({}, null); q.post = { active: false, autoOff: true }; q.kino = kino; const t0 = q.tier;
+  kino.level = q.tier;
+  const step = (fps) => { q.sample(1 / fps, () => {}); if (kino.level !== q.tier) { kino.level = q.tier; kino.renderScale = 0.84; } };   // wie main.js: setLevel bei Stufenwechsel
+  for (let i = 0; i < 48 * 4; i++) q.sample(1 / 48, () => {});
+  ok(kino.renderScale < 0.84 && q.scale === 1 && q.tier === t0 && !q.decoLite, `Kino 48 fps: zuerst Renderskala runter (${kino.renderScale.toFixed(2)}), Bildschirm/Stufe/Deko bleiben`);
+  for (let i = 0; i < 48 * 12; i++) q.sample(1 / 48, () => {});
+  ok(kino.renderScale <= 0.62 + 1e-9 && q.decoLite, `weiter 48 fps: Renderskala am Minimum (${kino.renderScale.toFixed(2)}), dann Deko sparsam`);
+  for (let i = 0; i < 40 * 4; i++) step(40);
+  ok(q.tier === t0 - 1 && q.scale === 1, `40 fps am Minimum: eine Stufe tiefer (${t0} → ${q.tier}), Bildschirm-Auflösung bleibt 1`);
+  ok(kino.renderScale === 0.84, `neue Stufe startet mit ihrer Renderskala (${kino.renderScale})`);
+  kino.renderScale = 0.7;
+  for (let i = 0; i < 60 * 12; i++) q.sample(1 / 60, () => {});
+  ok(kino.renderScale > 0.7, `60 fps: Renderskala steigt wieder (${kino.renderScale.toFixed(2)})`);
+}
 console.log(bad ? `${bad} FEHLER` : 'alle Qualitäts-Prüfungen OK');
 process.exit(bad ? 1 : 0);

@@ -42,6 +42,9 @@ with Server(root) as srv, sync_playwright() as pw:
     for tname in tracks:
         for tier in tiers:
             dev = DESKTOP if (DEV == 'desk' or (tier == 2 and DEV != 'phone')) else PIXEL7_LAND
+            # 'big': 1920×1080 bei Pixeldichte 2 (bis 8,3 MP) – die GPU rechnet dann an der Pixelzahl, nicht an der Latenz;
+            # so lassen sich die Kosten einzelner Stufen trennen (für den Bericht auf Handy-Pixel umgerechnet)
+            if DEV == 'big': dev = dict(DESKTOP, viewport={'width': 1920, 'height': 1080}, device_scale_factor=2)
             s = Session(pw, srv.base, device=dev)
             t0 = time.time()
             s.open(f'?nosw&{TR[tname]}&q={tier}{extra}')
@@ -56,7 +59,7 @@ with Server(root) as srv, sync_playwright() as pw:
             f0 = s.ev("window.__app.frames"); t1 = time.time(); time.sleep(SEC); f1 = s.ev("window.__app.frames"); fps = (f1 - f0) / (time.time() - t1)
             info = s.ev("__game.info()")
             kl = s.ev("__game.kino ? __game.kino.describe() : null")
-            out = dict(strecke=tname, stufe=tier, geraet='desktop' if dev is DESKTOP else 'pixel7q', boot_s=round(boot, 2), stand=stand, fahrt=fahrt,
+            out = dict(strecke=tname, stufe=tier, geraet='big' if DEV == 'big' else ('desktop' if dev is DESKTOP else 'pixel7q'), boot_s=round(boot, 2), stand=stand, fahrt=fahrt,
                        fps=round(fps, 1), pr=info.get('pixelRatio'), kino=kl, fehler=s.errors[:3], drossel=THR or None)
             print(json.dumps(out, ensure_ascii=False), flush=True)
             s.close()
