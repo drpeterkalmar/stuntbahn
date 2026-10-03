@@ -4,6 +4,9 @@ Peters Wunsch (28.09.): „Nachdem man durchs Ziel ist: Cinematic Replay mit Slo
 Stunteinlagen.“ Nachtrag (30.09.): die n19-Stunts (Spirale, Klippensprung, Steilwand …) mit auswerten.
 
 ## Kurz
+- **Live:** https://drpeterkalmar.github.io/stuntbahn/ – Build **9e8b89696e** (Commit 09e3d0d), headless geprüft: Code 4711-3,
+  Autopilot ins Ziel → Film „Looping · 101 m Sprung · 104 m Sprung · Ziel“ startet, Antippen → Ergebnis mit
+  Nochmal/Replay/Highlights/Als Video, 0 Fehler.
 - **Nach dem Zieleinlauf startet automatisch ein Highlight-Film** (gemessen 22–27 s): die 3 (bis 5) besten Momente der
   Fahrt, zeitlich sortiert, ohne Überlappung, dazu der Zieleinlauf. Zeitlupe 1,0 → 0,25 → 1,0 mit weichen Rampen,
   Einblendung („🚀 101 m Sprung“, „🌀 Looping“, „🏁 Ziel · 1:21,27“), Motor in der Zeitlupe tiefer und dumpfer, ein
