@@ -24,8 +24,10 @@ const seeds = Array.from({ length: N }, (_, k) => 1000 + k * 7919 % 90000);
   for (let i = 0; same && i < ta.line.n; i++) if (ta.line.py[i] !== tb.line.py[i] || ta.line.px[i] !== tb.line.px[i]) same = false;
   ok(same, 'Höhenverlauf deterministisch');
   ok(generate(4711, 2).meta.key === '4711-2' && !generate(4711, 2).gel, 'flacher Code ohne Gelände');
-  const r = spawnSync(process.execPath, [new URL('./build_hash.mjs', import.meta.url).pathname], { encoding: 'utf8' });
-  ok(r.status === 0, 'alte Codes (flach, -3d, Demo, Galerie) bauen bitgleich: ' + (r.stdout || '').trim().split('\n').pop());
+  // n23: die Fahrbahn ist breiter (ROAD_WIDEN) – bitgleich gilt für die Breite bis n22 (STUNT_BREIT=alt); Layout und Seeds
+  // sind ohnehin gleich (test_alte_codes), mit neuer Breite baut nur die Fahrbahn breiter
+  const r = spawnSync(process.execPath, [new URL('./build_hash.mjs', import.meta.url).pathname], { encoding: 'utf8', env: { ...process.env, STUNT_BREIT: 'alt' } });
+  ok(r.status === 0, 'alte Codes (flach, -3d, Demo, Galerie) bauen mit der Breite bis n22 bitgleich: ' + (r.stdout || '').trim().split('\n').pop());
 }
 
 // 2) Geometrie je Strecke

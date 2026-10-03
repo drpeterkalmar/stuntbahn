@@ -25,9 +25,10 @@ export const MEDIUM_N16 = { steerPull: 0, stuntPull: 0, magnet: 0.6, grip: 1.15,
 // Traktionskontrolle (tcs: Antrieb nur bis zur Haftung, die die Seitenführung übrig lässt), mehr Reifenhaftung (grip)
 // bei gleichem Lenkgefühl unter der Grenze (slipK), Bremshinweis aus der Brems-Rechnung (warn, BRAKE_WARN in warn.js),
 // Schleuderschutz über die Gierrate (esc, car.js ESC; Stärke-Faktor) und die Kurs-Stabilitätshilfe früher und etwas
-// kräftiger (espFrom/espMax statt BRAKE_HELP 0,6/0,5 – richtet weiterhin nur den Kurs nach der Fahrbahn aus).
+// kräftiger (espFrom/espMax statt BRAKE_HELP 0,6/0,5 – richtet weiterhin nur den Kurs nach der Fahrbahn aus), Touch-Pfeile
+// mit tempoabhängiger Rampe statt sofort vollem Einschlag (touchRamp, input.js rampSteer).
 // URL ?m=n16 = Mittel wie bis n22 (A/B, wertet nicht). Messung: MITTEL2_BERICHT.md, tools/mittel2_mess.mjs
-export const MEDIUM_N23 = { steerPull: 0, stuntPull: 0, magnet: 0.6, grip: 1.3, slipK: 1.4, lanePull: 0.6, tcs: 1, drive: 1.25, speed: 1.0, warn: true, esc: 2, espFrom: 0.4, espMax: 0.6 };
+export const MEDIUM_N23 = { steerPull: 0, stuntPull: 0, magnet: 0.6, grip: 1.3, slipK: 1.4, lanePull: 0.6, tcs: 1, drive: 1.25, speed: 1.0, warn: true, esc: 2, espFrom: 0.25, espMax: 0.7, touchRamp: true };
 export const MED_N16 = !!urlQ && urlQ.get('m') === 'n16';
 // Spurhilfe (Mittel, n16): Anteil lanePull des Spurhalters (Regler auf die Fahrbahnmitte) im Looping/in der Röhre.
 // Lenkt der Spieler deutlich (|Lenkung| > in), blendet sie in out s ganz aus; losgelassen (< keep) in back s wieder
@@ -958,7 +959,9 @@ export class Race {
     for (let k = 0; k + 1 < ord.length; k += 2) {
       // nur in voller Fahrt (ab 54 km/h), wo das Auto beschleunigt – also auf einer Geraden, nicht beim stehenden
       // Start (dort brächte er ~0,25 s mehr, Peter wünscht ihn aber auf der Geraden; selbst zünden geht immer)
-      if (vb[k] < 15 || vb[k] > P.vt[ord[k]] - 1 || stunt(ord[k])) continue;
+      // (n23: nicht in der Steilkurve zünden – mit der breiteren Fahrbahn lag der rechnerisch beste Punkt dort, real kostete
+      // das schmale Band der Hilfe auf der Flanke mehr, als der Schub brachte)
+      if (vb[k] < 15 || vb[k] > P.vt[ord[k]] - 1 || stunt(ord[k]) || Math.abs(L.by[ord[k]]) > 0.12) continue;
       const g = gain(k);
       if (g > best) { best = g; bk = k; }
     }

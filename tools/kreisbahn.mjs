@@ -8,7 +8,7 @@ const ROOT = path.resolve(HERE, '..');
 const imp = (p) => import(url.pathToFileURL(path.join(ROOT, p)).href);
 const { Car, CAR_DEF } = await imp('src/physics/car.js');
 const { MAT } = await imp('src/track/defs.js');
-const { MEDIUM_N15, MEDIUM_N16 } = await imp('src/game/race.js');
+const { MEDIUM_N15, MEDIUM_N16, MEDIUM_N23 } = await imp('src/game/race.js');
 const arg = (k, d) => { const a = process.argv.find((s) => s.startsWith(`--${k}=`)); return a ? a.slice(k.length + 3) : d; };
 const DT = 1 / 120;
 const PLANE = { ray(ox, oy, oz, dx, dy, dz, len) { if (dy >= -1e-9) return null; const t = -oy / dy; if (t < 0 || t > len) return null; return { t, x: ox + dx * t, y: 0, z: oz + dz * t, nx: 0, ny: 1, nz: 0, mat: MAT.ROAD }; } };
@@ -48,7 +48,7 @@ export function grenztempo(set, radii = [25, 50, 100, 200]) {
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === url.fileURLToPath(import.meta.url)) {
-  const VARS = { original: { magnet: 0, grip: 1 }, n15: MEDIUM_N15, neu: MEDIUM_N16 };
+  const VARS = { original: { magnet: 0, grip: 1 }, n15: MEDIUM_N15, n16: MEDIUM_N16, neu: MEDIUM_N23 };
   for (const x of (arg('extra', '') ? arg('extra', '').split(';') : [])) { const [g, m, sk] = x.split(',').map(Number); VARS[`g${g}m${m}s${sk || 1}`] = { grip: g, magnet: m, slipK: sk || 1 }; }
   const ks = arg('var', Object.keys(VARS).join(',')).split(',');
   const R = {}; for (const k of ks) R[k] = grenztempo(VARS[k]);

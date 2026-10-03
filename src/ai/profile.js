@@ -5,7 +5,7 @@ import { jumpWindow, JUMP_T } from '../track/pieces.js';
 import { WAVE, WALL } from '../track/pieces_3d.js';
 import { G, flightPath, pathAt } from '../physics/air.js';
 import { CAR_DEF, GRIP_ALT, driveAccel, brakeDecel, topSpeed, aeroLoad } from '../physics/car.js';
-import { WORLD_SCALE, TILE, ROAD_HW } from '../track/defs.js';
+import { WORLD_SCALE, TILE, ROAD_HW, ROAD_WIDEN } from '../track/defs.js';
 
 export { jumpWindow }; // Standard-Schanze: Tempo-Fenster in pieces.js (gleiche Luft-Physik wie das Auto)
 
@@ -120,6 +120,18 @@ export function computeProfile(L, opts = {}) {
     kC[i] = kx * L.nx[i] + ky * L.ny[i] + kz * L.nz[i];
     // Verwindung (Drehung der Fahrbahn um die Fahrtrichtung, rad/m): Korkenzieher, Steilkurven-Übergänge
     tw[i] = ((L.nx[ib] - L.nx[ia]) * L.bx[i] + (L.ny[ib] - L.ny[ia]) * L.by[i] + (L.nz[ib] - L.nz[ia]) * L.bz[i]) / ds;
+  }
+  // Breitere Fahrbahn (n23, ROAD_WIDEN > 1): Ideallinie im weiteren Band hat kleine Zacken von Punkt zu Punkt – die
+  // Kurven-Krümmung über ±2 Punkte glätten (nicht über Luft/Looping/Röhre hinweg), sonst zackt das Ziel-Tempo und der
+  // Autopilot wechselt in weiten Kurven ständig zwischen Gas und Bremse (Demo: 120 statt ~50 Wechsel/min)
+  if (ROAD_WIDEN > 1 && !opts.noSmooth) {
+    const k0 = Float32Array.from(kA);
+    for (let i = 0; i < n; i++) {
+      if (L.air[i] || L.loop[i] || L.tube[i]) continue;
+      let a = 0, c = 0;
+      for (let d = -2; d <= 2; d++) { const j = idx(i + d); if (L.air[j] || L.loop[j] || L.tube[j]) continue; a += k0[j]; c++; }
+      kA[i] = a / c;
+    }
   }
   // Anfahrt zu Looping/Röhre/Korkenzieher (25 m davor): Kurven mit mehr Haftungs-Reserve (65 % statt 82 %),
   // damit das Auto nicht am Haftungslimit – und damit seitlich versetzt – in den Stunt fährt. Das alte Auto

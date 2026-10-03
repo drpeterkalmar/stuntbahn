@@ -5,6 +5,7 @@
 import { generate, demoLayout } from '../../src/track/generator.js';
 import { verifySync } from '../../src/track/verify.js';
 import { Race, LEICHT, BRAKE_HELP, ASSISTS, MEDIUM_N15, MEDIUM_N16, MEDIUM_N23, SPUR, GAME_SPEEDS } from '../../src/game/race.js';
+import { BrakeWarn } from '../../src/game/warn.js';
 import { pedalPlan, PROF } from '../../src/ai/profile.js';
 import { Car, CAR_DEF, PHYS } from '../../src/physics/car.js';
 import { MAT } from '../../src/track/defs.js';
@@ -189,6 +190,34 @@ console.log('--- E: Mittel n16 ---');
   check(MEDIUM_N23.speed === 1 && GAME_SPEEDS.medium === ASSISTS.medium.speed && w23 <= w16 * 1.05, `0–200 km/h in echten Sekunden: n22 ${w16.toFixed(2)} s (Spieltempo 1,25), n23 ${w23.toFixed(2)} s (Spieltempo ${MEDIUM_N23.speed}, Antrieb ×${MEDIUM_N23.drive}; ≤ +5 %)`);
   check(ASSISTS.medium.grip === MEDIUM_N23.grip && ASSISTS.medium.magnet === 0.6 && ASSISTS.medium.tcs === 1 && ASSISTS.medium.esc > 0 && ASSISTS.medium.lanePull === 0.6 && ASSISTS.medium.warn && MEDIUM_N15.steerPull === 0.28 && MEDIUM_N15.magnet === 0.35 && !ASSISTS.easy.tcs && !ASSISTS.original.tcs && !ASSISTS.original.esc && !ASSISTS.easy.speed && !ASSISTS.original.speed,
     `Regler Mittel n23: Haftung ×${ASSISTS.medium.grip}, Anpressdruck ${ASSISTS.medium.magnet}, Schräglauf ×${ASSISTS.medium.slipK}, Traktionskontrolle, Schleuderschutz ×${ASSISTS.medium.esc}, Spurhilfe ${ASSISTS.medium.lanePull}; Leicht/Original ohne`);
+  // n23 Brems-Rechnung (warn.js): „Bremsen!“ bei Tempo früher als bis n22 (Profil 0,7 s voraus), langsam kein Hinweis;
+  // die Linienfarbe (lineviz.js dynColor) kommt aus derselben Zahl r: grün bei 0, rot bei 1
+  {
+    const v0 = tracks[2][1], W = new BrakeWarn(v0.env.ideal, v0.env.prof), I = W.L, P = v0.env.prof;
+    let tested = 0, early = 0, quiet = 0;
+    for (const k of W.mins) {
+      const vk = P.vt[k];
+      if (vk > 45 || vk * 1.8 < 30 || I.s[k] < 300) continue;
+      const v = Math.min(75, vk * 1.8);
+      // Stelle, ab der der Hinweis kommt (neu / bis n22), rückwärts von der Kurve gesucht
+      let jNew = -1, jOld = -1;
+      for (let j = k, c = 0; c < 900 && j > 0; c++, j--) {
+        const d = W.dist(j, k);
+        if (jNew < 0 && !W.need(j, v, false).on) jNew = j;
+        let vmin = P.vt[j]; for (let q = j; q <= k && W.dist(j, q) <= v * BRAKE_HELP.look; q++) vmin = Math.min(vmin, P.vt[q]);
+        if (jOld < 0 && !(v > vmin * (1 + BRAKE_HELP.hintOver) + 1)) jOld = j;
+        if (jNew >= 0 && jOld >= 0) break;
+        if (d > 600) break;
+      }
+      if (jNew < 0 || jOld < 0) continue;
+      tested++;
+      if (process.env.DBG) console.log('   Kurve', k, 'vk', (vk * 3.6).toFixed(0), 'v', (v * 3.6).toFixed(0), 'neu', W.dist(jNew, k).toFixed(0), 'm, bis n22', W.dist(jOld, k).toFixed(0), 'm');
+      if ((W.dist(jNew, k) - W.dist(jOld, k)) / v >= 0.4) early++;
+      if (!W.need(jNew - 40 > 0 ? jNew - 40 : 0, vk * 0.9, false).on) quiet++;
+      if (tested >= 6) break;
+    }
+    check(tested >= 3 && early === tested && quiet === tested, `„Bremsen!“ (n23) an ${tested} Kurven (Anfahrt 108–270 km/h) mindestens 0,4 s früher als bis n22 (${early}/${tested}), langsam (unter Kurventempo) kein Hinweis (${quiet}/${tested})`);
+  }
   // Spurhilfe im Looping der Demo: HUD kündigt an, hält die Fahrbahnmitte (nicht die Ideallinie), deutliches Lenken
   // blendet sie in ≤ 0,3 s ganz aus
   const v = tracks[0][1], L = v.env.track.line;

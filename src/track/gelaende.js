@@ -14,7 +14,7 @@
 //     Landschaft; dazu Formen der Gelände-Elemente (Hügel über dem Tunnel, Schlucht unter dem Sprung, Plateau-Kante am
 //     Drop, Hang an der Querfahrt, Mulde an der Steilkurve, Tal um die Halfpipe). Physik und Grafik nutzen dasselbe
 //     5-m-Höhenraster (im Tunnel liegt das Physik-Gelände unter der Fahrbahn, die Grafik zeigt den Hügel).
-import { TILE, GRID, WORLD_SCALE, WORLD_HALF, ROAD_HW, tileX, tileZ } from './defs.js';
+import { TILE, GRID, WORLD_SCALE, WORLD_HALF, ROAD_HW, ROAD_WIDEN, tileX, tileZ } from './defs.js';
 import { makeNoise2, smoothstep, smootherstep, clamp } from '../core/util.js';
 import { adaptiveGrid, gridExt } from './terrgrid.js';
 
@@ -37,7 +37,9 @@ export const GEL = {
 const envNum = (k, d) => +((globalThis.process && process.env[k]) || d);
 export const GEL_FINE = envNum('GEL_FINE', 1.2), GEL_ERR = [envNum('GEL_ERR0', 1.5), envNum('GEL_ERR1', 5.0)];
 export const ENV = {
-  delta: 0.15, w0: ROAD_HW + 8, w0Rigid: 20, w0Bank: 22, kUp: 0.9, kLo: 0.7, kCliff: 4,
+  // delta: Gelände so weit unter der Fahrbahn (n23: breitere Fahrbahn 0,2 m – am Außenrand der Steilkurven lag das 5-m-Raster
+  // sonst bis 2 cm unter der Prüfgrenze; mit ?breit=alt wie bis n22 0,15 m, bitgleich)
+  delta: ROAD_WIDEN > 1 ? 0.2 : 0.15, w0: ROAD_HW + 8, w0Rigid: 20, w0Bank: 22, kUp: 0.9, kLo: 0.7, kCliff: 4,
   tunnelHW: ROAD_HW + 1.6, tunnelH: 7.2, cover: 11, gorgeDepth: 22, gorgeLen: 110, bridgeGap: 3.5, reach: 140,
 };
 // Halfpipe (pieces_gel.js): flache Fahrbahn ±hf, Viertelröhren Radius R bis zum Winkel A, Übergang über ramp m
@@ -362,6 +364,7 @@ export function buildGelTerrain(ctx) {
   const ext = gridExt(WORLD_HALF + 60 * WS, 5), step = 5, nx = Math.round(2 * ext / step) + 1;
   const NN = nx * nx;
   const lo = new Float32Array(NN).fill(-1e9), hi = new Float32Array(NN).fill(1e9);
+  const hiRoad = new Float32Array(NN).fill(1e9);   // n23: Obergrenze nur aus Fahrbahn-Streifen (gewinnt auch gegen must)
   const R = new Float32Array(NN).fill(-1e9), C = new Float32Array(NN).fill(1e9);
   const carve = new Float32Array(NN).fill(1e9);   // Physik im Tunnel: unter der Fahrbahn
   const must = new Float32Array(NN).fill(-1e9);   // Mindesthöhe über dem Tunnelgewölbe (gewinnt gegen Böschungen)
@@ -414,10 +417,11 @@ export function buildGelTerrain(ctx) {
   const kUp = ENV.kUp, kLo = ENV.kLo;
   const tilts = [];
   // Abschnitte stempeln – ausgedünnt auf ~3 m (Klassen- und Artwechsel bleiben exakt)
+  const STAMP = 3;
   const use = [0];
   for (let i = 1; i < n; i++) {
     const last = use[use.length - 1];
-    if (i === n - 1 || cls[i] !== cls[i - 1] || (i + 1 < n && cls[i + 1] !== cls[i]) || kindOf[i] !== kindOf[last] || L.piece[i] !== L.piece[last] || L.s[i] - L.s[last] >= 3) use.push(i);
+    if (i === n - 1 || cls[i] !== cls[i - 1] || (i + 1 < n && cls[i + 1] !== cls[i]) || kindOf[i] !== kindOf[last] || L.piece[i] !== L.piece[last] || L.s[i] - L.s[last] >= STAMP) use.push(i);
   }
   const segC = (q) => { const i = use[q], j = use[q + 1]; return cls[i] === 1 || cls[j] === 1 ? 1 : cls[i] === 4 || cls[j] === 4 ? 4 : cls[i]; };
   const nSeg = use.length - 1;
@@ -530,6 +534,7 @@ export function buildGelTerrain(ctx) {
         // Tunnel: keine Obergrenze (Hügel darüber); Zufahrt: hinter dem Portal ebenso keine
         const noHi = c === 2 || (oEnd > 0 && runNext[q] === 2) || (oStart > 0 && runPrev[q] === 2);
         if (!noHi && sHi < hi[g]) hi[g] = sHi;
+        if (!noHi && c === 0 && d <= ROAD_HW + 5 && sHi < hiRoad[g]) hiRoad[g] = sHi;
         if (sLo > lo[g]) lo[g] = sLo;
         if (c === 2) {
           // Hügel über dem Tunnel (Deckung ENV.cover, seitlich und hinter den Portalen auslaufend) + Physik unter der Fahrbahn
@@ -571,7 +576,9 @@ export function buildGelTerrain(ctx) {
     if (C[g] < h) h = C[g];
     if (lo[g] > h) h = lo[g];
     if (hi[g] < h) h = hi[g];
-    if (must[g] > h) h = must[g];
+    // Tunnel-Deckung (must) nie über eine andere Fahrbahn (n23: mit der breiteren Fahrbahn reichte sie in S-Kurven neben
+    // dem Portal über den Rand der Nachbar-Fahrbahn)
+    if (must[g] > h) h = Math.min(must[g], hiRoad[g]);
     h = shapeFn(px, pz, h);
     Hvis[g] = h;
     Hph[g] = Math.min(h, carve[g]);

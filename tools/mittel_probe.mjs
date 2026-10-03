@@ -5,6 +5,7 @@
 //         mensch-voll   – wie mensch, aber immer Vollgas (ignoriert den Hinweis; fliegt über langsame Schanzen)
 //         mensch-gefühl – wie oben, Gas/Bremse nach Gefühl (Gas bis 5 % über Profil-Tempo, bremst ab 15 %)
 //         perfekt-voll  – lenkt wie der Autopilot (Ideallinie), Vollgas (wie tests/out/n14/mittel_probe.mjs)
+//         mensch-touch  – (n23) wie mensch-handy, aber mit dem Daumen auf den Touch-Pfeilen ◀ ▶ (digital, s. u.)
 //         mensch-handy  – (n23) Spieler am Handy: Reaktion 0,35 s (Korrektur und „Bremsen!“), grobe Lenkung (Stufen
 //                         von 1/3, Rauschen ±0,15), Vollgas außer solange „Bremsen!“ steht
 //   Kennzahlen: Ziel, Zeit, Crashs gesamt / davon in Looping/Röhre/Korkenzieher (bis 25 m danach), Dreher
@@ -20,6 +21,7 @@ const { verifySync } = await imp('src/track/verify.js');
 const { Race, ASSISTS, MEDIUM_N15, MEDIUM_N16, MEDIUM_N23 } = await imp('src/game/race.js');
 const { Autopilot } = await imp('src/ai/autopilot.js');
 const { BRAKE_WARN } = await imp('src/game/warn.js');
+const { rampSteer, TOUCH_RAMP } = await imp('src/game/input.js');
 const { parseTrk } = await imp('src/track/trk.js');
 const { trkToLayout } = await imp('src/track/trkimport.js');
 const { tracksOf } = await imp('src/game/sammlung.js');
@@ -30,7 +32,7 @@ export const VARS = {
   zug0: { steerPull: 0, stuntPull: 0, magnet: 0.35, grip: 1, slipK: 1, lanePull: 0 },       // Probelauf: ohne Zug, ohne Extra-Haftung
   zug0stunt: { steerPull: 0, stuntPull: 0.6, magnet: 0.35, grip: 1, slipK: 1, lanePull: 0 }, // ohne Zug auf der Strecke, Stunt-Zug wie bisher
   haftung: { ...MEDIUM_N16, lanePull: 0 },                                        // n16-Haftung, ganz ohne Hilfe im Stunt
-  n16: { ...MEDIUM_N16, tcs: 0, drive: 1, speed: 1.25, warn: false, esc: 0, espFrom: undefined, espMax: undefined },   // n16 bis n22 (?m=n16)
+  n16: { ...MEDIUM_N16, tcs: 0, drive: 1, speed: 1.25, warn: false, esc: 0, espFrom: undefined, espMax: undefined, touchRamp: false },   // n16 bis n22 (?m=n16)
   neu: { ...MEDIUM_N23 },                                            // n23
 };
 // weitere Varianten: --extra="grip:1.2,tcs:0;…" (Abwandlungen von n23)
@@ -60,11 +62,13 @@ export function runBot(v, set, bot, seed = 7) {
   const env = v.env, L = env.track.line, P = env.prof;
   const saved = { ...ASSISTS.medium };
   Object.assign(ASSISTS.medium, set);
+  const R0 = { ...TOUCH_RAMP }; if (set.rampUp) TOUCH_RAMP.up = set.rampUp; if (set.rampV0) TOUCH_RAMP.v0 = set.rampV0;
   const W0 = { ...BRAKE_WARN }; if (set.react) BRAKE_WARN.react = set.react; if (set.hint) BRAKE_WARN.hint = set.hint;   // Abstimm-Läufe (--extra=react:…,hint:…)
   const race = new Race(env, { assist: 'medium', countdown: 0.5, brakeHelp: 'hint' });
   const mid = new Autopilot(L, P);   // „grob zur Mitte“: Regler auf die Fahrbahnmitte statt auf die Ideallinie
   const r = rng(seed), q = [];
-  const why = {};
+  const why = {}, gs = set.speed || 1.25;
+  let tBtn = 0, tbT = 0, tSt = 0;
   let noise = 0, nT = 0, t = 0, run = 0, lat = [], spins = 0, spin = false, stuntCr = 0, hints = 0, abflug = 0;
   const lim = Math.max(150, (v.apTime || 80) * 4);
   const nearStunt = (i) => { for (const z of race.zones) { if (z.kinds.every((k) => k === 'jump')) continue; const d = L.s[i] - L.s[z.i0]; if (i >= z.i0 && (i <= z.i1 || L.s[i] - L.s[z.i1] < 25)) return true; if (d > -3 && d < 0) return true; } return false; };
@@ -82,10 +86,23 @@ export function runBot(v, set, bot, seed = 7) {
       if (race.state !== 'running' || Math.abs(race.ap.tr.idx - mid.tr.idx) > 12) { mid.tr.reset(race.ap.tr.idx); q.length = 0; }
       mid.control(race.car);
       // Handy: 0,35 s Reaktion in echter Zeit = 0,35 × Spieltempo s Spielzeit (bis n22 1,25, Mittel ab n23 1,0)
-      const handy = bot === 'mensch-handy', lag = handy ? Math.round(0.35 * (set.speed || 1.25) / DT) : 24;
+      const touch = bot === 'mensch-touch', handy = bot === 'mensch-handy' || touch, lag = handy ? Math.round(0.35 * gs / DT) : 24;
       q.push([mid.fbN, !!race.bhOn]); const [fb, bh] = q.length > lag ? q.shift() : [0, false];
       let steer = Math.max(-1, Math.min(1, mid.ffN + KFB * fb + noise * (handy ? 0.15 : NOISE)));
       if (handy) steer = Math.round(steer * 3) / 3;
+      if (touch) {
+        // Daumen auf ◀ ▶ (digital): drückt in Richtung des Wunsch-Einschlags, solange der wirksame Einschlag kleiner ist;
+        // ein Daumen wechselt höchstens alle 0,12 s (echte Zeit); mit Rampe (Mittel ab n23) baut sich der Einschlag auf,
+        // ohne (bis n22) gilt sofort ±1
+        tbT -= DT / gs;
+        if (tbT <= 0) {
+          const want = Math.abs(steer) > 0.12 ? Math.sign(steer) : 0;
+          const nb = want && (Math.sign(tSt) !== want || Math.abs(tSt) < Math.abs(steer)) ? want : 0;
+          if (nb !== tBtn) { tBtn = nb; tbT = 0.12; }
+        }
+        tSt = set.touchRamp ? rampSteer(tSt, tBtn, DT / gs, Math.abs(race.car.fwdSpeed())) : tBtn;
+        steer = tSt;
+      }
       if (bot === 'mensch-voll') u = { steer, throttle: 1, brake: 0 };
       else if (bot === 'mensch' || handy) u = { steer, throttle: bh ? 0 : 1, brake: bh ? 1 : 0 };
       else { const vt = P.vt[race.ap.tr.idx], vv = race.car.fwdSpeed(); u = { steer, throttle: vv < vt * 1.05 ? 1 : 0, brake: vv > vt * 1.15 ? 0.6 : 0 }; }
@@ -103,7 +120,7 @@ export function runBot(v, set, bot, seed = 7) {
     if (race.car.onGround >= 2 && !L.air[i]) { if (!spin && psi > 1.2) { spins++; spin = true; } else if (spin && psi < 0.5) spin = false; }
     if (!(L.air[i] || L.loop[i] || L.tube[i] || race.isJumpZone(i))) lat.push(Math.abs(race.ap.lat));
   }
-  Object.keys(ASSISTS.medium).forEach((k) => delete ASSISTS.medium[k]); Object.assign(ASSISTS.medium, saved); Object.assign(BRAKE_WARN, W0);
+  Object.keys(ASSISTS.medium).forEach((k) => delete ASSISTS.medium[k]); Object.assign(ASSISTS.medium, saved); Object.assign(BRAKE_WARN, W0); Object.assign(TOUCH_RAMP, R0);
   return { ok: race.state === 'finished', time: race.finalTime, crashes: race.crashes, stuntCr, spins, abflug, lat: lat.length ? lat.sort((a, b) => a - b)[lat.length >> 1] : 0, hints, rewinds: race.rewinds, ap: v.apTime, why };
 }
 

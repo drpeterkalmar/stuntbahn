@@ -2,8 +2,9 @@
 // Wie stark muss man ab einer Stelle bremsen, um mit dem JETZIGEN Tempo v die nächsten Kurven zu schaffen?
 //   r = nötige Verzögerung / Plan-Verzögerung (Bremsplan des Tempo-Profils auf der Geraden, ~2 g bei Tempo).
 //   r ≤ lift: grün (Gas), bis brake: gelb (Gas weg), darüber orange → rot (bremsen; r ≥ 1 = so hart wie der Plan).
-// Kurven = ausgeprägte Tiefpunkte des Ziel-Tempos (prof.vt) am Boden: Kurven, Engstellen, Stunt-Einfahrten, Schanzen-
-// Anlauf. Fährt man langsamer als die Kurve verlangt, bleibt r ≤ 0 (grün) – wie bei Forza.
+// Gerechnet gegen das Ziel-Tempo (prof.vt) aller Punkte voraus (Kurven samt Einfahrt, Engstellen, Stunt-Einfahrten,
+// Schanzen-Anlauf); das Fenster der Linie endet an der nächsten Kurve (ausgeprägter Tiefpunkt, mins). Fährt man
+// langsamer als die Kurve verlangt, bleibt r = 0 (grün) – wie bei Forza.
 // Hinweis „Bremsen!“: r an der Stelle react s vor dem Auto (Reaktionszeit) ≥ hint, aus erst unter hint − hyst.
 // Damit kommt der Hinweis tempoabhängig früher als bis n22 (0,7 s vor der Plan-Bremsung): bei 200 km/h vor einer
 // 90-km/h-Kurve ~1,3 s vor dem Plan-Bremspunkt (gemessen in MITTEL2_BERICHT.md).
@@ -60,19 +61,24 @@ export class BrakeWarn {
   // r an der Stelle d0 m vor dem Linienpunkt idx (Auto bei idx mit Tempo v); kTo: Index der Kurve, bis zu der gerechnet
   // wird (nur Kurven bis horizon s bzw. hMin m voraus)
   ratio(idx, v, d0 = 0) {
-    const M = this.mins, nM = M.length;
-    if (!nM || v < 1) return 0;
-    const H = Math.max(BRAKE_WARN.hMin, v * BRAKE_WARN.horizon), a = planDecel(this.def, v);
+    // alle Punkte voraus mit Ziel-Tempo unter v (nicht nur die Tiefpunkte: in der Kurven-Einfahrt fällt vt schon, weil
+    // die Kurve Haftung braucht – bis zum Scheitel gerechnet käme der Hinweis zu spät), ab 60 m jeden 2. Punkt
+    const L = this.L, n = L.n, vt = this.vt;
+    if (v < 1) return 0;
+    const H = Math.max(BRAKE_WARN.hMin, v * BRAKE_WARN.horizon), a = planDecel(this.def, v), v2 = v * v;
     let r = 0;
-    for (let c = 0, m = this.firstMin(idx); c < nM; c++, m++) {
-      if (m >= nM) { if (!this.L.closed) break; m = 0; }
-      const k = M[m], D = this.dist(idx, k);
+    for (let q = idx, c = 0; c < n; c++) {
+      const D = this.dist(idx, q);
       if (D > H) break;
-      if (D < d0 - 0.5) continue;
-      const vk = this.vt[k];
-      if (v <= vk) continue;
-      const aEff = (planDecel(this.def, vk) + a) / 2;
-      r = Math.max(r, (v * v - vk * vk) / (2 * Math.max(1, D - d0)) / aEff);
+      const vk = vt[q];
+      if (vk < v && D >= d0 - 0.5 && !L.air[q]) {
+        const aEff = (planDecel(this.def, vk) + a) / 2;
+        const x = (v2 - vk * vk) / (2 * Math.max(1, D - d0)) / aEff;
+        if (x > r) r = x;
+      }
+      let nq = q + (D > 60 ? 2 : 1);
+      if (nq >= n) { if (!L.closed) break; nq = nq - n + 1; }
+      q = nq;
     }
     return r;
   }

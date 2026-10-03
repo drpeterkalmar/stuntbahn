@@ -13,6 +13,15 @@ export function tiltSteerDeg(beta, gamma, angle) {
   return Math.asin(Math.max(-1, Math.min(1, lat))) / D;
 }
 
+// Rampe für digitale Touch-Lenkung (n23, Mittel): Aufbau up/s, bei Tempo v (m/s) langsamer (÷ (1 + v/v0)), Gegenrichtung
+// back/s, Loslassen rel/s. Auch für den Mess-Bot (tools/mittel_probe.mjs, „mensch-touch“).
+export const TOUCH_RAMP = { up: 3.2, v0: 45, back: 8, rel: 6 };
+export function rampSteer(cur, target, dt, v = 0) {
+  const R = TOUCH_RAMP;
+  const rate = target === 0 ? R.rel : cur !== 0 && Math.sign(target) !== Math.sign(cur) ? R.back : R.up / (1 + Math.abs(v) / R.v0);
+  return cur + Math.max(-rate * dt, Math.min(rate * dt, target - cur));
+}
+
 export class Input {
   constructor() {
     this.keys = new Set();
@@ -87,8 +96,13 @@ export class Input {
       this.steerSmooth *= Math.max(0, 1 - dt * 8);
     }
     if (this.pad.active) { steer = this.pad.steer; thr = this.pad.throttle; brk = this.pad.brake; src = 'pad'; }
+    // Touch-Pfeile (n23, Mittel: this.touchRamp): digital ±1 – bis n22 sofort voller Einschlag (bei 200 km/h riss schon ein
+    // kurzer Tipp das Auto quer). Jetzt eine Rampe wie auf der Tastatur, bei Tempo langsamer (TOUCH_RAMP, rampSteer):
+    // tippen = kleine Korrektur, halten = mehr Einschlag; Gegenrichtung und Loslassen schnell
+    const tTarget = this.touch.active ? this.touch.steer : 0;
+    this.touchSmooth = this.touchRamp ? rampSteer(this.touchSmooth || 0, tTarget, dt, this.speedHint || 0) : tTarget;
     if (this.touch.active) {
-      steer = this.tilt.enabled ? this.tilt.value : this.touch.steer;
+      steer = this.tilt.enabled ? this.tilt.value : this.touchSmooth;
       thr = this.touch.throttle; brk = this.touch.brake; src = 'touch';
     } else if (this.tilt.enabled && this.tilt.value) {
       steer = this.tilt.value; src = src === 'none' ? 'tilt' : src;

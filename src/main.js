@@ -416,6 +416,8 @@ function frame(now) {
   app.frames++;
   if (innerWidth !== sizeW || innerHeight !== sizeH) resize();   // Drehen ohne (rechtzeitiges) resize-Ereignis
   quality.sample(rdt, () => resize());
+  // Mittel (n23): Touch-Pfeile mit tempoabhängiger Rampe (input.js rampSteer)
+  input.touchRamp = !!(race && race.assist && race.assist.touchRamp); input.speedHint = race ? Math.abs(race.car.fwdSpeed()) : 0;
   const inp = input.update(rdt);
   if (input.consume('Escape') || input.consume('KeyP')) { if (mode === 'race') togglePause(); }
   if (input.consume('KeyC')) cycleCam();

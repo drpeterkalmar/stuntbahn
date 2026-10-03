@@ -28,8 +28,8 @@ FIND = """() => { const G = __game, r = G.race, W = r.brakeWarn(), L = W.L, P = 
   let k = -1; for (const m of W.mins) if (L.s[m] > 250 && !L.loop[m] && !L.tube[m] && P.vt[m] < 40) { k = m; break; }
   if (k < 0) k = W.mins[1];
   let p = k; while (p > 0 && W.dist(p, k) < 95) p--;
-  // „normal“: Tempo, bei dem man an dieser Stelle gerade vom Gas gehen müsste (Brems-Bedarf 0,4 – gelb)
-  let lo = P.vt[k], hi = P.vt[p] * 1.2; for (let q = 0; q < 30; q++) { const m = (lo + hi) / 2; if (W.ratio(p, m, 0) < 0.4) lo = m; else hi = m; }
+  // „normal“: Tempo, bei dem 30 m voraus gerade „Gas weg“ gilt (Brems-Bedarf 0,35 – gelb)
+  let lo = P.vt[k], hi = P.vt[p] * 1.2; for (let q = 0; q < 30; q++) { const m = (lo + hi) / 2; if (W.ratio(p, m, 30) < 0.35) lo = m; else hi = m; }
   return { k, p, vk: P.vt[k], vp: P.vt[p], vn: lo, d: W.dist(p, k) }; }"""
 PLACE = """([p, v]) => { const G = __game, r = G.race; r.place(p, v, true); r.state = 'running'; r.bhOn = false;
   G.sim(1 / 120, { steer: r.ap.control(r.car).steer, throttle: 0.4, brake: 0 });

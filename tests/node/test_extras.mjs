@@ -196,7 +196,7 @@ console.log(`--- G: Leicht mit „Extras automatisch“ auf ${N}×3 Generator-St
     tot++;
     ok0 += a.ok && !a.crashes; ok1 += b.ok && !b.crashes;
     hops += b.hops > 0; nit += b.nitros > 0;
-    if (a.ok && b.ok) { const d = b.time - a.time; sum += d; if (d < -0.02) faster++; if (d > 0.02) slower++; }
+    if (a.ok && b.ok) { const d = b.time - a.time; sum += d; if (d < -0.02) faster++; if (d > 0.02) { slower++; console.log(`     langsamer: ${seed}-${diff} ${f2(a.time)} → ${f2(b.time)} s (Nitro ${b.nitros}, Hüpfer ${b.hops}, Crashs ${b.crashes})`); } }
   }
   check(ok1 === tot && ok1 >= ok0, `im Ziel ohne Crash: ${ok1}/${tot} (ohne Extras ${ok0}/${tot})`);
   check(slower === 0 && faster > 0, `schneller ${faster}, langsamer ${slower}, im Mittel ${f2(sum / tot)} s; Nitro auf ${nit}, Hüpfer auf ${hops} Strecken`);

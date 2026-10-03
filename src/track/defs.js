@@ -21,7 +21,21 @@ export const WORLD_TAG = S === 1 ? '' : '@w' + S;
 export const TILE = 20 * S;      // Feldgröße (bis 27.09.2026: 20 m)
 export const LEVEL_H = 6;        // Höhe einer Hochstraßen-Ebene: bleibt (Durchfahrtshöhe hängt am Auto)
 // halbe Fahrbahnbreite: moderat breiter, damit die Straße in der großen Welt kein dünnes Band ist (4,5 → 5,6 m)
-export const ROAD_HW = 4.5 * (1 + 0.25 * (S - 1));
+// n23 (Peter 02.10.2026: „die Strecke ist zu schmal“): Rennstrecke statt Landstraße – Faktor ROAD_WIDEN (5,6 → 7,3 m
+// halbe Breite, 14,6 m Fahrbahn). URL ?breit=alt (A/B, wertet nicht) bzw. in Node STUNT_BREIT=alt = Breite bis n22;
+// ?breit=1.2 o. ä. für Versuche (1 … 1,5). Layout und Seeds bleiben, nur die Fahrbahn (und was an ihr hängt: Randsteine,
+// Leitplanken, Brücken, Tunnel, Tore, Gelände-Anpassung, Toleranzen) wird breiter. Stunt-Spuren (Looping, Röhre,
+// Korkenzieher) und die Autobahn (ROAD_HW_ALT, schon zweispurig) behalten ihr Maß.
+export const ROAD_WIDEN = (() => {
+  const q = globalThis.location && globalThis.location.search;
+  let b = q ? new URLSearchParams(q).get('breit') : null;
+  if (b == null && globalThis.process && globalThis.process.env) b = globalThis.process.env.STUNT_BREIT ?? null;
+  if (b === 'alt') return 1;
+  const v = parseFloat(b);
+  return v >= 1 && v <= 1.5 ? v : 1.3;
+})();
+export const ROAD_HW_ALT = 4.5 * (1 + 0.25 * (S - 1));
+export const ROAD_HW = ROAD_HW_ALT * ROAD_WIDEN;
 export const ROAD_Y = 0.06;      // Fahrbahn liegt knapp über dem Gelände
 export const WORLD_HALF = GRID * TILE / 2;   // halbe Kantenlänge des Rasters (m)
 

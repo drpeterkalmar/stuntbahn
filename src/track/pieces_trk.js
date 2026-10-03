@@ -3,7 +3,7 @@
 // Optionen aus dem Layout-Stück (pb.pc): surf (Belag), lvl/h1 (Ebenen an Ein-/Ausfahrt), sup (Unterbau:
 // pillars/solid/span/truss), deco (tunnel/slalom), kick/land (Sprungschanze/Landung an offener Rampe),
 // side/b0/b1 (Überhöhung), into (Röhre/Autobahn hinein/hinaus), sub (abgesenkte Deko-Spur), start, cp.
-import { TILE, ROAD_HW, MAT, WORLD_SCALE } from './defs.js';
+import { TILE, ROAD_HW, ROAD_HW_ALT, MAT, WORLD_SCALE } from './defs.js';
 import { PIECES, LOOP } from './pieces.js';
 
 const T = TILE, PI = Math.PI, HW = ROAD_HW, WS = WORLD_SCALE;
@@ -241,7 +241,8 @@ function buildPipeT(pb) {
 
 // Autobahn: zwei Richtungsfahrbahnen + Mittelleitwand; Linie auf der rechten Fahrbahn
 // Zwei Richtungsfahrbahnen à 2·HW + Mittelwand (bis 27.09.2026: HWY_W 9,6 / HWY_R 4,9 bei HW 4,5)
-const HWY_W = 2 * HW + 0.6, HWY_R = HW + 0.4;
+// n23: Autobahn bleibt beim Maß bis n22 (ROAD_HW_ALT) – sie ist schon zweispurig breit
+const HWY_W = 2 * ROAD_HW_ALT + 0.6, HWY_R = ROAD_HW_ALT + 0.4;
 function buildHighway(pb) {
   const pc = pb.pc;
   pb.ribbon(lin(0, T, nS(8)).map((f) => ({ f, y: 0, r: 0, hw: HWY_W })), { profile: 'road' });

@@ -4,6 +4,9 @@ node_modules/
 # Test-Artefakte (Auswahl in tests/shots/final bleibt)
 tests/shots/*
 !tests/shots/final/
+# n23 Mittel: nur die Collagen für den Bericht
+!tests/shots/mittel2/
+tests/shots/mittel2/*.png
 # Kino-Look (n17): Vergleichs-Collagen für Peter (Einzelbilder bleiben lokal)
 !tests/shots/kinolook/
 tests/shots/kinolook/*/
