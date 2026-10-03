@@ -15,7 +15,7 @@ const PLANE = { ray(ox, oy, oz, dx, dy, dz, len) { if (dy >= -1e-9) return null;
 
 export function latMax(set, v0) {
   const car = new Car(CAR_DEF);
-  car.assist = { level: 0, magnet: set.magnet || 0, air: 0, grip: set.grip || 1, slipK: set.slipK || 1 };
+  car.assist = { level: 0, magnet: set.magnet || 0, air: 0, grip: set.grip || 1, slipK: set.slipK || 1, tcs: set.tcs || 0, drive: set.drive || 1, esc: set.esc || 0 };
   car.surfaceKind = 0;
   car.place([0, 0, 0], [0, 0, -1], [0, 1, 0], v0);
   const hold = () => { car.input.throttle = Math.max(0, Math.min(1, 0.3 + (v0 - car.fwdSpeed()) * 0.6)); car.input.brake = v0 < car.fwdSpeed() - 1 ? 0.2 : 0; };

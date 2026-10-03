@@ -33,6 +33,9 @@ export function cockpitFov(aspect) {
 // aimDist wächst mit dem Weltmaßstab (Kurvenradien = Feld; bis 27.09.2026 40 m)
 export const PORTRAIT = { vfov: 88, dist: 2.2, h: 3.6, look: 12, lookUp: -0.5, speedFov: 0.5, aim: 0.5, aimDist: 40 * WORLD_SCALE, aimSpeed: 0.6 };
 export function portraitK(aspect) { return Math.max(0, Math.min(1, (1 - aspect) / 0.5)); }
+// Mittel (n23, rig.speedLook): Verfolger quer bei Tempo (voll ab v1 m/s, ab v0) h m höher, dist m weiter zurück, Blickpunkt
+// look m weiter voraus und lookUp m höher; Tempo-Weitung des Sichtfelds um den Anteil fov kleiner
+export const SPEED_LOOK = { v0: 15, v1: 55, h: 1.0, dist: 1.2, look: 6, lookUp: 0.35, fov: 0.5 };
 const AIM_MAX = 14 * Math.PI / 180;   // hochkant: größtes Eindrehen in die Kurve
 const CP_SUSP = +(Q.get('cpsusp') ?? 1);   // Cockpit: Anteil Federungs-Ausgleich (n14: 0,5)
 const LAG_MAX = 3.0; // m: größter Verzug des Verfolgers hinter dem Auto (Tempo-Nachführung)
@@ -180,7 +183,9 @@ export class CameraRig {
     this.up.lerp(u, ku).normalize();
     // Tempo-Sichtfeld: bis ~315 km/h wie bisher +14°, darüber (seit Vmax ~580 km/h) sanft bis +20°
     const pk = portraitK(cam.aspect), PT = PORTRAIT;
-    let targetFov = 62 + pk * (PT.vfov - 62) + (1 - pk * PT.speedFov) * (Math.min(14, speed * 0.16) + 6 * Math.max(0, Math.min(1, (speed - 70) / 85)));
+    // Mittel (n23, speedLook): Tempo-Weitung halbiert (SPEED_LOOK.fov) – die Ferne bleibt größer, Kurven früher erkennbar
+    const sl = this.speedLook || 0;
+    let targetFov = 62 + pk * (PT.vfov - 62) + (1 - pk * PT.speedFov) * (1 - sl * SPEED_LOOK.fov) * (Math.min(14, speed * 0.16) + 6 * Math.max(0, Math.min(1, (speed - 70) / 85)));
     if (pk > 0) targetFov = Math.min(targetFov, 62 + pk * (PT.vfov + 8 - 62) + 14 * (1 - pk));   // hochkant höchstens ~96°
     // Nitro: Sichtfeld etwas weiter (quer +8°, hochkant +4°) – nicht im Cockpit (festes Sichtfeld gegen Übelkeit)
     targetFov += (this.boost || 0) * (8 - 4 * pk);
@@ -202,7 +207,11 @@ export class CameraRig {
       // Hochkant: Blick in die Kurve (Gewicht w) und Zusatzhöhe/-distanz (Anteil ph, in Loopings/Röhren weg)
       const w = this.aimAhead(dt, cp, speed, pk, this.airK > 0.5 || crashed), ph = pk * this.hiK;
       // Verfolger näher am Auto (Peter 27.09.: vorher 6.8 m / 2.15 m)
-      const dist = (this.mode === 'far' ? 11.5 : crashed ? 8 : 5.0) + ph * PT.dist, h = (this.mode === 'far' ? 3.8 : crashed ? 3.0 : 1.75) + ph * PT.h;
+      // Mittel (n23): bei Tempo höher und etwas weiter zurück, Blick weiter voraus (SPEED_LOOK) – Kurven kommen früher ins
+      // Bild, die Fahrbahn voraus liegt flacher im Bild statt als Strich am Horizont. Hochkant und in Stunts nicht (dort gilt ph)
+      const sk = view === 'chase' && !crashed ? sl * (1 - pk) * this.hiK * Math.max(0, Math.min(1, (speed - SPEED_LOOK.v0) / (SPEED_LOOK.v1 - SPEED_LOOK.v0))) : 0;
+      this.skK = (this.skK || 0) + (sk - (this.skK || 0)) * (1 - Math.exp(-dt * 1.5));
+      const dist = (this.mode === 'far' ? 11.5 : crashed ? 8 : 5.0) + ph * PT.dist + this.skK * SPEED_LOOK.dist, h = (this.mode === 'far' ? 3.8 : crashed ? 3.0 : 1.75) + ph * PT.h + this.skK * SPEED_LOOK.h;
       // Flug: Blickrichtung waagrecht, 1,5 m weiter zurück, Höhe bleibt bei der Absprunghöhe (85 %)
       const a = this.airK, back = this._h.copy(this.fwd);
       if (a > 0) { back.y *= 1 - a; back.normalize(); }
@@ -250,7 +259,7 @@ export class CameraRig {
           dir.copy(fh).multiplyScalar(Math.cos(yaw)).addScaledVector(side, Math.sin(yaw)).addScaledVector(up, this.fwd.dot(up)).normalize();
         }
       }
-      this.look.copy(cp).addScaledVector(dir, 3.5 + ph * PT.look).addScaledVector(this.up, 0.9 + ph * PT.lookUp);
+      this.look.copy(cp).addScaledVector(dir, 3.5 + ph * PT.look + this.skK * SPEED_LOOK.look).addScaledVector(this.up, 0.9 + ph * PT.lookUp + this.skK * SPEED_LOOK.lookUp);
       cam.lookAt(this.look);
       this.lastCp.copy(cp); this.hasCp = true;
     } else if (this.mode === 'bumper') {

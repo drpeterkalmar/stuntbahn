@@ -72,6 +72,9 @@ export const PHYS = (() => {
   return 3;
 })();
 
+// Schleuderschutz (Mittel ab n23, Car.step): Bezugs-Gierrate aus Lenkwinkel (Einspur-Modell) begrenzt auf lat × Haftung,
+// Totband dead + deadK × Bezug (rad/s), Gegenmoment k × Überschuss (rad/s²) höchstens max
+export const ESC = { lat: 1.0, dead: 0.12, deadK: 0.15, k: 6, max: 4 };
 // Größter Lenkwinkel bei Tempo v (m/s) – gemeinsam für Physik und Autopilot
 export function maxSteerAt(def, v) { return def.steerMax / (1 + Math.abs(v) / 15) + 0.035; }
 // Aero-Last-Faktor: (Gewicht + Abtrieb) / Gewicht. Antrieb und Bremse wachsen damit (aeroGrip = 1), weil
@@ -248,7 +251,10 @@ export class Car {
     // Antrieb (Allrad) / Bremse / Rückwärts
     let drive = 0, brake = brk;
     const aero = aeroLoad(d, vF);
-    if (thr > 0.01) drive = thr * Math.min(d.maxDrive * aero, d.power / Math.max(Math.abs(vF), 1));
+    // Fahrhilfe Mittel (n23): Antrieb × assist.drive (gleicht das Spieltempo 1,0 statt 1,25 aus – die Tacho-Zahl steigt
+    // in echten Sekunden so schnell wie bisher; wirkt nur bis zur Leistungsgrenze, Vmax bleibt)
+    const maxDrive = d.maxDrive * (this.assist.drive || 1);
+    if (thr > 0.01) drive = thr * Math.min(maxDrive * aero, d.power / Math.max(Math.abs(vF), 1));
     if (brk > 0.01 && vF < 1.0 && thr < 0.01 && !inp.hold && !wrecked) { drive = -brk * d.maxDrive * 0.55 * (vF > -d.reverseMax ? 1 : 0); brake = 0; }
 
     // Wiese (n21, WIESE in defs.js): Antrieb der Gras-Räder ohne Aero-Last, oberhalb driveFrom linear weniger, 0 ab vMax
@@ -306,7 +312,14 @@ export class Car {
       const share = w.front ? d.driveFront / 2 : (1 - d.driveFront) / 2;
       const onGrass = WIESE.on && w.mat === MAT.GRASS;
       if (onGrass) { grassN++; gnx += hit.nx; gny += hit.ny; gnz += hit.nz; }
-      fLong += (onGrass ? driveGrass : drive) * share;
+      let fDrive = (onGrass ? driveGrass : drive) * share;
+      // Traktionskontrolle (Mittel, n23, assist.tcs 0 … 1): an der Hinterachse Antrieb nur bis zur Haftung, die die
+      // Seitenführung übrig lässt (Haftungskreis mit Vorrang quer) – Vollgas aus der Kurve dreht das Auto nicht mehr,
+      // geradeaus volle Kraft. Vorn bleibt es beim Haftungskreis wie bisher: Vollgas in der Kurve schiebt dort leicht
+      // über die Vorderräder (stabil); mit Vorrang quer auch vorn drehte sich das Auto bei Übertempo ein (gemessen)
+      const tcs = w.front ? 0 : this.assist.tcs || 0;
+      if (tcs > 0 && fDrive > 0) { const fl = tcs * fLat; fDrive = Math.min(fDrive, Math.sqrt(Math.max(0, fmax * fmax - fl * fl))); }
+      fLong += fDrive;
       if (brake > 0) {
         const bshare = w.front ? d.brakeFront / 2 : (1 - d.brakeFront) / 2;
         fLong -= brake * d.brake * aero * bshare * Math.max(-1, Math.min(1, vLong / 0.6));
@@ -338,7 +351,7 @@ export class Car {
     // Nitro: Zusatzschub am Schwerpunkt längs Auto-Vorwärts, anteilig zum Gas, nur mit Radkontakt (auf der Wiese wie
     // der Antrieb der Gras-Räder: ohne Aero-Last, ab driveFrom weniger)
     if (this.boost > 0 && thr > 0.01 && contacts && !wrecked) {
-      const fn = this.boost * NITRO.k * thr * Math.min(d.maxDrive * aero, d.power / Math.max(Math.abs(vF), 1)) * (1 - grassShare + grassShare * grassFade);
+      const fn = this.boost * NITRO.k * thr * Math.min(maxDrive * aero, d.power / Math.max(Math.abs(vF), 1)) * (1 - grassShare + grassShare * grassFade);
       fx += F.f.x * fn; fy += F.f.y * fn; fz += F.f.z * fn;
     }
     // Hüpfer: bis zur Landung (erster Radkontakt nach dem Abheben) Lage halten
@@ -375,6 +388,31 @@ export class Car {
           const f = hPrev + (want * (contacts ? 1 : gH) - hPrev) * d.haftK;   // je Schritt nachführen (Federn folgen mit Verzug)
           this.haftF = f; fx -= F.u.x * f; fy -= F.u.y * f; fz -= F.u.z * f;
         }
+      }
+    }
+    // Schleuderschutz (Fahrhilfe Mittel, n23, assist.esc 0 … 1) wie ein ESP: dreht sich das Auto schneller, als Lenkung
+    // und Haftung erlauben (Übersteuern, Ausbrechen), bremst ein Gegenmoment die überschüssige Gierrate ab und kostet
+    // dabei Tempo (wie das Abbremsen eines Rades). Untersteuern bleibt (das Auto schiebt weiter), kein Zug zur Linie oder
+    // Fahrbahnmitte. Nicht in Looping/Röhre/Korkenzieher, nicht in der Luft, nicht im Wrack.
+    this.escOn = 0;
+    const esc = this.assist.esc || 0;
+    if (esc > 0 && contacts >= 3 && !this.surfaceKind && !wrecked && Math.abs(vF) > 6) {
+      const yaw = this.w.x * F.u.x + this.w.y * F.u.y + this.w.z * F.u.z;
+      const wb = 2.72, av = Math.abs(vF);
+      const aLat = (this.assist.grip || 1) * d.mu * 9.81 * aero * ESC.lat;
+      const rLim = aLat / av, rSteer = -vF * Math.tan(this.steerAng) / wb;
+      const rRef = Math.max(-rLim, Math.min(rLim, rSteer));
+      const err = yaw - rRef, dead = ESC.dead + ESC.deadK * Math.abs(rRef);
+      // nur Übersteuern: zu viel Gieren in Lenkrichtung oder Gieren gegen die Lenkung
+      const excess = Math.abs(err) - dead;
+      if (excess > 0 && (Math.sign(err) === Math.sign(yaw) || Math.abs(rRef) < 0.02)) {
+        const I = d.inertia[1], m0 = Math.min(excess * ESC.k, ESC.max) * esc * I;
+        const sg = -Math.sign(err);
+        tx += F.u.x * m0 * sg; ty += F.u.y * m0 * sg; tz += F.u.z * m0 * sg;
+        // Tempo-Verlust wie beim Abbremsen eines Rades (Hebel = halbe Spur)
+        const fb = Math.min(m0 / 0.87, d.brake * 0.5) * Math.sign(vF);
+        fx -= F.f.x * fb; fy -= F.f.y * fb; fz -= F.f.z * fb;
+        this.escOn = Math.min(1, excess / 0.3);
       }
     }
     // Magnet-Hilfe (Fahrhilfe "Leicht"/Stunts): drückt auf die Fahrbahn, wenn Räder Kontakt haben

@@ -4,7 +4,7 @@
 // n16 (E): Mittel ohne Linien-Magnet – Haftung/Kurvengrenztempo festgenagelt, rutscht bei Übertempo, Spurhilfe im Looping
 import { generate, demoLayout } from '../../src/track/generator.js';
 import { verifySync } from '../../src/track/verify.js';
-import { Race, LEICHT, BRAKE_HELP, ASSISTS, MEDIUM_N15, MEDIUM_N16, SPUR } from '../../src/game/race.js';
+import { Race, LEICHT, BRAKE_HELP, ASSISTS, MEDIUM_N15, MEDIUM_N16, MEDIUM_N23, SPUR, GAME_SPEEDS } from '../../src/game/race.js';
 import { pedalPlan, PROF } from '../../src/ai/profile.js';
 import { Car, CAR_DEF, PHYS } from '../../src/physics/car.js';
 import { MAT } from '../../src/track/defs.js';
@@ -151,7 +151,7 @@ console.log('--- E: Mittel n16 ---');
   const PLANE = { ray(ox, oy, oz, dx, dy, dz, len) { if (dy >= -1e-9) return null; const t = -oy / dy; if (t < 0 || t > len) return null; return { t, x: ox + dx * t, y: 0, z: oz + dz * t, nx: 0, ny: 1, nz: 0, mat: MAT.ROAD }; } };
   const skid = (set, v0, full) => {
     const car = new Car(CAR_DEF);
-    car.assist = { level: 0, magnet: set.magnet || 0, air: 0, grip: set.grip || 1, slipK: set.slipK || 1 };
+    car.assist = { level: 0, magnet: set.magnet || 0, air: 0, grip: set.grip || 1, slipK: set.slipK || 1, tcs: set.tcs || 0, drive: set.drive || 1, esc: set.esc || 0 };
     car.place([0, 0, 0], [0, 0, -1], [0, 1, 0], v0);
     const hold = () => { car.input.throttle = full ? 1 : Math.max(0, Math.min(1, 0.3 + (v0 - car.fwdSpeed()) * 0.6)); car.input.brake = !full && v0 < car.fwdSpeed() - 1 ? 0.2 : 0; };
     for (let k = 0; k < 120; k++) { hold(); car.step(DT, PLANE); }
@@ -170,8 +170,25 @@ console.log('--- E: Mittel n16 ---');
   check(rel.every((r) => r >= 0.09 && r <= 0.16), `Kurvengrenztempo Mittel n16 gegen n15 (Radius 25/50/100 m): ${rel.map((r) => '+' + (100 * r).toFixed(1) + ' %').join(' / ')} (Ziel 10–15 %)`);
   const b = [20, 30, 45].map((v) => skid(MEDIUM_N16, v, true));
   check(b.every((x) => x >= 4), `Kurve zu schnell (volle Lenkung + Vollgas bei 20/30/45 m/s): Auto rutscht, Schwimmwinkel ${b.map((x) => x.toFixed(1)).join(' / ')}° (≥ 4°, keine Schiene)`);
-  check(ASSISTS.medium.grip === 1.15 && ASSISTS.medium.magnet === 0.6 && ASSISTS.medium.slipK === 1.25 && ASSISTS.medium.lanePull === 0.6 && MEDIUM_N15.steerPull === 0.28 && MEDIUM_N15.magnet === 0.35,
-    `Regler Mittel: Haftung ×${ASSISTS.medium.grip}, Anpressdruck ${ASSISTS.medium.magnet}, Schräglauf ×${ASSISTS.medium.slipK} (Lenkgefühl unter der Grenze wie bis n15), Spurhilfe ${ASSISTS.medium.lanePull}`);
+  // n23: mehr Haftung (Kurvengrenztempo R 50 m ≥ +20 % gegen Original und gegen Mittel bis n15), weiterhin keine Schiene,
+  // Spieltempo 1,0 mit Antrieb × 1,25: 0–200 km/h in echten Sekunden höchstens 5 % langsamer als bis n22 (Spieltempo 1,25)
+  const ORIG = { magnet: 0, grip: 1 };
+  const r23 = [25, 50, 100].map((R) => vLim(MEDIUM_N23, R) / vLim(ORIG, R) - 1), r15 = vLim(MEDIUM_N23, 50) / vLim(MEDIUM_N15, 50) - 1;
+  check(r23[1] >= 0.2 && r15 >= 0.2 && r23.every((r) => r <= 0.45), `Kurvengrenztempo Mittel n23 gegen Original (Radius 25/50/100 m): ${r23.map((r) => '+' + (100 * r).toFixed(1) + ' %').join(' / ')}, gegen n15 (50 m) +${(100 * r15).toFixed(1)} % (Ziel ≥ 20 %)`);
+  const b23 = [20, 30, 45].map((v) => skid(MEDIUM_N23, v, true));
+  check(b23.every((x) => x >= 4), `n23 Kurve zu schnell: Auto rutscht, Schwimmwinkel ${b23.map((x) => x.toFixed(1)).join(' / ')}° (≥ 4°, keine Schiene)`);
+  const t200 = (set) => {
+    const car = new Car(CAR_DEF);
+    car.assist = { level: 0, magnet: set.magnet || 0, air: 0, grip: set.grip || 1, slipK: set.slipK || 1, tcs: set.tcs || 0, drive: set.drive || 1, esc: set.esc || 0 };
+    car.place([0, 0, 0], [0, 0, -1], [0, 1, 0], 0);
+    let t = 0; car.input.throttle = 1;
+    while (car.fwdSpeed() < 200 / 3.6 && t < 20) { car.step(DT, PLANE); t += DT; }
+    return t;
+  };
+  const w16 = t200(MEDIUM_N16) / 1.25, w23 = t200(MEDIUM_N23) / MEDIUM_N23.speed;
+  check(MEDIUM_N23.speed === 1 && GAME_SPEEDS.medium === ASSISTS.medium.speed && w23 <= w16 * 1.05, `0–200 km/h in echten Sekunden: n22 ${w16.toFixed(2)} s (Spieltempo 1,25), n23 ${w23.toFixed(2)} s (Spieltempo ${MEDIUM_N23.speed}, Antrieb ×${MEDIUM_N23.drive}; ≤ +5 %)`);
+  check(ASSISTS.medium.grip === MEDIUM_N23.grip && ASSISTS.medium.magnet === 0.6 && ASSISTS.medium.tcs === 1 && ASSISTS.medium.esc > 0 && ASSISTS.medium.lanePull === 0.6 && ASSISTS.medium.warn && MEDIUM_N15.steerPull === 0.28 && MEDIUM_N15.magnet === 0.35 && !ASSISTS.easy.tcs && !ASSISTS.original.tcs && !ASSISTS.original.esc && !ASSISTS.easy.speed && !ASSISTS.original.speed,
+    `Regler Mittel n23: Haftung ×${ASSISTS.medium.grip}, Anpressdruck ${ASSISTS.medium.magnet}, Schräglauf ×${ASSISTS.medium.slipK}, Traktionskontrolle, Schleuderschutz ×${ASSISTS.medium.esc}, Spurhilfe ${ASSISTS.medium.lanePull}; Leicht/Original ohne`);
   // Spurhilfe im Looping der Demo: HUD kündigt an, hält die Fahrbahnmitte (nicht die Ideallinie), deutliches Lenken
   // blendet sie in ≤ 0,3 s ganz aus
   const v = tracks[0][1], L = v.env.track.line;

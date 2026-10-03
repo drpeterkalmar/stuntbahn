@@ -158,7 +158,7 @@ for (const assist of ['easy', 'medium', 'original']) {
     if (race.state === 'running' && i > pc.lineStart + 60 && i < pc.lineEnd) race.car.setCrash('Test'); // im Looping immer Crash
     else if (race.state === 'running' && i < pc.lineStart - 60) race.place(pc.lineStart - 60, v0.env.prof.vt[pc.lineStart - 60]); // Anlauf abkürzen
     race.step(DT, player('perfekt', race, null)); t += DT;
-    for (const e of race.events) if (e.type !== 'checkpoint') ev.push(e.type); race.events.length = 0;
+    for (const e of race.events) if (e.type !== 'checkpoint' && e.type !== 'brakehint') ev.push(e.type); race.events.length = 0;   // n23: „Bremsen!“ kommt früher (auch nach dem Versetzen)
   }
   const want = assist === 'easy' ? 2 : 3;
   const ok = race.crashes === want && race.penalties === want && ev[ev.length - 1] === 'skip' && race.tracker.idx > pc.lineEnd;
@@ -189,7 +189,7 @@ console.log('--- E: Bestzeiten-Schlüssel ---');
   for (const a of ['easy', 'medium', 'original']) for (const w of [false, true]) for (const x of [false, true]) keys.push(modeKey(a, w, x));
   check(new Set(keys).size === 12 && keys.every((k) => !/@t|@w|@m/.test(k)) && modeKey('medium', false) === 'medium+reset@x',
     `12 getrennte Wertungen ohne Versions-Zusatz: ${keys.join(', ')}`);
-  check(abMode('?wiese=alt') && abMode('?haft=alt') && abMode('?schanze=alt') && abMode('?grip=1') && abMode('?welt=1') && !abMode('?welt=2') && !abMode('?seed=4711&d=3') && !abMode(''),
+  check(abMode('?m=n16') && abMode('?breit=alt') && !abMode('?dynlinie=0') && abMode('?wiese=alt') && abMode('?haft=alt') && abMode('?schanze=alt') && abMode('?grip=1') && abMode('?welt=1') && !abMode('?welt=2') && !abMode('?seed=4711&d=3') && !abMode(''),
     'A/B-Links (?wiese=alt, ?haft=alt, ?schanze=alt, ?grip=1, ?welt=1 …) werten nicht, normale Links schon');
 }
 

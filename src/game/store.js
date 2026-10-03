@@ -14,7 +14,8 @@ const TIMES_MAX = 5;   // Leicht: so viele letzte Zeiten je Strecke
 // A/B-Vergleiche per URL (alte Physik, alte Welt, alte Wiese/Haftung/Schanze, Luft-/Lippen-Regler) werten nicht: keine
 // Bestzeit, kein Geist (sonst stünde eine Zeit mit anderer Physik in der Liste).
 const RESET_MARK = 21;
-const AB_PARAMS = [['auto', 'alt'], ['grip', '1'], ['mgrip', '1'], ['wiese', 'alt'], ['haft', 'alt'], ['schanze', 'alt'], ['welt', null], ['air', null], ['lip', null]];
+// n23: ?m=n16 (Mittel wie bis n22), ?breit=alt (Fahrbahn so schmal wie bis n22)
+const AB_PARAMS = [['auto', 'alt'], ['grip', '1'], ['mgrip', '1'], ['m', 'n16'], ['breit', 'alt'], ['wiese', 'alt'], ['haft', 'alt'], ['schanze', 'alt'], ['welt', null], ['air', null], ['lip', null]];
 export function abMode(search = globalThis.location ? globalThis.location.search : '') {
   if (!search) return false;
   const q = new URLSearchParams(search);

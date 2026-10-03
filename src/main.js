@@ -10,7 +10,7 @@ import { CameraRig, CAM_MODES, CAM_NAMES, cockpitDash, clearLens } from './gfx/c
 import { Cockpit } from './gfx/cockpit.js';
 import { displayGear } from './gfx/gauges.js';
 import { Input } from './game/input.js';
-import { Race, ASSISTS } from './game/race.js';
+import { Race, ASSISTS, GAME_SPEEDS, GAME_SPEED_STD } from './game/race.js';
 import { UI } from './ui/ui.js';
 import { generate, demoLayout, galleryLayout, galleryGelLayout } from './track/generator.js';
 import { verify, prepare, probeLap } from './track/verify.js';
@@ -102,8 +102,11 @@ let env = null;          // aktuelle Strecke { track, world, ideal, prof, layout
 let worldGroup = null;
 let race = null, ghost = null, replay = null, lineViz = null, fx = null;
 let mode = 'menu';       // menu | race | replay
-// Spieltempo: 1.25 = 25 % schneller als Echtzeit (Peter 27.09.); ?speed=1 für Originaltempo
-const GAME_SPEED = +(params.get('speed') || 1.25);
+// Spieltempo: 1.25 = 25 % schneller als Echtzeit (Peter 27.09.); Mittel ab n23 1,0 (Echtzeit: die Tacho-Zahl ist das
+// Tempo, das man sieht; race.js GAME_SPEEDS). ?speed= übersteuert alle Stufen
+const SPEED_URL = params.get('speed') ? +params.get('speed') : null;
+const gameSpeed = (k) => SPEED_URL ?? GAME_SPEEDS[k] ?? GAME_SPEED_STD;
+const GAME_SPEED = gameSpeed(store.settings.assist);
 const FOG = [260 * WORLD_SCALE, 1500 * WORLD_SCALE];
 let acc = 0, last = performance.now(), frozen = false, timeScale = GAME_SPEED;
 let prevPose = null;
@@ -343,6 +346,7 @@ function startRace(opts = {}) {
   if (fx) fx.reset();
   const S = store.settings;
   race = new Race(env, { assist: S.assist, wreck: S.wreck, autopilot: !!opts.autopilot, extras: S.extras, autoExtras: S.autoExtras, brakeHelp: S.brakeHelp });
+  timeScale = gameSpeed(S.assist);
   // Sammlung: „zuletzt gefahren“ / „noch nie gefahren“
   if (env.meta.sam) { S.samPlayed = { ...(S.samPlayed || {}), [env.meta.key]: Date.now() }; store.save(); }
   // Leicht (n15): kein Geisterauto (keine Bestzeit-Wertung)
@@ -364,7 +368,7 @@ async function newTrack(seed, diff, mode) {
   ui.showMenu(env);
   mode = 'menu';
 }
-function setAssist(k) { store.settings.assist = k; store.save(); if (race) race.setAssist(k); if (k === 'easy' && ghostVis) ghostVis.root.visible = false; ui.refresh(); ui.assistChanged(); }
+function setAssist(k) { store.settings.assist = k; store.save(); if (race) race.setAssist(k); timeScale = gameSpeed(k); if (k === 'easy' && ghostVis) ghostVis.root.visible = false; ui.refresh(); ui.assistChanged(); }
 function setPaint(c) { store.settings.paint = c; store.save(); carVis.setPaint(c); }
 function toMenu() { mode = 'menu'; replay = null; sound.stop(); race = new Race(env, { assist: store.settings.assist, countdown: 1e9 }); ui.showMenu(env); }
 function startReplay() {
@@ -545,6 +549,7 @@ function render(rdt) {
     const crashed = race && (race.state === 'wreck');
     const sp = mode === 'replay' ? Math.abs(replay.speed()) : race ? race.car.speed() : 0;
     rig.boost = boost;
+    rig.speedLook = mode === 'race' && race && race.assistKey === 'medium' && !race.autopilotOnly ? 1 : 0;   // Mittel (n23): weiter voraus
     if (!frozen || !app.freezeCam) rig.update(rdt, pose, crashed, env && env.world, sp);
     // Sonne mit Schattenkamera folgt dem Auto
     sun.target.position.set(pose.pos.x, pose.pos.y, pose.pos.z);
@@ -628,6 +633,7 @@ window.__game = {
   toMenu,
   freeze(on = true) { frozen = on; },
   setTimeScale(s) { timeScale = s; },
+  get timeScale() { return timeScale; },
   cam(m) { rig.mode = m; rig.init = false; },
   get cockpit() { return cockpit; },
   get fx() { return fx; },

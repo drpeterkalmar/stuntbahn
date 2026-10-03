@@ -204,7 +204,9 @@ function patchRoad(mat, detail = true) {
         float ax = abs( x );
         float fw = max( fwidth( ax ), 0.002 );
         float edge = smoothstep( hw - 0.52 - fw, hw - 0.52 + fw, ax ) * ( 1.0 - smoothstep( hw - 0.36 - fw, hw - 0.36 + fw, ax ) );
-        float dash = ( 1.0 - narrow ) * ( 1.0 - smoothstep( 0.07 - fw, 0.07 + fw, ax ) ) * step( mod( s, 9.0 ), 4.0 );
+        // Mittelstreifen 6 m Strich / 12 m Lücke wie auf der Autobahn (bis n22 4/5 m: bei Tempo flimmerte er doppelt so oft
+        // vorbei – die Strecke wirkte schneller, als der Tacho sagt)
+        float dash = ( 1.0 - narrow ) * ( 1.0 - smoothstep( 0.07 - fw, 0.07 + fw, ax ) ) * step( mod( s, 18.0 ), 6.0 );
         vec3 paint = vec3( 0.86, 0.86, 0.84 );
         float amt = max( edge, dash ) * 0.92;
         if ( t > 0.5 && t < 1.5 && abs( md ) < 1.35 ) {

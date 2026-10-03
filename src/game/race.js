@@ -6,6 +6,7 @@ import { G } from '../physics/air.js';
 import { Autopilot, Tracker } from '../ai/autopilot.js';
 import { WORLD_SCALE, ROAD_HW, TILE, MAT, WIESE } from '../track/defs.js';
 import { HOP, NITRO, NITRO_TOTAL, nitroLevel, hopModel, hopHeightAt } from '../physics/extras.js';
+import { BrakeWarn } from './warn.js';
 
 // Mittel (n16, Peter 29.09.2026: „Mittlere Schwierigkeit mehr Bodenhaftung und kein Magnet zur Ideallinie“): kein
 // Lenkzug zur Linie mehr (steerPull bis n15 0,28, im Stunt stuntPull 0,6), dafür mehr Reifenhaftung (grip, Faktor auf
@@ -18,15 +19,30 @@ export const MED_ALT = !!urlQ && urlQ.get('mgrip') === '1';
 // die Fahrbahnmitte (nicht die Ideallinie), HUD „Looping – Spurhilfe“, deutliches Lenken übersteuert sie (SPUR).
 export const MEDIUM_N15 = { steerPull: 0.28, stuntPull: 0.6, magnet: 0.35, grip: 1, slipK: 1, lanePull: 0 };
 export const MEDIUM_N16 = { steerPull: 0, stuntPull: 0, magnet: 0.6, grip: 1.15, slipK: 1.25, lanePull: 0.6 };
+// Mittel n23 (Peter 02.10.2026: „geile Beschleunigung, aber keine Haftung auf der Rennstrecke und zu schnell, um zu
+// reagieren – aber die km/h-Anzeige ist sehr gering“): Spieltempo 1,0 statt 1,25 (speed; die Tacho-Zahl ist damit das
+// Tempo, das man sieht), dafür Antrieb × drive (die Tacho-Zahl steigt in echten Sekunden so schnell wie bisher),
+// Traktionskontrolle (tcs: Antrieb nur bis zur Haftung, die die Seitenführung übrig lässt), mehr Reifenhaftung (grip)
+// bei gleichem Lenkgefühl unter der Grenze (slipK), Bremshinweis aus der Brems-Rechnung (warn, BRAKE_WARN in warn.js),
+// Schleuderschutz über die Gierrate (esc, car.js ESC; Stärke-Faktor) und die Kurs-Stabilitätshilfe früher und etwas
+// kräftiger (espFrom/espMax statt BRAKE_HELP 0,6/0,5 – richtet weiterhin nur den Kurs nach der Fahrbahn aus).
+// URL ?m=n16 = Mittel wie bis n22 (A/B, wertet nicht). Messung: MITTEL2_BERICHT.md, tools/mittel2_mess.mjs
+export const MEDIUM_N23 = { steerPull: 0, stuntPull: 0, magnet: 0.6, grip: 1.3, slipK: 1.4, lanePull: 0.6, tcs: 1, drive: 1.25, speed: 1.0, warn: true, esc: 2, espFrom: 0.4, espMax: 0.6 };
+export const MED_N16 = !!urlQ && urlQ.get('m') === 'n16';
 // Spurhilfe (Mittel, n16): Anteil lanePull des Spurhalters (Regler auf die Fahrbahnmitte) im Looping/in der Röhre.
 // Lenkt der Spieler deutlich (|Lenkung| > in), blendet sie in out s ganz aus; losgelassen (< keep) in back s wieder
 // ein. Ankündigung im HUD ab ann s vor dem Stück (mindestens annMin m).
 export const SPUR = { in: 0.5, keep: 0.15, out: 0.25, back: 0.6, ann: 1.5, annMin: 25 };
 export const ASSISTS = {
   easy: { name: 'Leicht', icon: '🟢', steerPull: 0.82, autoSpeed: true, autoStunts: true, free: true, magnet: 1, air: 1, autoRewind: true, showLine: true },
-  medium: { name: 'Mittel', icon: '🟡', ...(MED_ALT ? MEDIUM_N15 : MEDIUM_N16), autoSpeed: false, brakeHelp: true, autoStunts: false, air: 0.4, autoRewind: true, showLine: true },
+  medium: { name: 'Mittel', icon: '🟡', ...(MED_ALT ? MEDIUM_N15 : MED_N16 ? MEDIUM_N16 : MEDIUM_N23), autoSpeed: false, brakeHelp: true, autoStunts: false, air: 0.4, autoRewind: true, showLine: true },
   original: { name: 'Original', icon: '🔴', steerPull: 0, autoSpeed: false, autoStunts: false, magnet: 0, air: 0, autoRewind: false, showLine: false },
 };
+
+// Spieltempo je Stufe (Simulation gegen echte Zeit; Peter 27.09.: 1,25). Mittel ab n23 1,0 (MEDIUM_N23.speed).
+// Rennzeiten zählen in Spielzeit – das Spieltempo ändert keine Bestzeit. URL ?speed= übersteuert alle Stufen.
+export const GAME_SPEED_STD = 1.25;
+export const GAME_SPEEDS = { get easy() { return ASSISTS.easy.speed || GAME_SPEED_STD; }, get medium() { return ASSISTS.medium.speed || GAME_SPEED_STD; }, get original() { return ASSISTS.original.speed || GAME_SPEED_STD; } };
 
 // Totalschaden ist eine eigene Option (Standard aus, Peter 27.09.): aus → jeder Crash = Fahrbahn-Reset
 // vor das Element mit fliegendem Neustart und PENALTY Sekunden Zeitstrafe; an → Wrack wie bisher.
@@ -280,9 +296,11 @@ export class Race {
         const espS = A.steerPull > 0 ? ap.steer : Math.max(-1, Math.min(1, -(this.ap.psi || 0) / (this.ap.maxSteer || 0.3)));
         const against = Math.abs(input.steer) > FREE.in && Math.sign(input.steer) !== Math.sign(espS);
         this.espFade = against ? Math.min(1, (this.espFade || 0) + dt / H.espOut) : Math.max(0, (this.espFade || 0) - dt / 0.6);
-        if (psi > H.espFrom && v > 3) {
-          const k = Math.min(1, (psi - H.espFrom) / H.espRange) * (1 - this.espFade);
-          steer = steer * (1 - H.espMax * k) + espS * H.espMax * k;
+        // Mittel ab n23: eigene Einsatzschwelle/Stärke (A.espFrom/espMax/espRange), sonst BRAKE_HELP
+        const eFrom = A.espFrom ?? H.espFrom, eMax = A.espMax ?? H.espMax, eRange = A.espRange ?? H.espRange;
+        if (psi > eFrom && v > 3) {
+          const k = Math.min(1, (psi - eFrom) / eRange) * (1 - this.espFade);
+          steer = steer * (1 - eMax * k) + espS * eMax * k;
           thr = Math.min(thr, 1 - 0.5 * k);
         }
         if (psi > 2.2 && Math.abs(v) < 6) { this.wrongT = (this.wrongT || 0) + dt; if (this.wrongT > 1.5) { this.wrongT = 0; this.car.setCrash('Falsche Richtung'); } }
@@ -295,6 +313,9 @@ export class Race {
     car.assist.air = this.autopilotOnly ? 0 : A.air;
     car.assist.grip = this.autopilotOnly ? 1 : A.grip || 1;
     car.assist.slipK = this.autopilotOnly ? 1 : A.slipK || 1;
+    car.assist.tcs = this.autopilotOnly ? 0 : A.tcs || 0;
+    car.assist.drive = this.autopilotOnly ? 1 : A.drive || 1;
+    car.assist.esc = this.autopilotOnly ? 0 : A.esc || 0;
     car.surfaceKind = (L.loop[idx] || L.tube[idx]) ? 1 : 0;
     // Bodenhaftung bei Tempo (n21, car.js) nicht an Schanzen (Anlauf, Lippe, Luft, Landung) und nicht auf den
     // Achterbahn-Wellen (dort ist die kurze Luftphase gewollt)
@@ -382,16 +403,29 @@ export class Race {
 
   // Mittel, Bremshilfe „Hinweis“/„Sanft“: schneller als das Profil look s voraus (+ hintOver) und nicht selbst am
   // Bremsen → Anzeige „Bremsen!“ (race.hud) und beim ersten Mal Ereignis 'brakehint' (Ton), frühestens alle gap s
+  // Mittel ab n23 (assist.warn): aus der Brems-Rechnung (warn.js, dieselbe wie die Farbe der dynamischen Ideallinie) –
+  // „Bremsen!“, sobald man react s voraus deutlich bremsen müsste; kommt bei Tempo entsprechend früher
   brakeHint(v, idx, input) {
     const H = BRAKE_HELP, P = this.env.prof, L = this.env.track.line;
-    const j1 = this.ap.ahead(idx, Math.max(8, v * H.look));
-    let vmin = P.vt[idx];
-    for (let j = idx, c = 0; c < 400; c++) { vmin = Math.min(vmin, P.vt[j]); if (j === j1) break; j = j + 1 >= L.n ? (L.closed ? 1 : L.n - 1) : j + 1; }
-    const need = v > vmin * (1 + H.hintOver) + 1 && input.brake < 0.3;
+    let need, vmin = v;
+    if (this.assist.warn) {
+      const w = this.brakeWarn();
+      const x = w.need(idx, v, this.bhOn);
+      this.warnR = x.r;
+      need = x.on && input.brake < 0.3;
+    } else {
+      const j1 = this.ap.ahead(idx, Math.max(8, v * H.look));
+      vmin = P.vt[idx];
+      for (let j = idx, c = 0; c < 400; c++) { vmin = Math.min(vmin, P.vt[j]); if (j === j1) break; j = j + 1 >= L.n ? (L.closed ? 1 : L.n - 1) : j + 1; }
+      need = v > vmin * (1 + H.hintOver) + 1 && input.brake < 0.3;
+    }
     if (need && !this.bhOn && this.simTime - (this.bhT ?? -99) > H.gap) { this.bhT = this.simTime; this.emit('brakehint', { dv: v - vmin }); }
     this.bhOn = need;
     if (need) this.hud = { kind: 'brake', text: 'Bremsen!' };
   }
+
+  // Brems-Rechnung (warn.js) für diese Strecke – auch für die dynamische Ideallinie (lineviz.js)
+  brakeWarn() { return this.warn || (this.warn = new BrakeWarn(this.env.ideal || this.env.track.line, this.env.prof)); }
 
   // Mittel: Spurhilfe in Looping/Röhre/Korkenzieher (nicht in der Luft, nicht an Schanzen). Liefert { steer, k, zone }:
   // steer = Lenkung des Spurhalters (Fahrbahnmitte), k = sein Anteil (0 … lanePull), zone = Stück fürs HUD (oder null)

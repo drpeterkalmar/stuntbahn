@@ -9,6 +9,25 @@
 import * as THREE from 'three';
 import { WORLD_SCALE } from '../track/defs.js';
 import { pedalPlan } from '../ai/profile.js';
+import { BRAKE_WARN } from '../game/warn.js';
+
+// Dynamische Linie (n23, Peter 02.10.2026: „Die Ideallinie soll wie bei Rennspielen dynamisch anzeigen, ob ich zu schnell
+// bin“): das Stück vor dem Auto bis zur nächsten Kurve färbt sich nach dem JETZIGEN Tempo – dieselbe Brems-Rechnung wie
+// der Hinweis „Bremsen!“ (game/warn.js): grün = mit diesem Tempo kommt man mit normalem Bremsen hin, gelb = Gas weg,
+// orange → rot = bremsen (je röter, desto stärker). Langsam bleibt die Bremszone grün/gelb. Weich überblendet (fade s),
+// je Bild nur die Punkte im Fenster neu (Attribut-Teilupdate). Dahinter die Plan-Farben. ?dynlinie=0 = nur Plan-Farben.
+const Q = typeof location !== 'undefined' ? new URLSearchParams(location.search) : null;
+export const DYN_LINE = { on: !(Q && Q.get('dynlinie') === '0'), fade: 0.15, back: 30, band: 0.06 };
+// Farbe aus dem Brems-Bedarf r (warn.js): fließend grün → gelb → orange → rot
+export function dynColor(r, out = [0, 0, 0]) {
+  const C = LINE_COLORS, W = BRAKE_WARN, b = DYN_LINE.band;
+  const mix = (a, c, u) => { u = Math.max(0, Math.min(1, u)); for (let k = 0; k < 3; k++) out[k] = a[k] + (c[k] - a[k]) * u; return out; };
+  if (r < W.lift - b) return mix(C.gas, C.gas, 0);
+  if (r < W.lift + b) return mix(C.gas, C.lift, (r - W.lift + b) / (2 * b));
+  if (r < W.brake - b) return mix(C.lift, C.lift, 0);
+  if (r < W.brake + b) return mix(C.lift, C.brakeLo, (r - W.brake + b) / (2 * b));
+  return mix(C.brakeLo, C.brakeHi, (r - W.brake - b) / (1 - W.brake));
+}
 
 // Farben (linear, vor Tonemapping): Gas, Gas weg, Bremsen leicht → voll, Luft
 export const LINE_COLORS = { gas: [0.15, 0.95, 0.25], lift: [1.0, 0.85, 0.1], brakeLo: [1.0, 0.55, 0.08], brakeHi: [1.0, 0.1, 0.08], air: [0.2, 0.7, 1.0] };
@@ -94,10 +113,14 @@ export class LineViz {
     P2.set(pos); P2.set(W.pos, pos.length); B2.set(bin); C2.set(col); C2.set(W.col, col.length); S2.set(side);
     for (let k = 0; k < W.pos.length / 3; k++) idx.push(n * 2 + k);   // side = 0: keine Bandverbreiterung
     this.apexCount = W.pos.length / 9;
+    // dynamische Farben: Plan-Farben je Linienpunkt (base), gezeigte Farben (cur), Bereich mit Abweichung (dynA … dynB)
+    this.L = L; this.n = n; this.base = col.slice(0, n * 6); this.cur = null; this.dynA = -1; this.dynB = -1;
+    this.apexAt = (I => { const m = new Map(); (I.apex || []).forEach((a, k) => m.set(a.i, k)); return m; })(L);
+    this.t0 = null;
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.BufferAttribute(P2, 3));
     g.setAttribute('bin', new THREE.BufferAttribute(B2, 3));
-    g.setAttribute('lcol', new THREE.BufferAttribute(C2, 3));
+    g.setAttribute('lcol', new THREE.BufferAttribute(C2, 3).setUsage(THREE.DynamicDrawUsage));
     g.setAttribute('side', new THREE.BufferAttribute(S2, 1));
     g.setIndex(idx);
     g.computeBoundingSphere();
@@ -143,5 +166,87 @@ export class LineViz {
     const c = race && race.car;
     if (c) this.mat.uniforms.uFocus.value.set(c.pos.x, c.pos.y, c.pos.z); else this.mat.uniforms.uFocus.value.copy(camera.position);
     this.mesh.visible = mode === 'race' && (assist === 'medium' || assist === 'easy') && !!(LINE_LEVELS[level] && LINE_LEVELS[level].opacity);
+    const now = typeof performance !== 'undefined' ? performance.now() / 1000 : 0, dt = this.t0 == null ? 0.016 : Math.min(0.1, now - this.t0);
+    this.t0 = now;
+    if (this.mesh.visible && DYN_LINE.on && race && race.state !== 'countdown') this.dynamic(race, dt);
+    else if (this.dynA >= 0) this.resetDyn();
+  }
+  // Farbe der Punkte vor dem Auto (bis zur nächsten Kurve) aus dem jetzigen Tempo, weich überblendet; Punkte, die das
+  // Fenster verlassen, laufen zurück auf die Plan-Farbe. Nur der geänderte Bereich wird hochgeladen.
+  dynamic(race, dt) {
+    const L = this.L, n = this.n, W = race.brakeWarn(), car = race.car;
+    if (W.L.n !== n) return;
+    const idx = race.ap.tr.idx, v = Math.max(0, car.fwdSpeed());
+    if (!this.cur) this.cur = this.base.slice();
+    // Fenster: Auto … nächste Kurve (mindestens 3 m voraus), höchstens horizon s bzw. hMin m
+    const H = Math.max(BRAKE_WARN.hMin, v * BRAKE_WARN.horizon);
+    let kEnd = -1;
+    for (let c = 0, m = W.firstMin(idx); c < W.mins.length; c++, m++) {
+      if (m >= W.mins.length) { if (!L.closed) break; m = 0; }
+      const D = W.dist(idx, W.mins[m]);
+      if (D > H) break;
+      if (D >= 3) { kEnd = W.mins[m]; break; }
+    }
+    const wrap = (i) => (i >= n ? (L.closed ? i - n + 1 : n - 1) : i < 0 ? (L.closed ? i + n - 1 : 0) : i);
+    const inWin = new Map();
+    for (let i = idx, c = 0; c < n; c++) {
+      const d = W.dist(idx, i);
+      if (d > H || (kEnd >= 0 && i === kEnd)) { if (i === kEnd) inWin.set(i, d); break; }
+      inWin.set(i, d);
+      const j = wrap(i + 1); if (j === i) break; i = j;
+    }
+    const k = 1 - Math.exp(-dt / DYN_LINE.fade), tmp = [0, 0, 0], cur = this.cur, base = this.base;
+    // Bereich: bisherige Abweichung + neues Fenster (in Index-Schritten ab dynA, mit Umlauf)
+    if (this.dynA >= 0 && ((idx - this.dynA + n) % n) > n / 2) this.resetDyn();   // Rücksprung (Reset, Rückspulen): neu ab Auto
+    const a = this.dynA >= 0 ? this.dynA : wrap(idx - 1), lenPrev = this.dynA >= 0 ? (this.dynB - this.dynA + n) % n : 0;
+    const span = Math.min(n, Math.max(lenPrev + 2, (inWin.size ? ((([...inWin.keys()].pop()) - a + n) % n) + 2 : 2)));
+    let lo = -1, hi = -1, up0 = n, up1 = -1;
+    for (let c = 0, i = a; c < span; c++, i = wrap(i + 1)) {
+      if (L.air[i]) continue;
+      const d = inWin.get(i);
+      const t = d != null ? dynColor(W.ratio(idx, v, d), tmp) : [base[i * 6], base[i * 6 + 1], base[i * 6 + 2]];
+      let dev = 0;
+      for (let q = 0; q < 3; q++) {
+        const o = i * 6 + q, x = cur[o] + (t[q] - cur[o]) * k;
+        cur[o] = x; cur[o + 3] = x;
+        dev = Math.max(dev, Math.abs(x - base[o]));
+      }
+      if (d == null && dev < 0.004) { for (let q = 0; q < 6; q++) cur[i * 6 + q] = base[i * 6 + q]; }
+      else { if (lo < 0) lo = i; hi = i; }
+      up0 = Math.min(up0, i); up1 = Math.max(up1, i);
+    }
+    this.dynA = lo; this.dynB = hi;
+    if (up1 >= up0) this.upload(up0, up1);
+  }
+  upload(i0, i1) {
+    const attr = this.mesh.geometry.getAttribute('lcol'), arr = attr.array, cur = this.cur;
+    arr.set(cur.subarray(i0 * 6, (i1 + 1) * 6), i0 * 6);
+    attr.clearUpdateRanges ? attr.clearUpdateRanges() : null;
+    if (attr.addUpdateRange) attr.addUpdateRange(i0 * 6, (i1 - i0 + 1) * 6);
+    // Scheitel-Keile in Linienfarbe mitziehen
+    const L = this.L;
+    if (L.apex && L.apex.length) {
+      const off = this.n * 6;
+      let a0 = -1, a1 = -1;
+      for (let i = i0; i <= i1; i++) {
+        const w = this.apexAt.get(i);
+        if (w == null) continue;
+        for (let v = 0; v < 3; v++) for (let q = 0; q < 3; q++) arr[off + w * 9 + v * 3 + q] = cur[i * 6 + q];
+        if (a0 < 0) a0 = w; a1 = w;
+      }
+      if (a0 >= 0 && attr.addUpdateRange) attr.addUpdateRange(off + a0 * 9, (a1 - a0 + 1) * 9);
+    }
+    attr.needsUpdate = true;
+  }
+  resetDyn() {
+    if (!this.cur) return;
+    this.cur.set(this.base);
+    const attr = this.mesh.geometry.getAttribute('lcol');
+    attr.array.set(this.base, 0);
+    const L = this.L, off = this.n * 6;
+    (L.apex || []).forEach((a, w) => { for (let v = 0; v < 3; v++) for (let q = 0; q < 3; q++) attr.array[off + w * 9 + v * 3 + q] = this.base[a.i * 6 + q]; });
+    if (attr.clearUpdateRanges) attr.clearUpdateRanges();
+    attr.needsUpdate = true;
+    this.dynA = this.dynB = -1;
   }
 }
