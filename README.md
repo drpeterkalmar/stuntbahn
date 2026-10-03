@@ -140,7 +140,7 @@ spielbar am Handy (quer oder hochkant), mit Gamepad oder Tastatur. Als App insta
 | Stufe | Was hilft |
 |---|---|
 | 🟢 **Leicht** | Gas automatisch (Bremse des Spielers geht vor). **Mitlenken statt Schienen** (seit 29.09.2026): Die Hilfe hält das Auto auf der Fahrbahn und lenkt einen Teil jeder Kurve; die Ideallinie trifft man mit etwas Mitlenken, ohne Lenken driftet das Auto nach außen und wird langsamer (`?lk=0` = alte Schienen, `?lk=0.5` weniger mitlenken). Wer deutlich über den Rand hinaus drückt, hat Vorrang – auch quer durchs Gelände, Loslassen führt weich zurück. Loopings, Röhren, Korkenzieher und Sprünge lenkt das Auto selbst (mit Ansage im HUD), Engstellen und Steilkurven hält es eng auf der Linie. Handy: linke/rechte Bildschirmhälfte halten (oder Neigen). |
-| 🟡 **Mittel** | Du lenkst und bremst selbst: farbige Ideallinie (grün = Gas, gelb = vom Gas, rot = bremsen, aus dem Tempo-Profil) und kurzer Brems-Hinweis „Bremsen!“ mit Ton. Optionen → „Bremshilfe“ Aus / **Hinweis** / Sanft (bremst leicht mit bei > 15 % Übertempo ohne Vollgas). **Kein Zug zur Ideallinie** (seit 30.09.2026, n16), dafür mehr Bodenhaftung als Original (Kurvengrenztempo +10–15 %; rutscht bei Übertempo weiterhin). Im Looping/in der Röhre eine Spurhilfe zur Fahrbahnmitte (HUD „Looping – Spurhilfe“, deutliches Lenken schaltet sie in ¼ s ab). Stabilitätshilfe beim Rutschen (richtet nur den Kurs aus, gibt bei deutlichem Gegenlenken nach), Rückspul-Knopf. |
+| 🟡 **Mittel** | Du lenkst und bremst selbst. **Seit 03.10.2026 (n23):** Echtzeit (Spieltempo 1,0 statt 1,25 – die Tacho-Zahl ist das Tempo, das du siehst; Beschleunigung in echten Sekunden wie bisher), Traktionskontrolle, Schleuderschutz (ESP über die Drehrate, kein Zug zur Linie), Haftung ×1,3 (Kurvengrenztempo +30 % gegen Original), Touch-Pfeile mit Lenk-Rampe (tippen = kleine Korrektur), „Bremsen!“ tempoabhängig früher, Kamera schaut bei Tempo weiter voraus. **Dynamische Ideallinie:** das Stück vor dem Auto färbt sich nach deinem Tempo (grün/gelb/orange/rot, dieselbe Rechnung wie „Bremsen!“). Optionen → „Bremshilfe“ Aus / **Hinweis** / Sanft. Kein Zug zur Ideallinie (n16); Spurhilfe im Looping/in der Röhre, Rückspul-Knopf. Messung: `MITTEL2_BERICHT.md`. |
 | 🔴 **Original** | Keine Hilfen – so tricky wie damals. |
 
 Die Fahrhilfe ist jederzeit im Pause-Menü umschaltbar.
@@ -220,7 +220,11 @@ python3 tests/strecken3d_fahrt_shots.py quer  # n19: Fahrt-Fotos (Spirale, Über
 node tests/node/test_assists.mjs          # Fahrhilfen mit simulierten Spielern
 node tests/node/test_reset.mjs            # Crash in Looping/Sprung/Wand: Reset +5 s bzw. Wrack; nie Endlosschleife
 node tests/node/test_free_steer.mjs       # Leicht: Spieler-Vorrang, weiche Rückführung, Abkürz-Regel, Stunt-Ansage
-node tests/node/test_fahrgefuehl.mjs      # Leicht mitlenken, Tempo-Regler, Linienfarben = Pedale, Mittel ohne Zwangsbremse, Haftung, Mittel n16 (Grenztempo, Spurhilfe)
+node tests/node/test_fahrgefuehl.mjs      # Leicht mitlenken, Tempo-Regler, Linienfarben = Pedale, Mittel ohne Zwangsbremse, Haftung, Mittel n16 (Grenztempo, Spurhilfe), Mittel n23 (Grenztempo ≥ +20 %, 0–200 km/h, früherer Hinweis)
+python3 tests/mittel2_shots.py            # n23: Mittel hoch+quer – Tacho = Physik bei Spieltempo 1,0, dynamische Linie langsam/normal/zu schnell, ?dynlinie=0, ?m=n16
+node tools/mittel_probe.mjs --var=n16,neu --bot=mensch-handy,mensch-touch --sam=4   # Mensch-Bots (Handy, Touch-Daumen) vorher/nachher
+node tools/mittel2_mess.mjs               # 0–200 km/h (Spielzeit/echte s), Kurvengrenztempo, Schwimmwinkel
+node tools/breite_check.mjs               # breitere Fahrbahn: Überlappung benachbarter Abschnitte (STUNT_BREIT=alt = alte Breite)
 node tools/fahr_analyse.mjs               # Bremsleistung Plan/Physik, Bremszeit + Zeitverlust je Ursache, Haftung (--root=Kopie)
 node tools/linie_analyse.mjs --laps       # Ideallinie: Scheitel-Nutzung, Löser-Zeit, Autopilot-Runden auf allen Stufen
 python3 tests/linie_shots.py              # Fotos: Linie mit Scheitel-Keilen, HUD-Ansagen (tests/shots/linie/)
@@ -280,7 +284,7 @@ Cockpit: `?eye=0.45` (Augenhöhe in m über dem Auto-Ursprung), `?hz=0.32` (Hori
 `?auto=alt` (alte, langsamere Abstimmung bis 27.09.2026 zum Vergleich; wertet nicht).
 `?snd=alt` (bisheriger Synthesizer-Ton statt der Aufnahmen, A/B).
 `?grip=1` (Haftung und Ideallinie bis 28.09.2026 zum A/B-Vergleich; wertet nicht).
-`?mgrip=1` (Mittel wie bis 29.09.2026: Zug zur Ideallinie, weniger Haftung – A/B-Vergleich; wertet nicht). Messung: `MITTEL_BERICHT.md`.
+`?m=n16` (Mittel wie bis 02.10.2026, n16–n22: Spieltempo 1,25, ohne Traktionskontrolle/Schleuderschutz/Touch-Rampe, alter Hinweis – wertet nicht), `?breit=alt` (Fahrbahn so schmal wie bis n22: halbe Breite 5,6 statt 7,3 m – wertet nicht), `?dynlinie=0` (Ideallinie nur mit den festen Plan-Farben), `?mgrip=1` (Mittel wie bis 29.09.2026: Zug zur Ideallinie, weniger Haftung – A/B-Vergleich; wertet nicht). Messung: `MITTEL_BERICHT.md`.
 `?lk=0…1` (Leicht: Anteil der Kurve, den der Spieler selbst lenkt, Standard 0.8; `?lk=0` = alte Schienen) und
 `?lkband=3.5` (Leicht: Band um die Linie in m, in dem die Hilfe nicht zur Linie zieht – größer = mehr Treiben bei „Hände weg“).
 `?welt=1` (alter, kleiner Weltmaßstab bis 27.09.2026 zum A/B-Vergleich, Standard 2 = Felder 40 statt 20 m;

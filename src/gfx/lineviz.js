@@ -200,11 +200,13 @@ export class LineViz {
     if (this.dynA >= 0 && ((idx - this.dynA + n) % n) > n / 2) this.resetDyn();   // Rücksprung (Reset, Rückspulen): neu ab Auto
     const a = this.dynA >= 0 ? this.dynA : wrap(idx - 1), lenPrev = this.dynA >= 0 ? (this.dynB - this.dynA + n) % n : 0;
     const span = Math.min(n, Math.max(lenPrev + 2, (inWin.size ? ((([...inWin.keys()].pop()) - a + n) % n) + 2 : 2)));
-    let lo = -1, hi = -1, up0 = n, up1 = -1;
+    let lo = -1, hi = -1, up0 = n, up1 = -1, rLast = 0, rN = 0;
     for (let c = 0, i = a; c < span; c++, i = wrap(i + 1)) {
       if (L.air[i]) continue;
       const d = inWin.get(i);
-      const t = d != null ? dynColor(W.ratio(idx, v, d), tmp) : [base[i * 6], base[i * 6 + 1], base[i * 6 + 2]];
+      // Brems-Bedarf nur an jedem 3. Punkt neu rechnen (Punkte ~1 m auseinander; die Überblendung glättet) – spart am Handy
+      if (d != null && rN++ % 3 === 0) rLast = W.ratio(idx, v, d);
+      const t = d != null ? dynColor(rLast, tmp) : [base[i * 6], base[i * 6 + 1], base[i * 6 + 2]];
       let dev = 0;
       for (let q = 0; q < 3; q++) {
         const o = i * 6 + q, x = cur[o] + (t[q] - cur[o]) * k;
