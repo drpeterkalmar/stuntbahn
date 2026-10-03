@@ -23,6 +23,9 @@ import { Sammlung } from './game/sammlung.js';
 import { Store, modeKey } from './game/store.js';
 import { Ghost } from './game/ghost.js';
 import { Replay } from './game/replay.js';
+import { buildFilm, FilmPlayer, HL } from './game/highlights.js';
+import { CineCam } from './game/cinecam.js';
+import { ClipRecorder, clipMime } from './ui/cliprec.js';
 import { Quality } from './gfx/quality.js';
 import { LineViz, LINE_LEVELS } from './gfx/lineviz.js';
 import { Sound } from './audio/sound.js';
@@ -101,7 +104,12 @@ window.__soundRef = sound;
 let env = null;          // aktuelle Strecke { track, world, ideal, prof, layout, meta }
 let worldGroup = null;
 let race = null, ghost = null, replay = null, lineViz = null, fx = null;
-let mode = 'menu';       // menu | race | replay
+let mode = 'menu';       // menu | race | replay (auch Kino-Replay: dann ist cine gesetzt)
+// Kino-Replay nach dem Ziel (n18): Highlight-Film { film, player, cam, res, stats } oder null. Einstellung „Kino-Replay
+// nach dem Ziel“ (Standard an); ?kino=0|1 übersteuert, Tests schalten ihn per window.__noKino ab (tests/util.py)
+let cine = null;
+const KINO_URL = params.get('kino');
+const cineWanted = () => (KINO_URL === '0' ? false : KINO_URL === '1' ? true : !window.__noKino && store.settings.cine !== false);
 // Spieltempo: 1.25 = 25 % schneller als Echtzeit (Peter 27.09.); Mittel ab n23 1,0 (Echtzeit: die Tacho-Zahl ist das
 // Tempo, das man sieht; race.js GAME_SPEEDS). ?speed= übersteuert alle Stufen
 const SPEED_URL = params.get('speed') ? +params.get('speed') : null;
@@ -165,6 +173,8 @@ async function boot() {
   ui.loading(1, 'Fertig');
   app.ready = true;
   ui.bind({ startRace, newTrack, setAssist, toMenu, retry, startReplay, cycleCam, rewind: () => race && race.requestRewind(), pause: togglePause,
+    skipCine: () => endCine(true), replayCine: () => { if (race && race.film && ui.lastRes) startCine(ui.lastRes); },
+    recordCine: () => { if (race && race.film && ui.lastRes) startCine(ui.lastRes, { record: true }); },
     hop: () => { if (mode === 'race' && race && !frozen) race.requestHop(); }, nitro: () => { if (mode === 'race' && race && !frozen) race.requestNitro(); }, setLine, toggleLine, setPaint, sound, input, quality, importFiles, playImported, deleteImported, trkLib, showcase: SHOWCASE, showcaseBytes, store, sammlung });
   initDrop();
   ui.showMenu(env);
@@ -343,6 +353,7 @@ async function loadTrack(layout, meta = {}, pre = null) {
 
 function startRace(opts = {}) {
   replay = null;
+  if (cine) { cine = null; ui.hideCine(); }
   if (fx) fx.reset();
   const S = store.settings;
   race = new Race(env, { assist: S.assist, wreck: S.wreck, autopilot: !!opts.autopilot, extras: S.extras, autoExtras: S.autoExtras, brakeHelp: S.brakeHelp });
@@ -370,13 +381,81 @@ async function newTrack(seed, diff, mode) {
 }
 function setAssist(k) { store.settings.assist = k; store.save(); if (race) race.setAssist(k); timeScale = gameSpeed(k); if (k === 'easy' && ghostVis) ghostVis.root.visible = false; ui.refresh(); ui.assistChanged(); }
 function setPaint(c) { store.settings.paint = c; store.save(); carVis.setPaint(c); }
-function toMenu() { mode = 'menu'; replay = null; sound.stop(); race = new Race(env, { assist: store.settings.assist, countdown: 1e9 }); ui.showMenu(env); }
+function toMenu() { mode = 'menu'; replay = null; if (cine) { cine = null; ui.hideCine(); } sound.stop(); race = new Race(env, { assist: store.settings.assist, countdown: 1e9 }); ui.showMenu(env); }
 function startReplay() {
   if (!race || !race.rec.length) return;
   replay = new Replay(race.rec, env, { cuts: race.cuts, pens: race.pens, xev: race.xev });
   mode = 'replay';
   rig.mode = 'chase'; rig.init = false;
   ui.showReplay(replay);
+}
+// Kino-Replay (n18): Film aus der Aufzeichnung bauen (einmal je Rennen) und abspielen; danach das Ergebnis (res)
+function marksOf(r) { return { cuts: r.cuts, pens: r.pens, xev: r.xev, crashes: r.crashLog }; }
+// Film einmal je Rennen bauen (auch bei Einstellung „aus“ – dann über „🎬 Highlights“ im Ergebnis)
+function ensureFilm() {
+  if (!race || !race.rec.length) return null;
+  if (race.film === undefined) {
+    const t0 = performance.now();
+    try { race.film = buildFilm(race.rec, env, marksOf(race), { max: HL.film.max * timeScale }); } catch (e) { console.warn('Kino-Replay', e); race.film = null; }
+    app.cineBuildMs = performance.now() - t0;
+  }
+  return race.film;
+}
+function startCine(res, opt = {}) {
+  if (!ensureFilm()) return false;
+  replay = new Replay(race.rec, env, { cuts: race.cuts, pens: race.pens, xev: race.xev });
+  const t0 = performance.now();
+  const cam = new CineCam(env, replay.rec, race.film, { carTop: rig.carBox ? rig.carBox.max.y : 0.75 });
+  app.cineSetupMs = performance.now() - t0;
+  cine = { film: race.film, player: new FilmPlayer(race.film), cam, res, cut: true, stats: { t0: performance.now(), frames: 0, slowIdx: -1 } };
+  mode = 'replay';
+  if (fx) fx.reset();
+  ghostVis.root.visible = false;
+  sound.start();
+  // als Video aufnehmen (Knopf „🎥 Video“ im Ergebnis)
+  if (opt.record && clipMime()) {
+    try { cine.rec = new ClipRecorder(canvas, sound.stream()); } catch (e) { console.warn('Video-Aufnahme', e); ui.toast('Video-Aufnahme geht hier nicht'); }
+  }
+  ui.showCine(cine);
+  rig.init = false; blurCut = true;
+  app.cine = { running: true, clips: race.film.clips.length, duration: race.film.duration / timeScale };
+  return true;
+}
+function endCine(skipped = false) {
+  if (!cine) return;
+  const c = cine, S = c.stats, sec = (performance.now() - S.t0) / 1000;
+  app.cine = { ...app.cine, running: false, skipped, seconds: sec, fps: S.frames / Math.max(0.01, sec), clipsSeen: c.player.ci + 1 };
+  cine = null; replay = null;
+  sound.stop();
+  ui.hideCine();
+  if (c.rec) {
+    if (skipped) { c.rec.cancel(); ui.toast('Aufnahme abgebrochen'); }
+    else {
+      const rec = c.rec, name = `stuntbahn-${(env.meta.key || 'strecke').replace(/[^\w-]+/g, '_')}.${rec.ext}`;
+      rec.stop().then((blob) => {
+        ui.lastClip = { blob, name };
+        app.clip = { size: blob.size, type: blob.type, frames: rec.frames, seconds: (performance.now() - rec.t0) / 1000, w: rec.cv.width, h: rec.cv.height };
+        if (ui.screen === 'result') ui.showResult(race, c.res, env);
+      });
+    }
+  }
+  // zurück zum Auslaufen hinter dem Ziel (Rennen „finished“) mit dem Ergebnis darüber – wie bisher ohne Film
+  mode = 'race'; rig.init = false; prevPose = null; blurCut = true;
+  ui.showResult(race, c.res, env);
+}
+// Ton im Kino-Replay: Werte aus der Aufzeichnung, Zeitlupe → tiefer (pitch)
+const cineCarObj = { rpm: 0, gear: 1, boost: 0, input: { throttle: 0 }, wheels: [0, 1, 2, 3].map(() => ({ contact: true, slip: 0 })), onGround: 4, v: { y: 0 }, scrape: 0, _sp: 0, speed() { return this._sp; } };
+function cineSound(rdt) {
+  const P = cine.player, k = P.speed, pitch = 0.5 + 0.5 * k, ph = replay.phys(), C = cineCarObj;
+  const sp = Math.abs(replay.speed()), last = C._last ?? sp;
+  C.input.throttle = sp > last + 0.01 || sp > 40 ? 1 : 0.2; C._last = sp;
+  C.rpm = replay.rpm() * (sound.nodes && sound.nodes.rec ? 1 : pitch); C.gear = replay.gear(); C.boost = replay.nitro(); C._sp = sp * pitch;
+  let on = 0; ph.wheels.forEach((w, i) => { C.wheels[i].contact = w.comp > 0; on += w.comp > 0; });
+  C.onGround = on;
+  const y = replay.pose().pos.y; C.v.y = rdt > 0 && C._y != null && !P.cut ? (y - C._y) / Math.max(1e-3, rdt * timeScale * k) : 0; C._y = y;
+  sound.update(C, rdt, 'running', { pitch });
+  // Stinger beim Eintritt in die Zeitlupe
+  if (P.clip && P.ci !== cine.stats.slowIdx && P.t >= P.clip.c0 - 0.2 && P.clip.smin < 0.5) { cine.stats.slowIdx = P.ci; sound.stinger(); }
 }
 // Ideallinie: Stufe setzen (Optionen/Pause) bzw. im Rennen zwischen Aus und der gewählten Stufe umschalten
 function setLine(v) { const S = store.settings; S.line = v; if (v !== 'off') S.lineLast = v; store.save(); ui.lineChanged(); }
@@ -419,6 +498,8 @@ function frame(now) {
   // Mittel (n23): Touch-Pfeile mit tempoabhängiger Rampe (input.js rampSteer)
   input.touchRamp = !!(race && race.assist && race.assist.touchRamp); input.speedHint = race ? Math.abs(race.car.fwdSpeed()) : 0;
   const inp = input.update(rdt);
+  // Kino-Replay: Esc, Enter oder Leertaste überspringt (Tipp: #cine in ui.js)
+  if (cine && (input.consume('Escape') | input.consume('Enter') | input.consume('Space'))) endCine(true);
   if (input.consume('Escape') || input.consume('KeyP')) { if (mode === 'race') togglePause(); }
   if (input.consume('KeyC')) cycleCam();
   if (input.consume('KeyL') && mode === 'race') toggleLine();
@@ -438,6 +519,12 @@ function frame(now) {
     }
     if (steps >= 14) acc = 0;
     handleEvents();
+  } else if (mode === 'replay' && replay && cine) {
+    // Kino-Replay: Film-Uhr mit Zeitlupe; Schnitt (neuer Clip/neue Kamera) ohne Unschärfe-Verschmieren
+    cine.player.advance(rdt * timeScale);
+    replay.t = cine.player.t;
+    if (cine.player.cut) { cine.cut = true; blurCut = true; }
+    if (cine.player.done) endCine(false);
   } else if (mode === 'replay' && replay) {
     replay.advance(rdt * timeScale);
     if (replay.jumped) { replay.jumped = false; rig.init = false; blurCut = true; } // Schnitt: Kamera neu ansetzen statt schwenken
@@ -453,8 +540,10 @@ function handleEvents() {
     if (e.type === 'reset' || e.type === 'skip' || e.type === 'rewind') { rig.init = false; prevPose = null; blurCut = true; }
     if (e.type === 'finish') {
       const res = store.submit(env.meta.key, race.assistKey, race.wreckOn, race.finalTime, race.assistKey === 'easy' ? null : race.ghostRec(), { ...env.meta, penalties: race.penalties, extras: race.extrasOn, nitro: race.nitroLog });
+      ui.lastRace = race; ui.lastRes = res;
+      ensureFilm();
+      if (cineWanted() && startCine(res)) continue;
       ui.showResult(race, res, env);
-      sound.stop();
     }
   }
   race.events.length = 0;
@@ -552,7 +641,8 @@ function render(rdt) {
     const sp = mode === 'replay' ? Math.abs(replay.speed()) : race ? race.car.speed() : 0;
     rig.boost = boost;
     rig.speedLook = mode === 'race' && race && race.assistKey === 'medium' && !race.autopilotOnly ? 1 : 0;   // Mittel (n23): weiter voraus
-    if (!frozen || !app.freezeCam) rig.update(rdt, pose, crashed, env && env.world, sp);
+    if (cine) cineCamera(rdt, pose);
+    else if (!frozen || !app.freezeCam) rig.update(rdt, pose, crashed, env && env.world, sp);
     // Sonne mit Schattenkamera folgt dem Auto
     sun.target.position.set(pose.pos.x, pose.pos.y, pose.pos.z);
     sun.position.copy(sun.target.position).addScaledVector(sun.userData.dir, 60);
@@ -569,7 +659,8 @@ function render(rdt) {
   if (lineViz) lineViz.update(camera, race, store.settings.assist, mode, store.settings.line);
   sky.position.copy(camera.position);
   if (mode === 'race' && race) { ui.hud(race, env, ghost); sound.update(race.car, rdt, race.state, { cockpit: rig.view === 'cockpit' }); }
-  if (mode === 'replay' && replay) ui.replayHud(replay);
+  if (mode === 'replay' && replay && cine) { ui.cineHud(cine); cineSound(rdt); cine.stats.frames++; }
+  else if (mode === 'replay' && replay) ui.replayHud(replay);
   // Cockpit: Außenkarosserie ausblenden (ragt sonst ins Bild), Innenraum im zweiten Durchgang darüber
   const inCockpit = mode !== 'menu' && !!pose && rig.view === 'cockpit';
   carVis.root.visible = !inCockpit;
@@ -584,8 +675,28 @@ function render(rdt) {
     cockpit.update(frozen ? 0 : rdt * (mode === 'replay' && replay ? replay.speedMul * (replay.paused ? 0 : 1) : 1), cv, camera, sun.userData.dir);
     ui.cockpitMode(cockpit.gaugePx, cv.gear);
   }
-  drawFrame({ run: running, speed: spd, boost, dt: rdt, cut: blurCut, cockpit: inCockpit, heat: !inCockpit && pose && mode !== 'menu' ? heatOf(spd, boost) : null });
+  // Kino-Replay: Tiefenschärfe auf das Auto, Unschärfe in der Zeitlupe etwas länger belichtet (Wischer bleiben sichtbar)
+  const cdof = cine && cine.cam.out ? { focus: cine.cam.out.focus, k: cine.cam.out.dof * (cine.player.speed < 0.6 ? 1 : 0.8) } : null;
+  const shutter = cine ? Math.min(2.5, 1 / Math.pow(Math.max(0.2, cine.player.speed), 0.6)) : 1;
+  drawFrame({ run: running, speed: spd, boost, dt: rdt, cut: blurCut, cockpit: inCockpit, heat: !inCockpit && pose && mode !== 'menu' ? heatOf(spd, boost) : null, dof: cdof, shutter });
+  // Video-Aufnahme: Bild direkt nach dem Zeichnen kopieren (Balken wie im CSS: 2,39:1, mindestens 8,5 %)
+  if (cine && cine.rec) { const W = innerWidth, H = innerHeight; cine.rec.frame(H > W ? 0 : Math.max(0.085, (H - W / 2.39) / 2 / H), ui.capState()); }
   blurCut = false;
+}
+
+// Kino-Replay: Kamera des Films (game/cinecam.js, reine Rechnung) auf die three.js-Kamera übertragen
+function cineCamera(rdt, pose) {
+  const P = cine.player;
+  pose.speed = replay.speed();
+  if (cine.force && cine.force.ci !== P.ci) cine.force = null;
+  const O = cine.cam.update(rdt, P.t, pose, cine.force || P.shot, P.clip, camera.aspect, cine.cut);
+  cine.cut = false;
+  clearLens(camera);
+  camera.position.set(O.pos[0], O.pos[1], O.pos[2]);
+  camera.up.set(O.up[0], O.up[1], O.up[2]);
+  camera.lookAt(O.look[0], O.look[1], O.look[2]);
+  if (Math.abs(camera.fov - O.fov) > 0.01) { camera.fov = O.fov; camera.updateProjectionMatrix(); }
+  rig.view = 'cine';
 }
 
 // Bild zeichnen: Kino-Look (eine Pipeline: Szene, Unschärfe, Licht/Farbe, Cockpit darüber) bzw. ?look=alt wie bis n22
@@ -595,7 +706,7 @@ function drawFrame(o) {
   const overlay = o.cockpit ? (r) => cockpit.render(r) : null;
   if (kino) {
     kino.setLevel(LOOK_FIX ?? quality.tier);
-    kino.render(scene, camera, { run: o.run, speed: o.speed, boost: o.boost, car: carVis.root, dt: o.dt, cut: o.cut, sunDir: sun.userData.dir, heat: o.heat, overlay, time: app.fixTime });
+    kino.render(scene, camera, { run: o.run, speed: o.speed, boost: o.boost, car: carVis.root, dt: o.dt, cut: o.cut, sunDir: sun.userData.dir, heat: o.heat, overlay, time: app.fixTime, dof: o.dof, shutter: o.shutter });
     return;
   }
   if (!post.render(scene, camera, { run: o.run, speed: o.speed, boost: o.boost, car: carVis.root, dt: o.dt, cut: o.cut })) renderer.render(scene, camera);
@@ -633,6 +744,20 @@ window.__game = {
   toggleLine,
   replay: startReplay,
   toMenu,
+  // Kino-Replay (Tests): Zustand, überspringen, an eine Stelle springen (Aufzeichnungszeit t im Clip ci)
+  get cine() { return cine; },
+  cineInfo() { const f = cine ? cine.film : race && race.film; return f ? { duration: f.duration, clips: f.clips.map((c) => ({ kind: c.kind, label: c.label, a: c.a, b: c.b, c0: c.c0, c1: c.c1, tp: c.tp, film: c.film, shots: c.shots.map((s) => ({ cam: s.cam, t0: s.t0, t1: s.t1, vis: s.setup && s.setup.vis, side: s.setup && s.setup.side })) })) } : null; },
+  cineState() { return cine ? { ci: cine.player.ci, t: cine.player.t, speed: cine.player.speed, cam: cine.cam.out.cam, fov: cine.cam.out.fov, focus: cine.cam.out.focus, frames: cine.stats.frames, progress: cine.player.progress() } : null; },
+  cineSeek(ci, t) { if (!cine) return; ui._capClip = -1; ui._capShow = 0; const E = document.querySelector('#cine .cap'); if (E) E.className = 'cap'; const P = cine.player; P.ci = ci; P.t = t; P.done = false; P.cut = true; cine.cut = true; replay.t = t; blurCut = true; },
+  // Kamera-Art im laufenden Clip erzwingen (Fotos jeder Art), null = wie geplant
+  cineForce(cam) {
+    if (!cine) return;
+    if (!cam) { cine.force = null; cine.cut = true; return; }
+    const P = cine.player, c = P.clip, sh = { cam, t0: c.a, t1: c.b, ci: P.ci };
+    sh.setup = cine.cam.setup(c, sh); cine.force = sh; cine.cut = true; blurCut = true;
+  },
+  skipCine: () => endCine(true),
+  startCine: () => (ui.lastRes ? startCine(ui.lastRes) : false),
   freeze(on = true) { frozen = on; },
   setTimeScale(s) { timeScale = s; },
   get timeScale() { return timeScale; },

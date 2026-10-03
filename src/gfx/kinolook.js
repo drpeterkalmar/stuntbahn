@@ -5,7 +5,8 @@
 //
 // Schnittstelle (Szene/Kamera/Renderer rein, Bild raus):
 //   const kino = new KinoLook(renderer, { level: 1, stages: '-ssao,+haze', grade: 'mittag' });
-//   kino.render(scene, camera, { dt, sunDir, run, speed, boost, car, cut, heat, overlay, time });   // zeichnet auf den Bildschirm
+//   kino.render(scene, camera, { dt, sunDir, run, speed, boost, car, cut, heat, overlay, time, dof, shutter });   // zeichnet auf den Bildschirm
+//     dof = { focus (m), k 0…1 } Tiefenschärfe auf das Auto (n18, Kino-Replay); shutter = Belichtung × (Zeitlupe)
 //   kino.setLevel(0|1|2)   0 = Einfach (direkt, wie bisher), 1 = Standard, 2 = Kino
 //   kino.stages            einzelne Stufen an/aus (siehe STAGES), kino.describe() für Tests/Bericht
 //   kino.adapt(fps)        dynamische Auflösung (von der Qualitäts-Automatik aufgerufen)
@@ -16,6 +17,9 @@
 //   2. Halbe Auflösung: Umgebungsverdeckung aus der Tiefe (SAO-Art, 6–10 Abtastungen) – nur wenn an.
 //   3. Bloom: Viertel-Auflösung mit Schwelle, 3–4 Stufen hinunter und additiv wieder hinauf (Dual-Filter).
 //   4. Bewegungsunschärfe (aus n7): Stufe 1 in halber Auflösung, Stufe 2 direkt im Endbild.
+//   4b. Tiefenschärfe (n18, nur wenn o.dof übergeben – Kino-Replay): halbe Auflösung, Scheibe mit 12 Abtastungen, Radius
+//      nach Unschärfekreis aus der Tiefe; scharfe Stellen (Auto) bluten nicht in den Hintergrund (Gewicht nach dem
+//      Unschärfekreis der Abtastung). Das Auto bleibt scharf (Auto-Maske in der Mitte).
 //   5. Endbild (volle Bildschirmauflösung): kantenbewusstes Hochskalieren mit Kantenglättung (FXAA-Art) und
 //      Nachschärfen (CAS-Art) – eigener Code –, Hitzeflimmern, Unschärfe, Verdeckung, Luftperspektive (Dunst nach Tiefe
 //      und Höhe, zur Sonne hin warm), Bloom, Sonnen-Blendung/Lens-Flare, Farbkorrektur je Tageszeit, Vignette, Dither.
@@ -23,19 +27,19 @@
 import * as THREE from 'three';
 
 // Stufen, die einzeln schaltbar sind (URL ?kl=-bloom,+ssao …)
-export const STAGES = ['scale', 'aa', 'sharpen', 'ssao', 'bloom', 'flare', 'aerial', 'grade', 'vignette', 'blur', 'haze', 'dither', 'contact'];
+export const STAGES = ['scale', 'aa', 'sharpen', 'ssao', 'bloom', 'flare', 'aerial', 'grade', 'vignette', 'blur', 'haze', 'dither', 'contact', 'dof'];
 
 // Presets je Qualitätsstufe. scale = Renderskala (Start/Min/Max) relativ zur Bildschirmauflösung der Stufe.
 export const PRESETS = [
   { name: 'Einfach', pipeline: false, stages: { contact: true } },
   {
     name: 'Standard', pipeline: true, msaa: 0, scale: [0.84, 0.62, 0.92],
-    stages: { scale: true, aa: true, sharpen: true, ssao: false, bloom: true, flare: true, aerial: true, grade: true, vignette: true, blur: true, haze: false, dither: true, contact: true },
+    stages: { scale: true, aa: true, sharpen: true, ssao: false, bloom: true, flare: true, aerial: true, grade: true, vignette: true, blur: true, haze: false, dither: true, contact: true, dof: true },
     sharpen: 0.42, ao: { taps: 6, radius: 1.1, strength: 0.55 }, bloom: { levels: 3, strength: 0.3, threshold: 0.9 }, blurHalf: true,
   },
   {
     name: 'Kino', pipeline: true, msaa: 4, scale: [1, 0.7, 1],
-    stages: { scale: true, aa: false, sharpen: true, ssao: true, bloom: true, flare: true, aerial: true, grade: true, vignette: true, blur: true, haze: true, dither: true, contact: true },
+    stages: { scale: true, aa: false, sharpen: true, ssao: true, bloom: true, flare: true, aerial: true, grade: true, vignette: true, blur: true, haze: true, dither: true, contact: true, dof: true },
     sharpen: 0.25, ao: { taps: 10, radius: 1.2, strength: 0.65 }, bloom: { levels: 4, strength: 0.36, threshold: 0.88 }, blurHalf: false,
   },
 ];
@@ -111,6 +115,35 @@ const BLUR_HALF_FS = `
     float car = kCarMask( vUv, d );
     vec4 b = kBlur( tColor, tDepth, vUv, d, car, uRes );
     gl_FragColor = vec4( b.a > 0.0 ? b.rgb : texture2D( tColor, vUv ).rgb, b.a * ( 1.0 - car ) );
+  }`;
+
+// Tiefenschärfe (n18): Unschärfekreis 0 … 1 aus der linearen Tiefe – hinter dem Fokus über uDofFar·Fokus, davor über
+// uDofNear·Fokus voll –, mal Stärke uDofK
+const DOF_CORE = `
+  uniform float uDofF, uDofR, uDofNear, uDofFar, uDofK;
+  float kCoc( float z ) { float c = z > uDofF ? ( z - uDofF ) / ( uDofF * uDofFar ) : ( uDofF - z ) / ( uDofF * uDofNear ); return clamp( c, 0.0, 1.0 ) * uDofK; }`;
+const DOF_FS = `
+  uniform sampler2D tColor, tDepth; uniform vec2 uRes; varying vec2 vUv;
+  ${COMMON}
+  ${BLUR_CORE}
+  ${DOF_CORE}
+  void main() {
+    float d = texture2D( tDepth, vUv ).x;
+    float c0 = d >= 1.0 ? uDofK : kCoc( kLinZ( d ) ) * ( 1.0 - kCarMask( vUv, d ) );
+    vec3 acc = texture2D( tColor, vUv ).rgb; float ws = 1.0;
+    if ( c0 > 0.02 ) {
+      vec2 R = vec2( uDofR * uRes.y / uRes.x, uDofR ) * c0;
+      float ang = kIgn( gl_FragCoord.xy ) * 6.2831853;
+      for ( int i = 0; i < 12; i++ ) {
+        float a = ( float( i ) + 0.5 ) / 12.0, th = ang + float( i ) * 2.3999632;
+        vec2 q = vUv + vec2( cos( th ), sin( th ) ) * sqrt( a ) * R;
+        float dq = texture2D( tDepth, q ).x;
+        float cq = dq >= 1.0 ? uDofK : kCoc( kLinZ( dq ) );
+        float w = clamp( cq / max( c0, 1e-3 ) * 1.5, 0.0, 1.0 );   // scharfe Stellen (Auto im Fokus: cq ≈ 0) bluten nicht
+        acc += texture2D( tColor, q ).rgb * w; ws += w;
+      }
+    }
+    gl_FragColor = vec4( acc / ws, 1.0 );
   }`;
 
 // Umgebungsverdeckung (halbe Auflösung): Alchemy/SAO-Art aus der Tiefe, Normale aus Nachbartiefen
@@ -196,7 +229,7 @@ const SUNVIS_FS = `
 
 // Endbild
 const COMP_FS = `
-  uniform sampler2D tColor, tDepth, tAO, tBloom, tBlur, tSunVis;
+  uniform sampler2D tColor, tDepth, tAO, tBloom, tBlur, tSunVis, tDof;
   uniform vec2 uSrcTexel, uRes, uAOTexel;
   uniform float uTime, uSharp, uAOStr, uBloomStr, uVig, uBlurOn, uDither;
   uniform mat4 uInvProj; uniform mat3 uCamRot; uniform vec3 uCamPos;
@@ -207,6 +240,7 @@ const COMP_FS = `
   varying vec2 vUv;
   ${COMMON}
   ${BLUR_CORE}
+  ${DOF_CORE}
 
   // kantenbewusstes Hochskalieren: bilinear aus der Renderskala, an Kanten entlang der Kante glätten (FXAA-Art,
   // 4 Diagonalen + 4 Richtungs-Abtastungen), sonst kontrastabhängig nachschärfen (CAS-Art, Halos begrenzt)
@@ -296,7 +330,7 @@ const COMP_FS = `
     vec2 uv = vUv;
     float d = texture2D( tDepth, uv ).x;
     float car = 0.0;
-  #if defined( BLUR_FULL ) || defined( HAZE )
+  #if defined( BLUR_FULL ) || defined( HAZE ) || defined( DOF )
     car = kCarMask( uv, d );
   #endif
   #ifdef HAZE
@@ -311,6 +345,9 @@ const COMP_FS = `
   #endif
   #ifdef BLUR_HALF
     if ( uBlurOn > 0.5 ) { vec4 b = texture2D( tBlur, vUv ); col = mix( col, b.rgb, b.a ); }
+  #endif
+  #ifdef DOF
+    { float cf = ( d >= 1.0 ? uDofK : kCoc( kLinZ( d ) ) ) * ( 1.0 - car ); if ( cf > 0.01 ) col = mix( col, texture2D( tDof, vUv ).rgb, smoothstep( 0.0, 0.3, cf ) ); }
   #endif
   #ifdef AO
     {
@@ -390,7 +427,8 @@ export class KinoLook {
     const M4 = () => ({ value: new THREE.Matrix4() });
     // gemeinsame Uniforms aller Durchgänge
     this.u = {
-      tColor: { value: null }, tDepth: { value: null }, tSunVis: { value: null }, tAO: { value: null }, tBloom: { value: null }, tBlur: { value: null }, tSrc: { value: null },
+      tColor: { value: null }, tDepth: { value: null }, tSunVis: { value: null }, tAO: { value: null }, tBloom: { value: null }, tBlur: { value: null }, tSrc: { value: null }, tDof: { value: null },
+      uDofF: F(10), uDofR: F(0.012), uDofNear: F(0.6), uDofFar: F(1.5), uDofK: F(0),
       uSrcTexel: V2(), uRes: V2(), uAOTexel: V2(), uTexel: V2(), uProj: V2(), uDepthSize: V2(),
       uTime: F(), uSharp: F(0.3), uAOStr: F(0.6), uBloomStr: F(0.4), uVig: F(0.2), uBlurOn: F(0), uDither: F(1),
       uInvProj: M4(), uCamRot: { value: new THREE.Matrix3() }, uCamPos: V3(),
@@ -404,7 +442,7 @@ export class KinoLook {
       uRadius: F(1), uFadeFar: F(160), uTh: F(0.8), uSky: F(0.08), uK: F(1), uGreen: F(0),
     };
     this.mats = new Map();
-    this.rt = null; this.aoRT = null; this.blurRT = null; this.bloomRT = [];
+    this.rt = null; this.aoRT = null; this.blurRT = null; this.bloomRT = []; this.dofRT = null;
     this.sunRT = new THREE.WebGLRenderTarget(1, 1, rtOpts({ minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter }));
     this._sz = new THREE.Vector2(); this._v = new THREE.Vector3(); this._v2 = new THREE.Vector3(); this._m = new THREE.Matrix4(); this._m2 = new THREE.Matrix4();
     this._q = new THREE.Quaternion(); this._one = new THREE.Vector3(1, 1, 1);
@@ -477,6 +515,7 @@ export class KinoLook {
     const hw = Math.max(1, Math.round(sw / 2)), hh = Math.max(1, Math.round(sh / 2));
     if (this.stages.ssao && need(this.aoRT, hw, hh)) { if (this.aoRT) this.aoRT.dispose(); this.aoRT = new THREE.WebGLRenderTarget(hw, hh, rtOpts()); }
     if (this.blurNeedsHalf() && need(this.blurRT, hw, hh)) { if (this.blurRT) this.blurRT.dispose(); this.blurRT = new THREE.WebGLRenderTarget(hw, hh, rtOpts()); }
+    if (this.wantDof && need(this.dofRT, hw, hh)) { if (this.dofRT) this.dofRT.dispose(); this.dofRT = new THREE.WebGLRenderTarget(hw, hh, rtOpts()); }
     if (this.stages.bloom) {
       const L = this.preset.bloom ? this.preset.bloom.levels : 3;
       for (let i = 0; i < L; i++) {
@@ -498,18 +537,14 @@ export class KinoLook {
     const k = this.enabled() && o.run ? ks * ks * (3 - 2 * ks) * (1 + 0.6 * (o.boost || 0)) : 0;
     this.k = k;
     const U = this.u;
-    if (o.car && o.car.visible) { o.car.updateMatrixWorld(); U.uCarInv.value.copy(o.car.matrixWorld).invert(); U.uCarOn.value = 1; } else U.uCarOn.value = 0;
-    const curVP = this._m.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
-    U.uInvVP.value.copy(curVP).invert();
     if (!(k > 0.004 && !cut)) return 0;
     this._q.copy(P.q).slerp(q, 1 - ROT_KEEP);
     this._m2.compose(P.pos, this._q, this._one).invert();
     const prevVP = this._m2.premultiply(P.proj);
     U.uReproj.value.multiplyMatrices(prevVP, U.uInvVP.value);
-    U.uScale.value = Math.min(4, L.shutter * k / this.dtS);
+    U.uScale.value = Math.min(4, L.shutter * k / this.dtS * (o.shutter || 1));
     U.uMaxLen.value = L.max * Math.min(1.3, k);
     U.uRadial.value = 0.08 * (o.boost || 0) * Math.min(1.5, L.shutter / (1 / 170));
-    U.uNear.value = camera.near; U.uFar.value = camera.far;
     return k;
   }
 
@@ -536,7 +571,14 @@ export class KinoLook {
     U.uInvProj.value.copy(camera.projectionMatrixInverse);
     U.uCamRot.value.setFromMatrix4(camera.matrixWorld);
     U.uCamPos.value.copy(camera.position);
+    // Auto-Maske (Unschärfe, Tiefenschärfe, Hitzeflimmern) und Tiefe → Abstand
+    if (o.car && o.car.visible) { o.car.updateMatrixWorld(); U.uCarInv.value.copy(o.car.matrixWorld).invert(); U.uCarOn.value = 1; } else U.uCarOn.value = 0;
+    U.uInvVP.value.copy(this._m.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse)).invert();
+    U.uNear.value = camera.near; U.uFar.value = camera.far;
     const k = st.blur ? this.blurSetup(camera, o, w, h) : (this.k = 0);
+    // Tiefenschärfe nur auf Wunsch (Kino-Replay), Ziele erst beim ersten Mal anlegen
+    const dof = st.dof && o.dof && o.dof.k > 0.01 ? o.dof : null;
+    if (dof && !this.wantDof) { this.wantDof = true; this.ensureTargets(w, h, sw, sh); }
     // 1. Szene
     r.setRenderTarget(this.rt);
     r.render(scene, camera);
@@ -568,6 +610,14 @@ export class KinoLook {
         this.pass(up, this.bloomRT[i - 1], false);
       }
       U.tBloom.value = this.bloomRT[0].texture;
+    }
+    // 4b. Tiefenschärfe (halbe Auflösung)
+    if (dof) {
+      U.uDofF.value = Math.max(1, dof.focus); U.uDofK.value = Math.min(1, dof.k); U.uDofR.value = dof.r ?? 0.012;
+      U.uDofNear.value = dof.near ?? 0.6; U.uDofFar.value = dof.far ?? 1.5;
+      U.uRes.value.set(w, h);
+      this.pass(this.mat('dof', { TAPS: 1 }, DOF_FS), this.dofRT);
+      U.tDof.value = this.dofRT.texture;
     }
     // 4. Bewegungsunschärfe
     const L = BLUR_LEVELS[this.setting] || BLUR_LEVELS.off;
@@ -612,6 +662,7 @@ export class KinoLook {
     if (st.vignette || k > 0) defs.VIGNETTE = 1;
     if (st.dither) defs.DITHER = 1;
     if (haze) defs.HAZE = 1;
+    if (dof) defs.DOF = 1;
     if (k > 0) { if (this.blurNeedsHalf()) defs.BLUR_HALF = 1; else { defs.BLUR_FULL = 1; defs.TAPS = taps; } }
     if (this.debug === 'ao' && st.ssao) defs.DEBUG_AO = 1;
     if (!defs.TAPS) defs.TAPS = 1;
@@ -655,8 +706,8 @@ export class KinoLook {
   }
 
   dispose() {
-    for (const t of [this.rt, this.aoRT, this.blurRT, this.sunRT, ...this.bloomRT]) if (t) { if (t.depthTexture) t.depthTexture.dispose(); t.dispose(); }
-    this.rt = this.aoRT = this.blurRT = null; this.bloomRT = [];
+    for (const t of [this.rt, this.aoRT, this.blurRT, this.sunRT, this.dofRT, ...this.bloomRT]) if (t) { if (t.depthTexture) t.depthTexture.dispose(); t.dispose(); }
+    this.rt = this.aoRT = this.blurRT = this.dofRT = null; this.bloomRT = [];
     for (const m of this.mats.values()) m.dispose();
     this.mats.clear();
   }

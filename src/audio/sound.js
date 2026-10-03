@@ -250,6 +250,7 @@ export class Sound {
       this.ctx = new AC({ latencyHint: 'interactive' });
       this.master = this.ctx.createGain(); this.master.gain.value = 0.7;
       const comp = this.ctx.createDynamicsCompressor(); comp.threshold.value = -16; comp.ratio.value = 3;
+      this.comp = comp;
       this.master.connect(comp).connect(this.ctx.destination);
       Promise.all([makeBank(), this.recP, this.recP.then((r) => (r ? nitroRec() : null))])
         .then(([b, r, nl]) => { if (r) { b.rec = r; b.nitroLoop = nl; } this.bank = b; if (this.wantRunning) this.start(); })
@@ -345,6 +346,18 @@ export class Sound {
     if (v > 12) this.shot(pick(R.crunch), G * 0.3, rnd(1.0, 1.15), 0.02);
   }
   pop(gain) { const N = this.nodes; this.shot(pick(this.bank.rec.pop), MIX.pop * gain, rnd(0.85, 1.2), 0, N && N.lp); }
+  // Kino-Replay als Video (n18): Ton als MediaStream (Abgriff hinter dem Kompressor), null ohne Ton
+  stream() {
+    if (!this.ctx || !this.comp || !this.ctx.createMediaStreamDestination) return null;
+    if (!this._dest) { this._dest = this.ctx.createMediaStreamDestination(); this.comp.connect(this._dest); }
+    return this._dest.stream;
+  }
+  // Kino-Replay (n18): Stinger zum Beginn der Zeitlupe – tiefes, langsames Rauschen + dumpfer Schlag (beides aus der Bank)
+  stinger(k = 1) {
+    if (!this.enabled || !this.bank) return;
+    this.shot(this.bank.whoosh, 0.5 * k, 0.55);
+    if (this.bank.rec) this.shot(this.bank.rec.thud, 0.22 * k, 0.5, 0.04); else this.shot(this.bank.thump, 0.4 * k, 0.6, 0.04);
+  }
   update(car, dt, state, opt = {}) {
     if (!this.running || !this.nodes) return;
     if (this.nodes.rec) this.updateRec(car, dt, state, opt); else this.updateSynth(car, dt, state);
@@ -359,6 +372,8 @@ export class Sound {
     const run = state === 'running';
     const thr = car.input.throttle;
     let rpm = Math.max(900, car.rpm);
+    // Kino-Replay: Zeitlupe → Motor tiefer (opt.pitch 0,5 … 1), Klang dumpfer
+    const pitch = opt.pitch ?? 1;
     // Gangwechsel: hoch → Zündunterbrechung (~85 ms, manchmal ein Knall), runter → Zwischengas
     if (this._gear !== undefined && car.gear !== this._gear && run) {
       if (car.gear > this._gear) { this.cutT = 0.085; if (rpm > 5000 && Math.random() < 0.45) this.pop(rnd(0.5, 0.9)); } else this.blipT = 0.2;
@@ -366,6 +381,7 @@ export class Sound {
     this._gear = car.gear;
     this.cutT -= dt; this.blipT -= dt;
     if (this.blipT > 0) rpm += 1100 * this.blipT / 0.2;
+    rpm *= pitch;
     const want = this.cutT > 0 ? 0 : this.blipT > 0 ? 1 : thr;
     this.load += (want - this.load) * Math.min(1, dt / 0.05);
     const L = this.load;
@@ -379,7 +395,7 @@ export class Sound {
     N.limG.gain.setTargetAtTime(limOn ? vol * 0.45 : 0, t, 0.02);
     if (N.lim && !limOn && (N.limIdle += dt) > 0.3) { N.lim.stop(t + 0.05); N.lim = null; }
     // außen: unter Last heller, im Schiebebetrieb dunkler (das Rauschen des Turbos bleibt am Handy leise); Cockpit dumpf
-    N.lp.frequency.setTargetAtTime(opt.cockpit ? MIX.lpCockpit : MIX.lpOff + (MIX.lpOut - MIX.lpOff) * L, t, 0.05);
+    N.lp.frequency.setTargetAtTime((opt.cockpit ? MIX.lpCockpit : MIX.lpOff + (MIX.lpOut - MIX.lpOff) * L) * (0.35 + 0.65 * pitch), t, 0.05);
     // Motor-Stimmen: je Schicht die zwei Loops um die Drehzahl, Tonhöhe = Drehzahl / Loop-Drehzahl
     const need = new Map();
     // (Schiebe-Schicht nur, wenn sie hörbar ist: unter Volllast entfällt sie – meist nur 2 Stimmen)

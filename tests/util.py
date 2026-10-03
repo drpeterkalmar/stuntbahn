@@ -42,13 +42,17 @@ class Server:
         self.httpd.shutdown(); self.httpd.server_close()
 
 class Session:
-    def __init__(self, pw, base, device=PIXEL7_LAND, dpr=None, storage=None):
+    def __init__(self, pw, base, device=PIXEL7_LAND, dpr=None, storage=None, kino=False):
         self.base = base
         self.b = pw.chromium.launch(args=ARGS)
         opts = dict(device)
         if dpr: opts['device_scale_factor'] = dpr
         if storage: opts['storage_state'] = storage
         self.ctx = self.b.new_context(**opts)
+        # Kino-Replay nach dem Ziel (n18, Standard an) für die älteren Tests aus: sie erwarten das Ergebnis direkt nach
+        # dem Ziel. tests/test_kinoreplay.py schaltet ihn mit kino=True ein (oder KINO=1 für alle Tests).
+        if not kino and os.environ.get('KINO') != '1':
+            self.ctx.add_init_script("window.__noKino = true")
         self.pg = self.ctx.new_page()
         self.errors = []; self.console = []
         self.pg.on("pageerror", lambda e: self.errors.append("PAGEERROR " + str(e)))

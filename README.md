@@ -68,6 +68,23 @@ spielbar am Handy (quer oder hochkant), mit Gamepad oder Tastatur. Als App insta
   Abstand zu jeder Fahrbahn (auch Hochstraßen/Rampen), nie im Wasser. Dosiert nach Grafikstufe; ruckelt es, blendet die
   Automatik (nach der Unschärfe) zuerst Gras/Büsche/Wolkenschatten aus. `?deko=0` / `?wolken=0` zum Vergleich.
 
+## 🎞️ Kino-Replay nach dem Ziel (seit 03.10.2026, n18)
+- Peter: „Nachdem man durchs Ziel ist: Cinematic Replay mit Slow-Mo-Drohnen-Action-Cam der besten Stunteinlagen.“
+  Nach dem Zieleinlauf läuft ein **Highlight-Film (~22–30 s)**: die 3–5 besten Momente der Fahrt, zeitlich sortiert, je mit
+  Zeitlupe (1,0 → 0,25 → 1,0, weiche Rampen), Einblendung („🚀 101 m Sprung“, „🌀 Looping“), tieferem Motor und Stinger in
+  der Zeitlupe, Tiefenschärfe aufs Auto und Bewegungsunschärfe – zum Schluss der Zieleinlauf. Quer mit Kino-Balken,
+  hochkant ohne Balken mit eigenem Bildausschnitt. **Antippen (oder Esc/Enter/Leertaste) überspringt**, danach das Ergebnis.
+- Momente aus der Aufzeichnung (keine Neu-Simulation): Sprünge (Flugzeit × Höhe × Weite), Schluchtsprung, Klippen- und
+  Plateau-Sprung, Hüpfer, Achterbahn-Wellen, Kuppen, Looping, Korkenzieher, Wendel, Röhre, Spirale, Steilwand, Halfpipe,
+  Steilabfahrt, Nitro, Spitzentempo, Beinahe-Unfall/auf zwei Rädern, harte Landung, Crash mit Überschlag/Absturz (nur wenn
+  spektakulär und höchstens 3 Crashs). Kameras: **Drohne, Action-Cam, Stativ/Tele, Hubschrauber, Onboard** – gegen Strecke,
+  Gelände und Wasser geprüft.
+- Optionen → **„🎬 Kino-Replay nach dem Ziel“** (Standard an). Im Ergebnis: **🎬 Highlights** (Film erneut), **📼 Replay**
+  (ganze Fahrt wie bisher) und **🎥 Als Video** (Film mit Ton als MP4/WebM aufnehmen → **📤 Video** teilen/speichern).
+- `?kino=0|1` übersteuert die Einstellung. Details, Punkte-Formel, Messwerte: `KINOREPLAY_BERICHT.md`.
+  Code: `src/game/highlights.js` (Momente, Film), `src/game/cinecam.js` (Kameras), `src/ui/cliprec.js` (Video),
+  Tiefenschärfe als Stufe `dof` in `src/gfx/kinolook.js`.
+
 ## 🎬 Kino-Look (seit 02.10.2026, n17)
 - Peter: „Mehr Details und realistische Grafik, Effekte wie Forza mit DLSS.“ Echtes DLSS geht im Browser nicht – der Kino-Look
   holt den Eindruck mit Echtzeit-Techniken fürs Handy: Farbkorrektur mit Film-Kontrast, Luftperspektive (Dunst in der
@@ -233,6 +250,10 @@ python3 tests/sound_levels.py             # Ton: Aufnahmen geladen, Pegel, Loop-
 python3 tests/ton_probe.py                # Ton offline gerendert alt/neu: Pegel, Übersteuerung, Handy-Filter; Hörproben ~/Downloads/Stuntbahn-Ton/
 python3 tests/ton_cpu.py                  # CPU-Last des Tons: aus / alt / neu
 python3 tests/test_race.py                # Rennen, Bestzeit nach Reload, Geist, Replay
+node tests/node/test_kinoreplay.mjs       # n18: Moment-Finder auf 5 Fahrten, Film-Regeln, Zeitlupe, Kameras gegen Strecke/Gelände (quer+hoch)
+node tools/kinoreplay_probe.mjs           # n18: Kandidaten + Film je Fahrt anzeigen (--json=datei, --nur=0,2)
+python3 tests/test_kinoreplay.py beide    # n18: Film nach dem Ziel, Überspringen, Highlights, Video, Balken, Fotos je Kamera (tests/shots/kinoreplay/)
+python3 tests/perf_kinoreplay.py 3 '' quer   # n18: Bildrate Film gegen Rennen (mehrere Runden, Film ≥ 95 %)
 python3 tests/test_touch.py               # Touch-Steuerung quer + hochkant, Knopfgrößen, Tastengröße, Bounding-Boxen, Layout
 python3 tests/test_hochformat.py          # Drehen im Rennen (quer→hoch→quer), keine hängenden Finger, Neigen-Achse, Platz für 2 Knöpfe
 python3 tests/hochformat_shots.py         # Fotos + Layout-Prüfung aller Bildschirme (pixel7 iphone14 klein | …q = quer)

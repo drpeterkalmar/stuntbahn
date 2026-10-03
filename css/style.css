@@ -333,3 +333,24 @@ body.dropping #drop { display: flex; }
 .sheetc .chip { min-height: 44px; padding: 6px 12px; border-radius: 22px; background: #ffffff12; border: 1px solid #ffffff26; font-size: 15px; font-weight: 600; white-space: nowrap; }
 .sheetc .chip.on { background: #ff6a2a; border-color: #ff9a6a; color: #fff; }
 .sheetc .trk .tst { font-size: 14px; display: flex; flex-wrap: wrap; gap: 4px 8px; }
+
+/* ---------- Kino-Replay nach dem Ziel (n18) ---------- */
+/* Querformat: Kino-Balken oben/unten (2,39:1, mindestens 8,5 % je Balken), fahren ein; hochkant keine Balken – dort
+   rahmen die Kameras das Auto fürs schmale Bild (cinecam.js). Ein neuer Tipp irgendwo überspringt. */
+#cine { position: absolute; inset: 0; display: none; pointer-events: auto; touch-action: none; }
+#cine.show { display: block; }
+#cine .lb { position: absolute; left: 0; right: 0; height: 0; background: #000; transition: height .6s cubic-bezier(.2, .7, .2, 1); }
+#cine .lb.top { top: 0; } #cine .lb.bot { bottom: 0; }
+body[data-orient="quer"] #cine.on .lb { height: max(8.5%, calc((100% - 41.84vw) / 2)); }
+#cine .ctag { position: absolute; top: max(10px, var(--sat)); left: max(14px, var(--sal)); font-size: 13px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; opacity: .75; text-shadow: 0 1px 3px #000; }
+#cine .cbar { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: #ffffff1a; }
+#cine .cbar i { display: block; height: 100%; width: 0; background: #ff6a2a; }
+#cine .cskip { position: absolute; top: max(8px, var(--sat)); right: max(10px, var(--sar)); min-height: 48px; min-width: 48px; padding: 6px 14px; border-radius: 12px; background: #0d1117aa; border: 1px solid #ffffff33; font-weight: 700; font-size: 15px; }
+#cine .cap { position: absolute; left: max(22px, calc(var(--sal) + 14px)); bottom: calc(max(8.5%, (100% - 41.84vw) / 2) + 14px); font-size: clamp(22px, 4.2vw, 40px); font-weight: 900; font-style: italic; letter-spacing: .01em;
+  text-shadow: 0 3px 10px #000d; opacity: 0; transform: translateX(-24px); transition: opacity .35s, transform .5s cubic-bezier(.2, .7, .2, 1); pointer-events: none; max-width: calc(100vw - 44px); }
+#cine .cap.show { opacity: 1; transform: none; }
+#cine .cap.fin { color: #ffd23d; }
+body[data-orient="hoch"] #cine .cap { left: 50%; bottom: calc(max(14%, var(--sab) + 70px)); transform: translate(-50%, 16px); text-align: center; width: max-content; font-size: clamp(22px, 7vw, 34px); }
+body[data-orient="hoch"] #cine .cap.show { transform: translate(-50%, 0); }
+body[data-orient="hoch"] #cine .cskip { top: auto; bottom: max(16px, calc(var(--sab) + 10px)); right: 50%; transform: translateX(50%); }
+#cine.rec .ctag { color: #ff4a3a; opacity: 1; }

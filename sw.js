@@ -1,5 +1,5 @@
 // Service-Worker: offline spielbar, Cache-Busting über Inhalts-Hash (tools/update_sw.py)
-const VERSION = 'dc1668244f';
+const VERSION = '9e8b89696e';
 const CACHE = 'stuntbahn-' + VERSION;
 const ASSETS = [
   './',
@@ -61,7 +61,9 @@ const ASSETS = [
   'src/audio/sound.js',
   'src/build.js',
   'src/core/util.js',
+  'src/game/cinecam.js',
   'src/game/ghost.js',
+  'src/game/highlights.js',
   'src/game/input.js',
   'src/game/race.js',
   'src/game/replay.js',
@@ -109,6 +111,7 @@ const ASSETS = [
   'src/track/trkimport.js',
   'src/track/trkterrain.js',
   'src/track/verify.js',
+  'src/ui/cliprec.js',
   'src/ui/minimap.js',
   'src/ui/ui.js'
 ];

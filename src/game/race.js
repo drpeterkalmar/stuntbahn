@@ -148,6 +148,7 @@ export class Race {
     this.penalties = 0;
     this.pens = [];  // Zeitstrafen { f: Aufzeichnungs-Frame, sec }
     this.cuts = [];  // Schnitte (Auto versetzt) { f } – fürs Replay
+    this.crashLog = [];   // Crashs { f, reason, v, imp } – fürs Kino-Replay (n18, auch mit Totalschaden)
     this.autopilotOnly = !!opts.autopilot;
     this.noCutRule = !!opts.noCutRule;
     this.maxProgress = 0;
@@ -696,6 +697,7 @@ export class Race {
     const ci = this.car.crash.info, sev = { v: +this.car.speed().toFixed(1), imp: ci && ci.vn ? -ci.vn : 0 };
     this.crashT = 0;
     this.stopNitro();
+    this.crashLog.push({ f: this.recFrames(), reason: this.car.crash.reason, ...sev });
     if (this.wreckOn) {
       this.emit('crash', { reason: this.car.crash.reason, ...sev });
       this.state = 'wreck';
@@ -811,6 +813,7 @@ export class Race {
       if (sn.ch) Object.assign(this.charges, sn.ch);
       const fr = this.recFrames();
       this.xev = this.xev.filter((e) => e.f < fr);
+      this.crashLog = this.crashLog.filter((e) => e.f < fr);
       for (const e of this.xev) if (e.end > fr) e.end = fr;
       this.nitroLog = this.nitroLog.filter((x) => x[0] < this.time);
       for (const x of this.nitroLog) x[1] = Math.min(x[1], this.time);

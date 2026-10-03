@@ -1,4 +1,4 @@
-// Bedienoberfläche (DOM): Laden, Menü, HUD, Touch-Steuerung, Pause, Ergebnis, Replay, Credits.
+// Bedienoberfläche (DOM): Laden, Menü, HUD, Touch-Steuerung, Pause, Ergebnis, Replay, Kino-Replay, Credits.
 import { fmtTime, daySeed } from '../core/util.js';
 import { ASSISTS, PENALTY, BRAKE_HELP_MODES } from '../game/race.js';
 import { DIFFS } from '../track/generator.js';
@@ -10,6 +10,7 @@ import { BLUR_LEVELS } from '../gfx/post.js';
 import { parseTrk } from '../track/trk.js';
 import { trkToLayout } from '../track/trkimport.js';
 import { drawMinimap, drawLayoutMap } from './minimap.js';
+import { clipMime, shareClip } from './cliprec.js';
 import { SAM_STUNTS, SAM_DIFF, SAM_SORTS, DEFAULT_VIEW, filterSort, lengthClass } from '../game/sammlung.js';
 import { HORIZONS } from '../track/trk.js';
 
@@ -74,6 +75,10 @@ export class UI {
       <div id="pause" class="screen"></div>
       <div id="result" class="screen"></div>
       <div id="replayui"><div class="rinfo"></div><div class="bar"><i></i></div><div class="btns"></div></div>
+      <div id="cine" aria-label="Kino-Replay"><div class="lb top"></div><div class="lb bot"></div>
+        <div class="ctag">🎬 Highlights</div><div class="cbar"><i></i></div>
+        <div class="cap" aria-live="polite"></div>
+        <button class="cskip" data-a="cineskip" aria-label="Kino-Replay überspringen">Überspringen ⏭</button></div>
       <div id="sheet" class="screen"></div>
       <div id="drop"><div>📂 Strecken hier ablegen<small>.TRK, .RPL oder .ZIP</small></div></div>`;
     // Datei-Auswahl (Handy + Desktop); wird per Knopf im Nutzer-Klick geöffnet
@@ -90,6 +95,13 @@ export class UI {
       if (b.dataset.x === 'hop' && this.a.hop) this.a.hop();
       if (b.dataset.x === 'nitro' && this.a.nitro) this.a.nitro();
       b.classList.add('press'); setTimeout(() => b.classList.remove('press'), 160);
+    });
+    // Kino-Replay: ein neuer Tipp irgendwo überspringt (ein Finger, der noch vom Rennen liegt, löst kein pointerdown aus)
+    $('#cine').addEventListener('pointerdown', (e) => {
+      if (e.target.closest('button')) return;
+      if (performance.now() - (this._cineT0 || 0) < 600) return;
+      e.preventDefault();
+      if (this.a.skipCine) this.a.skipCine();
     });
     this.root.addEventListener('click', (e) => {
       const b = e.target.closest('[data-a]');
@@ -135,7 +147,7 @@ export class UI {
   }
   // Aufblitzen/Wisch-Überblendung beim Fahrbahn-Reset: an beim Crash, aus beim Versetzen
   wipe(on) {
-    const W = $('#wipe'); W.style.opacity = ''; W.style.transition = '';
+    const W = $('#wipe'); W.style.opacity = ''; W.style.transition = ''; W.style.background = '';
     W.classList.toggle('in', !!on);
   }
   flash() { this.wipe(true); clearTimeout(this._wt); this._wt = setTimeout(() => this.wipe(false), 90); }
@@ -294,6 +306,10 @@ export class UI {
       case 'rplay': this.replay.paused = !this.replay.paused; break;
       case 'rslow': this.replay.speedMul = this.replay.speedMul === 1 ? 0.3 : 1; this.toast(this.replay.speedMul === 1 ? 'Normal' : 'Zeitlupe'); break;
       case 'rend': this.showResult(this.lastRace, this.lastRes, this.env); break;
+      case 'cineskip': if (A.skipCine) A.skipCine(); break;
+      case 'cine': if (A.replayCine) A.replayCine(); break;
+      case 'cliprec': this.lastClip = null; if (A.recordCine) A.recordCine(); break;
+      case 'clipshare': if (this.lastClip) shareClip(this.lastClip.blob, this.lastClip.name).then((r) => this.toast(r === 'geteilt' ? '📤 Geteilt' : r === 'gespeichert' ? '💾 Video gespeichert' : 'Abgebrochen')); break;
       case 'tbsize': S.tbsize = v; document.body.dataset.tbsize = v; this.store.save(); this.showSettings(); break;
       case 'blur': S.blur = v; this.store.save(); if (A.quality.post) A.quality.post.autoOff = false; this.showSettings(); break;
       case 'brakehelp': S.brakeHelp = v; this.store.save(); if (window.__game && window.__game.race) window.__game.race.brakeHelp = v; this.showSettings(); break;
@@ -471,6 +487,9 @@ export class UI {
       <div class="lbl">Bremshilfe (Mittel)</div>
       <div class="seg" data-g="brakehelp">${Object.entries(BRAKE_HELP_MODES).map(([k, n]) => `<button data-a="brakehelp" data-v="${k}" class="${(S.brakeHelp || 'hint') === k ? 'on' : ''}">${n}</button>`).join('')}</div>
       <p class="hint">${{ off: '<b>Aus:</b> keine Anzeige, kein Eingriff – nur die farbige Ideallinie.', hint: '<b>Hinweis</b> (Standard): Kurz „Bremsen!“ mit Ton, wenn du vor einer Kurve oder einem Stunt zu schnell bist. Die Hilfe bremst nie selbst.', soft: '<b>Sanft:</b> wie Hinweis; zusätzlich bremst die Hilfe leicht mit, wenn du deutlich zu schnell bist (> 15 %) und nicht Vollgas gibst. Vollgas gibt sie sofort frei.' }[S.brakeHelp || 'hint']}</p>
+      <div class="lbl">Replay</div>
+      <div class="row">${onoff('cine', '🎬 Kino-Replay nach dem Ziel')}</div>
+      <p class="hint">${S.cine ? '<b>An</b> (Standard): Nach dem Zieleinlauf läuft ein kurzer Highlight-Film (15–30 s) mit den besten Momenten deiner Fahrt – Zeitlupe, Drohne, Action-Cam, Tele. Antippen überspringt ihn, danach kommt das Ergebnis.' : '<b>Aus:</b> Nach dem Ziel gleich das Ergebnis. Den Film gibt es dort weiter über „🎬 Highlights“.'} Das Replay der ganzen Fahrt (📼) bleibt.</p>
       <div class="lbl">Crash</div>
       <div class="row">${onoff('wreck', '💥 Totalschaden')}</div>
       <p class="hint">${S.wreck
@@ -519,6 +538,7 @@ export class UI {
   // ---------- Rennen ----------
   showHud(race, env) {
     this.env = env;
+    this.lastClip = null;
     document.body.dataset.mode = 'race';
     this.show(null);
     $('#hud').classList.add('show');
@@ -664,8 +684,8 @@ export class UI {
     $('#result').innerHTML = `<div class="card"><h2>🏁 Ziel!</h2>${res.easy ? '<div class="ryour">Deine Zeit</div>' : ''}
       <div class="rtime">${fmtTime(res.time)}</div>${pen}${best}
       <div class="rmeta">${A.icon} ${A.name} · ${race.wreckOn ? '💥 Totalschaden an' : 'Totalschaden aus'} · ${race.extrasOn ? `Extras: 🦘 ${race.used.hop ? '✓' : '–'} 🔥 ${race.used.nitro ? '✓' : '–'}` : 'ohne Extras'} · ${env.meta.name} (${env.meta.key}) · Crashs ${race.crashes}${race.rewinds ? ' · Rückspulen ' + race.rewinds : ''}</div>
-      <div class="row"><button class="big go" data-a="retry">🔁 Nochmal</button><button data-a="replay">🎬 Replay</button></div>
-      <div class="row"><button data-a="next">🎲 Neue Strecke</button><button data-a="menu">☰ Menü</button></div></div>`;
+      <div class="row"><button class="big go" data-a="retry">🔁 Nochmal</button><button data-a="replay">📼 Replay</button>${race.film ? '<button data-a="cine">🎬 Highlights</button>' : ''}</div>
+      <div class="row">${race.film && clipMime() ? (this.lastClip ? `<button data-a="clipshare">📤 Video (${(this.lastClip.blob.size / 1e6).toFixed(1).replace('.', ',')} MB)</button>` : '<button data-a="cliprec">🎥 Als Video</button>') : ''}<button data-a="next">🎲 Neue Strecke</button><button data-a="menu">☰ Menü</button></div></div>`;
     this.show('result');
   }
   showReplay(replay) {
@@ -680,6 +700,48 @@ export class UI {
       .map(([m, n]) => { const [ic, ...w] = n.split(' '); return `<button data-a="rcam" data-v="${m}"><i>${ic}</i> <span>${w.join(' ')}</span></button>`; }).join('')
       + '<button data-a="rplay" aria-label="Pause/Weiter">⏯</button><button data-a="rslow" aria-label="Zeitlupe">🐢</button><button data-a="rend" aria-label="Replay beenden">✕</button>';
     this.replayCamMark('chase');
+  }
+  // ---------- Kino-Replay (n18) ----------
+  showCine(c) {
+    this.cineObj = c; this._cineT0 = performance.now(); this._capClip = -1;
+    document.body.dataset.mode = 'cine';
+    this.show(null);
+    this.setTouchMode(false);
+    $('#hud').classList.remove('show');
+    $('#replayui').classList.remove('show');
+    this.wipe(false);
+    const C = $('#cine');
+    C.querySelector('.cap').className = 'cap';
+    C.querySelector('.ctag').textContent = c.rec ? '● REC · Highlights' : '🎬 Highlights';
+    C.classList.toggle('rec', !!c.rec);
+    this._capShow = 0; this._capText = '';
+    C.classList.add('show');
+    requestAnimationFrame(() => C.classList.add('on'));   // Balken fahren ein
+  }
+  // Einblendung fürs Video (cliprec.js): Text und Deckkraft wie im CSS (0,35 s ein, 2,8 s stehen, 0,35 s aus)
+  capState() {
+    const t = (performance.now() - (this._capShow || 0)) / 1000;
+    const a = !this._capShow ? 0 : t < 0.35 ? t / 0.35 : t < 2.8 ? 1 : Math.max(0, 1 - (t - 2.8) / 0.35);
+    return { text: this._capText, a, fin: this._capFin, center: innerHeight > innerWidth };
+  }
+  hideCine() { const C = $('#cine'); C.classList.remove('show', 'on'); const W = $('#wipe'); W.style.opacity = '0'; W.style.background = ''; this.cineObj = null; }
+  // je Bild: Fortschritt, Einblendung zum Beginn der Zeitlupe, kurze Abblende an den Schnitten
+  cineHud(c) {
+    const P = c.player, C = $('#cine');
+    const pr = (P.progress() * 100).toFixed(1) + '%';
+    if (pr !== this._cpr) { this._cpr = pr; C.querySelector('.cbar i').style.width = pr; }
+    const cl = P.clip;
+    if (cl && P.ci !== this._capClip && P.t >= cl.c0 - 0.35) {
+      this._capClip = P.ci;
+      const E = C.querySelector('.cap');
+      E.textContent = cl.kind === 'finish' && c.res ? `🏁 Ziel · ${fmtTime(c.res.time)}` : cl.label;
+      E.className = 'cap'; void E.offsetWidth; E.className = 'cap show' + (cl.kind === 'finish' ? ' fin' : '');
+      this._capShow = performance.now(); this._capText = E.textContent; this._capFin = cl.kind === 'finish';
+      clearTimeout(this._capT); this._capT = setTimeout(() => { E.className = 'cap'; }, 2800);
+    }
+    // Schwarzblende: 0,15 s vor/nach jedem Clip-Wechsel (Filmzeit, aus der Aufzeichnungszeit des Clips grob geschätzt)
+    const W = $('#wipe'), a = cl ? Math.max(0, 1 - (P.t - cl.a) / 0.12, cl === c.film.clips[c.film.clips.length - 1] ? 0 : 1 - (cl.b - P.t) / 0.1) : 0;
+    W.style.transition = 'none'; W.style.background = '#000'; W.style.opacity = a > 0 ? Math.min(0.85, a).toFixed(2) : '0';
   }
   replayCam(m) { window.__game.cam(m); this.replayCamMark(m); }
   replayCamMark(m) { for (const b of document.querySelectorAll('#replayui [data-a=rcam]')) b.classList.toggle('on', b.dataset.v === m); }

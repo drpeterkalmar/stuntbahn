@@ -25,3 +25,8 @@ __pycache__/
 trk_local/
 *.trk
 *.TRK
+# n18 Kino-Replay: nur die Burst-Collagen je Kamera (quer/hoch) und Video-Standbilder für den Bericht
+!tests/shots/kinoreplay/
+tests/shots/kinoreplay/*
+!tests/shots/kinoreplay/*_burst.jpg
+!tests/shots/kinoreplay/video_bilder.jpg
