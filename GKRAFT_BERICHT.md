@@ -153,3 +153,13 @@ Alle Fotos habe ich mit Vision geprüft:
 | `src/ui/cliprec.js` | G-Meter im Video |
 | `src/gfx/cockpit.js` | Schaltkulisse tiefer |
 | `tools/gkraft_mess.mjs` | Messung |
+
+## Live (04.10.2026)
+- Build **ce832f87a8** ist live: https://drpeterkalmar.github.io/stuntbahn/
+- `tests/test_live.py`: Rennen im Ziel, Service-Worker aktiv, offline startbar, 0 Fehler.
+- Live-Stichprobe (`?seed=4711&d=3`, Mittel, Cockpit): Tachozeiger steht auf dem Show-Wert (echt 88 → Zeiger wie 140 km/h),
+  das G-Meter ist auf der Hutze sichtbar. Der Film zeigt „🌀 Looping · 6,2 G · 🚀 101 m Sprung · 6,5 G · 🚀 104 m Sprung ·
+  7,7 G“, 0 Fehler.
+- A/B-Links: https://drpeterkalmar.github.io/stuntbahn/?tacho=echt (alter Tacho), …/?g=echt (G ohne Show-Faktor),
+  …/?g=0 (ohne G-Anzeige).
+- Handy (PWA): App einmal ganz schließen und neu öffnen, dann lädt der neue Stand.
