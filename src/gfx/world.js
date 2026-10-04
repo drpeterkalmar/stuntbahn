@@ -5,6 +5,7 @@ import { TB, triLerp } from '../track/terrgrid.js';
 import { buildDeco } from './deco.js';
 import { buildTrees, buildBackdrop, buildSea } from './kulisse.js';
 import { farLift } from '../track/themes.js';
+import { buildJumpMarks } from './jumpdeck.js';
 
 const STATIC_LAYER = 1;
 
@@ -57,6 +58,8 @@ export function buildWorld(track, M, opts = {}) {
     add(mesh, b.mat !== MAT.ROAD && b.mat !== MAT.KERB);
     stats.tris += b.idx.length / 3; stats.meshes++;
   }
+  // Schanzen: gelb-schwarze Absprung-/Lande-Markierung (n24, reine Optik)
+  { const jm = buildJumpMarks(track); if (jm) { add(jm, false); stats.meshes++; } }
   // Gelände: Nahraster aus dem Physik-Höhenfeld (identisch), Fernring grob. Adaptiv (track/terrgrid.js):
   // feine Blöcke nahe der Strecke mit allen 5-m-Punkten, grobe Blöcke nur als zwei Dreiecke über die
   // Blockecken (die Randpunkte der feinen Nachbarn liegen genau auf deren Kanten → keine Risse)

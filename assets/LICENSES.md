@@ -37,7 +37,7 @@ Die Strecken der Sammlung sind eigene, generierte Strecken. Stil-Vorbild: die We
 | `tex/grass_*` | [Leafy Grass](https://polyhaven.com/a/leafy_grass) | Charlotte Baglioni | CC0 |
 | `tex/concrete_*` | [Gravel Concrete 03](https://polyhaven.com/a/gravel_concrete_03) | Charlotte Baglioni | CC0 |
 | `tex/pad_*` | [Concrete Floor 02](https://polyhaven.com/a/concrete_floor_02) | Rob Tuytel | CC0 |
-| `tex/metal_*` | [Metal Plate](https://polyhaven.com/a/metal_plate) | Rob Tuytel | CC0 |
+| `tex/metal_*` | [Metal Plate](https://polyhaven.com/a/metal_plate) | Rob Tuytel | CC0 | seit n24 (04.10.2026) Schanzen-Belag: mit `tools/build_deck.mjs` zu neutral grauem Stahl umgerechnet (nur Helligkeit, Rost/Grünstich per Hochpass entfernt, Normalen gedämpft); gelb-schwarze Warnstreifen an Lippe/Landerampe: eigenes Canvas (`src/gfx/jumpdeck.js`) |
 | `tex/fir_card_*` (aus Zweig-/Rindentexturen zusammengesetzt) | [Fir Tree 01](https://polyhaven.com/a/fir_tree_01) | Rob Tuytel, Rico Cilliers | CC0 |
 
 ### Umgebung (seit 28.09.2026, Poly Haven, CC0)

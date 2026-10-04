@@ -462,7 +462,10 @@ export function makeMaterials(renderer, q = {}) {
   M[MAT.CONCRETE] = new THREE.MeshStandardMaterial({ ...set('concrete', 1 / 3.5), roughness: 1, metalness: 0, color: lin(2.7, 2.65, 2.55), aoMapIntensity: 0.5 });
   M[MAT.WALL] = new THREE.MeshStandardMaterial({ ...set('concrete', 1 / 2.5), roughness: 1, metalness: 0, color: lin(3.4, 3.35, 3.25), aoMapIntensity: 0.5 });
   M[MAT.PAD] = new THREE.MeshStandardMaterial({ ...set('pad', 1 / 4), roughness: 1, metalness: 0, color: lin(1.15, 1.15, 1.12), aoMapIntensity: 0.6 });
-  M[MAT.METAL] = new THREE.MeshStandardMaterial({ ...set('metal', 1 / 2.2), roughness: 0.8, metalness: 0.35, color: lin(4.2, 5.4, 7.2), envMapIntensity: 1.2 });
+  // Schanzen-Belag (n24): sauberes, helles Stahl-Riffelblech (tools/build_deck.mjs: neutral grau, ohne Rost/Grün),
+  // Albedo-Faktor neutral (bis n23 lin(4,2, 5,4, 7,2) auf olivgrün-rostiger Vorlage → Grün/Lila-Flecken), gröberes Muster
+  // (1/3 statt 1/2,2 Kacheln je m) und schwächere Normalen gegen Moiré
+  M[MAT.METAL] = new THREE.MeshStandardMaterial({ ...set('metal', 1 / 3), roughness: 1.35, metalness: 0.08, color: lin(0.58, 0.56, 0.52), normalScale: new THREE.Vector2(0.6, 0.6), aoMapIntensity: 0.5, envMapIntensity: 0.7 });
   M[MAT.STEEL] = new THREE.MeshStandardMaterial({ color: 0x9aa3ad, roughness: 0.35, metalness: 0.9 });
   // Import-Beläge: Schotter (heller, rauer, braun) und Eis (bläulich, glatter) – gleiche Markierungen
   M[MAT.DIRT] = new THREE.MeshStandardMaterial({ ...set('pad', 1 / 3), roughness: 1, metalness: 0, color: lin(1.55, 1.12, 0.72), aoMapIntensity: 0.6 });
