@@ -44,6 +44,8 @@ export class ClipRecorder {
       g.fillText(cap.text, Math.max(8, x), H - Math.max(b, H * 0.12) - fs * 0.4);
       g.restore();
     }
+    // G-Meter (n24) an derselben Stelle wie auf dem Bildschirm
+    if (cap && cap.gm && cap.gm.cv.width) { const k = W / innerWidth; g.drawImage(cap.gm.cv, cap.gm.x * k, cap.gm.y * k, cap.gm.w * k, cap.gm.h * k); }
     // Logo oben rechts (auf dem Balken bzw. im Bild)
     g.save(); g.globalAlpha = 0.8; g.font = `italic 900 ${Math.round(fs * 0.42)}px system-ui, sans-serif`; g.fillStyle = '#fff';
     const t = 'STUNTBAHN', tw = g.measureText(t).width;

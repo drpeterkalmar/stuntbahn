@@ -26,7 +26,8 @@ spielbar am Handy (quer oder hochkant), mit Gamepad oder Tastatur. Als App insta
 - **Mehr Bodenhaftung und schnellere Ideallinie** (seit 29.09.2026): Reifen mu 1,7 statt 1,5, mehr Abtrieb (wirkt nur mit
   Radkontakt, nimmt mit dem Bodenabstand ab), ruhige Räder an Steilkurven; der Autopilot fährt im Mittel 11 % schneller,
   pendelt nicht mehr zwischen Gas und Bremse (Details: `FAHRGEFUEHL_BERICHT.md`).
-- **Wiese = Wiese** (seit 01.10.2026, n21): Neben der Strecke höchstens **30 km/h** (Vollgas ~27 km/h). Wer mit 200 km/h
+- **Wiese = Wiese** (seit 01.10.2026, n21): Neben der Strecke höchstens **30 km/h** (Vollgas ~27 km/h; seit n24 zeigt der
+  Show-Tacho dort ~65). Wer mit 200 km/h
   abkommt, ist nach ~1,8 s bei 30 km/h – ohne Überschlag, Lenken geht weiter; Grasbüschel spritzen, die Kamera rumpelt.
   `?wiese=alt` = bisherige Wiese (A/B). Messung: `node tools/wiese_probe.mjs`, Test `tests/node/test_wiese.mjs`.
 - **Bodenhaftung bei Tempo** (seit 01.10.2026, n21): Das Auto klebt bei Tempo wie ein Rennwagen – fällt die Radlast an
@@ -67,6 +68,21 @@ spielbar am Handy (quer oder hochkant), mit Gamepad oder Tastatur. Als App insta
   und Bauernhöfe in der Ferne, Wald am Bergkranz, wandernde Wolkenschatten, Wasser mit Wellen. Keine Kollision, immer mit
   Abstand zu jeder Fahrbahn (auch Hochstraßen/Rampen), nie im Wasser. Dosiert nach Grafikstufe; ruckelt es, blendet die
   Automatik (nach der Unschärfe) zuerst Gras/Büsche/Wolkenschatten aus. `?deko=0` / `?wolken=0` zum Vergleich.
+
+## 🌀 G-Kräfte und Show-Tacho (seit 04.10.2026, n24 Etappe 1)
+- Peter: „Im Cockpit und im Replay bzw. Highlights die G-Kräfte dazuschreiben … und die langsamen Geschwindigkeiten mit
+  mehr km/h angeben, 40 in der Kurve klingt langweilig.“ **Reine Anzeige**: Physik, KI, Hinweise, Bestzeiten unverändert.
+- **Show-Tacho** für alle km/h-Anzeigen: `v + 1,5 · v · (1 − v/250)²`. Echt 40 → 82, 100 → 154, 200 → 212; ab 250 km/h genau.
+  **Wiese:** echt weiter höchstens 30 km/h, der Tacho zeigt dort ~65. `?tacho=echt` = alte Anzeige (A/B).
+- **G-Meter:**
+  - im Cockpit (rundes Display auf der Hutze: Punkt im Reibungskreis, „2,6 G“, „max“ der Runde)
+  - im HUD (dezente Zahl neben dem Tempo)
+  - im Replay und Kino-Replay (mit km/h, auch im Video)
+
+  Highlight-Untertitel mit Spitzenwert („🌀 Looping · 6,2 G“, „🚀 104 m Sprung · 7,7 G“), neue Highlight-Art
+  „🏁 Kurve · 3,5 G quer“. Werte: Stand 0,0, Kurve ~2–3, Looping ~6, Schanzen-Landung 6–8 G, nie über 10.
+  `?g=echt` = ohne Show-Faktor, `?g=0` = aus.
+- Details, Messwerte, Fotos: `GKRAFT_BERICHT.md`. Code: `src/core/showspeed.js`, `src/core/gforce.js`, `src/ui/gmeter.js`.
 
 ## 🏞️ Landschaften und Streckenrand (seit 04.10.2026, n20)
 - Peter: „Mehr Streckenelemente und Kulissen.“ **7 Landschafts-Themen** – 🌾 Land, 🏜️ Wüste & Canyon, 🏔️ Alpen, 🏝️ Küste &
@@ -264,6 +280,10 @@ python3 tests/sound_levels.py             # Ton: Aufnahmen geladen, Pegel, Loop-
 python3 tests/ton_probe.py                # Ton offline gerendert alt/neu: Pegel, Übersteuerung, Handy-Filter; Hörproben ~/Downloads/Stuntbahn-Ton/
 python3 tests/ton_cpu.py                  # CPU-Last des Tons: aus / alt / neu
 python3 tests/test_race.py                # Rennen, Bestzeit nach Reload, Geist, Replay
+node tests/node/test_gkraft.mjs           # n24: Show-Tacho (Monotonie, Fixpunkte, ab 250 echt) + G-Kräfte (Band, live = Replay, Untertitel)
+node tools/gkraft_mess.mjs                # n24: G je Situation (Kurve, Looping, Landung, Flug, Stand); STUNT_G=echt ohne Show-Faktor
+python3 tests/gkraft_shots.py quer        # n24: Fotos Cockpit Kurve/Landung, HUD, Replay, Kino-Replay mit G (quer|hoch|desktop)
+python3 tests/perf_gkraft.py <vorher>     # n24: Bildrate vorher/nachher (Cockpit, Verfolger, Replay)
 node tests/node/test_kinoreplay.mjs       # n18: Moment-Finder auf 5 Fahrten, Film-Regeln, Zeitlupe, Kameras gegen Strecke/Gelände (quer+hoch)
 node tools/kinoreplay_probe.mjs           # n18: Kandidaten + Film je Fahrt anzeigen (--json=datei, --nur=0,2)
 python3 tests/test_kinoreplay.py beide    # n18: Film nach dem Ziel, Überspringen, Highlights, Video, Balken, Fotos je Kamera (tests/shots/kinoreplay/)

@@ -187,7 +187,8 @@ export class Cockpit {
     const yc = yB - mB - gd / 2;                                // Mitte der Rundinstrumente
     const DG = 0.72, DF = 0.84, DW = 0.46;                      // Tiefen: Instrumente, Armaturenbrett, Lenkrad
     this.mode = mode;
-    this.gaugePx = { mode, gd, yc, xs: gd ? [cx - off, cx + off] : [], gate: mode === 'full' ? [cx, yc + 0.12 * gd, gw, gh] : null, gear: mode === 'compact' ? [cx, yc + 0.46 * gd, 0.28 * gd] : null };
+    // n24: Schaltkulisse etwas tiefer und kleiner (bis n23 [cx, yc + 0,12 gd, gw, gh]) – darüber sitzt das G-Meter
+    this.gaugePx = { mode, gd, yc, xs: gd ? [cx - off, cx + off] : [], gate: mode === 'full' ? [cx, yc + 0.2 * gd, gw * 0.92, gh * 0.88] : null, gear: mode === 'compact' ? [cx, yc + 0.46 * gd, 0.28 * gd] : null };
     const dark = [], alu = [];
     const shade = (k) => [0.085 * k, 0.072 * k, 0.06 * k];   // Anthrazit, leicht warm (Himmelslicht färbt sonst blau)
     // Armaturenbrett: Oberseite (vorne tiefer, zur Scheibe hin flacher) + Stirnwand

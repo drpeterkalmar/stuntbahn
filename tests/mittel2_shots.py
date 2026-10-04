@@ -58,7 +58,7 @@ for dev in devs:
             tt += st['t']
             s.ev("__game.freeze(true)"); s.frames(12); time.sleep(0.25)
             kmh = s.ev("document.querySelector('#hud .speed b').textContent")
-            check(abs(int(kmh) - st['v'] * 3.6) < 4, f"{dev}: t={tt:.0f} s Tacho {kmh} km/h = Physik {st['v']*3.6:.0f} km/h, Hinweis „{st['hud'] or ''}“, r={st['warnR'] or 0:.2f}, Crashs {st['crashes']}")
+            check(abs(int(kmh) - show_kmh(st['v'] * 3.6)) < 5, f"{dev}: t={tt:.0f} s Tacho {kmh} km/h = Show-Tacho der Physik {st['v']*3.6:.0f} km/h, Hinweis „{st['hud'] or ''}“, r={st['warnR'] or 0:.2f}, Crashs {st['crashes']}")
             print('  Foto', s.shot(f'{dev}_fahrt_{k}', 'mittel2'), flush=True)
             s.ev("__game.freeze(false)")
             if st['t'] < 4.9: break   # im Ziel

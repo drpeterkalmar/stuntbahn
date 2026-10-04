@@ -8,6 +8,8 @@
 // Räder (alle 0 = in der Luft), 14 Tempo vorwärts (m/s), 15 Drehzahl.
 import { REC_HZ, REC_STRIDE } from './race.js';
 import { Tracker } from '../ai/autopilot.js';
+import { showKmhMs } from '../core/showspeed.js';
+import { gTrack, gPeak, fmtG, G_ON } from '../core/gforce.js';
 
 // ---------- Punkte-Formel (alle Regler an einer Stelle) ----------
 export const HL = {
@@ -32,6 +34,9 @@ export const HL = {
   nitro: { base: 16, dv: 1 / 5, v: 1 / 40, look: 1.2 },
   // Spitzentempo: ab min km/h, (km/h − 200) · k
   top: { min: 250, k: 1 / 6 },
+  // Kurve mit Max-G (n24): größte Querbeschleunigung (angezeigte G) am Boden außerhalb von Bauwerken, mindestens minS s
+  // über lat G → base + k · (G − lat). Nur ein Kandidat je Fahrt (die stärkste Kurve), Lückenfüller mit wenig Punkten
+  curve: { lat: 2.6, minS: 0.4, base: 8, k: 8 },
   // Beinahe-Unfall: am Boden (nicht in Stunt-Bauwerken) mehr als tilt° gegen die Fahrbahn geneigt, mindestens minS s,
   // ohne Crash in den folgenden safe s → base + k · (Neigung − tilt); auf zwei Rädern ab wheelsS s
   near: { tilt: 38, minS: 0.15, safe: 2, base: 28, k: 0.8, wheelsS: 0.3, wheelsBase: 26 },
@@ -46,28 +51,31 @@ export const HL = {
   film: { max: 30, min: 15, pre: 0.8, post: 0.5, tail: 0.8, ramp: 0.4, smin: 0.25, core: [0.5, 0.9], finish: 3.2, finishSlow: 0.45 },
 };
 
-// Einblendung je Art (Emoji + Text); n = Zahl (m, km/h …)
+// Einblendung je Art (Emoji + Text); n = Zahl (m, km/h …). km/h als Show-Tacho (core/showspeed.js, wie der Tacho), dazu
+// die G-Spitze des Moments (n24, m.g = angezeigte G, core/gforce.js; ?g=0 → ohne)
 const R = (x) => Math.round(x);
+const gx = (g) => (G_ON && g > 0.05 ? ` · ${fmtG(g)}` : '');
 export const LABEL = {
-  jump: (m) => `🚀 ${R(m.w)} m Sprung`,
-  gorge: (m) => `🏞️ Schluchtsprung · ${R(m.w)} m`,
-  cliff: (m) => `🪂 Klippensprung · ${R(Math.max(m.drop, m.h))} m tief`,
-  drop: (m) => `🪂 Plateau-Sprung · ${R(Math.max(m.drop, m.h))} m tief`,
+  jump: (m) => `🚀 ${R(m.w)} m Sprung${gx(m.g)}`,
+  gorge: (m) => `🏞️ Schluchtsprung · ${R(m.w)} m${gx(m.g)}`,
+  cliff: (m) => `🪂 Klippensprung · ${R(Math.max(m.drop, m.h))} m tief${gx(m.g)}`,
+  drop: (m) => `🪂 Plateau-Sprung · ${R(Math.max(m.drop, m.h))} m tief${gx(m.g)}`,
   air: (m) => `✈️ ${m.dur.toFixed(1).replace('.', ',')} s in der Luft`,
   hop: (m) => `🦘 Hüpfer · ${m.h.toFixed(1).replace('.', ',')} m hoch`,
   waves: (m) => (m.n ? `🎢 Achterbahn-Wellen · ${m.n}× Luft` : '🎢 Achterbahn-Wellen'),
-  slope: (m) => `⬇️ Steilabfahrt · +${R(m.dv)} km/h`,
+  slope: (m) => `⬇️ Steilabfahrt · +${R(m.dvShow ?? m.dv)} km/h`,
   kuppe: (m) => `⛰️ Kuppe · ${m.dur.toFixed(1).replace('.', ',')} s Luft`,
-  hard: (m) => `💥 Harte Landung · ${R(m.vn * 3.6)} km/h Aufprall`,
-  loop: () => '🌀 Looping',
-  cork: () => '🍥 Korkenzieher',
-  wendel: (m) => (m.dh ? `🌀 Wendel · ${R(m.dh)} m ${m.up ? 'hinauf' : 'hinunter'}` : '🌀 Wendel'),
-  tube: () => '🕳️ Röhre',
+  hard: (m) => (G_ON && m.g > 0.05 ? `💥 Harte Landung · ${fmtG(m.g)}` : `💥 Harte Landung · ${R(showKmhMs(m.vn))} km/h Aufprall`),
+  loop: (m) => `🌀 Looping${gx(m.g)}`,
+  cork: (m) => `🍥 Korkenzieher${gx(m.g)}`,
+  wendel: (m) => (m.dh ? `🌀 Wendel · ${R(m.dh)} m ${m.up ? 'hinauf' : 'hinunter'}` : `🌀 Wendel${gx(m.g)}`),
+  tube: (m) => `🕳️ Röhre${gx(m.g)}`,
   spiral: (m) => `🌀 Spirale · ${R(m.dh)} m ${m.up ? 'hinauf' : 'hinunter'}`,
-  wall: (m) => `🧱 Steilwand · ${R(m.deg)}°`,
-  halfpipe: () => '🛹 Halfpipe',
-  nitro: (m) => `🔥 Nitro · ${R(m.vmax * 3.6)} km/h`,
-  top: (m) => `⚡ ${R(m.vmax * 3.6)} km/h Spitze`,
+  wall: (m) => `🧱 Steilwand · ${R(m.deg)}°${gx(m.g)}`,
+  halfpipe: (m) => `🛹 Halfpipe${gx(m.g)}`,
+  nitro: (m) => `🔥 Nitro · ${R(showKmhMs(m.vmax))} km/h${gx(m.gLon)}`,
+  top: (m) => `⚡ ${R(showKmhMs(m.vmax))} km/h Spitze`,
+  curve: (m) => `🏁 Kurve · ${fmtG(m.g)} quer`,
   near: (m) => `😱 Beinahe-Unfall · ${R(m.deg)}° Schräglage`,
   wheels2: () => '😱 Auf zwei Rädern',
   crash: (m) => `💥 ${m.reason === 'Abgestürzt' ? 'Absturz' : m.reason === 'Zu kurz' ? 'Zu kurz gesprungen' : 'Überschlag'}`,
@@ -83,7 +91,7 @@ export const SHOTS = {
   hard: [['tele', 'end']], loop: [['onboard', 0.9], ['tele', 'end']], cork: [['action', 'end']], wendel: [['heli', 'end']],
   tube: [['action', 'end']], spiral: [['heli', 'end']], slope: [['onboard', 0.9], ['drone', 'end']], wall: [['drone', 'end']], halfpipe: [['drone', 'end']],
   nitro: [['action', 1.6], ['onboard', 2.5], ['drone', 'end']], top: [['onboard', 1.0], ['drone', 'end']],
-  near: [['action', 'end']], wheels2: [['action', 'end']], crash: [['tele', 'end']], finish: [['tele', 'end']],
+  near: [['action', 'end']], curve: [['action', 'peak'], ['drone', 'end']], wheels2: [['action', 'end']], crash: [['tele', 'end']], finish: [['tele', 'end']],
 };
 // Ausweich-Kamera, wenn derselbe Blick direkt hintereinander käme
 const ALT = { drone: 'heli', heli: 'drone', tele: 'drone', action: 'drone', onboard: 'action' };
@@ -118,6 +126,8 @@ export function frameData(rec, env, marks = {}) {
     ux: new Float32Array(F), uz: new Float32Array(F), fx: new Float32Array(F), fy: new Float32Array(F), fz: new Float32Array(F),
   };
   for (const c of marks.cuts || []) if (c.f >= 0 && c.f < F) D.cut[c.f] = 1;
+  // G-Kräfte je Bild (n24, angezeigte Werte wie im Cockpit/Replay)
+  D.G = gTrack(rec, (marks.cuts || []).map((c) => c.f));
   // Crash-Fenster (Crash bis zum nächsten Schnitt, mit Totalschaden bis Ende des Wracks) zählen für keinen anderen Moment
   const cutsF = (marks.cuts || []).map((c) => c.f).sort((a, b) => a - b);
   const crashes = crashList(marks);
@@ -166,6 +176,8 @@ export function findMoments(rec, env, marks = {}) {
   const crashNear = (i0, i1) => crashes.some((c) => c.f >= i0 && c.f <= i1);
   const hops = (marks.xev || []).filter((e) => e.k === 'hop').map((e) => e.f);
   const T = (i) => i / REC_HZ;
+  const plainAt = (i) => { const j = D.idx[i]; return !D.bad[i] && !D.air[i] && !L.loop[j] && !L.tube[j] && !L.air[j] && !STRUCT.test(pieceAt(env, j).type); };
+  const plain = plainAt;
 
   // 1. Luftphasen → Sprünge, Klippen, Hüpfer, Wellen, Kuppen, harte/knappe Landungen
   const airs = [];
@@ -265,6 +277,7 @@ export function findMoments(rec, env, marks = {}) {
     } else if (r.kind === 'slope') {
       m.dv = (D.sp[i1] - D.sp[i0]) * 3.6;
       if (m.dv < HL.slope.min) continue;
+      m.dvShow = showKmhMs(D.sp[i1]) - showKmhMs(D.sp[i0]);
       m.score = HL.slope.base + HL.slope.dv * m.dv; m.ip = Math.round(i0 + (i1 - i0) * 0.7);
     } else {
       const H = HL[r.kind];
@@ -293,6 +306,22 @@ export function findMoments(rec, env, marks = {}) {
     if (im >= 0 && vmax * 3.6 > HL.top.min) out.push({ kind: 'top', i0: Math.max(0, im - REC_HZ), i1: Math.min(F - 1, im + 30), ip: im, vmax, score: (vmax * 3.6 - 200) * HL.top.k });
   }
 
+  // 4b. Kurve mit der größten Querbeschleunigung (am Boden, normale Fahrbahn, ohne Crash danach)
+  {
+    const C = HL.curve, G = D.G;
+    let best = null;
+    for (let i = 0; i < F;) {
+      const ok = (k) => plainAt(k) && Math.abs(G.lat[k]) >= C.lat;
+      if (!ok(i)) { i++; continue; }
+      let j = i, mx = 0, im = i;
+      while (j + 1 < F && ok(j + 1)) j++;
+      for (let k = i; k <= j; k++) if (Math.abs(G.lat[k]) > mx) { mx = Math.abs(G.lat[k]); im = k; }
+      if ((j - i + 1) * dt >= C.minS && (!best || mx > best.g) && !crashNear(i, Math.min(F - 1, j + 2 * REC_HZ))) best = { kind: 'curve', i0: Math.max(0, i - 30), i1: Math.min(F - 1, j + 20), ip: im, g: mx };
+      i = j + 1;
+    }
+    if (best) { best.score = C.base + C.k * (best.g - C.lat); out.push(best); }
+  }
+
   // 5. Beinahe-Unfälle: starke Schräglage gegen die Fahrbahn bzw. auf zwei Rädern, am Boden, ohne Crash danach
   const nearRun = (test, minS, make) => {
     for (let i = 0; i < F;) {
@@ -304,7 +333,6 @@ export function findMoments(rec, env, marks = {}) {
       i = j + 1;
     }
   };
-  const plain = (i) => { const j = D.idx[i]; return !D.bad[i] && !D.air[i] && !L.loop[j] && !L.tube[j] && !L.air[j] && !STRUCT.test(pieceAt(env, j).type); };
   nearRun((i) => plain(i) && D.tilt[i] > HL.near.tilt, HL.near.minS, (i0, i1, ip, deg) => ({ kind: 'near', i0, i1, ip, deg, score: HL.near.base + HL.near.k * (deg - HL.near.tilt) }));
   nearRun((i) => plain(i) && D.side2[i] && D.sp[i] > 8, HL.near.wheelsS, (i0, i1, ip) => ({ kind: 'wheels2', i0, i1, ip, score: HL.near.wheelsBase + 10 * (i1 - i0) * dt }));
 
@@ -329,6 +357,14 @@ export function findMoments(rec, env, marks = {}) {
     }
   }
 
+  // G-Spitzen je Moment (angezeigte G): Sprünge/harte Landung im Landungs-Fenster, Bauwerke über das Stück, Nitro längs
+  for (const m of out) {
+    if (m.kind === 'curve') continue;
+    const land = /^(jump|gorge|cliff|drop|hard)$/.test(m.kind);
+    const p = land ? gPeak(D.G, m.i1, Math.min(F - 1, m.i1 + 24)) : gPeak(D.G, m.i0, m.i1);
+    m.g = p.g;
+    if (m.kind === 'nitro') { let lo = 0; for (let i = m.i0; i <= Math.min(m.i1, m.ip + REC_HZ); i++) lo = Math.max(lo, D.G.lon[i]); m.gLon = lo; }
+  }
   for (const m of out) { m.t0 = T(m.i0); m.t1 = T(m.i1); m.tp = T(m.ip); m.label = LABEL[m.kind](m); }
   return { D, cands: out.filter((m) => m.score > 0).sort((a, b) => a.t0 - b.t0) };
 }

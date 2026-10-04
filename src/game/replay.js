@@ -3,6 +3,7 @@
 import { REC_HZ, REC_STRIDE } from './race.js';
 import { gearTrack, displayGear } from '../gfx/gauges.js';
 import { nitroLevel } from '../physics/extras.js';
+import { gTrack } from '../core/gforce.js';
 
 export class Replay {
   constructor(rec, env, marks = {}) {
@@ -23,6 +24,11 @@ export class Replay {
     const sp = new Float32Array(this.frames);
     for (let i = 0; i < this.frames; i++) sp[i] = this.rec[i * REC_STRIDE + 14];
     this.gears = gearTrack(sp);
+    // G-Kräfte (n24): dieselbe Rechnung wie live (core/gforce.js), Spitzenwert bis zur aktuellen Stelle
+    this.G = gTrack(this.rec, [...this.cutF]);
+    this.gPeak = new Float32Array(this.frames);
+    for (let i = 0, p = 0; i < this.frames; i++) { p = Math.max(p, this.G.now[i]); this.gPeak[i] = p; }
+    this.gS = { lon: 0, lat: 0, vert: 0, g: 0, peak: 0 };
     this.P = { pos: { x: 0, y: 0, z: 0 }, q: { x: 0, y: 0, z: 0, w: 1 }, frame: { f: { x: 0, y: 0, z: -1 }, u: { x: 0, y: 1, z: 0 }, r: { x: 1, y: 0, z: 0 } } };
   }
   advance(dt) {
@@ -65,6 +71,13 @@ export class Replay {
   nitro() {
     for (const n of this.nitros) if (this.t >= n.t0 && this.t < n.t1) return nitroLevel(this.t - n.t0);
     return 0;
+  }
+  // G-Anzeige an der aktuellen Stelle (angezeigte G, mit Spitzen-Halten)
+  gState() {
+    const [i] = this._i(), G = this.G, S = this.gS;
+    if (!G.F) return S;
+    S.lon = G.lon[i]; S.lat = G.lat[i]; S.vert = G.vert[i]; S.g = G.g[i]; S.peak = this.gPeak[i];
+    return S;
   }
   speed() { const [i] = this._i(); return this.rec[i * REC_STRIDE + 14]; }
   rpm() { const [i] = this._i(); return this.rec[i * REC_STRIDE + 15]; }

@@ -37,6 +37,8 @@ import { KinoLook } from './gfx/kinolook.js';
 import { loadDecoAssets, decoUniforms } from './gfx/deco.js';
 import { kulisseTick } from './gfx/kulisse.js';
 import { daySeed } from './core/util.js';
+import { showKmhMs } from './core/showspeed.js';
+import { GMeter, G_ON } from './core/gforce.js';
 import { WORLD_TAG, WORLD_SCALE } from './track/defs.js';
 // Geprüfte Strecken (Autopilot, Entschärfungen) je Weltmaßstab getrennt: ?welt=1 prüft neu statt die Teile der
 // anderen Welt zu übernehmen
@@ -544,11 +546,11 @@ function frame(now) {
     // Kino-Replay: Film-Uhr mit Zeitlupe; Schnitt (neuer Clip/neue Kamera) ohne Unschärfe-Verschmieren
     cine.player.advance(rdt * timeScale);
     replay.t = cine.player.t;
-    if (cine.player.cut) { cine.cut = true; blurCut = true; }
+    if (cine.player.cut) { cine.cut = true; blurCut = true; ui.gmeterCut(); }
     if (cine.player.done) endCine(false);
   } else if (mode === 'replay' && replay) {
     replay.advance(rdt * timeScale);
-    if (replay.jumped) { replay.jumped = false; rig.init = false; blurCut = true; } // Schnitt: Kamera neu ansetzen statt schwenken
+    if (replay.jumped) { replay.jumped = false; rig.init = false; blurCut = true; ui.gmeterCut(); } // Schnitt: Kamera neu ansetzen statt schwenken
   }
   render(rdt);
 }
@@ -595,10 +597,33 @@ function cockpitZone() {
   cpZone = { W, H, zl, zr, bottom, dash: cockpitDash(W / H) };
   return cpZone;
 }
+// Tacho-Zeiger als Show-Tacho (n24, core/showspeed.js); Skala 0–600 bleibt, ab 250 km/h echt
 function cockpitValues() {
-  if (mode === 'replay' && replay) return { kmh: Math.abs(replay.speed()) * 3.6, rpm: replay.rpm(), gear: replay.gear(), steer: replay.phys().wheels[0].steer };
+  if (mode === 'replay' && replay) return { kmh: Math.abs(showKmhMs(replay.speed())), rpm: replay.rpm(), gear: replay.gear(), steer: replay.phys().wheels[0].steer };
   const c = race.car;
-  return { kmh: Math.abs(c.fwdSpeed()) * 3.6, rpm: c.rpm, gear: displayGear(c.fwdSpeed(), c.gear), steer: c.steerAng };
+  return { kmh: Math.abs(showKmhMs(c.fwdSpeed())), rpm: c.rpm, gear: displayGear(c.fwdSpeed(), c.gear), steer: c.steerAng };
+}
+
+// G-Kräfte live (n24): dieselbe Rechnung wie im Replay (core/gforce.js) auf der Aufzeichnung des Rennens – neue Bilder
+// nachführen, an Schnitten (Reset, Rückspulen mit Uhr) und beim Zurückspulen neu ansetzen; Spitze je Rennen
+const gLive = { m: new GMeter(), race: null, fed: 0, cut: 0 };
+function gLiveSync() {
+  const G = gLive, F = race.recFrames();
+  if (G.race !== race) { G.race = race; G.m.reset(); G.m.resetPeak(); G.fed = 0; G.cut = 0; }
+  if (F < G.fed) { G.m.reset(); G.fed = F; G.cut = race.cuts.filter((c) => c.f <= F).length; ui.gmeterCut(); }
+  for (; G.fed < F; G.fed++) {
+    let cut = false;
+    while (G.cut < race.cuts.length && race.cuts[G.cut].f <= G.fed) { if (race.cuts[G.cut].f === G.fed) cut = true; G.cut++; }
+    if (cut) { G.m.reset(); ui.gmeterCut(); }
+    G.m.push(race.rec, G.fed);
+  }
+}
+// G-Meter im Cockpit: rundes Display auf der Instrumentenhutze – „full“ über der Schaltkulisse zwischen den
+// Rundinstrumenten, „compact“ zwischen den Rundinstrumenten über dem Gang-Schild; „hud“: keine Hutze → Zahl im HUD
+function cockpitGSpot(px) {
+  if (!px || !px.gd || px.mode === 'hud') return null;
+  const x = innerWidth / 2;
+  return px.mode === 'full' ? { x, y: px.yc - 0.34 * px.gd, d: Math.round(0.5 * px.gd) } : { x, y: px.yc - 0.47 * px.gd, d: Math.round(0.34 * px.gd) };
 }
 
 // Auto-Box in Auto-Koordinaten (Karosserie + Räder, ohne Flammen) für die Schärfe-Maske der Bewegungsunschärfe
@@ -716,6 +741,15 @@ function render(rdt) {
     cockpit.update(frozen ? 0 : rdt * (mode === 'replay' && replay ? replay.speedMul * (replay.paused ? 0 : 1) : 1), cv, camera, sun.userData.dir);
     ui.cockpitMode(cockpit.gaugePx, cv.gear);
   }
+  // G-Kräfte (n24): Cockpit-Display, Replay-/Kino-Einblendung (mit km/h), sonst dezente Zahl im HUD
+  if (G_ON) {
+    let gs = null, gk = null, gw = null;
+    if (mode === 'replay' && replay && pose) { gs = replay.gState(); gk = Math.abs(showKmhMs(replay.speed())); }
+    else if (mode === 'race' && race && pose) { gLiveSync(); gs = gLive.m.state(); }
+    if (gs) gw = inCockpit ? cockpitGSpot(cockpit.gaugePx) : mode === 'replay' ? ui.gmeterSpot(cine ? 'cine' : 'replay') : null;
+    ui.gmeter(gw, gs, gk, frozen || (replay && replay.paused) ? 0 : rdt);
+    ui.hudG(mode === 'race' && gs && !gw ? gs.g : null);
+  } else ui.gmeter(null);
   // Kino-Replay: Tiefenschärfe auf das Auto, Unschärfe in der Zeitlupe etwas länger belichtet (Wischer bleiben sichtbar)
   const cdof = cine && cine.cam.out ? { focus: cine.cam.out.focus, k: cine.cam.out.dof * (cine.player.speed < 0.6 ? 1 : 0.8) } : null;
   const shutter = cine ? Math.min(2.5, 1 / Math.pow(Math.max(0.2, cine.player.speed), 0.6)) : 1;
@@ -780,6 +814,9 @@ window.__game = {
       charges: race && { ...race.charges }, used: race && { ...race.used }, x: race && race.xstate(), onGround: c && c.onGround, extras: race && race.extrasOn };
   },
   start: (o) => startRace(o || {}),
+  // G-Kräfte (n24): live (Rennen) bzw. Replay an der aktuellen Stelle; Lage des runden G-Meters
+  gState() { if (mode === 'replay' && replay) return { ...replay.gState() }; if (!race) return null; gLiveSync(); return gLive.m.state(); },
+  gmeterBox() { const e = document.getElementById('gmeter'); if (!e || !e.classList.contains('show')) return null; const b = e.getBoundingClientRect(); return [b.left, b.top, b.right, b.bottom]; },
   newTrack: (s, d, mode) => newTrack(s, d, mode),
   setAssist,
   setLine,

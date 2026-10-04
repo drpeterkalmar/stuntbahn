@@ -14,6 +14,9 @@ import { clipMime, shareClip } from './cliprec.js';
 import { SAM_STUNTS, SAM_DIFF, SAM_SORTS, DEFAULT_VIEW, filterSort, lengthClass } from '../game/sammlung.js';
 import { HORIZONS } from '../track/trk.js';
 import { THEMES, THEME_IDS, themeAuto } from '../track/themes.js';
+import { showKmhMs, showKmh } from '../core/showspeed.js';
+import { GView } from './gmeter.js';
+import { G_ON } from '../core/gforce.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const h = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
@@ -59,7 +62,7 @@ export class UI {
           <button class="rb" data-a="cam" aria-label="Kamera wechseln" title="Kamera (C)">🎥</button>
           <button class="rb" data-a="pause" aria-label="Pause" title="Pause (Esc)">⏸</button>
         </div><div class="assistTag"></div></div>
-        <div class="speed"><b>0</b><span>km/h</span><i class="gear">1</i></div>
+        <div class="speed"><b>0</b><span>km/h</span><i class="gear">1</i><i class="gf"></i></div>
         <button class="xb hop" data-x="hop" aria-label="Hüpfer" title="Hüpfer (Leertaste, Gamepad B)"><i>🦘</i><kbd>Leer</kbd></button>
         <button class="xb nitro" data-x="nitro" aria-label="Nitro" title="Nitro (Shift oder N, Gamepad RB)"><i>🔥</i><kbd>N</kbd></button>
       </div>
@@ -73,6 +76,7 @@ export class UI {
         <div class="pad right"><div class="tb brake" data-t="B">BREMSE</div><div class="tb gas" data-t="G">GAS</div></div>
       </div>
       <div id="cpgear" aria-hidden="true"></div>
+      <canvas id="gmeter" aria-hidden="true"></canvas>
       <div id="pause" class="screen"></div>
       <div id="result" class="screen"></div>
       <div id="replayui"><div class="rinfo"></div><div class="bar"><i></i></div><div class="btns"></div></div>
@@ -112,6 +116,7 @@ export class UI {
     });
     this.initTouch();
     this.noZoom();
+    this.gview = new GView($('#gmeter'));
   }
   // iOS Safari ignoriert user-scalable=no (seit iOS 10): Zwei-Finger-Zoom (gesture*) und Doppeltipp-Zoom (dblclick)
   // abfangen. Bewusst KEIN preventDefault auf touchstart/touchend – das bräche Klicks und die Ton-Freischaltung;
@@ -531,7 +536,7 @@ export class UI {
       <div class="row">${[['auto', 'Automatisch'], ['0', 'Einfach'], ['1', 'Standard'], ['2', 'Kino']].map(([v, n]) => `<button data-a="quality" data-v="${v}" class="${String(S.quality || 'auto') === v ? 'on' : ''}">${n}</button>`).join('')}</div>
       <div class="lbl">Bewegungsunschärfe</div>
       <div class="seg" data-g="blur">${Object.entries(BLUR_LEVELS).map(([k, L]) => `<button data-a="blur" data-v="${k}" class="${(S.blur || 'light') === k ? 'on' : ''}">${L.name}</button>`).join('')}</div>
-      <p class="hint">Verwischt die Umgebung ab ~80 km/h (mit Nitro stärker), das Auto bleibt scharf. Nicht auf Grafik „Einfach“ – dort nur Tempo-Streifen am Rand. Ruckelt es, schaltet die Automatik sie zuerst ab.</p>
+      <p class="hint">Verwischt die Umgebung ab ~${Math.round(showKmh(80) / 10) * 10} km/h auf dem Tacho (mit Nitro stärker), das Auto bleibt scharf. Nicht auf Grafik „Einfach“ – dort nur Tempo-Streifen am Rand. Ruckelt es, schaltet die Automatik sie zuerst ab.</p>
       <p class="hint"><b>Grafik:</b> Einfach = schlank wie früher · Standard = Kino-Look fürs Handy (Licht, Farbe, Glanz, Dunst, schärferes Hochrechnen) · Kino = dazu Schattentiefe, Kantenglättung, Hitzeflimmern. Automatisch passt Auflösung und Stufe der Bildrate an.</p>`);
   }
   showHelp() {
@@ -543,6 +548,7 @@ export class UI {
       <p><b>Tastatur:</b> Pfeile oder WASD (bremsen: Pfeil runter/S), <b>Leertaste</b> Hüpfer, <b>Shift</b> oder <b>N</b> Nitro, <b>R</b> zurückspulen, <b>C</b> Kamera (Verfolger, Cockpit, Hubschrauber, Stoßstange, Strecke), <b>L</b> Ideallinie ein/aus, <b>Esc</b> Pause.</p>
       <p><b>Gamepad:</b> linker Stick lenken, RT/A Gas, LT/X Bremse, <b>B</b> Hüpfer, <b>RB</b> Nitro, Y zurückspulen, LB Kamera, Back Ideallinie, Start Pause.</p>
       <p><b>Extras 🦘 🔥</b> (je 1 pro Runde, an Start/Ziel wieder voll): <b>Hüpfer</b> – das Auto springt aus der Fahrt ~3,5 m hoch und bleibt dabei waagrecht; nur mit Bodenkontakt, in Looping, Röhre, Korkenzieher und an Schanzen gesperrt (Knopf ausgegraut). <b>Nitro</b> – ${NITRO.dur} s lang deutlich mehr Schub (+70–80 % Beschleunigung, bis ~700 km/h), danach sanft zurück. Handy: runde Knöpfe über den Daumen (links 🦘, rechts 🔥). Abschaltbar in den Optionen.</p>
+      <p><b>Tacho & G-Kräfte:</b> Der Tacho ist ein <i>Show-Tacho</i> – langsame Tempi zeigt er größer (echte 40 km/h stehen als ~${Math.round(showKmh(40))}), ab 250 km/h zeigt er genau. Auf der Wiese (echt höchstens 30 km/h) steht deshalb ~${Math.round(showKmh(30) / 5) * 5}. Das G-Meter (Cockpit, Replay, Highlights) zeigt die Kräfte aufs Auto: Punkt = Kurve/Bremsen/Gas, Zahl = gesamt, „max“ = Spitze der Runde.</p>
       <p><b>Crash:</b> Standardmäßig kein Totalschaden – das Auto steht sofort wieder auf der Fahrbahn vor dem Stunt, mit Schwung, und du bekommst <b>+${PENALTY} s</b> auf die Zeit. Klappt ein Stunt mehrmals nicht, wirst du dahinter gesetzt (auch dann je +${PENALTY} s). Wer es hart mag: Optionen → <b>💥 Totalschaden</b> (Wrack wie im Original).</p>
       <p><b>⏪ Zurückspulen</b> (Leicht/Mittel): 3 s zurück, um einen Crash zu vermeiden. Ohne Totalschaden läuft die Uhr dabei weiter – es kostet die Zeit, die du neu fährst, aber keine Strafe.</p>
       <p><b>Ziel:</b> Alle Checkpoints der Reihe nach, dann über die Ziellinie. Bestzeiten und Geisterautos gibt es auf <i>Mittel</i> und <i>Original</i>, getrennt je Fahrhilfe und Totalschaden-Einstellung. Auf <i>Leicht</i> wird nur deine Zeit notiert (die letzten 5 je Strecke, mit Datum) – ohne Bestzeit und Geisterauto.</p>
@@ -600,7 +606,8 @@ export class UI {
     if (this._ht !== Math.floor(t * 20)) {
       this._ht = Math.floor(t * 20);
       $('#hud .time').textContent = fmtTime(t);
-      const kmh = Math.round(Math.abs(race.car.fwdSpeed()) * 3.6);
+      // Show-Tacho (n24, core/showspeed.js): langsame Tempi größer, ab 250 km/h echt
+      const kmh = Math.round(Math.abs(showKmhMs(race.car.fwdSpeed())));
       $('#hud .speed b').textContent = kmh;
       $('#hud .gear').textContent = race.car.fwdSpeed() < -0.5 ? 'R' : race.car.gear;
       $('#hud .cp').textContent = race.cps.length ? `CP ${Math.min(race.cpNext, race.cps.length)}/${race.cps.length}` : '';
@@ -746,7 +753,8 @@ export class UI {
   capState() {
     const t = (performance.now() - (this._capShow || 0)) / 1000;
     const a = !this._capShow ? 0 : t < 0.35 ? t / 0.35 : t < 2.8 ? 1 : Math.max(0, 1 - (t - 2.8) / 0.35);
-    return { text: this._capText, a, fin: this._capFin, center: innerHeight > innerWidth };
+    const gw = this._gmw && this.gview.shown ? { cv: this.gview.cv, x: this._gmw.x - this._gmw.d / 2, y: this._gmw.y - this._gmw.d / 2, w: this._gmw.d, h: this._gmw.d * (this._gmw.speed ? 1.32 : 1) } : null;
+    return { text: this._capText, a, fin: this._capFin, center: innerHeight > innerWidth, gm: gw };
   }
   hideCine() { const C = $('#cine'); C.classList.remove('show', 'on'); const W = $('#wipe'); W.style.opacity = '0'; W.style.background = ''; this.cineObj = null; }
   // je Bild: Fortschritt, Einblendung zum Beginn der Zeitlupe, kurze Abblende an den Schnitten
@@ -789,6 +797,43 @@ export class UI {
     const G = $('#cpgear'), [x, y, d] = px.gear, k = x.toFixed(0) + '|' + y.toFixed(0) + '|' + d.toFixed(0);
     if (this._cpk !== k) { this._cpk = k; Object.assign(G.style, { left: x + 'px', top: y + 'px', width: d + 'px', height: d + 'px', fontSize: (d * 0.6).toFixed(0) + 'px' }); }
     if (G.textContent !== String(gear)) G.textContent = String(gear);
+  }
+  // ---------- G-Kräfte (n24) ----------
+  // dezente Zahl neben dem Tempo im HUD (Verfolger, Cockpit ohne Rundinstrumente); g = angezeigte G oder null (aus)
+  hudG(g) {
+    const t = g == null || !G_ON ? '' : g.toFixed(1).replace('.', ',') + ' G';
+    if (t === this._hg) return;
+    this._hg = t;
+    const E = $('#hud .gf'); E.textContent = t; E.classList.toggle('hi', g != null && g >= 4);
+  }
+  // rundes G-Meter: where = null (aus) | { x, y, d, speed } in CSS-Pixeln; s = gState, kmh = angezeigte km/h
+  gmeter(where, s, kmh, dt) {
+    const V = this.gview;
+    if (!where || !G_ON || this.screen) { V.show(false); this._gmw = null; return; }
+    V.place(where.x, where.y, where.d, !!where.speed);
+    V.show(true);
+    this._gmw = where;
+    V.draw(s, where.speed ? kmh : null, dt);
+  }
+  gmeterCut() { this.gview.cut(); }
+  // Lage der Einblendung im Replay (oben links unter der sicheren Kante) bzw. im Kino-Replay (quer: unten rechts über
+  // dem Kino-Balken, gegenüber der Einblendung links; hoch: oben rechts – der Knopf „Überspringen“ sitzt dort unten)
+  gmeterSpot(kind) {
+    const W = innerWidth, H = innerHeight, ck = kind + '|' + W + '|' + H;
+    if (this._gsk === ck && (this.app.frames & 31)) return this._gsv;
+    this._gsk = ck;
+    return (this._gsv = this._gmSpot(kind, W, H));
+  }
+  _gmSpot(kind, W, H) {
+    const cs = getComputedStyle(document.body);
+    const v = (n) => parseFloat(cs.getPropertyValue(n)) || 0, sat = v('--sat'), sar = v('--sar'), sal = v('--sal');
+    const d = Math.round(Math.max(64, Math.min(96, Math.min(W, H) * 0.2)));
+    if (kind === 'cine') {
+      if (H > W) return { x: W - Math.max(12, sar) - d / 2, y: Math.max(12, sat) + 8 + d / 2, d, speed: true };
+      const bar = Math.max(0.085 * H, (H - W / 2.39) / 2);
+      return { x: W - Math.max(16, sar + 6) - d / 2, y: H - bar - 12 - d * 1.32 + d / 2, d, speed: true };
+    }
+    return { x: Math.max(14, sal + 6) + d / 2, y: Math.max(12, sat) + 8 + d / 2, d, speed: true };
   }
   // ---------- Touch ----------
   isTouchDevice() { return matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window; }

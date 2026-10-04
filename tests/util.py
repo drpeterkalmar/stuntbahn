@@ -113,3 +113,9 @@ class Session:
           return out; }""")
     def close(self):
         self.b.close()
+
+
+# Show-Tacho (n24, src/core/showspeed.js): angezeigte km/h aus echten km/h (k = 1,5; ab 250 km/h echt)
+def show_kmh(v, k=1.5):
+    u = abs(v) / 250
+    return abs(v) + k * abs(v) * (1 - u) ** 2 if u < 1 else abs(v)

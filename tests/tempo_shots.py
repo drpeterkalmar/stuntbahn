@@ -5,7 +5,7 @@
 # (Tempo-Nachführung), Sichtfeld weiter, 0 Seitenfehler.  Aufruf: python3 tests/tempo_shots.py
 import os, sys, time, json, subprocess
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from util import Server, Session, PIXEL7_LAND, ROOT
+from util import Server, Session, PIXEL7_LAND, ROOT, show_kmh
 from playwright.sync_api import sync_playwright
 
 RING = subprocess.run(['node', '--input-type=module', '-e', """
@@ -56,7 +56,7 @@ with Server() as srv, sync_playwright() as pw:
     t = s.ev(FIND, [f"c.fwdSpeed() * 3.6 > {vmax - 4}", 60])
     settle(s); s.shot('tempo_tag_verfolger', 'tempo'); r = s.ev(READ); out['tag'] = r
     print('Strecke des Tages, Höchsttempo', round(vmax), r)
-    check(abs(r['hud'] - r['kmh']) < 6, f"Strecke des Tages: HUD {r['hud']} km/h = Physik {r['kmh']:.0f} km/h")
+    check(abs(r['hud'] - show_kmh(r['kmh'])) < 6, f"Strecke des Tages: HUD (Show-Tacho) {r['hud']} km/h = Physik {r['kmh']:.0f} km/h")
     # 2) Test-Ring: Import, Leicht, Vollgas auf der langen Geraden
     s.ev("__game.setTimeScale(1.25)")
     res = s.ev("(a) => window.__game.importBytes(a, 'TEMPO.TRK').then(r => r.map(x => ({ id: x.id, ok: x.ok, err: x.err })))", RING)
@@ -77,7 +77,7 @@ with Server() as srv, sync_playwright() as pw:
     settle(s); s.shot('tempo_ring_verfolger', 'tempo'); r = s.ev(READ); out['ring_chase'] = r
     print('Ring Verfolger', r)
     check(r['kmh'] > 300, f"Test-Ring: Vollgas > 300 km/h ({r['kmh']:.0f})")
-    check(abs(r['hud'] - r['kmh']) < 6, f"HUD {r['hud']} km/h = Physik {r['kmh']:.0f} km/h")
+    check(abs(r['hud'] - show_kmh(r['kmh'])) < 6, f"HUD {r['hud']} km/h = Physik {r['kmh']:.0f} km/h")
     check(r['camDist'] < 9.5, f"Verfolger bleibt nah am Auto: {r['camDist']:.1f} m (5 m Soll + höchstens 3 m Verzug)")
     check(r['fov'] > 76.5, f"Sichtfeld bei Tempo geweitet: {r['fov']:.1f}° (bisher höchstens 76°)")
     check(r['gear'] >= 5, f"Gang {r['gear']}, {r['rpm']:.0f} U/min")
@@ -89,7 +89,7 @@ with Server() as srv, sync_playwright() as pw:
     settle(s, 2.0); s.shot('tempo_ring_cockpit', 'tempo'); r = s.ev(READ); out['ring_cockpit'] = r
     print('Ring Cockpit', r)
     check(r['view'] == 'cockpit', 'Cockpit-Ansicht')
-    check(r['speedDeg'] is not None and abs(r['speedDeg'] - v_angle(r['kmh'])) < 3, f"Tachozeiger {r['speedDeg']:.1f}° = {r['kmh']:.0f} km/h auf der Skala 0–600 ({v_angle(r['kmh']):.1f}°)")
+    check(r['speedDeg'] is not None and abs(r['speedDeg'] - v_angle(show_kmh(r['kmh']))) < 3, f"Tachozeiger {r['speedDeg']:.1f}° = {r['kmh']:.0f} km/h auf der Skala 0–600 ({v_angle(r['kmh']):.1f}°)")
     # 4) Ziel, 0 Fehler
     s.ev("__game.setTimeScale(1.25)")
     st = s.ev("() => { for (let i = 0; i < 200 && window.__game.race.state !== 'finished'; i++) window.__game.sim(1); return window.__game.state(); }")
