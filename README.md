@@ -69,6 +69,21 @@ spielbar am Handy (quer oder hochkant), mit Gamepad oder Tastatur. Als App insta
   Abstand zu jeder Fahrbahn (auch Hochstraßen/Rampen), nie im Wasser. Dosiert nach Grafikstufe; ruckelt es, blendet die
   Automatik (nach der Unschärfe) zuerst Gras/Büsche/Wolkenschatten aus. `?deko=0` / `?wolken=0` zum Vergleich.
 
+## 🟡 Mittel kontrollierbar, Sprünge nicht zu weit, Schanze sauber (seit 05.10.2026, n24 Etappe 2)
+- Peter: „Sprünge gehen zu weit und Auto ist unkontrollierbar schnell. Idee: weniger schnell beschleunigen. Textur der
+  Sprungschanze sieht ungustiös aus.“
+- **Mittel beschleunigt sanfter:** 0–100 / 0–200 km/h in 3,1 / 7,1 s statt 1,6 / 2,8 s, ab ~100 km/h weich weniger Schub,
+  Höchsttempo ~264 statt ~560 km/h, Gas baut sich in 0,45 s auf.
+- **Sprung-Hilfe in der Luft** (nur Mittel): Die Landung wird dezent bis an den Rand der Landerampe gezogen. Im Fenster
+  wirkt sie nicht, und viel zu schnell bleibt zu weit.
+- **Schanzen-Hinweis** im HUD mit dem Absprung-Tempo (Tacho-Zahl, grün/gelb/rot).
+- **Bots:** saubere Landungen 51 → 91 %, Flüge hinter die Rampe 40 → 0, Crashs −30 %.
+- Leicht, Original, Prüffahrt und Autopilot sind unverändert. **Mittel-Bestzeiten einmalig neu** (Hinweis im Menü).
+  `?m=n23` = Mittel wie bisher, `?antrieb=0.8` zum Abstimmen (beide werten nicht).
+- **Schanze** auf allen Stufen: sauberes hellgraues Stahl-Riffelblech statt Rost/Grün/Lila-Flecken, ohne Moiré,
+  gelb-schwarze Warnstreifen an Lippe und Landerampe. Dateien kleiner als vorher.
+- Details, Messwerte, Fotos: `MITTEL3_BERICHT.md`. Handy: App einmal ganz schließen und neu öffnen.
+
 ## 🌀 G-Kräfte und Show-Tacho (seit 04.10.2026, n24 Etappe 1)
 - Peter: „Im Cockpit und im Replay bzw. Highlights die G-Kräfte dazuschreiben … und die langsamen Geschwindigkeiten mit
   mehr km/h angeben, 40 in der Kurve klingt langweilig.“ **Reine Anzeige**: Physik, KI, Hinweise, Bestzeiten unverändert.
@@ -187,7 +202,7 @@ spielbar am Handy (quer oder hochkant), mit Gamepad oder Tastatur. Als App insta
 | Stufe | Was hilft |
 |---|---|
 | 🟢 **Leicht** | Gas automatisch (Bremse des Spielers geht vor). **Mitlenken statt Schienen** (seit 29.09.2026): Die Hilfe hält das Auto auf der Fahrbahn und lenkt einen Teil jeder Kurve; die Ideallinie trifft man mit etwas Mitlenken, ohne Lenken driftet das Auto nach außen und wird langsamer (`?lk=0` = alte Schienen, `?lk=0.5` weniger mitlenken). Wer deutlich über den Rand hinaus drückt, hat Vorrang – auch quer durchs Gelände, Loslassen führt weich zurück. Loopings, Röhren, Korkenzieher und Sprünge lenkt das Auto selbst (mit Ansage im HUD), Engstellen und Steilkurven hält es eng auf der Linie. Handy: linke/rechte Bildschirmhälfte halten (oder Neigen). |
-| 🟡 **Mittel** | Du lenkst und bremst selbst. **Seit 03.10.2026 (n23):** Echtzeit (Spieltempo 1,0 statt 1,25 – die Tacho-Zahl ist das Tempo, das du siehst; Beschleunigung in echten Sekunden wie bisher), Traktionskontrolle, Schleuderschutz (ESP über die Drehrate, kein Zug zur Linie), Haftung ×1,3 (Kurvengrenztempo +30 % gegen Original), Touch-Pfeile mit Lenk-Rampe (tippen = kleine Korrektur), „Bremsen!“ tempoabhängig früher, Kamera schaut bei Tempo weiter voraus. **Dynamische Ideallinie:** das Stück vor dem Auto färbt sich nach deinem Tempo (grün/gelb/orange/rot, dieselbe Rechnung wie „Bremsen!“). Optionen → „Bremshilfe“ Aus / **Hinweis** / Sanft. Kein Zug zur Ideallinie (n16); Spurhilfe im Looping/in der Röhre, Rückspul-Knopf. Messung: `MITTEL2_BERICHT.md`. |
+| 🟡 **Mittel** | Du lenkst und bremst selbst. **Seit 05.10.2026 (n24):** sanftere Beschleunigung (0–100 in 3,1 s, Höchsttempo ~264 km/h, Gas-Rampe 0,45 s), Sprung-Hilfe in der Luft bis an den Rand der Landerampe, Schanzen-Hinweis mit Absprung-Tempo (`MITTEL3_BERICHT.md`, `?m=n23` = wie bisher). **Seit 03.10.2026 (n23):** Echtzeit (Spieltempo 1,0 statt 1,25 – die Tacho-Zahl ist das Tempo, das du siehst; Beschleunigung in echten Sekunden wie bisher), Traktionskontrolle, Schleuderschutz (ESP über die Drehrate, kein Zug zur Linie), Haftung ×1,3 (Kurvengrenztempo +30 % gegen Original), Touch-Pfeile mit Lenk-Rampe (tippen = kleine Korrektur), „Bremsen!“ tempoabhängig früher, Kamera schaut bei Tempo weiter voraus. **Dynamische Ideallinie:** das Stück vor dem Auto färbt sich nach deinem Tempo (grün/gelb/orange/rot, dieselbe Rechnung wie „Bremsen!“). Optionen → „Bremshilfe“ Aus / **Hinweis** / Sanft. Kein Zug zur Ideallinie (n16); Spurhilfe im Looping/in der Röhre, Rückspul-Knopf. Messung: `MITTEL2_BERICHT.md`. |
 | 🔴 **Original** | Keine Hilfen – so tricky wie damals. |
 
 Die Fahrhilfe ist jederzeit im Pause-Menü umschaltbar.
@@ -280,6 +295,11 @@ python3 tests/sound_levels.py             # Ton: Aufnahmen geladen, Pegel, Loop-
 python3 tests/ton_probe.py                # Ton offline gerendert alt/neu: Pegel, Übersteuerung, Handy-Filter; Hörproben ~/Downloads/Stuntbahn-Ton/
 python3 tests/ton_cpu.py                  # CPU-Last des Tons: aus / alt / neu
 python3 tests/test_race.py                # Rennen, Bestzeit nach Reload, Geist, Replay
+node tests/node/test_mittel3.mjs          # n24: Mittel-Beschleunigung im Zielfenster, Gas-Rampe, Sprung-Hilfe, Landequote Bots, Schanzen-Hinweis, Bestzeiten
+node tools/sprung_probe.mjs --seeds=7,8,9,10,11   # n24: Lippen-Tempo und Landungen (ok/weit/kurz) je Bot und Variante (--var=n23,n24, --pull=lo:10)
+python3 tests/mittel3_shots.py quer       # n24: Mittel im Browser – Tempo nach 3 s, Schanzen-Hinweis, Sprung, ?m=n23 (quer|hoch)
+python3 tests/schanze_shots.py quer . nachher   # n24: Schanze je Grafikstufe + Belagfarbe neutral (Wurzel/Name für Vorher-Fotos)
+node tools/build_deck.mjs && node tools/build_ktx2.mjs metal   # n24: Schanzen-Belag aus dem CC0-Riffelblech neu bauen
 node tests/node/test_gkraft.mjs           # n24: Show-Tacho (Monotonie, Fixpunkte, ab 250 echt) + G-Kräfte (Band, live = Replay, Untertitel)
 node tools/gkraft_mess.mjs                # n24: G je Situation (Kurve, Looping, Landung, Flug, Stand); STUNT_G=echt ohne Show-Faktor
 python3 tests/gkraft_shots.py quer        # n24: Fotos Cockpit Kurve/Landung, HUD, Replay, Kino-Replay mit G (quer|hoch|desktop)
