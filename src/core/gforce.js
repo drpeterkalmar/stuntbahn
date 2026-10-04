@@ -15,7 +15,7 @@
 // Gemessen: tools/gkraft_mess.mjs (GKRAFT_BERICHT.md). Schnitte (Reset, Rückspulen) setzen die Rechnung neu an.
 // URL: ?g=echt = ohne Show-Faktor (echte, nur geglättete Werte), ?g=0 = Anzeige aus, ?g=<faktor> = anderer Show-Faktor.
 // In Node: STUNT_G=echt|0|<faktor>.
-export const GF = { g: 9.81, hz: 60, stride: 16, tau: 0.2, hold: 0.6, fall: 6, show: 1.25, max: 7, tauFast: 0.05, airMin: 0.2, imp: 0.3, impK: 0.85, impMax: 10 };
+export const GF = { g: 9.81, hz: 60, stride: 16, tau: 0.2, hold: 0.6, fall: 6, show: 1.25, max: 7, tauFast: 0.05, airMin: 0.2, imp: 0.3, impK: 0.85, impMax: 10, jump: 8 };
 
 function gParam() {
   const q = globalThis.location && globalThis.location.search ? new URLSearchParams(globalThis.location.search).get('g') : null;
@@ -61,6 +61,8 @@ export class GMeter {
     this.n++;
     if (this.n < 3 || i < 2) return this._decay(dt);
     const a = i * S, b = a - S, c = b - S, k = o.hz * o.hz;
+    // Sprung in der Aufzeichnung ohne Schnitt-Marke (Versetzen, Test-Teleport): > jump m je Bild → neu ansetzen
+    if (Math.abs(rec[a] - rec[b]) + Math.abs(rec[a + 1] - rec[b + 1]) + Math.abs(rec[a + 2] - rec[b + 2]) > o.jump) { this.reset(); this.n = 1; return this._decay(dt); }
     // Beschleunigung (Welt) aus der zweiten Differenz
     const ax = (rec[a] - 2 * rec[b] + rec[c]) * k, ay = (rec[a + 1] - 2 * rec[b + 1] + rec[c + 1]) * k, az = (rec[a + 2] - 2 * rec[b + 2] + rec[c + 2]) * k;
     // Auto-Rahmen des mittleren Bildes: vorwärts (0,0,−1), rechts (1,0,0), oben (0,1,0) gedreht mit der Lage

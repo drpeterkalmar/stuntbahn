@@ -75,6 +75,13 @@ export const PHYS = (() => {
 // Schleuderschutz (Mittel ab n23, Car.step): Bezugs-Gierrate aus Lenkwinkel (Einspur-Modell) begrenzt auf lat × Haftung,
 // Totband dead + deadK × Bezug (rad/s), Gegenmoment k × Überschuss (rad/s²) höchstens max
 export const ESC = { lat: 1.0, dead: 0.12, deadK: 0.15, k: 6, max: 4 };
+// Antriebs-Kappe (Mittel n24): 1 bis vSoft, dann (1 − k)² mit k = (v − vSoft)/(vTop − vSoft), 0 ab vTop
+export function driveTaper(v, vSoft, vTop) {
+  if (!(vTop > vSoft) || v <= vSoft) return 1;
+  const k = Math.min(1, (v - vSoft) / (vTop - vSoft));
+  return (1 - k) * (1 - k);
+}
+export const NITRO_TOP = 1.3;
 // Größter Lenkwinkel bei Tempo v (m/s) – gemeinsam für Physik und Autopilot
 export function maxSteerAt(def, v) { return def.steerMax / (1 + Math.abs(v) / 15) + 0.035; }
 // Aero-Last-Faktor: (Gewicht + Abtrieb) / Gewicht. Antrieb und Bremse wachsen damit (aeroGrip = 1), weil
@@ -254,7 +261,12 @@ export class Car {
     // Fahrhilfe Mittel (n23): Antrieb × assist.drive (gleicht das Spieltempo 1,0 statt 1,25 aus – die Tacho-Zahl steigt
     // in echten Sekunden so schnell wie bisher; wirkt nur bis zur Leistungsgrenze, Vmax bleibt)
     const maxDrive = d.maxDrive * (this.assist.drive || 1);
-    if (thr > 0.01) drive = thr * Math.min(maxDrive * aero, d.power / Math.max(Math.abs(vF), 1));
+    // Mittel n24 (Peter 03.10.2026: „Auto ist unkontrollierbar schnell – weniger schnell beschleunigen“): Antrieb ab
+    // assist.vSoft m/s weich weniger, bei assist.vTop null (driveTaper) – oberhalb ~200 km/h steigt das Tempo nur noch zäh,
+    // Höchsttempo knapp unter vTop. Nitro: eigene Grenze vTop · NITRO_TOP (Schub bleibt spürbar)
+    const tap = this.assist.vTop ? driveTaper(Math.abs(vF), this.assist.vSoft, this.assist.vTop) : 1;
+    const tapN = this.assist.vTop ? driveTaper(Math.abs(vF), this.assist.vSoft, this.assist.vTop * NITRO_TOP) : 1;
+    if (thr > 0.01) drive = thr * Math.min(maxDrive * aero, d.power / Math.max(Math.abs(vF), 1)) * tap;
     if (brk > 0.01 && vF < 1.0 && thr < 0.01 && !inp.hold && !wrecked) { drive = -brk * d.maxDrive * 0.55 * (vF > -d.reverseMax ? 1 : 0); brake = 0; }
 
     // Wiese (n21, WIESE in defs.js): Antrieb der Gras-Räder ohne Aero-Last, oberhalb driveFrom linear weniger, 0 ab vMax
@@ -351,7 +363,7 @@ export class Car {
     // Nitro: Zusatzschub am Schwerpunkt längs Auto-Vorwärts, anteilig zum Gas, nur mit Radkontakt (auf der Wiese wie
     // der Antrieb der Gras-Räder: ohne Aero-Last, ab driveFrom weniger)
     if (this.boost > 0 && thr > 0.01 && contacts && !wrecked) {
-      const fn = this.boost * NITRO.k * thr * Math.min(maxDrive * aero, d.power / Math.max(Math.abs(vF), 1)) * (1 - grassShare + grassShare * grassFade);
+      const fn = this.boost * NITRO.k * thr * Math.min(maxDrive * aero, d.power / Math.max(Math.abs(vF), 1)) * tapN * (1 - grassShare + grassShare * grassFade);
       fx += F.f.x * fn; fy += F.f.y * fn; fz += F.f.z * fn;
     }
     // Hüpfer: bis zur Landung (erster Radkontakt nach dem Abheben) Lage halten

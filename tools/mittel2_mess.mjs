@@ -20,7 +20,7 @@ const PLANE = { ray(ox, oy, oz, dx, dy, dz, len) { if (dy >= -1e-9) return null;
 
 function mkCar(set, v0) {
   const car = new Car(CAR_DEF);
-  car.assist = { level: 0, magnet: set.magnet || 0, air: 0, grip: set.grip || 1, slipK: set.slipK || 1, tcs: set.tcs || 0, drive: set.drive || 1, esc: set.esc || 0 };
+  car.assist = { level: 0, magnet: set.magnet || 0, air: 0, grip: set.grip || 1, slipK: set.slipK || 1, tcs: set.tcs || 0, drive: set.drive || 1, esc: set.esc || 0, vSoft: set.vSoft, vTop: set.vTop };
   car.place([0, 0, 0], [0, 0, -1], [0, 1, 0], v0);
   return car;
 }
@@ -31,12 +31,17 @@ export function accel(set) {
   car.input.brake = 1; car.input.hold = true;
   for (let k = 0; k < 120; k++) car.step(DT, PLANE);
   car.input.brake = 0; car.input.hold = false; car.input.throttle = 1;
-  let t = 0;
-  while (t < 30 && !(out[300])) {
+  // Gas-Rampe (Mittel n24, thrRamp s bis Vollgas – wie race.js) ; Höchsttempo nach 60 s Vollgas
+  let t = 0, vmax = 0;
+  while (t < 60) {
+    car.input.throttle = set.thrRamp ? Math.min(1, t / set.thrRamp) : 1;
     car.step(DT, PLANE); t += DT;
     const kmh = car.fwdSpeed() * 3.6;
-    for (const m of [100, 200, 300]) if (!out[m] && kmh >= m) out[m] = t;
+    vmax = Math.max(vmax, kmh);
+    for (const m of [100, 200, 250, 300]) if (!out[m] && kmh >= m) out[m] = t;
+    if (out[300] && t > 30) break;
   }
+  out.vmax = vmax;
   return out;
 }
 export function skid(set, v0) {

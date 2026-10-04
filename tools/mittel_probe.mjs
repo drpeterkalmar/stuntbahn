@@ -18,7 +18,7 @@ const arg = (k, d) => { const a = process.argv.find((s) => s.startsWith(`--${k}=
 const imp = (p) => import(url.pathToFileURL(path.join(ROOT, p)).href);
 const { generate, demoLayout } = await imp('src/track/generator.js');
 const { verifySync } = await imp('src/track/verify.js');
-const { Race, ASSISTS, MEDIUM_N15, MEDIUM_N16, MEDIUM_N23 } = await imp('src/game/race.js');
+const { Race, ASSISTS, MEDIUM_N15, MEDIUM_N16, MEDIUM_N23, MEDIUM_N24 } = await imp('src/game/race.js');
 const { Autopilot } = await imp('src/ai/autopilot.js');
 const { BRAKE_WARN } = await imp('src/game/warn.js');
 const { rampSteer, TOUCH_RAMP } = await imp('src/game/input.js');
@@ -32,8 +32,9 @@ export const VARS = {
   zug0: { steerPull: 0, stuntPull: 0, magnet: 0.35, grip: 1, slipK: 1, lanePull: 0 },       // Probelauf: ohne Zug, ohne Extra-Haftung
   zug0stunt: { steerPull: 0, stuntPull: 0.6, magnet: 0.35, grip: 1, slipK: 1, lanePull: 0 }, // ohne Zug auf der Strecke, Stunt-Zug wie bisher
   haftung: { ...MEDIUM_N16, lanePull: 0 },                                        // n16-Haftung, ganz ohne Hilfe im Stunt
-  n16: { ...MEDIUM_N16, tcs: 0, drive: 1, speed: 1.25, warn: false, esc: 0, espFrom: undefined, espMax: undefined, touchRamp: false },   // n16 bis n22 (?m=n16)
-  neu: { ...MEDIUM_N23 },                                            // n23
+  n16: { ...MEDIUM_N16, tcs: 0, drive: 1, speed: 1.25, warn: false, esc: 0, espFrom: undefined, espMax: undefined, touchRamp: false, vSoft: 0, vTop: 0, thrRamp: 0, jumpPull: 0, jumpHint: 0 },   // n16 bis n22 (?m=n16)
+  neu: { ...MEDIUM_N23, vSoft: 0, vTop: 0, thrRamp: 0, jumpPull: 0, jumpHint: 0 },   // n23 (neue n24-Regler aus)
+  n24: { ...MEDIUM_N24 },                                            // n24
 };
 // weitere Varianten: --extra="grip:1.2,tcs:0;…" (Abwandlungen von n23)
 for (const x of (process.argv.find((a) => a.startsWith('--extra=')) || '--extra=').slice(8).split(';').filter(Boolean)) { const o = {}; for (const kv of x.split(',')) { const [k, v] = kv.split(':'); o[k] = +v; } VARS[x.replace(/,/g, ' ')] = { ...MEDIUM_N23, ...o }; }
@@ -57,8 +58,8 @@ export function stuntTracks(nSam = 4) {
   return list;
 }
 
-export function runBot(v, set, bot, seed = 7) {
-  if (Array.isArray(seed)) { const R = seed.map((sd) => runBot(v, set, bot, sd)); return { ok: R.every((x) => x.ok), okN: R.filter((x) => x.ok).length, time: R.reduce((a, x) => a + (x.time || 0), 0) / R.length, crashes: R.reduce((a, x) => a + x.crashes, 0), stuntCr: R.reduce((a, x) => a + x.stuntCr, 0), spins: R.reduce((a, x) => a + x.spins, 0), abflug: R.reduce((a, x) => a + x.abflug, 0), lat: R.reduce((a, x) => a + x.lat, 0) / R.length, hints: R.reduce((a, x) => a + x.hints, 0), ap: v.apTime, runs: R.length, why: R.reduce((a, x) => { for (const k in x.why) a[k] = (a[k] || 0) + x.why[k]; return a; }, {}) }; }
+export function runBot(v, set, bot, seed = 7, hook = null) {
+  if (Array.isArray(seed)) { const R = seed.map((sd) => runBot(v, set, bot, sd, hook)); return { ok: R.every((x) => x.ok), okN: R.filter((x) => x.ok).length, time: R.reduce((a, x) => a + (x.time || 0), 0) / R.length, crashes: R.reduce((a, x) => a + x.crashes, 0), stuntCr: R.reduce((a, x) => a + x.stuntCr, 0), spins: R.reduce((a, x) => a + x.spins, 0), abflug: R.reduce((a, x) => a + x.abflug, 0), lat: R.reduce((a, x) => a + x.lat, 0) / R.length, hints: R.reduce((a, x) => a + x.hints, 0), ap: v.apTime, runs: R.length, why: R.reduce((a, x) => { for (const k in x.why) a[k] = (a[k] || 0) + x.why[k]; return a; }, {}) }; }
   const env = v.env, L = env.track.line, P = env.prof;
   const saved = { ...ASSISTS.medium };
   Object.assign(ASSISTS.medium, set);
@@ -87,7 +88,8 @@ export function runBot(v, set, bot, seed = 7) {
       mid.control(race.car);
       // Handy: 0,35 s Reaktion in echter Zeit = 0,35 × Spieltempo s Spielzeit (bis n22 1,25, Mittel ab n23 1,0)
       const touch = bot === 'mensch-touch', handy = bot === 'mensch-handy' || touch, lag = handy ? Math.round(0.35 * gs / DT) : 24;
-      q.push([mid.fbN, !!race.bhOn]); const [fb, bh] = q.length > lag ? q.shift() : [0, false];
+      // (n24) Schanzen-Hinweis „langsamer ▼“ zählt wie „Bremsen!“, aber nur Gas weg
+      q.push([mid.fbN, !!race.bhOn, race.jumpSt === 'hi']); const [fb, bh, jhi] = q.length > lag ? q.shift() : [0, false, false];
       let steer = Math.max(-1, Math.min(1, mid.ffN + KFB * fb + noise * (handy ? 0.15 : NOISE)));
       if (handy) steer = Math.round(steer * 3) / 3;
       if (touch) {
@@ -104,11 +106,12 @@ export function runBot(v, set, bot, seed = 7) {
         steer = tSt;
       }
       if (bot === 'mensch-voll') u = { steer, throttle: 1, brake: 0 };
-      else if (bot === 'mensch' || handy) u = { steer, throttle: bh ? 0 : 1, brake: bh ? 1 : 0 };
+      else if (bot === 'mensch' || handy) u = { steer, throttle: bh || jhi ? 0 : 1, brake: bh ? 1 : 0 };
       else { const vt = P.vt[race.ap.tr.idx], vv = race.car.fwdSpeed(); u = { steer, throttle: vv < vt * 1.05 ? 1 : 0, brake: vv > vt * 1.15 ? 0.6 : 0 }; }
     }
     const c0 = race.crashes;
     race.step(DT, u); t += DT;
+    if (hook) hook(race, u, t);
     if (race.crashes > c0 && race.car.crash) { const k = (nearStunt(race.tracker.idx) ? 'S:' : '') + race.car.crash.reason; why[k] = (why[k] || 0) + 1; }
     for (const e of race.events) if (e.type === 'brakehint') hints++;
     race.events.length = 0;

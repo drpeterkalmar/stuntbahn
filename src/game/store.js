@@ -15,7 +15,12 @@ const TIMES_MAX = 5;   // Leicht: so viele letzte Zeiten je Strecke
 // Bestzeit, kein Geist (sonst stünde eine Zeit mit anderer Physik in der Liste).
 const RESET_MARK = 21;
 // n23: ?m=n16 (Mittel wie bis n22), ?breit=alt (Fahrbahn so schmal wie bis n22)
-const AB_PARAMS = [['auto', 'alt'], ['grip', '1'], ['mgrip', '1'], ['m', 'n16'], ['breit', 'alt'], ['wiese', 'alt'], ['haft', 'alt'], ['schanze', 'alt'], ['welt', null], ['air', null], ['lip', null]];
+// n24: ?m=n23 (Mittel-Antrieb wie bis n23), ?antrieb=… (Mittel-Antrieb abstimmen)
+// Mittel n24 (neue Fahrphysik: zahmerer Antrieb, Sprung-Hilfe): Zeiten nicht mit n23 vergleichbar → einmalig nur die
+// Mittel-Bestzeiten und -Geister löschen (MED_RESET, idempotent; wie n21 „Bestzeiten streichen“, ohne Altlisten),
+// einmal Hinweis im Menü. Original und die Leicht-Zeiten bleiben.
+const MED_RESET = 24;
+const AB_PARAMS = [['auto', 'alt'], ['grip', '1'], ['mgrip', '1'], ['m', 'n16'], ['m', 'n23'], ['antrieb', null], ['breit', 'alt'], ['wiese', 'alt'], ['haft', 'alt'], ['schanze', 'alt'], ['welt', null], ['air', null], ['lip', null]];
 export function abMode(search = globalThis.location ? globalThis.location.search : '') {
   if (!search) return false;
   const q = new URLSearchParams(search);
@@ -39,6 +44,8 @@ export class Store {
     this.timesMig = d.timesMig;
     this.reset = d.reset || 0;
     if (this.reset < RESET_MARK) { this.clearBests(); this.reset = RESET_MARK; this.save(); }
+    this.medReset = d.medReset || 0;
+    if (this.medReset < MED_RESET) { this.medNote = this.clearBests('medium'); this.medReset = MED_RESET; this.save(); }
     // Streckenart (n22): flach / Hochstraße (n19, „3D“) / Gelände (Standard ab n22). Bisher nur der Schalter „flach“:
     // wer flach gewählt hatte, behält flach; alle anderen bekommen das neue Gelände
     if (!this.settings.trackMode) this.settings.trackMode = this.settings.flat ? 'flat' : 'gel';
@@ -46,13 +53,17 @@ export class Store {
   }
   // Einmalig (n21): alle Bestzeiten und Geisterautos löschen – auch die der alten Physik/Welt/Mittel-Listen und die
   // aus früheren Leicht-Bestzeiten übernommenen Einträge („früher“) der Leicht-Zeiten-Liste
-  clearBests() {
-    this.best = {};
-    this.ghostIndex = [];
+  // assist: nur diese Fahrhilfe (n24: 'medium'), liefert die Zahl gelöschter Bestzeiten
+  clearBests(assist = null) {
+    const mine = (k) => !assist || k.includes('|' + assist + '+');
+    const n = Object.keys(this.best).filter(mine).length;
+    if (!assist) this.best = {}; else for (const k of Object.keys(this.best)) if (mine(k)) delete this.best[k];
+    this.ghostIndex = this.ghostIndex.filter((k) => !mine(k));
     const ghosts = [];
-    for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && k.startsWith('stuntbahn.ghost.')) ghosts.push(k); }
+    for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && k.startsWith('stuntbahn.ghost.') && mine(k)) ghosts.push(k); }
     for (const k of ghosts) localStorage.removeItem(k);
-    for (const [id, L] of Object.entries(this.times)) { const f = L.filter((e) => !e.old); if (f.length) this.times[id] = f; else delete this.times[id]; }
+    if (!assist) for (const [id, L] of Object.entries(this.times)) { const f = L.filter((e) => !e.old); if (f.length) this.times[id] = f; else delete this.times[id]; }
+    return n;
   }
   // Geprüfte Strecken (Autopilot) cachen: Layout nach Entschärfen + Referenzzeit
   getVerified(key, build) {
@@ -72,7 +83,7 @@ export class Store {
     try { localStorage.setItem(KEY + '.verified', JSON.stringify(this.verified)); } catch { /* voll */ }
   }
   save() {
-    try { localStorage.setItem(KEY, JSON.stringify({ settings: this.settings, best: this.best, ghostIndex: this.ghostIndex, times: this.times, timesMig: this.timesMig, reset: this.reset })); } catch { /* voll */ }
+    try { localStorage.setItem(KEY, JSON.stringify({ settings: this.settings, best: this.best, ghostIndex: this.ghostIndex, times: this.times, timesMig: this.timesMig, reset: this.reset, medReset: this.medReset })); } catch { /* voll */ }
   }
   // Leicht: letzte Zeiten dieser Strecke (neueste zuerst, nicht nach Zeit sortiert)
   timesFor(key) { return this.times[key] || []; }

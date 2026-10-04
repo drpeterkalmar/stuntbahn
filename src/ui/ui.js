@@ -183,6 +183,8 @@ export class UI {
   showMenu(env) {
     this.env = env;
     document.body.dataset.mode = 'menu';
+    // n24: Mittel-Bestzeiten einmalig neu (neue Fahrphysik) – einmal Bescheid sagen
+    if (this.store.medNote) { this.store.medNote = 0; setTimeout(() => this.toast('🟡 Mittel fährt jetzt zahmer (neue Fahrphysik) – Mittel-Bestzeiten starten neu', 4500), 600); }
     const S = this.store.settings, m = env.meta, lay = env.layout;
     const stunts = {};
     for (const p of lay.pieces) { const t = p.g === 'gorge' ? 'gorge' : p.g === 'drop' ? 'drop' : { tr_bankC: 'bank', cliff2: 'cliff', slope4: 'slope3', tr_corkud: 'spiral' }[p.type] || p.type; if (ICON[t] && (t !== 'straight')) stunts[t] = (stunts[t] || 0) + 1; }
@@ -543,7 +545,7 @@ export class UI {
     this.sheet('Steuerung', `
       <p><b>Handy (quer oder hochkant):</b> Fahrhilfe <i>Leicht</i>: linke/rechte Bildschirmhälfte halten zum Lenken – Gas macht das Auto. Oder in den Optionen „Lenken durch Neigen“ (hochkant: seitlich kippen oder wie ein Lenkrad drehen). Drehst du das Handy im Rennen, pausiert es kurz – weiter mit „▶ Weiter“.</p>
       <p><b>Leicht:</b> Die Hilfe hält das Auto sicher auf der Fahrbahn und lenkt einen Teil jeder Kurve. Die Ideallinie triffst du, wenn du in Kurven etwas mitlenkst – ohne Lenken driftet das Auto nach außen und verliert Zeit. Drückst du deutlich über den Rand hinaus (kurz halten), hast <b>du Vorrang</b>: Die Hilfe lässt los, du kannst die Fahrbahn verlassen und durchs Gelände fahren. Loslassen – die Hilfe blendet weich ein und führt dich sanft zurück. Deine Bremse geht immer vor. Loopings, Röhren, Korkenzieher und Sprünge lenkt weiter das Auto; vorher steht oben „… voraus – Autopilot lenkt“. Gilt für Tastatur, Gamepad, Touch und Neigen.</p>
-      <p><b>Mittel:</b> Du lenkst selbst – kein Zug zur Ideallinie. Das Auto hat mehr Bodenhaftung als auf Original, rutscht aber, wenn du zu schnell in die Kurve fährst. Im Looping und in der Röhre hält eine Spurhilfe die Fahrbahnmitte (oben „Looping – Spurhilfe“); deutliches Lenken schaltet sie sofort ab.</p>
+      <p><b>Mittel:</b> Du lenkst selbst – kein Zug zur Ideallinie. Das Auto hat mehr Bodenhaftung als auf Original, rutscht aber, wenn du zu schnell in die Kurve fährst. Im Looping und in der Röhre hält eine Spurhilfe die Fahrbahnmitte (oben „Looping – Spurhilfe“); deutliches Lenken schaltet sie sofort ab. Seit 04.10.2026 beschleunigt das Auto auf Mittel sanfter (Gas baut sich kurz auf, ab ~210 km/h auf dem Tacho geht es nur noch zäh weiter) – so bleibt es kontrollierbar. Vor einer Schanze steht oben das passende Absprung-Tempo (grün = passt); in der Luft zieht eine dezente Sprung-Hilfe die Landung Richtung Landerampe.</p>
       <p><i>Mittel/Original</i>: links ◀ ▶ lenken, rechts GAS und BREMSE (hochkant alle unten in einer Reihe). Bremse im Stand = Rückwärtsgang.</p>
       <p><b>Tastatur:</b> Pfeile oder WASD (bremsen: Pfeil runter/S), <b>Leertaste</b> Hüpfer, <b>Shift</b> oder <b>N</b> Nitro, <b>R</b> zurückspulen, <b>C</b> Kamera (Verfolger, Cockpit, Hubschrauber, Stoßstange, Strecke), <b>L</b> Ideallinie ein/aus, <b>Esc</b> Pause.</p>
       <p><b>Gamepad:</b> linker Stick lenken, RT/A Gas, LT/X Bremse, <b>B</b> Hüpfer, <b>RB</b> Nitro, Y zurückspulen, LB Kamera, Back Ideallinie, Start Pause.</p>

@@ -7,6 +7,8 @@ import { Autopilot, Tracker } from '../ai/autopilot.js';
 import { WORLD_SCALE, ROAD_HW, TILE, MAT, WIESE } from '../track/defs.js';
 import { HOP, NITRO, NITRO_TOTAL, nitroLevel, hopModel, hopHeightAt } from '../physics/extras.js';
 import { BrakeWarn } from './warn.js';
+import { JumpAssist } from './jumpassist.js';
+import { showKmhMs } from '../core/showspeed.js';
 
 // Mittel (n16, Peter 29.09.2026: „Mittlere Schwierigkeit mehr Bodenhaftung und kein Magnet zur Ideallinie“): kein
 // Lenkzug zur Linie mehr (steerPull bis n15 0,28, im Stunt stuntPull 0,6), dafür mehr Reifenhaftung (grip, Faktor auf
@@ -29,6 +31,13 @@ export const MEDIUM_N16 = { steerPull: 0, stuntPull: 0, magnet: 0.6, grip: 1.15,
 // mit tempoabhängiger Rampe statt sofort vollem Einschlag (touchRamp, input.js rampSteer).
 // URL ?m=n16 = Mittel wie bis n22 (A/B, wertet nicht). Messung: MITTEL2_BERICHT.md, tools/mittel2_mess.mjs
 export const MEDIUM_N23 = { steerPull: 0, stuntPull: 0, magnet: 0.6, grip: 1.3, slipK: 1.4, lanePull: 0.6, tcs: 1, drive: 1.25, speed: 1.0, warn: true, esc: 2, espFrom: 0.25, espMax: 0.7, touchRamp: true };
+// Mittel n24 (Peter 03.10.2026: „Sprünge gehen zu weit und Auto ist unkontrollierbar schnell. Idee: weniger schnell
+// beschleunigen“): Antrieb drive × maxDrive (n23: 1,25), ab vSoft m/s weich weniger, bei vTop null (car.js driveTaper) –
+// 0–100 / 0–200 km/h ~3,1 / ~7 s statt 1,6 / 2,8 s, Höchsttempo ~265 statt ~560 km/h; Gas-Rampe thrRamp s (Handy-Gasknopf
+// digital). URL ?m=n23 = Mittel wie bis n23 (A/B, wertet nicht), ?antrieb=<drive> für Feintuning. MITTEL3_BERICHT.md
+export const MEDIUM_N24 = { ...MEDIUM_N23, drive: 0.7, vSoft: 100 / 3.6, vTop: 350 / 3.6, thrRamp: 0.45, jumpPull: 1, jumpHint: 1 };
+{ const a = urlQ && +urlQ.get('antrieb'); if (a > 0 && a <= 2) MEDIUM_N24.drive = a; }
+export const MED_N23 = !!urlQ && urlQ.get('m') === 'n23';
 export const MED_N16 = !!urlQ && urlQ.get('m') === 'n16';
 // Spurhilfe (Mittel, n16): Anteil lanePull des Spurhalters (Regler auf die Fahrbahnmitte) im Looping/in der Röhre.
 // Lenkt der Spieler deutlich (|Lenkung| > in), blendet sie in out s ganz aus; losgelassen (< keep) in back s wieder
@@ -36,7 +45,7 @@ export const MED_N16 = !!urlQ && urlQ.get('m') === 'n16';
 export const SPUR = { in: 0.5, keep: 0.15, out: 0.25, back: 0.6, ann: 1.5, annMin: 25 };
 export const ASSISTS = {
   easy: { name: 'Leicht', icon: '🟢', steerPull: 0.82, autoSpeed: true, autoStunts: true, free: true, magnet: 1, air: 1, autoRewind: true, showLine: true },
-  medium: { name: 'Mittel', icon: '🟡', ...(MED_ALT ? MEDIUM_N15 : MED_N16 ? MEDIUM_N16 : MEDIUM_N23), autoSpeed: false, brakeHelp: true, autoStunts: false, air: 0.4, autoRewind: true, showLine: true },
+  medium: { name: 'Mittel', icon: '🟡', ...(MED_ALT ? MEDIUM_N15 : MED_N16 ? MEDIUM_N16 : MED_N23 ? MEDIUM_N23 : MEDIUM_N24), autoSpeed: false, brakeHelp: true, autoStunts: false, air: 0.4, autoRewind: true, showLine: true },
   original: { name: 'Original', icon: '🔴', steerPull: 0, autoSpeed: false, autoStunts: false, magnet: 0, air: 0, autoRewind: false, showLine: false },
 };
 
@@ -67,6 +76,8 @@ const urlNum = (k) => { const q = globalThis.location && globalThis.location.sea
 // Kurswinkel) weicher und blendet bei deutlichem Gegenlenken (|Lenkung| > FREE.in) in espOut s aus.
 export const BRAKE_HELP = { look: 0.7, hintOver: 0.03, gap: 1.5, over: 0.15, inT: 0.25, outT: 0.3, espFrom: 0.6, espRange: 0.8, espMax: 0.5, espOut: 0.3 };
 export const BRAKE_HELP_MODES = { off: 'Aus', hint: 'Hinweis', soft: 'Sanft' };
+// Schanzen-Hinweis (Mittel n24): ab dist m bzw. sec s vor der Lippe; „zu schnell“ ab over m/s über dem Ziel-Tempo
+export const JUMP_HINT = { dist: 160, sec: 4.5, over: 3 };
 
 // Leicht „mitlenken statt Schienen“ (Peter 28.09.2026: „ein bisschen mitlenken müssen, um auf der Ideallinie zu
 // bleiben“, n14). Die Hilfe liefert nur (1 − lk) der Kurven-Vorsteuerung; den Rest lenkt der Spieler. Um die Linie
@@ -174,6 +185,8 @@ export class Race {
     this.nitroLog = [];     // fürs Geisterauto: [Rennzeit an, Rennzeit aus]
     this.hopState = null; this.hopChkT = 0;
     this.xplan = null;      // Leicht automatisch: geplante Stellen (lazy)
+    this.jumpAssist = new JumpAssist();   // Mittel n24: Sprung-Hilfe (A.jumpPull)
+    this.jumpK = 0;
     this.place(this.startIdx - (opts.startBack ?? 1));
     this.chargeLap = this.tracker.lap;
   }
@@ -185,6 +198,7 @@ export class Race {
     this.car.place([L.px[idx], L.py[idx], L.pz[idx]], [L.tx[idx], L.ty[idx], L.tz[idx]], [L.nx[idx], L.ny[idx], L.nz[idx]], speed);
     this.tracker.reset(idx);
     this.ap.tr.reset(idx);
+    if (this.jumpAssist) this.jumpAssist.reset();
   }
 
   emit(type, data = {}) { this.events.push({ type, t: this.time, ...data }); }
@@ -285,6 +299,7 @@ export class Race {
         const v = car.fwdSpeed();
         const H = BRAKE_HELP;
         if (this.brakeHelp !== 'off') this.brakeHint(v, idx, input);
+        if (A.jumpHint && !this.bhOn) this.jumpHint(v, idx);
         // „Sanft“: nur bei deutlichem Übertempo und ohne Vollgas; Vollgas oder genug langsamer → in outT s frei
         const want = this.brakeHelp === 'soft' && v > vt * (1 + H.over) + 1 && input.throttle < 0.95;
         this.softB = want ? Math.min(1, (this.softB || 0) + dt / H.inT) : Math.max(0, (this.softB || 0) - dt / H.outT);
@@ -309,6 +324,8 @@ export class Race {
         else this.wrongT = 0;
       }
     }
+    // Gas-Rampe (Mittel n24, A.thrRamp s): Schub baut sich auf (Handy-Gasknopf ist digital), Gas weg wirkt sofort
+    if (A.thrRamp && !this.autopilotOnly) { this.thrR = thr > (this.thrR || 0) ? Math.min(thr, (this.thrR || 0) + dt / A.thrRamp) : thr; thr = this.thrR; }
     this.lastInput = { steer, throttle: thr, brake: brk };
     car.input.steer = steer; car.input.throttle = thr; car.input.brake = brk; car.input.hold = !!A.autoSpeed && !this.autopilotOnly && input.brake < 0.5;
     car.assist.magnet = this.autopilotOnly ? 0 : A.magnet;
@@ -317,6 +334,7 @@ export class Race {
     car.assist.slipK = this.autopilotOnly ? 1 : A.slipK || 1;
     car.assist.tcs = this.autopilotOnly ? 0 : A.tcs || 0;
     car.assist.drive = this.autopilotOnly ? 1 : A.drive || 1;
+    car.assist.vSoft = this.autopilotOnly ? 0 : A.vSoft || 0; car.assist.vTop = this.autopilotOnly ? 0 : A.vTop || 0;   // Mittel n24
     car.assist.esc = this.autopilotOnly ? 0 : A.esc || 0;
     car.surfaceKind = (L.loop[idx] || L.tube[idx]) ? 1 : 0;
     // Bodenhaftung bei Tempo (n21, car.js) nicht an Schanzen (Anlauf, Lippe, Luft, Landung) und nicht auf den
@@ -326,6 +344,8 @@ export class Race {
     car.step(dt, this.env.world);
     // Fortschritt / Checkpoints / Ziel
     let ti = this.tracker.update(car.pos.x, car.pos.y, car.pos.z);
+    // Sprung-Hilfe (Mittel n24): im Flug über eine Schanze dezent Richtung Landerampe (game/jumpassist.js)
+    this.jumpK = A.jumpPull && !this.autopilotOnly ? this.jumpAssist.step(dt, car, this.env.track, ti) : 0;
     // Klar neben der Fahrbahn und am Boden: höchstens alle 0,1 s neu orten (Abkürzung quer übers Gelände)
     this.relocT = (this.relocT || 0) - dt;
     let jumped = false;
@@ -424,6 +444,26 @@ export class Race {
     if (need && !this.bhOn && this.simTime - (this.bhT ?? -99) > H.gap) { this.bhT = this.simTime; this.emit('brakehint', { dv: v - vmin }); }
     this.bhOn = need;
     if (need) this.hud = { kind: 'brake', text: 'Bremsen!' };
+  }
+
+  // Schanzen-Hinweis (Mittel n24, A.jumpHint): vor einer Standard-Schanze (höchstens JUMP_HINT.dist m bzw. sec s) das
+  // Absprung-Tempo im HUD – als Show-Tacho-Zahl wie der Tacho (core/showspeed.js) – grün im Fenster, gelb/rot darunter
+  // bzw. darüber. Die dynamische Ideallinie färbt den Anlauf mit derselben Brems-Rechnung (Ziel = Profil-Tempo der Lippe)
+  jumpHint(v, idx) {
+    const L = this.env.track.line, T = this.env.track, P = this.env.prof;
+    for (let k = 0; k < T.jumps.length; k++) {
+      const j = T.jumps[k], w = P.windows && P.windows[k];
+      if (j.gen || !j.landLen || !w || !w.vmin) continue;
+      let d = L.s[j.lipIdx] - L.s[idx];
+      if (d < 0 && L.closed) d += L.total;
+      if (d < -2 || d > Math.max(JUMP_HINT.dist, v * JUMP_HINT.sec)) continue;
+      const aim = w.vaim || w.vbest, st = v < w.vmin + 1 ? 'lo' : v > aim + JUMP_HINT.over ? 'hi' : 'ok';
+      const txt = `🛫 Schanze · ${Math.round(showKmhMs(aim) / 5) * 5} km/h${st === 'lo' ? ' · mehr Tempo ▲' : st === 'hi' ? ' · langsamer ▼' : ' ✓'}`;
+      this.hud = { kind: 'jump j' + st, text: txt };
+      this.jumpSt = st;
+      return;
+    }
+    this.jumpSt = null;
   }
 
   // Brems-Rechnung (warn.js) für diese Strecke – auch für die dynamische Ideallinie (lineviz.js)
@@ -801,7 +841,7 @@ export class Race {
     k = Math.max(0, k);
     const sn = this.snaps[k];
     this.snaps.length = k + 1;
-    this.car.restore(sn.s);
+    this.car.restore(sn.s); this.jumpAssist.reset();
     this.cpNext = sn.cp;
     this.tracker.lap = sn.lap; this.tracker.reset(sn.idx);
     this.ap.tr.reset(sn.apIdx);
