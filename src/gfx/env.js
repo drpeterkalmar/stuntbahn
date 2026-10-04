@@ -4,9 +4,18 @@ import { HDRLoader } from 'three/addons/loaders/HDRLoader.js';
 import { shadowUniforms } from './materials.js';
 import { WORLD_SCALE } from '../track/defs.js';
 
-export async function loadSkyInfo() {
-  const r = await fetch('assets/sky/sky.json');
+export async function loadSkyInfo(url = 'assets/sky/sky.json') {
+  const r = await fetch(url);
   return r.json();
+}
+export function loadSkyTexture(url = 'assets/sky/sky.jpg') {
+  return new THREE.TextureLoader().loadAsync(url).then((tex) => {
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.generateMipmaps = false;           // sonst Naht am u-Übergang (Ableitungssprung)
+    tex.minFilter = THREE.LinearFilter;
+    return tex;
+  });
 }
 
 // Sonnenrichtung aus Equirect-Koordinaten, three.js-Konvention (equirectUv): u = atan(z,x)/2π + 0.5
@@ -17,12 +26,9 @@ export function sunDirFromUV(u, v) {
   return new THREE.Vector3(r * Math.cos(phi), y, r * Math.sin(phi)).normalize();
 }
 
-export function makeSky(skyInfo) {
-  const tex = new THREE.TextureLoader().load('assets/sky/sky.jpg');
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.wrapS = THREE.RepeatWrapping;
-  tex.generateMipmaps = false;           // sonst Naht am u-Übergang (Ableitungssprung)
-  tex.minFilter = THREE.LinearFilter;
+// Himmelskugel; Thema-Wechsel (n20): uniforms sky/cutV/horizon neu setzen (gfx/themes.js)
+export function makeSky(skyInfo, tex = null) {
+  if (!tex) { tex = new THREE.Texture(); }
   const hz = new THREE.Color().setRGB(...skyInfo.horizon, THREE.SRGBColorSpace);
   const mat = new THREE.ShaderMaterial({
     uniforms: { sky: { value: tex }, cutV: { value: skyInfo.cutV }, horizon: { value: hz }, exposure: { value: 1.0 } },
@@ -47,10 +53,10 @@ export function makeSky(skyInfo) {
   return m;
 }
 
-export async function makeEnvironment(renderer) {
+export async function makeEnvironment(renderer, url = 'assets/hdr/sky_1k.hdr') {
   const loader = new HDRLoader();
   loader.setDataType(THREE.FloatType);
-  const hdr = await loader.loadAsync('assets/hdr/sky_1k.hdr');
+  const hdr = await loader.loadAsync(url);
   // Sonnenscheibe kappen: Sonnenlicht kommt von der DirectionalLight (mit Schatten),
   // sonst steckt fast die ganze Sonne im unbeschattbaren Umgebungslicht.
   const d = hdr.image.data, ch = d.length / (hdr.image.width * hdr.image.height);

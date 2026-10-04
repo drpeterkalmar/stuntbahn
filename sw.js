@@ -1,5 +1,5 @@
 // Service-Worker: offline spielbar, Cache-Busting über Inhalts-Hash (tools/update_sw.py)
-const VERSION = '9e8b89696e';
+const VERSION = 'ca82e6bda7';
 const CACHE = 'stuntbahn-' + VERSION;
 const ASSETS = [
   './',
@@ -79,10 +79,12 @@ const ASSETS = [
   'src/gfx/fx.js',
   'src/gfx/gauges.js',
   'src/gfx/kinolook.js',
+  'src/gfx/kulisse.js',
   'src/gfx/lineviz.js',
   'src/gfx/materials.js',
   'src/gfx/post.js',
   'src/gfx/quality.js',
+  'src/gfx/themes.js',
   'src/gfx/world.js',
   'src/main.js',
   'src/physics/air.js',
@@ -96,6 +98,7 @@ const ASSETS = [
   'src/track/generator.js',
   'src/track/generator3d.js',
   'src/track/generatorG.js',
+  'src/track/kulisse.js',
   'src/track/obstacles.js',
   'src/track/pieces.js',
   'src/track/pieces_3d.js',
@@ -104,6 +107,7 @@ const ASSETS = [
   'src/track/scenery.js',
   'src/track/showcase.js',
   'src/track/terrgrid.js',
+  'src/track/themes.js',
   'src/track/trk.js',
   'src/track/trkdesign.js',
   'src/track/trkelems.js',

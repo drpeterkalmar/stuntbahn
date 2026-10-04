@@ -10,9 +10,11 @@ import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { patchStaticShadow } from './materials.js';
 import { planDeco } from '../track/deco.js';
 import { MAT } from '../track/defs.js';
+import { buildRand } from './kulisse.js';
 
-export const decoUniforms = { uTime: { value: 0 } };
+export const decoUniforms = { uTime: { value: 0 }, uCheer: { value: new THREE.Vector4(0, 0, 1, 0) } };
 let assets = null;
+export const decoAssets = () => assets;
 // Einmal beim Start laden: Pflanzen-Atlas (+ Maße) und Felsen
 export async function loadDecoAssets() {
   if (assets) return assets;
@@ -35,7 +37,7 @@ export async function loadDecoAssets() {
 }
 
 // ---------- kleine Geometrie-Werkstatt (Vertexfarben) ----------
-class GB {
+export class GB {
   constructor() { this.p = []; this.n = []; this.c = []; this.uv = []; this.i = []; }
   v(p, n, c, u = 0, w = 0) { this.p.push(p[0], p[1], p[2]); this.n.push(n[0], n[1], n[2]); this.c.push(c[0], c[1], c[2]); this.uv.push(u, w); return this.p.length / 3 - 1; }
   quad(a, b, c, d, n, col) { const i = [this.v(a, n, col, 0, 0), this.v(b, n, col, 1, 0), this.v(c, n, col, 1, 1), this.v(d, n, col, 0, 1)]; this.i.push(i[0], i[1], i[2], i[0], i[2], i[3]); }
@@ -92,7 +94,7 @@ class GB {
 }
 
 // ---------- Canvas-Texturen (eigene Arbeit, fiktive Marken) ----------
-function canvasTex(w, h, draw, srgb = true) {
+export function canvasTex(w, h, draw, srgb = true) {
   const c = document.createElement('canvas'); c.width = w; c.height = h;
   draw(c.getContext('2d'), w, h);
   const t = new THREE.CanvasTexture(c);
@@ -127,28 +129,69 @@ function signAtlas() {
 }
 const AD_CELL = (k) => [(k % 2) * 0.5, 1 - (Math.floor(k / 2) * 96 + 96) / 512, 0.5, 96 / 512];
 const BOARD_CELL = (k) => [k * 170 / 1024, 0, 160 / 1024, 128 / 512];
-// Zuschauer: 4 Streifen (je 1024 × 128) – sitzend (Tribüne, dunkle Sitzreihe dahinter) und stehend (transparent)
+// Zuschauer: 4 Streifen (je 1024 × 128) – sitzend (Tribüne, dunkle Sitzreihe dahinter) und stehend (transparent); darunter
+// (n20) dieselben Menschen jubelnd mit hochgerissenen Armen (Zeilen 4–7): der Shader springt dorthin, wenn ein Stunt in der
+// Nähe läuft (decoUniforms.uCheer)
 function crowdAtlas() {
-  return canvasTex(1024, 512, (g) => {
+  return canvasTex(1024, 1024, (g) => {
     let seed = 12345; const R = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
     const shirts = ['#c62828', '#1565c0', '#f9a825', '#2e7d32', '#eeeeee', '#212121', '#6a1b9a', '#ef6c00', '#00838f', '#ad1457', '#8d6e63', '#90a4ae'];
     const skins = ['#f1c9a5', '#e0ac69', '#c68642', '#8d5524', '#ffdbac'];
+    const rows = [];
     for (let row = 0; row < 4; row++) {
-      const y0 = row * 128, seated = row < 2;
-      const people = seated ? 60 : 44;
+      const seated = row < 2, people = seated ? 60 : 44, ps = [];
       for (let k = 0; k < people; k++) {
-        const x = (k + R() * 0.6) * 1024 / people, s = seated ? 1 : 1.15 + R() * 0.25;
-        const top = seated ? y0 + 34 + R() * 8 : y0 + 18 + R() * 14;
-        g.fillStyle = shirts[Math.floor(R() * shirts.length)];
-        g.beginPath(); g.ellipse(x, top + 42 * s, 8.5 * s, 25 * s, 0, 0, Math.PI * 2); g.fill();
-        if (!seated) { g.fillStyle = R() < 0.5 ? '#263238' : '#3e2723'; g.fillRect(x - 6 * s, top + 60 * s, 5 * s, 44 * s); g.fillRect(x + 1 * s, top + 60 * s, 5 * s, 44 * s); }
-        g.fillStyle = skins[Math.floor(R() * skins.length)];
-        g.beginPath(); g.arc(x, top + 11 * s, 7.5 * s, 0, Math.PI * 2); g.fill();
-        if (R() < 0.35) { g.fillStyle = shirts[Math.floor(R() * shirts.length)]; g.fillRect(x - 8 * s, top + 1 * s, 16 * s, 5 * s); }   // Mütze
-        if (R() < 0.12) { g.fillStyle = R() < 0.5 ? '#ffeb3b' : '#e53935'; g.fillRect(x + 6 * s, top - 10 * s, 14 * s, 10 * s); }   // Fähnchen
+        const x = (k + R() * 0.6) * 1024 / people, sc = seated ? 1 : 1.15 + R() * 0.25;
+        const top = seated ? 34 + R() * 8 : 18 + R() * 14;
+        const p = { x, s: sc, top, shirt: shirts[Math.floor(R() * shirts.length)], legs: !seated ? (R() < 0.5 ? '#263238' : '#3e2723') : null, skin: skins[Math.floor(R() * skins.length)] };
+        if (R() < 0.35) p.cap = shirts[Math.floor(R() * shirts.length)];
+        if (R() < 0.12) p.flag = R() < 0.5 ? '#ffeb3b' : '#e53935';
+        ps.push(p);
       }
+      rows.push({ seated, ps });
     }
+    const draw = (p, y0, seated, up) => {
+      const s = p.s, top = y0 + p.top - (up && seated ? 8 : 0);
+      if (up) {   // Arme hoch (V), Hände in Hautfarbe
+        g.strokeStyle = p.shirt; g.lineWidth = 4.2 * s; g.lineCap = 'round';
+        g.beginPath(); g.moveTo(x0(p) - 6 * s, top + 26 * s); g.lineTo(x0(p) - 12 * s, top - 2 * s); g.moveTo(x0(p) + 6 * s, top + 26 * s); g.lineTo(x0(p) + 12 * s, top - 2 * s); g.stroke();
+        g.fillStyle = p.skin; g.beginPath(); g.arc(x0(p) - 12.5 * s, top - 3 * s, 2.6 * s, 0, 7); g.arc(x0(p) + 12.5 * s, top - 3 * s, 2.6 * s, 0, 7); g.fill();
+      }
+      g.fillStyle = p.shirt;
+      g.beginPath(); g.ellipse(x0(p), top + 42 * s, 8.5 * s, 25 * s, 0, 0, Math.PI * 2); g.fill();
+      if (p.legs) { g.fillStyle = p.legs; g.fillRect(x0(p) - 6 * s, top + 60 * s, 5 * s, 44 * s); g.fillRect(x0(p) + 1 * s, top + 60 * s, 5 * s, 44 * s); }
+      g.fillStyle = p.skin;
+      g.beginPath(); g.arc(x0(p), top + 11 * s, 7.5 * s, 0, Math.PI * 2); g.fill();
+      if (p.cap) { g.fillStyle = p.cap; g.fillRect(x0(p) - 8 * s, top + 1 * s, 16 * s, 5 * s); }
+      if (p.flag) { g.fillStyle = p.flag; g.fillRect(x0(p) + 6 * s + (up ? 6 * s : 0), top - 10 * s - (up ? 14 * s : 0), 14 * s, 10 * s); }
+    };
+    const x0 = (p) => p.x;
+    rows.forEach((r, row) => { for (const p of r.ps) draw(p, row * 128, r.seated, false); });
+    rows.forEach((r, row) => { for (const p of r.ps) draw(p, 512 + row * 128, r.seated, true); });
   });
+}
+// Zuschauer-Material: Atlas-Karten (cellMaterial) + Jubel: im Umkreis von uCheer (x, z, Radius, Stärke) springen die Gruppen
+// und reißen die Arme hoch (Atlas-Zeile + 4); jede Gruppe mit eigener Phase, ein Teil bleibt sitzen
+function crowdMaterial(map) {
+  const m = cellMaterial({ map, alphaTest: 0.5, roughness: 0.85, metalness: 0, side: THREE.DoubleSide });
+  const prev = m.onBeforeCompile;
+  m.onBeforeCompile = (sh, r) => {
+    prev(sh, r);
+    sh.uniforms.uCheer = decoUniforms.uCheer;
+    sh.vertexShader = sh.vertexShader
+      .replace('uniform float uWind, uTime;', 'uniform float uWind, uTime;\nuniform vec4 uCheer;')
+      .replace('transformed *= f;', `transformed *= f;
+        {
+          float ph = fract( sin( dot( ip.xz, vec2( 12.9898, 78.233 ) ) ) * 43758.5453 );
+          float ch = uCheer.w * ( 1.0 - smoothstep( uCheer.z * 0.6, uCheer.z, distance( ip.xz, uCheer.xy ) ) );
+          if ( ch > 0.2 && ph > 0.12 ) {
+            vMapUv.y -= 0.5;
+            transformed.y += ch * abs( sin( uTime * ( 6.0 + ph * 5.0 ) + ph * 31.0 ) ) * 0.13;
+          }
+        }`);
+  };
+  m.customProgramCacheKey = () => 'decoCrowd';
+  return m;
 }
 function chainTex() {
   const t = canvasTex(64, 64, (g) => {
@@ -161,7 +204,7 @@ function chainTex() {
 
 // Material mit Atlas-Zelle je Instanz (Attribut iCell = u0, v0, du, dv), optional Ausblenden mit der Entfernung
 // (uFade: Beginn/Ende in m) und Wind (Stärke uWind, wirkt nach oben zunehmend)
-function cellMaterial(opts, fade = [1e6, 1e6], wind = 0) {
+export function cellMaterial(opts, fade = [1e6, 1e6], wind = 0) {
   const m = new THREE.MeshStandardMaterial(opts);
   const uFade = { value: new THREE.Vector2(fade[0], fade[1]) }, uWind = { value: wind };
   m.userData.uFade = uFade;
@@ -182,8 +225,15 @@ function cellMaterial(opts, fade = [1e6, 1e6], wind = 0) {
   patchStaticShadow(m);
   return m;
 }
+// Herbst (n20): Blattfarbe aus der Helligkeit der Karte × Instanzfarbe (sonst wird Grün × Orange nur braun)
+export function lumTint(m) {
+  const prev = m.onBeforeCompile, pk = m.customProgramCacheKey;
+  m.onBeforeCompile = (sh, r) => { prev(sh, r); sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>', '#include <map_fragment>\n{ float l = dot( diffuseColor.rgb, vec3( 0.3, 0.59, 0.11 ) ); diffuseColor.rgb = vec3( l ) * 2.4; }'); };
+  m.customProgramCacheKey = () => pk() + '|lum';
+  return m;
+}
 // Kreuzkarten: k senkrechte Karten (Breite 1, Höhe 1, Fuß bei y = 0); Normalen nach oben/außen (weiches Licht)
-function cardGeometry(k, up = 0.6) {
+export function cardGeometry(k, up = 0.6) {
   const pos = [], nrm = [], uv = [], idx = [];
   for (let c = 0; c < k; c++) {
     const a = c * Math.PI / k, cx = Math.cos(a), cz = Math.sin(a), b = pos.length / 3;
@@ -200,13 +250,13 @@ function cardGeometry(k, up = 0.6) {
   g.setIndex(idx);
   return g;
 }
-function quadGeometry() {   // senkrechte Fläche 1 × 1, Normale +z, Fuß y = 0
+export function quadGeometry() {   // senkrechte Fläche 1 × 1, Normale +z, Fuß y = 0
   const g = new THREE.PlaneGeometry(1, 1); g.translate(0, 0.5, 0);
   return g;
 }
 
 // Instanzen setzen: list [{x, y, z, rot, sx, sy, sz, cell?, color?}]
-function instanced(geo, mat, list, name, cells = null, colors = null) {
+export function instanced(geo, mat, list, name, cells = null, colors = null) {
   const im = new THREE.InstancedMesh(geo, mat, list.length);
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), p = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
   const cellArr = cells ? new Float32Array(list.length * 4) : null;
@@ -228,7 +278,14 @@ function instanced(geo, mat, list, name, cells = null, colors = null) {
 // Texturen/Materialien einmal anlegen (Streckenwechsel baut nur Geometrie neu)
 const memo = new Map();
 const lin = (r, g, b) => new THREE.Color().setRGB(r, g, b, THREE.LinearSRGBColorSpace);
-const once = (key, make) => { if (!memo.has(key)) memo.set(key, make()); return memo.get(key); };
+export const once = (key, make) => { if (!memo.has(key)) memo.set(key, make()); return memo.get(key); };
+
+// Material je Thema-Atlas (Textur wird beim Thema-Wechsel freigegeben → Material an der Textur)
+const atlasMats = new WeakMap();
+function atlasMat(tex, key, o, fade, wind = 0) {
+  let m = atlasMats.get(tex); if (!m) atlasMats.set(tex, m = {});
+  return m[key] || (m[key] = cellMaterial(o, fade, wind));
+}
 
 // Hauptfunktion: Deko planen und als Meshes an root hängen. add(mesh, caster) aus world.js; surfaceY = gezeichnete
 // Geländehöhe. Rückgabe: Statistik (Instanzen, Dreiecke)
@@ -237,7 +294,9 @@ export function buildDeco(track, M, surfaceY, add, opts = {}) {
   const stats = { inst: 0, tris: 0, meshes: 0 };
   if (!A) return stats;
   const tier = opts.tier ?? 1;
-  const plan = planDeco(track, { ideal: opts.ideal, prof: opts.prof, tier, seed: track.layout?.seed || 1 });
+  const TH = opts.theme ? opts.theme.def : null, V = TH ? TH.veg : {}, TV = opts.theme && opts.theme.veg;
+  const plan = planDeco(track, { ideal: opts.ideal, prof: opts.prof, tier, seed: track.layout?.seed || 1, veg: V, themeId: opts.theme ? opts.theme.id : 'land' });
+  stats.planObj = plan;
   stats.plan = Object.fromEntries(Object.entries(plan.inst).map(([k, v]) => [k, v.length]));
   const count = (mesh, n, triPer) => { stats.inst += n; stats.tris += n * triPer; stats.meshes++; };
   const P = plan.inst;
@@ -393,13 +452,13 @@ export function buildDeco(track, M, surfaceY, add, opts = {}) {
     for (const t of list) for (let k = 0; k < steps; k++) {
       const zl = -1 - k * D + 0.2, h = 1.2 + k * Hs - 0.5;
       const cs = Math.cos(t.rot), sn = Math.sin(t.rot);
-      crowdList.push({ x: t.x + zl * sn, y: t.y + h + 0.45, z: t.z + zl * cs, rot: t.rot, sx: L - 0.6, sy: (L - 0.6) * 128 / 1024, cell: [0, 1 - ((k % 2) * 128 + 128) / 512, 1, 128 / 512] });
+      crowdList.push({ x: t.x + zl * sn, y: t.y + h + 0.45, z: t.z + zl * cs, rot: t.rot, sx: L - 0.6, sy: (L - 0.6) * 128 / 1024, cell: [0, 1 - ((k % 2) * 128 + 128) / 1024, 1, 128 / 1024] });
     }
   }
   // Gruppen: 3,4 m breite Ausschnitte (Maßstab wie die 7,4-m-Streifen: 128 px = 1,85 m), je Karte ein anderer Ausschnitt
-  (P.crowd || []).forEach((c, k) => crowdList.push({ x: c.x, y: gy(c.x, c.z) - 0.05, z: c.z, rot: c.rot, sx: 3.4, sy: 1.85, cell: [((k * 0.29 + c.v * 0.13) % 0.77), 1 - ((2 + c.v % 2) * 128 + 128) / 512, 0.23, 128 / 512] }));
+  (P.crowd || []).forEach((c, k) => crowdList.push({ x: c.x, y: gy(c.x, c.z) - 0.05, z: c.z, rot: c.rot, sx: 3.4, sy: 1.85, cell: [((k * 0.29 + c.v * 0.13) % 0.77), 1 - ((2 + c.v % 2) * 128 + 128) / 1024, 0.23, 128 / 1024] }));
   if (crowdList.length) {
-    const m = once('crowd', () => cellMaterial({ map: crowdAtlas(), alphaTest: 0.5, roughness: 0.85, metalness: 0, side: THREE.DoubleSide }));
+    const m = once('crowd2', () => crowdMaterial(crowdAtlas()));
     const g = quadGeometry();
     const im = instanced(g, m, crowdList, 'deco-crowd', true);
     add(im, false); count(im, crowdList.length, 2);
@@ -429,32 +488,57 @@ export function buildDeco(track, M, surfaceY, add, opts = {}) {
   const Mt = A.meta, cell = (n) => Mt[n].uv;
   const vegOpts = { map: A.veg, alphaTest: 0.45, alphaToCoverage: true, side: THREE.DoubleSide, roughness: 0.92, metalness: 0 };
   const fadeG = tier >= 2 ? [55, 85] : [35, 55];
+  // Kulissen (n20): Gras färbt das Thema (trocken, verschneit), Blumen/Büsche/Laubbäume kommen aus dem Thema-Atlas, wenn es
+  // eigene Zellen hat (Sukkulenten, Rooibos, Palmen, Köcherbäume, Jungtannen …), sonst aus dem Land-Atlas
+  const gTint = V.tint && V.tint.grass ? lin(...V.tint.grass) : V.snow ? lin(2.6, 2.7, 2.8) : V.autumn ? lin(2.3, 2.0, 0.9) : lin(1.9, 2.5, 1.35);
+  const useT = (cells) => cells && TV && cells.every((c) => TV.meta[Array.isArray(c) ? c[0] : c]);
   if (tier > 0 && ((P.grass && P.grass.length) || (P.flower && P.flower.length))) {
     const list = [];
     const GR = ['gras1', 'gras2'], FL = ['blume1', 'blume2', 'blume3', 'blume4'];
     for (const t of P.grass || []) { const n = GR[t.v % 2], w = Mt[n].w * t.s, h = Mt[n].h * t.s; list.push({ x: t.x, y: gy(t.x, t.z) - 0.04, z: t.z, rot: t.rot, sx: w, sy: h, cell: cell(n) }); }
-    for (const t of P.flower || []) { const n = FL[t.v % 4], w = Mt[n].w * t.s, h = Mt[n].h * t.s; list.push({ x: t.x, y: gy(t.x, t.z) - 0.03, z: t.z, rot: t.rot, sx: w, sy: h, cell: cell(n) }); }
-    const m = once('grass' + tier, () => cellMaterial({ ...vegOpts, color: lin(1.9, 2.5, 1.35) }, fadeG, 0.06));
-    const im = instanced(cardGeometry(2, 0.9), m, list, 'deco-grass', true);
-    add(im, false); count(im, list.length, 4);
+    const ownF = useT(V.flowerCells);
+    if (!ownF) for (const t of P.flower || []) { const n = FL[t.v % 4], w = Mt[n].w * t.s, h = Mt[n].h * t.s; list.push({ x: t.x, y: gy(t.x, t.z) - 0.03, z: t.z, rot: t.rot, sx: w, sy: h, cell: cell(n) }); }
+    const m = once('grass' + tier + (TH ? JSON.stringify(gTint) : ''), () => cellMaterial({ ...vegOpts, color: gTint }, fadeG, 0.06));
+    if (list.length) { const im = instanced(cardGeometry(2, 0.9), m, list, 'deco-grass', true); add(im, false); count(im, list.length, 4); }
+    if (ownF && P.flower && P.flower.length) {
+      const FC = V.flowerCells, fl = P.flower.map((t, k) => { const n = FC[(t.v + k) % FC.length], c = TV.meta[n], sc = t.s * 0.55; return { x: t.x, y: gy(t.x, t.z) - 0.03, z: t.z, rot: t.rot, sx: c.w * sc * 2.2, sy: c.h * sc * 2.2, cell: c.uv }; });
+      const im = instanced(cardGeometry(2, 0.9), atlasMat(TV.tex, 'flower', { ...vegOpts, map: TV.tex, color: lin(1.4, 1.4, 1.3) }, fadeG, 0.03), fl, 'deco-grass', true);
+      add(im, false); count(im, fl.length, 4);
+    }
   }
   if (P.bush && P.bush.length) {
-    const BU = ['busch3', 'busch4'];
-    const list = P.bush.map((t) => { const n = BU[t.v % 2]; return { x: t.x, y: gy(t.x, t.z) - 0.15, z: t.z, rot: t.rot, sx: Mt[n].w * t.s, sy: Mt[n].h * t.s, cell: cell(n) }; });
-    const m = once('bush', () => cellMaterial({ ...vegOpts, color: lin(1.6, 1.7, 1.35) }, [260, 340], 0.02));
+    let list, m;
+    if (useT(V.bushCells)) {
+      const BC = V.bushCells;
+      list = P.bush.map((t, k) => { const n = BC[(t.v + k) % BC.length], c = TV.meta[n], hh = n === 'jungtanne' ? 4.5 : 1.8, sc = hh / c.h * t.s; return { x: t.x, y: gy(t.x, t.z) - 0.1, z: t.z, rot: t.rot, sx: c.w * sc, sy: c.h * sc, cell: c.uv }; });
+      m = atlasMat(TV.tex, 'bush', { ...vegOpts, map: TV.tex, color: V.snow ? lin(1.9, 1.95, 2.0) : lin(1.5, 1.55, 1.35) }, [260, 340], 0.02);
+    } else {
+      const BU = ['busch3', 'busch4'];
+      list = P.bush.map((t) => { const n = BU[t.v % 2]; return { x: t.x, y: gy(t.x, t.z) - 0.15, z: t.z, rot: t.rot, sx: Mt[n].w * t.s, sy: Mt[n].h * t.s, cell: cell(n) }; });
+      m = once('bush' + (V.autumn ? 'H' : V.snow ? 'W' : ''), () => cellMaterial({ ...vegOpts, color: V.autumn ? lin(2.2, 1.3, 0.6) : V.snow ? lin(2.4, 2.45, 2.5) : lin(1.6, 1.7, 1.35) }, [260, 340], 0.02));
+    }
     const im = instanced(cardGeometry(3, 0.6), m, list, 'deco-bushes', true);
     add(im, true); count(im, list.length, 6);
   }
   if (P.laub && P.laub.length) {
-    const LB = ['laub1', 'laub2'], H = { laub1: 11.5, laub2: 10 };
-    const list = P.laub.map((t) => { const n = LB[t.v % 2], k = H[n] / Mt[n].h * t.s; return { x: t.x, y: gy(t.x, t.z) - 0.25, z: t.z, rot: t.rot, sx: Mt[n].w * k, sy: Mt[n].h * k, cell: cell(n) }; });
-    const m = once('laub', () => cellMaterial({ ...vegOpts, color: lin(1.4, 1.5, 1.25), emissive: 0x0a1206 }));
-    const im = instanced(cardGeometry(tier >= 2 ? 3 : 2, 0.5), m, list, 'deco-laub', true);   // Stufe 0/1: 2 Karten (weniger Überzeichnen)
+    let list, m;
+    if (useT(V.laubCells)) {
+      const LC = V.laubCells;
+      list = P.laub.map((t, k) => { const [n, hh] = LC[(t.v + k) % LC.length], c = TV.meta[n], sc = hh / c.h * t.s; return { x: t.x, y: gy(t.x, t.z) - 0.2, z: t.z, rot: t.rot, sx: c.w * sc, sy: c.h * sc, cell: c.uv }; });
+      m = atlasMat(TV.tex, 'laub', { ...vegOpts, map: TV.tex, color: lin(1.45, 1.45, 1.35), emissive: 0x0a0c06 });
+    } else {
+      const LB = ['laub1', 'laub2'], H = { laub1: 11.5, laub2: 10 };
+      const AUT = [[1.0, 0.66, 0.16], [1.09, 0.45, 0.11], [0.95, 0.25, 0.08], [0.68, 0.41, 0.18], [0.6, 0.68, 0.27]];
+      list = P.laub.map((t, k) => { const n = LB[t.v % 2], kk = H[n] / Mt[n].h * t.s; const it = { x: t.x, y: gy(t.x, t.z) - 0.25, z: t.z, rot: t.rot, sx: Mt[n].w * kk, sy: Mt[n].h * kk, cell: cell(n) }; if (V.autumn) { const c = AUT[(k * 7 + t.v) % AUT.length]; it.color = lin(c[0], c[1], c[2]); } return it; });
+      m = once('laub' + (V.autumn ? 'H' : V.snow ? 'W' : ''), () => { const mm = cellMaterial({ ...vegOpts, color: V.autumn ? lin(1.25, 1.25, 1.25) : V.snow ? lin(1.7, 1.75, 1.8) : lin(1.4, 1.5, 1.25), emissive: 0x0a1206 }); return V.autumn ? lumTint(mm) : mm; });
+    }
+    const im = instanced(cardGeometry(tier >= 2 ? 3 : 2, 0.5), m, list, 'deco-laub', true, !!(V.autumn && !useT(V.laubCells)));   // Stufe 0/1: 2 Karten
     add(im, true); count(im, list.length, 6);
   }
   // ----- Felsen (drei Formen, je ein instanziertes Mesh) -----
   if (P.rock && P.rock.length && A.rockGeo.length) {
-    const rm = once('rock', () => { const r = A.rockMat.clone(); r.roughness = 0.95; r.color.setRGB(1.7, 1.7, 1.6); return patchStaticShadow(r); });
+    const rt = V.rockTint || (V.snow ? [2.1, 2.15, 2.25] : [1.7, 1.7, 1.6]);
+    const rm = once('rock' + rt.join(','), () => { const r = A.rockMat.clone(); r.roughness = 0.95; r.color.setRGB(...rt); return patchStaticShadow(r); });
     for (let v = 0; v < A.rockGeo.length; v++) {
       const g = A.rockGeo[v];
       if (!g.boundingBox) g.computeBoundingBox();
@@ -470,8 +554,34 @@ export function buildDeco(track, M, surfaceY, add, opts = {}) {
     for (const f of P.farm) {
       const y = gy(f.x, f.z) - 0.4, r = f.rot, cs = Math.cos(r), sn = Math.sin(r);
       const at = (lx, lz) => [f.x + lx * cs + lz * sn, f.z - lx * sn + lz * cs];
+      const kind = V.farm || 'hof';
+      if (kind === 'ranch') {   // Wüste: Lehmhaus mit Flachdach, Wassertank auf Stelzen, Windpumpe, Schuppen
+        const wall = [[0.78, 0.55, 0.38], [0.85, 0.66, 0.46], [0.7, 0.45, 0.3]][f.v % 3];
+        let [x, z] = at(0, 0); b.box(x, y + 2.4, z, 13, 4.8, 9, wall, r); b.box(x, y + 4.95, z, 13.4, 0.3, 9.4, [0.55, 0.36, 0.24], r);
+        [x, z] = at(9, 0); b.box(x, y + 1.6, z, 5, 3.2, 6, [0.5, 0.36, 0.26], r);
+        [x, z] = at(-10, 10); for (const [dx, dz] of [[-1.3, -1.3], [1.3, -1.3], [-1.3, 1.3], [1.3, 1.3]]) b.box(x + dx, y + 3, z + dz, 0.25, 6, 0.25, [0.35, 0.25, 0.16]);
+        b.cyl(x, y + 6, z, 2.2, 2.2, 3.2, 10, [0.62, 0.6, 0.56]); b.cyl(x, y + 9.2, z, 2.2, 0.2, 0.9, 10, [0.45, 0.44, 0.42], false);
+        [x, z] = at(14, -12); b.cyl(x, y, z, 0.25, 0.12, 11, 6, [0.5, 0.5, 0.5]); b.box(x, y + 11, z, 3.4, 3.4, 0.15, [0.75, 0.75, 0.72], r);
+        continue;
+      }
+      if (kind === 'huette') {   // Alpen/Winter: Hütte mit Steinsockel, Holz-Obergeschoss, flachem Satteldach; Stadel daneben
+        const roof = V.snow ? [0.86, 0.88, 0.92] : [0.24, 0.22, 0.21];
+        let [x, z] = at(0, 0); b.box(x, y + 1.4, z, 11, 2.8, 9, [0.55, 0.54, 0.5], r); b.box(x, y + 4.3, z, 11, 3.0, 9, [0.42, 0.26, 0.14], r);
+        b.gable(x, y + 5.8, z, 11, 9, 2.4, roof, r, 1.4);
+        [x, z] = at(15, 5); b.box(x, y + 2.5, z, 9, 5, 7, [0.36, 0.22, 0.12], r); b.gable(x, y + 5, z, 9, 7, 2.0, roof, r, 0.8);
+        continue;
+      }
+      if (kind === 'strand') {   // Küste: bunte Strandhäuser auf Stelzen, Bootsschuppen
+        const cols = [[0.86, 0.86, 0.82], [0.36, 0.6, 0.78], [0.92, 0.78, 0.36], [0.82, 0.42, 0.36]];
+        for (let k = 0; k < 3; k++) {
+          const [x, z] = at(-12 + k * 12, (k % 2) * 4), c = cols[(f.v + k) % 4];
+          for (const [dx, dz] of [[-2.5, -2], [2.5, -2], [-2.5, 2], [2.5, 2]]) b.box(x + dx, y + 0.8, z + dz, 0.25, 1.6, 0.25, [0.4, 0.3, 0.2]);
+          b.box(x, y + 3.1, z, 6, 3, 5, c, r); b.gable(x, y + 4.6, z, 6, 5, 1.7, [0.62, 0.3, 0.2], r);
+        }
+        continue;
+      }
       const wall = [[0.9, 0.88, 0.82], [0.88, 0.82, 0.68], [0.85, 0.85, 0.83]][f.v % 3];
-      let [x, z] = at(0, 0); b.box(x, y + 3, z, 11, 6, 8, wall, r); b.gable(x, y + 6, z, 11, 8, 3.6, [0.5, 0.17, 0.1], r);
+      let [x, z] = at(0, 0); b.box(x, y + 3, z, 11, 6, 8, wall, r); b.gable(x, y + 6, z, 11, 8, 3.6, V.snow ? [0.86, 0.88, 0.92] : [0.5, 0.17, 0.1], r);
       [x, z] = at(18, 4); b.box(x, y + 3.5, z, 20, 7, 12, [0.45, 0.2, 0.12], r); b.gable(x, y + 7, z, 20, 12, 4.5, [0.3, 0.3, 0.32], r);
       [x, z] = at(-10, 12); b.cyl(x, y, z, 2.4, 2.4, 11, 10, [0.75, 0.76, 0.78]); b.cyl(x, y + 11, z, 2.4, 0.2, 1.8, 10, [0.6, 0.62, 0.64], false);
       [x, z] = at(4, -14); b.box(x, y + 2, z, 9, 4, 6, [0.35, 0.25, 0.15], r); b.gable(x, y + 4, z, 9, 6, 1.6, [0.35, 0.35, 0.35], r);
@@ -480,5 +590,7 @@ export function buildDeco(track, M, surfaceY, add, opts = {}) {
     const mesh = new THREE.Mesh(g, paint); mesh.name = 'deco-farms';
     add(mesh, true); count(mesh, 1, g.index.count / 3); stats.inst += P.farm.length - 1;
   }
+  // ----- Kulissen (n20): Streckenrand (Portal, Fahnen, Kamerakräne), Himmel (Ballons, Zeppelin), Windräder, Themen-Bauten -----
+  stats.tris += buildRand(plan, { M, gy, add, tier, theme: opts.theme });
   return stats;
 }

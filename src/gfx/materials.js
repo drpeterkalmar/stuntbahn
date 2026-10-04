@@ -15,12 +15,10 @@ export const KTX2_SETS = ['asphalt', 'concrete', 'grass', 'pad', 'metal'];
 export async function preloadKtx2(renderer) {
   if (typeof location !== 'undefined' && new URLSearchParams(location.search).get('ktx') === '0') return 0;
   try {
-    const { KTX2Loader } = await import('three/addons/loaders/KTX2Loader.js');
-    const L = new KTX2Loader().detectSupport(renderer);
+    const L = await ktxShared(renderer);   // n20: ein gemeinsamer Lader (auch für die Themen-Texturen)
     const names = KTX2_SETS.flatMap((s) => ['diff', 'nor', 'arm'].map((k) => `${s}_${k}`));
     const res = await Promise.all(names.map((n) => L.loadAsync(`assets/tex/${n}.ktx2`).then((t) => [n, t])));
     for (const [n, t] of res) ktx2.set(n, t);
-    L.dispose();
     return ktx2.size;
   } catch (e) {
     console.warn('KTX2 nicht verfügbar, WebP', e && e.message);
@@ -29,6 +27,16 @@ export async function preloadKtx2(renderer) {
   }
 }
 export function ktx2Count() { return ktx2.size; }
+// Kulissen (n20): weitere KTX2-Texturen bei Bedarf (Boden/Fels der Landschafts-Themen); der Lader bleibt bestehen
+let ktxLoader = null;
+function ktxShared(renderer) {
+  if (!ktxLoader) ktxLoader = import('three/addons/loaders/KTX2Loader.js').then(({ KTX2Loader }) => new KTX2Loader().detectSupport(renderer));
+  return ktxLoader;
+}
+export async function loadKtx2(renderer, url) {
+  if (typeof location !== 'undefined' && new URLSearchParams(location.search).get('ktx') === '0') throw new Error('KTX2 aus');
+  return (await ktxShared(renderer)).loadAsync(url);
+}
 // 1×1-Tiefentextur mit Vergleichsmodus als Platzhalter (sampler2DShadow braucht Depth-Format)
 const dummyDepth = new THREE.DepthTexture(1, 1);
 dummyDepth.type = THREE.UnsignedIntType;
@@ -223,6 +231,26 @@ function patchRoad(mat, detail = true) {
   addPatch(mat, fn);
 }
 
+// Kulissen (n20): Boden-Palette des Landschafts-Themas (Werte von „Land“ = bisher fest im Shader). gfx/themes.js setzt sie.
+const v3 = (a) => new THREE.Vector3(a[0], a[1], a[2]);
+export const themeUniforms = {
+  tG0: { value: v3([0.035, 0.085, 0.02]) }, tG1: { value: v3([0.2, 0.34, 0.08]) }, tDry: { value: v3([0.26, 0.27, 0.12]) }, tDryK: { value: 0.55 },
+  tTint: { value: v3([0.7, 0.85, 0.5]) }, tTintK: { value: 0.25 }, tFields: { value: 1 }, tForest: { value: v3([0.03, 0.06, 0.022]) }, tForestK: { value: 1 },
+  tDirt0: { value: v3([0.055, 0.038, 0.022]) }, tDirt1: { value: v3([0.11, 0.08, 0.05]) }, tRock0: { value: v3([0.06, 0.055, 0.05]) }, tRock1: { value: v3([0.16, 0.145, 0.125]) },
+  tSlope: { value: new THREE.Vector4(0.93, 0.86, 0.83, 0.72) }, tStrata: { value: 0 }, tStrataCol: { value: v3([0.3, 0.12, 0.06]) },
+  tSnowH: { value: 1e5 }, tBeach: { value: -1e5 }, tCity: { value: 0 }, tRockTex: { value: 0 }, tRockMap: { value: null }, tSnowAll: { value: 0 },
+  tTreeSnow: { value: 0 }, tTreeTint: { value: v3([1, 1, 1]) },
+};
+export function setGround(g) {
+  const U = themeUniforms;
+  for (const k of ['g0', 'g1', 'dry', 'tint', 'forest', 'dirt0', 'dirt1', 'rock0', 'rock1', 'strataCol']) U['t' + k[0].toUpperCase() + k.slice(1)].value.set(...g[k]);
+  U.tDryK.value = g.dryK; U.tTintK.value = g.tintK; U.tFields.value = g.fields; U.tForestK.value = g.forestK; U.tSlope.value.set(...g.slope);
+  U.tStrata.value = g.strata; U.tSnowH.value = g.snowH; U.tBeach.value = g.beach; U.tCity.value = g.city; U.tRockTex.value = g.rockTex && U.tRockMap.value ? 1 : 0;
+  U.tSnowAll.value = g.snowAll || 0;
+}
+// Platzhalter für den Fels-Sampler (Themen ohne eigene Fels-Textur)
+themeUniforms.tRockMap.value = (() => { const t = new THREE.DataTexture(new Uint8Array([128, 128, 128, 255]), 1, 1); t.needsUpdate = true; return t; })();
+
 // Gelände nach Neigung (n22): an; URL ?gelfarbe=0 = Gras überall wie bis n21 (Vergleich)
 export const rockUniform = { value: globalThis.location && new URLSearchParams(globalThis.location.search).get('gelfarbe') === '0' ? 0 : 1 };
 function patchGrass(mat) {
@@ -230,6 +258,7 @@ function patchGrass(mat) {
   const fn = (sh) => {
     sh.uniforms.sbRock = rockUniform;
     sh.uniforms.sbKino = shadowUniforms.sbKino;
+    Object.assign(sh.uniforms, themeUniforms);
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', '#include <common>\nvarying vec2 vGw;\nvarying vec3 vGn;\nvarying float vGy;')
       .replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvGw = ( modelMatrix * vec4( transformed, 1.0 ) ).xz;\nvGy = ( modelMatrix * vec4( transformed, 1.0 ) ).y;\nvGn = normalize( mat3( modelMatrix ) * objectNormal );');
@@ -239,6 +268,10 @@ function patchGrass(mat) {
       varying vec3 vGn;
       varying float vGy;
       uniform float sbRock;
+      uniform vec3 tG0, tG1, tDry, tTint, tForest, tDirt0, tDirt1, tRock0, tRock1, tStrataCol;
+      uniform float tDryK, tTintK, tFields, tForestK, tStrata, tSnowH, tBeach, tCity, tRockTex, tSnowAll;
+      uniform vec4 tSlope;
+      uniform sampler2D tRockMap;
       float gHash( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) * 43758.5453 ); }
       float gNoise( vec2 p ) { vec2 i = floor( p ), f = fract( p ); f = f * f * ( 3.0 - 2.0 * f );
         return mix( mix( gHash( i ), gHash( i + vec2( 1, 0 ) ), f.x ), mix( gHash( i + vec2( 0, 1 ) ), gHash( i + vec2( 1, 1 ) ), f.x ), f.y ); }`)
@@ -248,16 +281,16 @@ function patchGrass(mat) {
         float n = gNoise( vGw * 0.018 ) * 0.6 + gNoise( vGw * 0.07 ) * 0.4;
         vec3 base = mix( diffuseColor.rgb, c2, 0.45 );
         float lum = dot( base, vec3( 0.3, 0.55, 0.15 ) );
-        vec3 dark = vec3( 0.035, 0.085, 0.02 ), light = vec3( 0.2, 0.34, 0.08 );
-        vec3 green = mix( dark, light, clamp( lum * 2.4, 0.0, 1.0 ) );
-        vec3 dry = vec3( 0.26, 0.27, 0.12 ) * clamp( lum * 2.0, 0.3, 1.2 );
-        green = mix( green, dry, smoothstep( 0.55, 0.95, n ) * 0.55 );
-        diffuseColor.rgb = mix( green, base * vec3( 0.7, 0.85, 0.5 ), 0.25 ) * mix( 0.85, 1.12, n );
+        // Kulissen (n20): Palette des Themas (Land = Werte bis n23)
+        vec3 green = mix( tG0, tG1, clamp( lum * 2.4, 0.0, 1.0 ) );
+        vec3 dry = tDry * clamp( lum * 2.0, 0.3, 1.2 );
+        green = mix( green, dry, smoothstep( 0.55, 0.95, n ) * tDryK );
+        diffuseColor.rgb = mix( green, base * tTint, tTintK ) * mix( 0.85, 1.12, n );
         // Optik (28.09.2026): außerhalb des Streckenrasters Felder mit Hecken (Getreide, Acker, Raps, Wiese),
         // an den Hängen des Bergkranzes Wald – die Ferne wirkt bewirtschaftet statt einheitlich grün
         float farD = max( abs( vGw.x ), abs( vGw.y ) ) - ${(WORLD_HALF + 70 * WORLD_SCALE).toFixed(1)};
         float rr = length( vGw );
-        if ( farD > 0.0 ) {
+        if ( farD > 0.0 && tFields > 0.5 ) {
           float detail = clamp( lum / 0.16, 0.65, 1.35 );
           float fk = smoothstep( 0.0, 90.0, farD ) * ( 1.0 - smoothstep( ${(1050 * WORLD_SCALE).toFixed(1)}, ${(1350 * WORLD_SCALE).toFixed(1)}, rr ) );
           vec2 q = mat2( 0.955, -0.296, 0.296, 0.955 ) * vGw;
@@ -274,18 +307,34 @@ function patchGrass(mat) {
           crop = mix( crop, vec3( 0.03, 0.065, 0.02 ) * detail, hedge );
           diffuseColor.rgb = mix( diffuseColor.rgb, crop, fk );
         }
+        // Kulissen (n20): Stadt – außerhalb des Streckenrasters Häuserblocks mit Straßen, Dächern, Parks
+        if ( farD > 0.0 && tCity > 0.5 ) {
+          float fk = smoothstep( 0.0, 60.0, farD );
+          vec2 q = vGw / 92.0, cid = floor( q ), f = fract( q );
+          float h = gHash( cid );
+          float street = 1.0 - smoothstep( 0.075, 0.095, min( min( f.x, 1.0 - f.x ), min( f.y, 1.0 - f.y ) ) );
+          vec3 roof = mix( vec3( 0.13, 0.13, 0.135 ), vec3( 0.3, 0.2, 0.15 ), step( 0.6, gHash( floor( q * 4.0 ) ) ) ) * ( 0.75 + 0.5 * gHash( floor( q * 8.0 ) ) );
+          vec3 lot = h < 0.18 ? diffuseColor.rgb : roof;
+          vec3 c = mix( lot, vec3( 0.06, 0.06, 0.065 ), street );
+          diffuseColor.rgb = mix( diffuseColor.rgb, c, fk );
+        }
         // Gelände nach Neigung (n22, Gelände-Strecken: „nicht wie grüne Knetmasse“): flach Gras, ab ~22° Erde/Schotter
         // (Böschungen), ab ~35° Fels mit Schichten; flache Wiesen bleiben unverändert (alte Strecken haben kaum so steile Hänge)
+        // Fels-Textur-Koordinaten und Ableitungen außerhalb der Verzweigung (sonst flimmern die Mipmaps an Hangkanten)
+        vec2 prT = ( abs( vGn.x ) > abs( vGn.z ) ? vec2( vGw.y, vGy ) : vec2( vGw.x, vGy ) ) * 0.045, prDx = dFdx( prT ), prDy = dFdy( prT );
         if ( sbRock > 0.5 ) {
           float ny = normalize( vGn ).y;
-          float dirt = smoothstep( 0.93, 0.86, ny ), rock = smoothstep( 0.83, 0.72, ny );
+          float dirt = smoothstep( tSlope.x, tSlope.y, ny ), rock = smoothstep( tSlope.z, tSlope.w, ny );
           if ( dirt > 0.0 ) {
             float gn = gNoise( vGw * 0.35 ) * 0.5 + gNoise( vGw * 1.7 ) * 0.5;
-            vec3 dcol = mix( vec3( 0.055, 0.038, 0.022 ), vec3( 0.11, 0.08, 0.05 ), gn ) * clamp( lum * 4.0, 0.6, 1.3 );
+            vec3 dcol = mix( tDirt0, tDirt1, gn ) * clamp( lum * 4.0, 0.6, 1.3 );
             vec2 pr = abs( vGn.x ) > abs( vGn.z ) ? vec2( vGw.y, vGy ) : vec2( vGw.x, vGy );
             float st = 0.5 + 0.5 * sin( vGy * 1.9 + gNoise( pr * 0.12 ) * 5.0 );
             float rn = gNoise( pr * 0.45 ) * 0.6 + gNoise( pr * 2.1 ) * 0.4;
-            vec3 rcol = mix( vec3( 0.06, 0.055, 0.05 ), vec3( 0.16, 0.145, 0.125 ), rn ) * ( 0.75 + 0.4 * st );
+            vec3 rcol = mix( tRock0, tRock1, rn ) * ( 0.75 + 0.4 * st );
+            if ( tRockTex > 0.5 ) { vec3 rt = textureGrad( tRockMap, prT, prDx, prDy ).rgb; rcol = mix( rcol, rt * ( 0.8 + 0.35 * st ), 0.65 ); }
+            // Canyon (n20): waagrechte Schichtbänder im Fels
+            if ( tStrata > 0.5 ) { float b = 0.5 + 0.5 * sin( vGy * 0.55 + gNoise( pr * 0.05 ) * 3.0 ); float b2 = smoothstep( 0.55, 0.9, 0.5 + 0.5 * sin( vGy * 0.17 + 1.3 ) ); rcol = mix( rcol, tStrataCol * ( 0.8 + 0.4 * rn ), 0.35 * b + 0.35 * b2 ); }
             if ( sbKino > 0.5 ) {
               // Kino (n17): Fels mit Klüften (dunkle, fast senkrechte Spalten), feiner Körnung und Flechten-Flecken
               float fine = gNoise( pr * 7.0 ) * 0.5 + gNoise( pr * 19.0 ) * 0.5;
@@ -300,11 +349,21 @@ function patchGrass(mat) {
         }
         if ( rr > ${(820 * WORLD_SCALE).toFixed(1)} ) {   // nur in der Ferne rechnen (nahe der Strecke kostet es nichts)
           float fo = smoothstep( ${(820 * WORLD_SCALE).toFixed(1)}, ${(1150 * WORLD_SCALE).toFixed(1)}, rr ) * smoothstep( 0.42, 0.6, gNoise( vGw * 0.0035 ) * 0.75 + gNoise( vGw * 0.02 ) * 0.25 );
-          diffuseColor.rgb = mix( diffuseColor.rgb, vec3( 0.03, 0.06, 0.022 ) * ( 0.7 + 0.6 * gNoise( vGw * 0.09 ) ), fo );
+          diffuseColor.rgb = mix( diffuseColor.rgb, tForest * ( 0.7 + 0.6 * gNoise( vGw * 0.09 ) ), clamp( fo * tForestK, 0.0, 1.0 ) );
+        }
+        // Kulissen (n20): Schnee über der Schneegrenze (Alpen; flache Stellen zuerst), Sandstrand am Meer (Küste)
+        if ( vGy > tSnowH - 60.0 ) {
+          float ny2 = normalize( vGn ).y;
+          float sn = smoothstep( tSnowH - 25.0, tSnowH + 30.0, vGy + ( gNoise( vGw * 0.01 ) - 0.5 ) * 90.0 ) * smoothstep( 0.45, 0.75, ny2 );
+          diffuseColor.rgb = mix( diffuseColor.rgb, vec3( 0.82, 0.85, 0.9 ) * ( 0.9 + 0.15 * gNoise( vGw * 0.2 ) ), sn );
+        }
+        if ( vGy < tBeach ) {
+          float sb = smoothstep( tBeach, tBeach - 2.5, vGy + ( gNoise( vGw * 0.03 ) - 0.5 ) * 2.0 );
+          diffuseColor.rgb = mix( diffuseColor.rgb, vec3( 0.62, 0.53, 0.38 ) * ( 0.85 + 0.25 * gNoise( vGw * 0.4 ) ), sb );
         }
       }`);
   };
-  fn.tag = 'grass';
+  fn.tag = 'grass2';
   addPatch(mat, fn);
 }
 
@@ -359,6 +418,30 @@ function kerbTexture() {
   return t;
 }
 
+// Kulissen (n20): Tannen je Thema – Farbe (tTreeTint) und Schnee auf den Zweigen (tTreeSnow, Winter): helle Flecken auf den
+// oberen, nach außen zeigenden Teilen der Karte
+export function patchTreeTheme(m) {
+  const fn = (sh) => {
+    sh.uniforms.tTreeSnow = themeUniforms.tTreeSnow; sh.uniforms.tTreeTint = themeUniforms.tTreeTint;
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', '#include <common>\nuniform float tTreeSnow;\nuniform vec3 tTreeTint;')
+      .replace('#include <map_fragment>', `#include <map_fragment>
+      diffuseColor.rgb *= tTreeTint;
+      if ( tTreeSnow > 0.0 ) {
+        // weiche Schneeflecken (Wertrauschen, bilinear) statt harter Zellen
+        vec2 q = vMapUv * vec2( 9.0, 14.0 ), qi = floor( q ), qf = fract( q ); qf = qf * qf * ( 3.0 - 2.0 * qf );
+        float h00 = fract( sin( dot( qi, vec2( 127.1, 311.7 ) ) ) * 43758.5453 ), h10 = fract( sin( dot( qi + vec2( 1, 0 ), vec2( 127.1, 311.7 ) ) ) * 43758.5453 );
+        float h01 = fract( sin( dot( qi + vec2( 0, 1 ), vec2( 127.1, 311.7 ) ) ) * 43758.5453 ), h11 = fract( sin( dot( qi + vec2( 1, 1 ), vec2( 127.1, 311.7 ) ) ) * 43758.5453 );
+        float h = mix( mix( h00, h10, qf.x ), mix( h01, h11, qf.x ), qf.y );
+        float s = smoothstep( 0.35, 0.7, h ) * 0.8;
+        diffuseColor.rgb = mix( diffuseColor.rgb, vec3( 0.86, 0.88, 0.92 ), s * tTreeSnow );
+      }`);
+  };
+  fn.tag = 'treeTheme';
+  addPatch(m, fn);
+  return m;
+}
+
 export function makeMaterials(renderer, q = {}) {
   // Platzhalter-Tiefentextur auf der GPU anlegen (sonst bindet three.js eine RGBA-Leertextur)
   renderer.setRenderTarget(dummyShadowRT); renderer.clear(); renderer.setRenderTarget(null);
@@ -402,6 +485,7 @@ export function makeMaterials(renderer, q = {}) {
     const m = new THREE.MeshStandardMaterial({ map: tex(`assets/tex/fir_card_${v}.webp`, true, 1, aniso), alphaTest: 0.42, alphaToCoverage: true, side: THREE.DoubleSide, roughness: 0.95, metalness: 0, color: 0xd8f0c8, emissive: 0x0b1406 });
     m.map.wrapS = m.map.wrapT = THREE.ClampToEdgeWrapping;
     m.map.repeat.set(1, 1);
+    patchTreeTheme(m);
     return m;
   });
   for (const k of Object.keys(M)) {

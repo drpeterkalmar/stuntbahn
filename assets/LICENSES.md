@@ -107,3 +107,54 @@ Kino-Look-Pipeline (`src/gfx/kinolook.js`: Hochskalieren/Kantenglättung/Nachsch
 Umgebungsverdeckung, Farbkorrektur), Asphalt-Flicken/-Risse, Randstein-Abnutzung, Fels-Klüfte, Rauch-Textur und Funken
 sind eigene Arbeit (prozedural, keine Bilddateien). Kantenglättung und Nachschärfen folgen bekannten, frei beschriebenen
 Ideen (FXAA-Art, kontrastadaptives Schärfen wie AMD CAS/FSR1), es wurde kein fremder Code übernommen.
+
+## Kulissen: Landschafts-Themen (n20, 04.10.2026)
+
+Alle Dateien unter `assets/themes/` werden nur geladen, wenn das Thema gewählt ist (immer nur das aktuelle). Die Lizenz jeder
+Quelle wurde am 04.10.2026 auf der Asset-Seite der Primärquelle geprüft (`tools/fetch_themes.py` bricht ab, wenn dort kein „CC0“ steht).
+Liste der Quellen mit Autoren: `assets_src/themes/quellen.json` (lokal). Keine Markennamen: Fahnen, Portal-Tafel und Zeppelin zeigen erfundene Marken.
+
+### Himmel (Poly Haven, CC0)
+
+| Datei(en) | Poly-Haven-HDRI | Autor(en) | Lizenz | Änderungen |
+|---|---|---|---|---|
+| `themes/wueste/sky.jpg`, `sky.json`, `env.hdr` | [Qwantani Afternoon (Pure Sky)](https://polyhaven.com/a/qwantani_afternoon_puresky) | Greg Zaal, Jarod Guest | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) | Himmelsbild aus dem 4k-HDR (obere Halbkugel, ACES-Näherung, JPG), 1k-HDR unverändert als Umgebungslicht (`tools/make_theme_sky.py`) |
+| `themes/alpen/sky.jpg`, `sky.json`, `env.hdr` | [Pizzo Pernice (Pure Sky)](https://polyhaven.com/a/pizzo_pernice_puresky) | Andreas Mischok, Jarod Guest | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) | Himmelsbild aus dem 4k-HDR (obere Halbkugel, ACES-Näherung, JPG), 1k-HDR unverändert als Umgebungslicht (`tools/make_theme_sky.py`) |
+| `themes/kueste/sky.jpg`, `sky.json`, `env.hdr` | [Kloofendal 38d Partly Cloudy (Pure Sky)](https://polyhaven.com/a/kloofendal_38d_partly_cloudy_puresky) | Greg Zaal, Jarod Guest | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) | Himmelsbild aus dem 4k-HDR (obere Halbkugel, ACES-Näherung, JPG), 1k-HDR unverändert als Umgebungslicht (`tools/make_theme_sky.py`) |
+| `themes/stadt/sky.jpg`, `sky.json`, `env.hdr` | [Qwantani Late Afternoon (Pure Sky)](https://polyhaven.com/a/qwantani_late_afternoon_puresky) | Greg Zaal, Jarod Guest | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) | Himmelsbild aus dem 4k-HDR (obere Halbkugel, ACES-Näherung, JPG), 1k-HDR unverändert als Umgebungslicht (`tools/make_theme_sky.py`) |
+| `themes/herbst/sky.jpg`, `sky.json`, `env.hdr` | [Autumn Field (Pure Sky)](https://polyhaven.com/a/autumn_field_puresky) | Jarod Guest, Sergej Majboroda | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) | Himmelsbild aus dem 4k-HDR (obere Halbkugel, ACES-Näherung, JPG), 1k-HDR unverändert als Umgebungslicht (`tools/make_theme_sky.py`) |
+| `themes/winter/sky.jpg`, `sky.json`, `env.hdr` | [Snow Field (Pure Sky)](https://polyhaven.com/a/snow_field_puresky) | Jarod Guest, Sergej Majboroda | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) | Himmelsbild aus dem 4k-HDR (obere Halbkugel, ACES-Näherung, JPG), 1k-HDR unverändert als Umgebungslicht (`tools/make_theme_sky.py`) |
+
+### Böden und Fels (ambientCG, CC0)
+
+| Datei(en) | ambientCG-Material | Autor | Lizenz | Verwendung / Änderungen |
+|---|---|---|---|---|
+| `themes/_tex/Ground097_diff/nor/arm.ktx2` | [Ground 097](https://ambientcg.com/a/Ground097) | ambientCG (Lennart Demes) | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) | Wüste (Boden); 1K-JPG → KTX2 (Basis ETC1S, 1024 px, Rauheit auf Gelände-Niveau angehoben; `tools/build_themes.mjs`) |
+| `themes/_tex/Rock029_diff/nor.ktx2` | [Rock 029](https://ambientcg.com/a/Rock029) | ambientCG (Lennart Demes) | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) | Wüste (Fels, Canyon); 1K-JPG → KTX2 (Basis ETC1S, 512 px, Rauheit auf Gelände-Niveau angehoben; `tools/build_themes.mjs`) |
+| `themes/_tex/Grass004_diff/nor/arm.ktx2` | [Grass 004](https://ambientcg.com/a/Grass004) | ambientCG (Lennart Demes) | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) | Alpen (Wiese); 1K-JPG → KTX2 (Basis ETC1S, 1024 px, Rauheit auf Gelände-Niveau angehoben; `tools/build_themes.mjs`) |
+| `themes/_tex/Rock051_diff/nor.ktx2` | [Rock 051](https://ambientcg.com/a/Rock051) | ambientCG (Lennart Demes) | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) | Alpen (Fels); 1K-JPG → KTX2 (Basis ETC1S, 512 px, Rauheit auf Gelände-Niveau angehoben; `tools/build_themes.mjs`) |
+| `themes/_tex/Grass001_diff/nor/arm.ktx2` | [Grass 001](https://ambientcg.com/a/Grass001) | ambientCG (Lennart Demes) | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) | Küste, Stadt (Rasen); 1K-JPG → KTX2 (Basis ETC1S, 1024 px, Rauheit auf Gelände-Niveau angehoben; `tools/build_themes.mjs`) |
+| `themes/_tex/ScatteredLeaves009_diff/nor/arm.ktx2` | [Scattered Leaves 009](https://ambientcg.com/a/ScatteredLeaves009) | ambientCG (Lennart Demes) | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) | Herbst (Boden); 1K-JPG → KTX2 (Basis ETC1S, 1024 px, Rauheit auf Gelände-Niveau angehoben; `tools/build_themes.mjs`) |
+| `themes/_tex/Snow010A_diff/nor/arm.ktx2` | [Snow 010 A](https://ambientcg.com/a/Snow010A) | ambientCG (Lennart Demes) | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) | Winter (Schnee); 1K-JPG → KTX2 (Basis ETC1S, 1024 px, Rauheit auf Gelände-Niveau angehoben; `tools/build_themes.mjs`) |
+| `themes/_tex/Rock058_diff/nor.ktx2` | [Rock 058](https://ambientcg.com/a/Rock058) | ambientCG (Lennart Demes) | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) | Winter (Fels); 1K-JPG → KTX2 (Basis ETC1S, 512 px, Rauheit auf Gelände-Niveau angehoben; `tools/build_themes.mjs`) |
+
+### Pflanzen-Karten (Poly Haven, CC0)
+
+| Datei / Zelle | Poly-Haven-Modell | Autor(en) | Lizenz | Änderungen |
+|---|---|---|---|---|
+| `themes/_veg/wueste.webp` (koecher1) | [Quiver Tree 01](https://polyhaven.com/a/quiver_tree_01) | James Ray Cock, Dario Barresi, Rico Cilliers | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) | Seitenansicht als Karte gerendert (Impostor, `tools/make_theme_atlas.py`) |
+| `themes/_veg/wueste.webp` (koecher2) | [Quiver Tree 02](https://polyhaven.com/a/quiver_tree_02) | Dario Barresi, Rico Cilliers | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) | Seitenansicht als Karte gerendert (Impostor, `tools/make_theme_atlas.py`) |
+| `themes/_veg/wueste.webp` (rooibos, rooibos2) | [Wild Rooibos Bush](https://polyhaven.com/a/wild_rooibos_bush) | James Ray Cock, Jenelle van Heerden | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) | Seitenansicht als Karte gerendert (Impostor, `tools/make_theme_atlas.py`) |
+| `themes/_veg/wueste.webp` (sukk1, sukk2) | [Cheiridopsis Succulent](https://polyhaven.com/a/cheiridopsis_succulent) | James Ray Cock, Jenelle van Heerden | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) | Seitenansicht als Karte gerendert (Impostor, `tools/make_theme_atlas.py`) |
+| `themes/_veg/stadt.webp` (jacaranda) | [Jacaranda Tree](https://polyhaven.com/a/jacaranda_tree) | Rob Tuytel, Rico Cilliers | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) | Seitenansicht als Karte gerendert (Impostor, `tools/make_theme_atlas.py`) |
+| `themes/_veg/kueste.webp` (insel) | [Island Tree 02](https://polyhaven.com/a/island_tree_02) | Rob Tuytel, Rico Cilliers | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) | Seitenansicht als Karte gerendert (Impostor, `tools/make_theme_atlas.py`) |
+| `themes/_veg/stadt.webp` (insel3) | [Island Tree 03](https://polyhaven.com/a/island_tree_03) | Rob Tuytel, Rico Cilliers | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) | Seitenansicht als Karte gerendert (Impostor, `tools/make_theme_atlas.py`) |
+| `themes/_veg/kueste.webp` (pachira) | [Pachira Aquatica 01](https://polyhaven.com/a/pachira_aquatica_01) | Rob Tuytel, Rico Cilliers | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) | Seitenansicht als Karte gerendert (Impostor, `tools/make_theme_atlas.py`) |
+| `themes/_veg/kueste.webp`, `stadt.webp`, `berg.webp` (strauch, strauch2) | [Shrub 02](https://polyhaven.com/a/shrub_02) | Rico Cilliers | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) | Seitenansicht als Karte gerendert (Impostor, `tools/make_theme_atlas.py`) |
+| `themes/_veg/berg.webp` (jungtanne) | [Fir Sapling Medium](https://polyhaven.com/a/fir_sapling_medium) | Rob Tuytel, Rico Cilliers | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) | Seitenansicht als Karte gerendert (Impostor, `tools/make_theme_atlas.py`) |
+
+**Eigene Arbeit (prozedural, keine Fremd-Assets):** Palmen-Karten (`tools/make_palm_card.py` – bei Poly Haven, ambientCG, Kenney
+und Quaternius gibt es keine realistische CC0-Palme; Kenneys Low-Poly-Palmen wurden geprüft und verworfen), Fernkulisse
+(Silhouetten-Ring, Tafelberge, Berge, Skyline, Meer), Tribünen, Zuschauer (Canvas, auch jubelnd), Fahnen, Start/Ziel-Portal,
+Kamerakräne, Windräder, Heißluftballons, Zeppelin, Hochhäuser, Baukräne, Hochstraße, Leuchtturm, Segelboote, Ranch, Hütten,
+Strandhäuser, Boden-Paletten je Thema (Schnee, Strand, Canyon-Schichten, Stadtviertel).

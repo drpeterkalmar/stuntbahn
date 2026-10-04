@@ -3,7 +3,9 @@
 import * as THREE from 'three';
 import { BUILD } from './build.js';
 import { makeMaterials, shadowUniforms, preloadKtx2 } from './gfx/materials.js';
-import { makeSky, makeEnvironment, loadSkyInfo, sunDirFromUV, bakeStaticShadow } from './gfx/env.js';
+import { makeSky, sunDirFromUV, bakeStaticShadow } from './gfx/env.js';
+import { ThemeManager } from './gfx/themes.js';
+import { themeFor, THEMES } from './track/themes.js';
 import { buildWorld, STATIC_LAYER } from './gfx/world.js';
 import { makeCar, loadCarModel, parkedCarGeometry, EXHAUST } from './gfx/carmesh.js';
 import { CameraRig, CAM_MODES, CAM_NAMES, cockpitDash, clearLens } from './gfx/camera.js';
@@ -33,6 +35,7 @@ import { CarFX } from './gfx/fx.js';
 import { Post } from './gfx/post.js';
 import { KinoLook } from './gfx/kinolook.js';
 import { loadDecoAssets, decoUniforms } from './gfx/deco.js';
+import { kulisseTick } from './gfx/kulisse.js';
 import { daySeed } from './core/util.js';
 import { WORLD_TAG, WORLD_SCALE } from './track/defs.js';
 // Geprüfte Strecken (Autopilot, Entschärfungen) je Weltmaßstab getrennt: ?welt=1 prüft neu statt die Teile der
@@ -65,7 +68,7 @@ const kino = LOOK === 'alt' ? null : new KinoLook(renderer, { level: LOOK_FIX ??
 // Bewegungsunschärfe: im Kino-Look Teil derselben Pipeline (ein Szenen-Durchlauf); ?look=alt: bisheriges post.js
 const post = kino || new Post(renderer);
 quality.post = post; quality.kino = kino;
-let sun, skyInfo, envMap, M, carVis, ghostVis, sky, cockpit;
+let sun, M, carVis, ghostVis, sky, cockpit, themes;
 
 let sizeW = 0, sizeH = 0, portrait = null;
 function resize() {
@@ -122,19 +125,13 @@ let blurCut = true;      // nächstes Bild ohne Bewegungsunschärfe (Kameraschni
 
 async function boot() {
   ui.loading(0.05, 'Himmel und Licht …');
-  skyInfo = await loadSkyInfo();
-  const sunDir = sunDirFromUV(skyInfo.u, skyInfo.v);
-  const [envTex] = await Promise.all([makeEnvironment(renderer), loadCarModel().then(() => ui.loading(0.45, 'Auto …')),
-    loadDecoAssets().catch((e) => console.warn('Deko nicht geladen', e)), preloadKtx2(renderer).then((n) => { app.ktx2 = n; })]);
-  envMap = envTex;
-  scene.environment = envMap;
-  scene.environmentIntensity = +(params.get('env') || 1.8);
-  sky = makeSky(skyInfo);
+  // Kulissen (n20): Himmel/Licht/Boden kommen mit dem Landschafts-Thema der Strecke (gfx/themes.js). Das Thema der Start-
+  // Strecke steht schon vor dem Bau fest (Seed, Stufe, Streckenart) → sein Paket lädt parallel zum Auto.
+  sky = makeSky({ cutV: 0.544, horizon: [0.744, 0.758, 0.799] });
   scene.add(sky);
-  const hz = new THREE.Color().setRGB(...skyInfo.horizon, THREE.SRGBColorSpace);
-  // Nebel mit dem Weltmaßstab (bis 27.09.2026: 260–1500 m): die ganze Strecke klar, der Bergkranz im Dunst
-  scene.fog = new THREE.Fog(hz, FOG[0], FOG[1]);
+  scene.fog = new THREE.Fog(0xbdc1cc, FOG[0], FOG[1]);
   sun = new THREE.DirectionalLight(0xfff1dc, +(params.get('sun') || 3.0));
+  const sunDir = sunDirFromUV(0.595, 0.234);
   sun.position.copy(sunDir).multiplyScalar(60);
   sun.castShadow = true;
   sun.shadow.mapSize.set(1024, 1024);
@@ -143,6 +140,11 @@ async function boot() {
   sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.02;
   sun.userData.dir = sunDir.clone();
   scene.add(sun, sun.target);
+  themes = new ThemeManager({ renderer, scene, sky, sun, kino, get M() { return M; }, getCockpit: () => cockpit, params });
+  { const q0 = params.get('seed'), bm = q0 ? (params.get('g') === '1' ? 'gel' : params.get('3d') === '1' ? '3d' : 'flat') : modeOf(store.settings.trackMode);
+    if (!params.has('demo') && !params.has('gallery') && !params.has('trk')) themes.prefetch(themeOf({ meta: { seed: q0 ? +q0 : daySeed(), diff: +(params.get('d') || 2), gel: bm === 'gel', d3: bm === '3d' } })); }
+  await Promise.all([loadCarModel().then(() => ui.loading(0.45, 'Auto …')),
+    loadDecoAssets().catch((e) => console.warn('Deko nicht geladen', e)), preloadKtx2(renderer).then((n) => { app.ktx2 = n; })]);
   quality.apply(sun, renderer);
   M = makeMaterials(renderer);
   ui.loading(0.6, 'Auto lackieren …');
@@ -159,7 +161,7 @@ async function boot() {
   });
   ghostVis.root.visible = false;
   scene.add(ghostVis.root);
-  cockpit = new Cockpit(envMap, carVis.mats.paint);
+  cockpit = new Cockpit(scene.environment, carVis.mats.paint);
   lineViz = new LineViz(scene);
   fx = new CarFX(scene);
   ui.loading(0.8, 'Strecke bauen …');
@@ -175,7 +177,7 @@ async function boot() {
   ui.bind({ startRace, newTrack, setAssist, toMenu, retry, startReplay, cycleCam, rewind: () => race && race.requestRewind(), pause: togglePause,
     skipCine: () => endCine(true), replayCine: () => { if (race && race.film && ui.lastRes) startCine(ui.lastRes); },
     recordCine: () => { if (race && race.film && ui.lastRes) startCine(ui.lastRes, { record: true }); },
-    hop: () => { if (mode === 'race' && race && !frozen) race.requestHop(); }, nitro: () => { if (mode === 'race' && race && !frozen) race.requestNitro(); }, setLine, toggleLine, setPaint, sound, input, quality, importFiles, playImported, deleteImported, trkLib, showcase: SHOWCASE, showcaseBytes, store, sammlung });
+    hop: () => { if (mode === 'race' && race && !frozen) race.requestHop(); }, nitro: () => { if (mode === 'race' && race && !frozen) race.requestNitro(); }, setLine, toggleLine, setPaint, setTheme, sound, input, quality, importFiles, playImported, deleteImported, trkLib, showcase: SHOWCASE, showcaseBytes, store, sammlung });
   initDrop();
   ui.showMenu(env);
   mode = params.has('race') ? 'race' : 'menu';
@@ -187,11 +189,15 @@ async function boot() {
 // 3D (n19): scheitert der Autopilot auch nach dem Entschärfen, nimmt der Generator die nächste Variante desselben
 // Codes (deterministisch – alle bekommen dieselbe Strecke), höchstens 4.
 // Streckenart: 'flat' | '3d' (Hochstraße, n19) | 'gel' (Gelände, n22); true/false wie bis n21 (3D/flach)
+// Landschafts-Thema einer Strecke: URL ?thema= > Einstellung „Landschaft“ > passend (track/themes.js)
+let URL_THEMA = params.get('thema');   // gilt, bis im Menü eine Landschaft gewählt wird
+const themeOf = (layout) => themeFor(layout, store.settings.theme || 'auto', URL_THEMA);
 const modeOf = (m) => (m === true ? '3d' : m === false ? 'flat' : m === '3d' || m === 'gel' || m === 'flat' ? m : store.settings.trackMode || 'gel');
 async function loadGenerated(seed, diff, mode = 'flat') {
   mode = modeOf(mode);
   const gopt = (variant) => (mode === '3d' ? { d3: true, variant } : mode === 'gel' ? { gel: true, variant } : {});
   let lay = generate(seed, diff, gopt(0));
+  themes.prefetch(themeOf(lay));   // Kulissen-Paket lädt, während der Autopilot prüft
   const key = lay.meta.key;
   const cached = store.getVerified(key + WORLD_TAG, VBUILD);
   if (cached) {
@@ -337,7 +343,11 @@ async function loadTrack(layout, meta = {}, pre = null) {
   const P = pre || prepare(layout);
   const { track, world, ideal, prof } = P;
   env = { track, world, ideal, prof, layout, meta: { ...layout.meta, ...meta } };
-  worldGroup = buildWorld(track, M, { world, tier: quality.tier, ideal, prof, deco: params.get('deko') !== '0' });
+  // Kulissen (n20): Thema laden/anwenden (Himmel, Licht, Boden), dann die Welt mit seinen Pflanzen, Bauten, Fernkulisse
+  const th = await themes.use(themeOf(layout));
+  env.theme = th.id;
+  if (worldGroup) { scene.remove(worldGroup); worldGroup.traverse((o) => { if (o.geometry) o.geometry.dispose(); }); worldGroup = null; }
+  worldGroup = buildWorld(track, M, { world, tier: quality.tier, ideal, prof, deco: params.get('deko') !== '0', theme: { id: th.id, def: th.def, veg: th.veg, horizon: th.horizon, seed: layout.seed || layout.meta?.seed || 1 } });
   scene.add(worldGroup);
   await placeParkedCars(track);
   bakeStaticShadow(renderer, scene, sun.userData.dir, track.bounds, quality.staticShadowSize());
@@ -378,6 +388,17 @@ async function newTrack(seed, diff, mode) {
   ui.loading(1);
   ui.showMenu(env);
   mode = 'menu';
+}
+// Kulissen (n20): Einstellung „Landschaft“ ('auto' = passend oder ein Thema) – die aktuelle Strecke bekommt sofort das neue
+// Thema (Welt neu, Strecke/Physik/Bestzeiten unverändert)
+async function setTheme(v) {
+  store.settings.theme = v; store.save(); URL_THEMA = null;
+  if (!env) return;
+  ui.loading(0.5, 'Landschaft …');
+  await new Promise((r) => setTimeout(r, 20));
+  await loadTrack(env.layout, env.meta, { track: env.track, world: env.world, ideal: env.ideal, prof: env.prof });
+  ui.loading(1);
+  if (mode === 'menu') ui.showMenu(env);
 }
 function setAssist(k) { store.settings.assist = k; store.save(); if (race) race.setAssist(k); timeScale = gameSpeed(k); if (k === 'easy' && ghostVis) ghostVis.root.visible = false; ui.refresh(); ui.assistChanged(); }
 function setPaint(c) { store.settings.paint = c; store.save(); carVis.setPaint(c); }
@@ -592,6 +613,24 @@ function carLocalBox(cv) {
 }
 
 const tmpQ = new THREE.Quaternion(), tmpQ2 = new THREE.Quaternion();
+// Kulissen (n20): Zuschauer jubeln, wenn in ihrer Nähe ein Stunt läuft (Sprung, Looping, Röhre) oder das Auto ins Ziel
+// kommt – Rennen, Replay und Kino-Replay. Ort = Auto, Stärke steigt schnell (0,25 s) und klingt langsam ab (3 s).
+const cheer = { idx: 0, k: 0 };
+function updateCheer(pose, rdt) {
+  const U = decoUniforms.uCheer.value;
+  let on = false;
+  if (pose && env && (mode === 'race' || mode === 'replay')) {
+    const L = env.track.line, x = pose.pos.x, z = pose.pos.z;
+    let i = cheer.idx < L.n ? cheer.idx : 0, best = (L.px[i] - x) ** 2 + (L.pz[i] - z) ** 2;
+    for (let k = -40; k <= 40; k++) { const j = (i + k + L.n) % L.n, d = (L.px[j] - x) ** 2 + (L.pz[j] - z) ** 2; if (d < best) { best = d; cheer.idx = j; } }
+    if (best > 900) { for (let j = 0; j < L.n; j += 3) { const d = (L.px[j] - x) ** 2 + (L.pz[j] - z) ** 2; if (d < best) { best = d; cheer.idx = j; } } }
+    const j = cheer.idx;
+    on = !!(L.loop[j] || L.tube[j] || L.air[j] || pose.air) || (mode === 'race' && race && race.state === 'finished');
+    if (on) U.set(x, z, 190, U.w);
+  }
+  const dt = Math.min(0.1, rdt || 0.016);
+  U.w = on ? Math.min(1, U.w + dt * 4) : Math.max(0, U.w - dt / 3);
+}
 function render(rdt) {
   let pose = null;
   decoUniforms.uTime.value = shadowUniforms.sbTime.value = app.fixTime ?? performance.now() / 1000;   // Wind im Gras, Wolkenschatten, Wellen (Tests: feste Zeit)
@@ -625,6 +664,8 @@ function render(rdt) {
     pose.wheels = c.wheels;
     carVis.sync(c, 1, pose);
   }
+  updateCheer(pose, rdt);
+  kulisseTick(decoUniforms.uTime.value);
   if (pose && mode === 'menu' && !app.freezeCam) {
     // Menü: langsame Kamerafahrt um das Auto am Start
     clearLens(camera);
@@ -728,6 +769,7 @@ function heatOf(speed, boost) {
 window.__game = {
   get env() { return env; }, get race() { return race; }, get mode() { return mode; }, get replayObj() { return replay; }, scene, camera, renderer, rig, store, ui, quality, trkLib, sammlung,
   modeKey, worldScale: WORLD_SCALE,
+  get theme() { return env && env.theme; }, themes: () => themes, setTheme: (v) => setTheme(v), THEMES, decoUniforms,
   // Import (Tests): Bytes als Array → Ergebnisliste; Strecke laden
   importBytes: (arr, name) => importFiles([new File([new Uint8Array(arr)], name || 'test.trk')]),
   loadImported: (id) => playImported(id),

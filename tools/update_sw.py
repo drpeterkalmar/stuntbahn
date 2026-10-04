@@ -10,11 +10,19 @@ for d in ['src', 'lib', 'icons', 'assets']:
             # sammlung_stil.json: Stil-Modell nur für den Build, nicht fürs Spiel
             # n17: KTX2-Texturen + Basis-Transcoder; WebP mit KTX2-Zwilling nur als Rückfall (nicht vorab cachen)
             twin = f.endswith('.webp') and os.path.exists(os.path.join(dp, f[:-5] + '.ktx2'))
+            # n20: Landschafts-Themen (assets/themes/) laden nur bei Bedarf – der Service-Worker legt sie beim ersten Abruf ab
+            if rel.startswith(os.path.join('assets', 'themes') + os.sep): continue
             if f.endswith(('.js', '.png', '.css', '.webp', '.jpg', '.json', '.glb', '.hdr', '.bin', '.m4a', '.ktx2', '.wasm')) and not f.startswith('.') and not twin and rel != os.path.join('assets', 'sammlung_stil.json'):
                 files.append(rel)
 files = sorted(set(files))
+# Inhalts-Hash auch über die Themen-Pakete (nicht vorab gecacht, aber eine Änderung muss die Version wechseln)
+hashed = list(files)
+for dp, dn, fn in os.walk(os.path.join(ROOT, 'assets', 'themes')):
+    for f in sorted(fn):
+        if not f.startswith('.'): hashed.append(os.path.relpath(os.path.join(dp, f), ROOT))
+hashed = sorted(set(hashed))
 h = hashlib.sha256()
-for f in files:
+for f in hashed:
     if f == 'src/build.js': continue  # enthält selbst die Version
     h.update(f.encode()); h.update(open(os.path.join(ROOT, f), 'rb').read())
 ver = h.hexdigest()[:10]

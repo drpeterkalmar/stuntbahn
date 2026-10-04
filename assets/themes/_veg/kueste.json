@@ -1,0 +1,86 @@
+{
+ "palme1": {
+  "uv": [
+   0.0,
+   0.5,
+   0.5,
+   0.5
+  ],
+  "w": 10.45,
+  "h": 10.45,
+  "cover": 0.099,
+  "model": "eigene Palmenkarte 1"
+ },
+ "palme2": {
+  "uv": [
+   0.5,
+   0.5,
+   0.5,
+   0.5
+  ],
+  "w": 10.45,
+  "h": 10.45,
+  "cover": 0.105,
+  "model": "eigene Palmenkarte 2"
+ },
+ "insel": {
+  "uv": [
+   0.0,
+   0.0,
+   0.5,
+   0.5
+  ],
+  "w": 5.299,
+  "h": 3.441,
+  "cover": 0.27,
+  "model": "island_tree_02_1k.gltf"
+ },
+ "palme3": {
+  "uv": [
+   0.5,
+   0.25,
+   0.25,
+   0.25
+  ],
+  "w": 10.45,
+  "h": 10.45,
+  "cover": 0.104,
+  "model": "eigene Palmenkarte 3"
+ },
+ "pachira": {
+  "uv": [
+   0.75,
+   0.25,
+   0.25,
+   0.25
+  ],
+  "w": 7.006,
+  "h": 1.923,
+  "cover": 0.095,
+  "model": "pachira_aquatica_01_1k.gltf"
+ },
+ "strauch": {
+  "uv": [
+   0.5,
+   0.0,
+   0.25,
+   0.25
+  ],
+  "w": 2.587,
+  "h": 2.405,
+  "cover": 0.033,
+  "model": "shrub_02_1k.gltf"
+ },
+ "strauch2": {
+  "uv": [
+   0.75,
+   0.0,
+   0.25,
+   0.25
+  ],
+  "w": 2.42,
+  "h": 2.18,
+  "cover": 0.041,
+  "model": "shrub_02_1k.gltf"
+ }
+}

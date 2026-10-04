@@ -3,6 +3,8 @@ import * as THREE from 'three';
 import { MAT, ROAD_HW, WORLD_SCALE, TILE } from '../track/defs.js';
 import { TB, triLerp } from '../track/terrgrid.js';
 import { buildDeco } from './deco.js';
+import { buildTrees, buildBackdrop, buildSea } from './kulisse.js';
+import { farLift } from '../track/themes.js';
 
 const STATIC_LAYER = 1;
 
@@ -116,7 +118,10 @@ export function buildWorld(track, M, opts = {}) {
   // Fernring bis zum Bergkranz: wächst mit dem Weltmaßstab (gleich viele Dreiecke). Das Nahraster (±ext) muss
   // genau auf dem Ring-Gitter liegen, sonst bleibt am Übergang ein Streifen ohne Gelände
   const ringSt = T.ext / Math.round(T.ext / (40 * WORLD_SCALE)), ringE = ringSt * Math.round(1400 * WORLD_SCALE / ringSt);
-  const ringY = (x, z) => (Math.abs(x) < T.ext - 1 && Math.abs(z) < T.ext - 1 ? T.height(x, z) - 2 : T.heightFn(x, z));
+  // Kulissen (n20): Fernkulisse des Themas (Berge, Tafelberge, Küste, Stadt-Ebene) – nur das gezeichnete Gelände außerhalb
+  // des Physik-Rasters (farLift ist bis ext + 30 m exakt die Landschaft)
+  const theme = opts.theme || null, lift = theme ? farLift(theme.id, theme.seed, T.ext) : null;
+  const ringY = (x, z) => (Math.abs(x) < T.ext - 1 && Math.abs(z) < T.ext - 1 ? T.height(x, z) - 2 : lift ? lift(x, z, T.heightFn(x, z)) : T.heightFn(x, z));
   // Höhe der gezeichneten Geländefläche (feine Zellen, grobe Blöcke, Fernring – gleiche Dreiecksteilung wie die
   // Meshes): Bäume stehen darauf statt auf dem exakten Gelände, sonst schweben sie über groben Flächen
   const surfaceY = (x, z) => {
@@ -214,32 +219,17 @@ export function buildWorld(track, M, opts = {}) {
       add(mesh, false);
     }
   }
-  // Bäume: gekreuzte Karten, instanziert
+  // Bäume: gekreuzte Karten, instanziert; Art je Thema (Tannen, Köcherbäume, Palmen, Straßenbäume, Herbstlaub – gfx/kulisse.js)
   // Qualitätsstufe 0: jeden zweiten Baum weglassen (die große Welt hat Maßstab² so viele Bäume)
-  if (track.trees && track.trees.length) {
-    const thin = opts.tier === 0 && WORLD_SCALE > 1 ? 2 : 1;
-    for (const v of [0, 1]) {
-      const list = track.trees.filter((t, i) => t.v === v && (t.keep || i % thin === 0));   // Tannen der .TRK bleiben
-      if (!list.length) continue;
-      const g = treeGeometry();
-      const im = new THREE.InstancedMesh(g, M.tree[v], list.length);
-      const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), p = new THREE.Vector3();
-      list.forEach((t, i) => {
-        q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), t.rot);
-        s.set(t.s, t.s * (0.9 + 0.2 * ((i * 37) % 10) / 10), t.s);
-        p.set(t.x, surfaceY(t.x, t.z) - 0.3, t.z);
-        m4.compose(p, q, s);
-        im.setMatrixAt(i, m4);
-      });
-      im.computeBoundingSphere();
-      im.name = 'trees' + v;
-      add(im, true);
-      stats.tris += (g.index.count / 3) * list.length;
-    }
+  stats.tris += buildTrees(track, M, opts, surfaceY, add, treeGeometry);
+  // Fernkulisse: Silhouetten am Horizont, Meer an der Küste
+  if (theme && opts.deco !== false) {
+    stats.tris += buildBackdrop(theme, add);
+    if (theme.id === 'kueste') stats.tris += buildSea(theme, M, add, T.ext);
   }
   // Detailliertere Umgebung (28.09.2026): Streckenrand, Kiesbetten, Pflanzen, Felsen, Höfe (gfx/deco.js)
   if (opts.deco !== false) {
-    const ds = buildDeco(track, M, surfaceY, add, { tier: opts.tier, ideal: opts.ideal, prof: opts.prof });
+    const ds = buildDeco(track, M, surfaceY, add, { tier: opts.tier, ideal: opts.ideal, prof: opts.prof, theme });
     stats.deco = ds; stats.tris += ds.tris;
   }
   root.userData.stats = stats;

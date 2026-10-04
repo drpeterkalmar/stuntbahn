@@ -10,12 +10,16 @@
 // Ergebnis in Weltkoordinaten x/z (Höhe setzt die Grafik auf die gezeichnete Geländefläche).
 import { TILE, WORLD_SCALE, WORLD_HALF, tileX, tileZ } from './defs.js';
 import { rng, makeNoise2 } from '../core/util.js';
+import { planKulisse } from './kulisse.js';
 
 const WS = WORLD_SCALE;
 // Mindestabstand (m) von der Fahrbahnkante (Linienpunkt − halbe Breite) je Art
 export const MIN_CLEAR = {
-  shoulder: -0.05, gravel: 2.5, tyre: 6, rail: 7, fence: 8, banner: 7, stand: 12, crowd: 9, hut: 9, board: 3.5, mast: 14,
+  shoulder: -0.05, gravel: 2.5, tyre: 6, rail: 7, fence: 8, banner: 7, stand: 8.5, crowd: 9, hut: 9, board: 3.5, mast: 14,
   grass: 2.6, flower: 3, bush: 7, laub: 16, rock: 8, farm: 120,
+  // Kulissen (n20): Fahnen, Kamerakräne, Portal-Stützen, Windräder, Bauten der Themen (Hochhäuser, Wohnblöcke, Kräne,
+  // Leuchtturm), Hochstraßen-Pfeiler der Stadt
+  flag: 6, cam: 10, portal: 3, turbine: 160, tower: 120, block: 70, crane: 90, light: 200, hwy: 160,
 };
 // Dichte je Qualitätsstufe (Vegetation); Streckenrand-Objekte sind auf allen Stufen gleich
 const DENS = [0.3, 0.55, 1];
@@ -61,6 +65,8 @@ function occHash() {
 export function planDeco(track, o = {}) {
   const L = track.line, T = track.terrain, n = L.n;
   const tier = o.tier ?? 2, dens = DENS[tier] ?? 1;
+  // Kulissen (n20): Mengen je Landschafts-Thema (track/themes.js veg: Faktoren, Land = 1)
+  const VK = o.veg || {}, vk = (k) => (VK[k] ?? 1);
   const R = rng((o.seed || track.layout?.seed || 1) * 7919 + 11);
   const noise = makeNoise2((o.seed || 1) * 31 + 5);
   const H = lineHash(L), occ = occHash();
@@ -317,6 +323,8 @@ export function planDeco(track, o = {}) {
     if (tot > cap) { const keep = cap / tot; let acc = 0; out.marks = out.marks.filter(() => { acc += keep; if (acc >= 1) { acc -= 1; return true; } return false; }); }
   }
 
+  // ----- 6b) Kulissen (n20, vor der Vegetation: Bäume und Felsen weichen ihnen aus): Streckenrand (Tribünen an Stunts, Portal, Fahnen, Kamerakräne), Himmel, Bauten der Themen -----
+  planKulisse({ track, L, T, n, R, H, occ, ok, side, faceRoad, flat, kap, at, samples, ground, out, I, tier, o, KS, KG, curveRuns, MIN_CLEAR });
   // ----- 7) Vegetation nahe der Strecke: Gras, Blumen, Büsche -----
   const flatIdx = []; for (let i = 0; i < n; i++) if (flat[i]) flatIdx.push(i);
   const nearPt = (dmin, dexp, dmax) => {
@@ -328,7 +336,7 @@ export function planDeco(track, o = {}) {
   if (flatIdx.length) {
     const len = L.s[n - 1] || 1000;
     // Mengen wachsen mit der Streckenlänge, sind aber gedeckelt (lange .TRK-Strecken: dünner statt mehr Instanzen)
-    const nG = Math.round(Math.min(len * 2.2, 7000) * dens), nF = Math.round(Math.min(len * 0.45, 1500) * dens), nB = Math.round(Math.min(len * 0.1, 420) * dens);
+    const nG = Math.round(Math.min(len * 2.2, 7000) * dens * vk('grass')), nF = Math.round(Math.min(len * 0.45, 1500) * dens * vk('flower')), nB = Math.round(Math.min(len * 0.1, 420) * dens * vk('bush'));
     for (let k = 0, t = 0; k < nG && t < nG * 3; t++) {
       const [x, z] = nearPt(2.6, 9, 60);
       if (!ok(x, z, MIN_CLEAR.grass, 0.2) || !occ.free(x, z, 0.1)) continue;
@@ -360,7 +368,7 @@ export function planDeco(track, o = {}) {
 
   // ----- 8) Laubbäume (Haine nahe der Strecke + Wäldchen auf Hügeln) und Felsen -----
   {
-    const nGrove = Math.round(26 * WS * dens), nFar = Math.round(900 * WS * WS * dens);
+    const nGrove = Math.round(26 * WS * dens * vk('laub')), nFar = Math.round(900 * WS * WS * dens * vk('laub'));
     const tree = (x, z, s) => {
       if (!ok(x, z, MIN_CLEAR.laub, 2.5, 0.5) || !occ.free(x, z, 2.5)) return false;
       I('laub').push({ x, z, rot: R() * Math.PI, s, v: R.int(2) }); occ.add(x, z, 2.6); return true;
@@ -378,7 +386,7 @@ export function planDeco(track, o = {}) {
       if (f + 0.35 * hill < 0.28) continue;
       if (tree(x, z, R.range(0.9, 1.35))) k++;
     }
-    const nRock = tier === 0 ? 0 : Math.round(30 * WS * dens);   // Stufe 0: keine Felsen (Dreiecke)
+    const nRock = tier === 0 ? 0 : Math.round(30 * WS * dens * vk('rock'));   // Stufe 0: keine Felsen (Dreiecke)
     for (let g = 0, t = 0; g < nRock && t < nRock * 6; t++) {
       const far = R() < 0.55;
       const [x, z] = far ? [R.range(-800, 800) * WS, R.range(-800, 800) * WS] : flatIdx.length ? nearPt(14, 40, 200) : [0, 0];
@@ -395,7 +403,7 @@ export function planDeco(track, o = {}) {
 
   // ----- 9) Bauernhöfe in der Ferne (zwischen Streckenraster und Bergkranz) -----
   {
-    const nFarm = tier === 0 ? 4 : 8;
+    const nFarm = VK.farm === 'none' ? 0 : tier === 0 ? 4 : 8;
     for (let t = 0; I('farm').length < nFarm && t < 400; t++) {
       const a = R() * Math.PI * 2, r = R.range(WORLD_HALF + 110 * WS, WORLD_HALF + 260 * WS);
       const x = Math.cos(a) * r, z = Math.sin(a) * r;
@@ -403,8 +411,23 @@ export function planDeco(track, o = {}) {
       I('farm').push({ x, z, rot: R() * Math.PI * 2, s: 1, v: R.int(3) }); occ.add(x, z, 60);
     }
   }
+  // Kulissen (n20, Brief: „nie auf Hängen/Böschungen direkt an der Fahrbahn“): Streckenrand-Objekte bis 40 m neben der
+  // Fahrbahn stehen auf deren Höhe (±2,5 m zum nächsten ebenerdigen Linienpunkt), sonst entfallen sie
+  {
+    const C = 24, cells = new Map(), key = (i, j) => i * 73856093 ^ j * 19349663;
+    for (let i = 0; i < n; i++) if (Math.abs(L.py[i] - ground(L.px[i], L.pz[i])) < 1.5) { const k = key(Math.floor(L.px[i] / C), Math.floor(L.pz[i] / C)); let a = cells.get(k); if (!a) cells.set(k, a = []); a.push(i); }
+    const nearLevel = (x, z) => {
+      const ci = Math.floor(x / C), cj = Math.floor(z / C); let b = 1600, bi = -1;
+      for (let dj = -2; dj <= 2; dj++) for (let di = -2; di <= 2; di++) for (const i of cells.get(key(ci + di, cj + dj)) || []) { const d = (L.px[i] - x) ** 2 + (L.pz[i] - z) ** 2; if (d < b) { b = d; bi = i; } }
+      return bi;
+    };
+    for (const k of ['stand', 'crowd', 'flag', 'cam', 'hut', 'board']) {
+      if (!out.inst[k]) continue;
+      out.inst[k] = out.inst[k].filter((it) => { const i = nearLevel(it.x, it.z); return i < 0 || Math.abs(ground(it.x, it.z) - L.py[i]) <= 2.5; });
+    }
+  }
   // Obergrenzen je Art (sehr lange .TRK-Strecken): gleichmäßig ausdünnen
-  const CAP = { tyre: tier === 0 ? 110 : tier === 1 ? 320 : 600, banner: 260, board: 60, hut: 30, mast: 30, crowd: 40 };
+  const CAP = { tyre: tier === 0 ? 110 : tier === 1 ? 320 : 600, banner: 260, board: 60, hut: 30, mast: 30, crowd: 90, flag: 160, cam: 12 };
   for (const [k, c] of Object.entries(CAP)) {
     const a = out.inst[k];
     if (a && a.length > c) out.inst[k] = a.filter((_, i) => Math.floor(i * c / a.length) !== Math.floor((i - 1) * c / a.length));

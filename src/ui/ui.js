@@ -13,6 +13,7 @@ import { drawMinimap, drawLayoutMap } from './minimap.js';
 import { clipMime, shareClip } from './cliprec.js';
 import { SAM_STUNTS, SAM_DIFF, SAM_SORTS, DEFAULT_VIEW, filterSort, lengthClass } from '../game/sammlung.js';
 import { HORIZONS } from '../track/trk.js';
+import { THEMES, THEME_IDS, themeAuto } from '../track/themes.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const h = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
@@ -211,7 +212,7 @@ export class UI {
         <div class="card track">
           ${!m.imported && !m.sam && env.layout.pieces.length ? '<canvas class="tmap" width="320" height="320" aria-label="Streckenkarte"></canvas>' : ''}
           <div class="tname">${isDay || m.samDay ? '📅 Strecke des Tages<br>' : ''}${m.name || 'Strecke'}</div>
-          <div class="tmeta">${metaLine}</div>
+          <div class="tmeta">${metaLine}${env.theme && THEMES[env.theme] ? ` · <span class="tthema" title="Landschaft${(this.store.settings.theme || 'auto') === 'auto' ? ' (passend)' : ''}">${THEMES[env.theme].icon} ${THEMES[env.theme].name}</span>` : ''}</div>
           <div class="stunts">${stuntsHtml || 'ohne Stunts'}</div>
           ${apLine}
           <div class="bests">${bests.now}${S.assist === 'easy' ? bests.lastEasy : ''}<span class="bmode">${S.wreck ? '💥 mit Totalschaden' : '↺ Reset +' + PENALTY + ' s'}${S.extras ? ' · 🦘🔥 mit Extras' : ' · ohne Extras'}</span>${bests.old}</div>
@@ -229,7 +230,7 @@ export class UI {
           <button data-a="today">📅 Tages-Strecke</button>
           <button data-a="code">🔢 Code</button>
         </div>
-        <div class="row"><button data-a="trklib">📂 Strecke laden (.TRK)</button></div>
+        <div class="row"><button data-a="trklib">📂 Strecke laden (.TRK)</button><button data-a="themes" class="themebtn" title="Landschaft: ${this.themeLabel(env)}" aria-label="Landschaft: ${this.themeLabel(env)}">${this.themeIcon(env)} Landschaft</button></div>
         <div class="row">
           <button data-a="settings">⚙️ Optionen</button>
           <button data-a="help">🎮 Steuerung</button>
@@ -243,6 +244,26 @@ export class UI {
     this.setTouchMode(false);
     $('#hud').classList.remove('show');
     $('#replayui').classList.remove('show');
+  }
+  // Kulissen (n20): Einstellung „Landschaft“ – passend (aus Seed/Horizont) oder fest ein Thema für alle Strecken
+  themeLabel(env) {
+    const v = this.store.settings.theme || 'auto';
+    if (v !== 'auto' && THEMES[v]) return `${THEMES[v].icon} ${THEMES[v].name}`;
+    const a = env && env.layout ? themeAuto(env.layout) : null;
+    return `passend${a ? ` (${THEMES[a].icon} ${THEMES[a].name})` : ''}`;
+  }
+  themeIcon(env) {
+    const v = this.store.settings.theme || 'auto';
+    const id = v !== 'auto' && THEMES[v] ? v : env && env.theme;
+    return THEMES[id] ? THEMES[id].icon : '🏞️';
+  }
+  showThemes() {
+    const v = this.store.settings.theme || 'auto';
+    const a = this.env && this.env.layout ? themeAuto(this.env.layout) : 'land';
+    const btn = (id, ic, name, desc) => `<button data-a="theme" data-v="${id}" class="themeopt ${v === id ? 'on' : ''}"><b>${ic} ${name}</b><span>${desc}</span></button>`;
+    this.sheet('Landschaft', `
+      <p class="hint">Jede Strecke liegt in einer Landschaft mit eigenem Himmel, Licht, Boden, Pflanzen und Bauten am Horizont. <b>Passend</b>: das Thema folgt aus dem Strecken-Code (bzw. dem Horizont einer .TRK-Strecke). Die Fahrbahn und die Bestzeiten ändern sich nie – nur die Kulisse.</p>
+      <div class="themegrid">${btn('auto', '🎯', 'Passend zur Strecke', `hier: ${THEMES[a].icon} ${THEMES[a].name}`)}${THEME_IDS.map((id) => btn(id, THEMES[id].icon, THEMES[id].name, THEMES[id].desc)).join('')}</div>`);
   }
   assistHint(k) {
     const wreck = this.store.settings.wreck;
@@ -274,6 +295,8 @@ export class UI {
         break;
       }
       case 'settings': this.showSettings(); break;
+      case 'themes': this.showThemes(); break;
+      case 'theme': A.setTheme(v); break;
       case 'trklib': this.showLibrary(); break;
       case 'trkpick': this.fileInput.click(); break;
       case 'trkplay': A.playImported(v); break;
@@ -532,6 +555,7 @@ export class UI {
       <p><b>Himmel & Licht:</b> „Kloofendal 48d Partly Cloudy (Pure Sky)“ von Greg Zaal & Jarod Guest – Poly Haven, CC0.</p>
       <p><b>Texturen (Poly Haven, CC0):</b> Asphalt 02, Concrete Floor 02, Metal Plate (Rob Tuytel) · Leafy Grass, Gravel Concrete 03 (Charlotte Baglioni) · Fir Tree 01 (Rob Tuytel, Rico Cilliers) → daraus zusammengesetzte Baumkarten.</p>
       <p><b>Umgebung (Poly Haven, CC0):</b> Tree Small 02 (Rico Cilliers) · Island Tree 01, Celandine 01, Grass Medium 01, Dandelion 01 (Rob Tuytel, Rico Cilliers) · Searsia Lucida (James Ray Cock, Jenelle van Heerden) · Rock Moss Set 01 (Kless Gyzen) · Gravel Floor 02 (Jenelle van Heerden, Dimitrios Savva). Werbebanner zeigen erfundene Marken.</p>
+      <p><b>Landschaften (seit 04.10.2026):</b> Himmel von Poly Haven (CC0): Qwantani Afternoon, Qwantani Late Afternoon (Greg Zaal, Jarod Guest) · Pizzo Pernice (Andreas Mischok, Jarod Guest) · Kloofendal 38d Partly Cloudy (Greg Zaal, Jarod Guest) · Autumn Field, Snow Field (Jarod Guest, Sergej Majboroda). Böden und Fels von ambientCG (CC0): Ground 097, Grass 001/004, Scattered Leaves 009, Snow 010 A, Rock 029/051/058. Pflanzen von Poly Haven (CC0): Quiver Tree 01/02, Wild Rooibos Bush, Cheiridopsis Succulent (James Ray Cock, Dario Barresi, Jenelle van Heerden, Rico Cilliers) · Jacaranda Tree, Island Tree 02/03, Pachira Aquatica 01, Fir Sapling Medium (Rob Tuytel, Rico Cilliers) · Shrub 02 (Rico Cilliers). Palmen, Tribünen, Bauten, Ballons, Zeppelin, Fernkulisse: eigene Arbeit. Alle Marken auf Fahnen und Tafeln sind erfunden.</p>
       <p><b>Technik:</b> three.js (MIT). Physik, Strecken, Generator, Ton: eigener Code.</p>
       <p>Build ${this.app.build}</p>`);
   }

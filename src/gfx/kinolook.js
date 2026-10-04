@@ -53,6 +53,13 @@ export const GRADES = {
   abend: { wb: [1.06, 0.99, 0.9], lift: [0.012, 0.004, 0.012], gamma: [0.97, 1.0, 1.04], gain: [1.06, 0.99, 0.88], shadow: [-0.006, -0.004, 0.026], high: [0.04, 0.014, -0.03], split: 1.2, sat: 1.06, vib: 0.18, contrast: 0.2 },
   nacht: { wb: [0.92, 0.98, 1.1], lift: [0.0, 0.004, 0.014], gamma: [1.04, 1.02, 0.98], gain: [0.96, 1.0, 1.06], shadow: [-0.01, 0.0, 0.03], high: [0.0, 0.006, 0.01], split: 0.8, sat: 0.9, vib: 0.06, contrast: 0.14 },
   neutral: { wb: [1, 1, 1], lift: [0, 0, 0], gamma: [1, 1, 1], gain: [1, 1, 1], shadow: [0, 0, 0], high: [0, 0, 0], split: 0, sat: 1, vib: 0, contrast: 0 },
+  // Kulissen (n20): je Landschafts-Thema (gfx/themes.js)
+  wueste: { wb: [1.04, 1.0, 0.93], lift: [0.012, 0.006, 0.006], gamma: [0.99, 1.0, 1.03], gain: [1.05, 1.0, 0.94], shadow: [-0.004, -0.004, 0.018], high: [0.026, 0.01, -0.02], split: 1.1, sat: 1.06, vib: 0.12, contrast: 0.26 },
+  alpen: { wb: [0.995, 1.0, 1.02], lift: [0.0, 0.004, 0.016], gamma: [1.0, 1.0, 1.02], gain: [1.01, 1.01, 1.02], shadow: [-0.012, 0.0, 0.02], high: [0.01, 0.006, -0.006], split: 1, sat: 1.06, vib: 0.16, contrast: 0.26, green: 1 },
+  kueste: { wb: [1.0, 1.0, 1.0], lift: [0.002, 0.006, 0.012], gamma: [1.0, 0.99, 1.0], gain: [1.02, 1.02, 1.0], shadow: [-0.014, 0.004, 0.018], high: [0.016, 0.008, -0.01], split: 1, sat: 1.1, vib: 0.2, contrast: 0.24, green: 0.6 },
+  stadt: { wb: [1.04, 1.0, 0.93], lift: [0.01, 0.006, 0.012], gamma: [0.98, 1.0, 1.03], gain: [1.05, 1.0, 0.92], shadow: [-0.01, -0.002, 0.024], high: [0.034, 0.012, -0.024], split: 1.2, sat: 1.04, vib: 0.16, contrast: 0.24 },
+  herbst: { wb: [1.03, 1.0, 0.94], lift: [0.008, 0.006, 0.008], gamma: [0.99, 1.0, 1.02], gain: [1.04, 1.0, 0.93], shadow: [-0.006, 0.0, 0.016], high: [0.028, 0.012, -0.018], split: 1.1, sat: 1.1, vib: 0.2, contrast: 0.22 },
+  winter: { wb: [0.97, 0.99, 1.04], lift: [0.006, 0.008, 0.014], gamma: [1.0, 1.0, 0.99], gain: [0.99, 1.0, 1.03], shadow: [-0.008, 0.0, 0.022], high: [0.004, 0.004, 0.0], split: 0.8, sat: 0.92, vib: 0.08, contrast: 0.2 },
 };
 
 // Bewegungsunschärfe (n7, unverändert in Wirkung): Belichtungszeit und größte Streifenlänge (Anteil der Bildbreite)
