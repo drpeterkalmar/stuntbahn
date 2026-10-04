@@ -171,5 +171,9 @@ eine Zeile zu lang.
 
 ## Commits (n20)
 - `ddddba3` Etappe 1: Themen, Streckenrand, Tests, Lizenzen (live ca82e6bda7)
-- Etappe 2 (dieser Commit): Fernkulisse sichtbar und kräftiger, Stadt dichter, Strand nur am Meer, Winter-Bäume, Fehlerbehebung
+- `5ef5d6a` Etappe 2: Fernkulisse sichtbar und kräftiger, Stadt dichter, Strand nur am Meer, Winter-Bäume, Fehlerbehebung
   Zwischenspeicher (n22), Fotos, Messungen, Bericht
+- Live-Fix: GitHub Pages (Jekyll) lieferte die Ordner `assets/themes/_tex` und `_veg` nicht aus (404) → live fiel jedes Thema
+  still auf „Land“ zurück (Etappe 1 war insofern live nur „Land“ mit Streckenrand). Ordner umbenannt (`tex`, `veg`), Test prüft
+  es. **Live geprüft (Build 02ca6131c0):** alle 7 Themen laden headless von der Live-Seite (8 Pakete, 0 Fehlschläge,
+  0 Seitenfehler), `test_live.py` grün (Rennen im Ziel, Service-Worker aktiv, offline startbar).
