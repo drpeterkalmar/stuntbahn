@@ -55,13 +55,10 @@ export function planKulisse(c) {
   // eben oder ansteigend (Tribüne in den Hang gebaut, Einschnitt) – nie über abfallendem Gelände (Damm, Schlucht)
   const standAt = (i, sg, d) => {
     const [fx, fz] = side(i, sg, d), [cx, cz] = side(i, sg, d + 6), [bx, bz] = side(i, sg, d + 12);
-    const D = globalThis.__kdbg;
-    if (!ok(cx, cz, MC.stand ?? 8.5, 6, 0.9)) { if (D) D.ok++; return null; }
-    if (!occ.free(cx, cz, 10)) { if (D) D.occ++; return null; }
-    if (!gapFree(cx, cz) || !gapFree(fx, fz)) { if (D) D.gap++; return null; }
+    if (!ok(cx, cz, MC.stand ?? 8.5, 6, 0.9) || !occ.free(cx, cz, 10) || !gapFree(cx, cz) || !gapFree(fx, fz)) return null;
     const y0 = L.py[i];
-    for (const [x, z] of [[fx, fz], side(at(i, -9), sg, d + 1), side(at(i, 9), sg, d + 1)]) if (Math.abs(ground(x, z) - y0) > 1.5 || !ok(x, z, MC.stand ?? 8.5, 0.4, 0.6)) { if (D) D.front++; return null; }
-    for (const [x, z] of [[cx, cz], [bx, bz], side(at(i, -9), sg, d + 11), side(at(i, 9), sg, d + 11)]) { const g = ground(x, z); if (g < y0 - 0.6 || g > y0 + 10) { if (D) D.back++; return null; } }
+    for (const [x, z] of [[fx, fz], side(at(i, -9), sg, d + 1), side(at(i, 9), sg, d + 1)]) if (Math.abs(ground(x, z) - y0) > 1.5 || !ok(x, z, MC.stand ?? 8.5, 0.4, 0.6)) return null;
+    for (const [x, z] of [[cx, cz], [bx, bz], side(at(i, -9), sg, d + 11), side(at(i, 9), sg, d + 11)]) { const g = ground(x, z); if (g < y0 - 0.6 || g > y0 + 10) return null; }
     return { x: fx, z: fz, rot: faceRoad(i, sg), s: 1, v: 1, i, cx, cz };
   };
   for (const sp of spots.slice(0, maxSpots + 1)) {
@@ -151,22 +148,22 @@ export function planKulisse(c) {
   const ext = T.ext;
   if (themeId === 'stadt') {
     // Hochhäuser auf dem Häuserblock-Raster (92 m wie das Muster im Boden-Shader), außerhalb des Streckenrasters
-    const nTow = [70, 120, 170][tier] ?? 170;
+    const nTow = [90, 160, 230][tier] ?? 230;
     const dn = R() * Math.PI * 2;   // Richtung der Innenstadt (dort höher)
     for (let t = 0; I('tower').length < nTow && t < nTow * 12; t++) {
       const cx = Math.floor(R.range(-2400, 2400) / 92), cz = Math.floor(R.range(-2400, 2400) / 92);
       const x = (cx + 0.5) * 92, z = (cz + 0.5) * 92, rb = Math.max(Math.abs(x), Math.abs(z));
-      if (rb < ext + 60 || Math.hypot(x, z) > 2600) continue;
+      if (rb < ext + 40 || Math.hypot(x, z) > 2600) continue;
       if (!ok(x, z, MC.tower ?? 120, 30, 2) || !occ.free(x, z, 30)) continue;
       const down = 0.5 + 0.5 * Math.cos(Math.atan2(z, x) - dn), far = Math.min(1, (Math.hypot(x, z) - ext) / 1400);
-      const h = 22 + Math.pow(R(), 1.6) * (60 + 190 * down) * (0.6 + 0.4 * far);
+      const h = 26 + Math.pow(R(), 1.4) * (70 + 210 * down) * (0.65 + 0.35 * far);
       take('tower', { x, z, rot: 0, s: 1, v: R.int(4), w: R.range(24, 44), d: R.range(24, 44), h }, 34);
     }
     // Wohnblöcke im Streckenraster (flache Stellen, weit genug von der Fahrbahn)
-    for (let t = 0, k = 0; k < (tier === 0 ? 8 : 18) && t < 900; t++) {
-      const x = R.range(-WORLD_HALF, WORLD_HALF), z = R.range(-WORLD_HALF, WORLD_HALF);
-      if (!ok(x, z, MC.block ?? 70, 16, 0.12) || !occ.free(x, z, 18) || !gapFree(x, z)) continue;
-      take('block', { x, z, rot: Math.round(R() * 4) * Math.PI / 2, s: 1, v: R.int(4), w: R.range(18, 30), d: R.range(12, 18), h: R.range(12, 30) }, 18); k++;
+    for (let t = 0, k = 0; k < (tier === 0 ? 10 : 28) && t < 1400; t++) {
+      const x = R.range(-WORLD_HALF - 80, WORLD_HALF + 80), z = R.range(-WORLD_HALF - 80, WORLD_HALF + 80);
+      if (!ok(x, z, MC.block ?? 70, 16, 0.3) || !occ.free(x, z, 18) || !gapFree(x, z)) continue;
+      take('block', { x, z, rot: Math.round(R() * 4) * Math.PI / 2, s: 1, v: R.int(4), w: R.range(18, 30), d: R.range(12, 18), h: R.range(12, 30) * (R() < 0.3 ? 2.2 : 1) }, 18); k++;
     }
     // Baukräne neben Hochhäusern
     const tw = I('tower');

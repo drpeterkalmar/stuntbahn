@@ -511,7 +511,7 @@ export function buildDeco(track, M, surfaceY, add, opts = {}) {
     if (useT(V.bushCells)) {
       const BC = V.bushCells;
       list = P.bush.map((t, k) => { const n = BC[(t.v + k) % BC.length], c = TV.meta[n], hh = n === 'jungtanne' ? 4.5 : 1.8, sc = hh / c.h * t.s; return { x: t.x, y: gy(t.x, t.z) - 0.1, z: t.z, rot: t.rot, sx: c.w * sc, sy: c.h * sc, cell: c.uv }; });
-      m = atlasMat(TV.tex, 'bush', { ...vegOpts, map: TV.tex, color: V.snow ? lin(1.9, 1.95, 2.0) : lin(1.5, 1.55, 1.35) }, [260, 340], 0.02);
+      m = atlasMat(TV.tex, 'bush' + (V.snow ? 'W' : ''), { ...vegOpts, map: TV.tex, color: V.snow ? lin(1.9, 1.95, 2.0) : lin(1.5, 1.55, 1.35) }, [260, 340], 0.02);
     } else {
       const BU = ['busch3', 'busch4'];
       list = P.bush.map((t) => { const n = BU[t.v % 2]; return { x: t.x, y: gy(t.x, t.z) - 0.15, z: t.z, rot: t.rot, sx: Mt[n].w * t.s, sy: Mt[n].h * t.s, cell: cell(n) }; });
@@ -525,7 +525,7 @@ export function buildDeco(track, M, surfaceY, add, opts = {}) {
     if (useT(V.laubCells)) {
       const LC = V.laubCells;
       list = P.laub.map((t, k) => { const [n, hh] = LC[(t.v + k) % LC.length], c = TV.meta[n], sc = hh / c.h * t.s; return { x: t.x, y: gy(t.x, t.z) - 0.2, z: t.z, rot: t.rot, sx: c.w * sc, sy: c.h * sc, cell: c.uv }; });
-      m = atlasMat(TV.tex, 'laub', { ...vegOpts, map: TV.tex, color: lin(1.45, 1.45, 1.35), emissive: 0x0a0c06 });
+      m = atlasMat(TV.tex, 'laub' + (V.snow ? 'W' : ''), { ...vegOpts, map: TV.tex, color: V.snow ? lin(1.9, 1.95, 2.0) : lin(1.45, 1.45, 1.35), emissive: 0x0a0c06 });
     } else {
       const LB = ['laub1', 'laub2'], H = { laub1: 11.5, laub2: 10 };
       const AUT = [[1.0, 0.66, 0.16], [1.09, 0.45, 0.11], [0.95, 0.25, 0.08], [0.68, 0.41, 0.18], [0.6, 0.68, 0.27]];

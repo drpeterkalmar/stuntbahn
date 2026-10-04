@@ -50,7 +50,7 @@ export const THEMES = {
     name: 'Alpen', icon: '🏔️', desc: 'Berge, Schnee, Tannen, Hütten',
     pack: { sky: 'alpen', ground: 'Grass004', rock: 'Rock051', veg: 'berg' },
     ground: { ...GROUND_LAND, g0: C(0.04, 0.1, 0.025), g1: C(0.22, 0.36, 0.1), dry: C(0.3, 0.3, 0.14), dryK: 0.35, fields: 0, forest: C(0.02, 0.05, 0.025), forestK: 1.3,
-      rock0: C(0.09, 0.09, 0.09), rock1: C(0.26, 0.25, 0.24), slope: [0.92, 0.85, 0.8, 0.68], snowH: 210, rockTex: 1, texK: 0.6 },
+      rock0: C(0.09, 0.09, 0.09), rock1: C(0.26, 0.25, 0.24), slope: [0.92, 0.85, 0.8, 0.68], snowH: 300, rockTex: 1, texK: 0.6 },
     light: { sunI: 3.2, envI: 1.8, fog: [1.5, 1.6], grade: 'alpen', haze: C(0.72, 0.8, 0.9) },
     far: 'alpen', backdrop: 'alpen',
     trees: { kind: 'fir', keep: 1.0, extraFirs: 1 },
@@ -98,7 +98,7 @@ export const THEMES = {
     light: { sunI: 1.4, envI: 1.7, fog: [0.7, 0.85], grade: 'winter', haze: C(0.82, 0.84, 0.88) },
     far: 'alpen', backdrop: 'alpen',
     trees: { kind: 'fir', keep: 1, snow: 1 },
-    veg: { grass: 0, flower: 0, bush: 0.6, bushCells: ['jungtanne', 'strauch'], laub: 0.5, rock: 1, farm: 'huette', snow: 1 },
+    veg: { grass: 0, flower: 0, bush: 0.6, bushCells: ['jungtanne', 'strauch'], laub: 0.5, laubCells: [['jungtanne', 10], ['jungtanne', 8]], rock: 1, farm: 'huette', snow: 1 },
     sky: { balloons: 2, zeppelin: 0, turbines: 4 },
   },
 };

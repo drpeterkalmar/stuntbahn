@@ -27,7 +27,7 @@ outf = open(os.path.join(ROOT, 'tests/out/n20/perf.jsonl'), 'a')
 
 def run(pw, root, label, tname, tier, theme):
     with Server(root) as srv:
-        dev = dict(DESKTOP, viewport={'width': 1920, 'height': 1080}, device_scale_factor=2) if DEV == 'big' else PIXEL7_LAND
+        dev = dict(DESKTOP, viewport={'width': 1920, 'height': 1080}, device_scale_factor=2) if DEV == 'big' else DESKTOP if DEV == 'desk' else PIXEL7_LAND
         s = Session(pw, srv.base, device=dev)
         t0 = time.time()
         s.open(f'?nosw&{TR[tname]}&q={tier}' + (f'&thema={theme}' if theme != 'auto' else ''))

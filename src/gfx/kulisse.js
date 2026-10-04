@@ -94,14 +94,14 @@ function profile(kind, seed) {
   const ang = (i) => i / N * Math.PI * 2;
   const fb = (nn, a, f, o = 3) => nn.fbm(Math.cos(a) * f + 11, Math.sin(a) * f - 7, o);
   if (kind === 'alpen') {
-    layers.push({ r: BD_R + 600, col: [0.36, 0.42, 0.52], haze: 0.62, snow: 1, h: Array.from({ length: N + 1 }, (_, i) => 520 + 520 * Math.pow(Math.max(0, 1 - Math.abs(fb(n, ang(i), 3.2, 4))), 2.4) + 140 * fb(n2, ang(i), 9, 2)) });
-    layers.push({ r: BD_R, col: [0.2, 0.25, 0.27], haze: 0.45, snow: 1, h: Array.from({ length: N + 1 }, (_, i) => 260 + 420 * Math.pow(Math.max(0, 1 - Math.abs(fb(n2, ang(i), 4.5, 4))), 2.2)) });
+    layers.push({ r: BD_R + 600, col: [0.13, 0.16, 0.22], haze: 0.4, snow: 1, h: Array.from({ length: N + 1 }, (_, i) => 520 + 520 * Math.pow(Math.max(0, 1 - Math.abs(fb(n, ang(i), 3.2, 4))), 2.4) + 140 * fb(n2, ang(i), 9, 2)) });
+    layers.push({ r: BD_R, col: [0.07, 0.09, 0.1], haze: 0.28, snow: 1, h: Array.from({ length: N + 1 }, (_, i) => 260 + 420 * Math.pow(Math.max(0, 1 - Math.abs(fb(n2, ang(i), 4.5, 4))), 2.2)) });
   } else if (kind === 'mesa') {
     const terr = (v) => (v > 0.25 ? 230 : v > 0.0 ? 140 : v > -0.25 ? 50 : 15);
-    layers.push({ r: BD_R + 500, col: [0.62, 0.42, 0.3], haze: 0.6, strata: 1, h: Array.from({ length: N + 1 }, (_, i) => terr(fb(n, ang(i), 3.0, 2)) + 10 * fb(n2, ang(i), 30, 2)) });
-    layers.push({ r: BD_R, col: [0.5, 0.26, 0.15], haze: 0.42, strata: 1, h: Array.from({ length: N + 1 }, (_, i) => terr(fb(n2, ang(i), 4.0, 2) - 0.1) * 0.8 + 6 * fb(n, ang(i), 40, 2)) });
+    layers.push({ r: BD_R + 500, col: [0.42, 0.22, 0.12], haze: 0.38, strata: 1, h: Array.from({ length: N + 1 }, (_, i) => terr(fb(n, ang(i), 3.0, 2)) + 10 * fb(n2, ang(i), 30, 2)) });
+    layers.push({ r: BD_R, col: [0.3, 0.13, 0.06], haze: 0.26, strata: 1, h: Array.from({ length: N + 1 }, (_, i) => terr(fb(n2, ang(i), 4.0, 2) - 0.1) * 0.8 + 6 * fb(n, ang(i), 40, 2)) });
   } else if (kind === 'skyline') {
-    layers.push({ r: BD_R + 400, col: [0.38, 0.42, 0.48], haze: 0.62, h: Array.from({ length: N + 1 }, (_, i) => 50 + 70 * (fb(n, ang(i), 2.5, 3) * 0.5 + 0.5)) });
+    layers.push({ r: BD_R + 400, col: [0.16, 0.18, 0.22], haze: 0.45, h: Array.from({ length: N + 1 }, (_, i) => 50 + 70 * (fb(n, ang(i), 2.5, 3) * 0.5 + 0.5)) });
     // Hochhäuser: Blöcke mit senkrechten Kanten (Profil stufig), Dichte schwankt um den Ring (Stadtzentrum)
     const h = new Array(N + 1).fill(0);
     let i = 0, k = 0;
@@ -111,18 +111,18 @@ function profile(kind, seed) {
       for (let q = 0; q < w && i <= N; q++, i++) h[i] = hh;
       k++;
     }
-    layers.push({ r: BD_R, col: [0.24, 0.26, 0.3], haze: 0.4, windows: 1, step: 1, h });
+    layers.push({ r: BD_R, col: [0.1, 0.11, 0.13], haze: 0.3, windows: 1, step: 1, h });
   } else if (kind === 'meer') {
     const [sx, sz] = seaDir(seed), a0 = Math.atan2(sz, sx);
-    layers.push({ r: BD_R, col: [0.24, 0.32, 0.26], haze: 0.55, h: Array.from({ length: N + 1 }, (_, i) => {
+    layers.push({ r: BD_R, col: [0.07, 0.11, 0.08], haze: 0.4, h: Array.from({ length: N + 1 }, (_, i) => {
       let d = ang(i) - a0; d = Math.atan2(Math.sin(d), Math.cos(d));
       const land = THREE.MathUtils.smoothstep(Math.abs(d), 1.0, 1.5);
       const isle = Math.max(0, fb(n, ang(i), 14, 2) - 0.35) * 160;
       return land * (40 + 140 * (fb(n, ang(i), 3, 3) * 0.5 + 0.5)) + (1 - land) * isle - (1 - land) * 4;
     }) });
   } else {   // huegel (Land, Herbst)
-    layers.push({ r: BD_R + 500, col: [0.3, 0.38, 0.42], haze: 0.62, h: Array.from({ length: N + 1 }, (_, i) => 110 + 170 * (fb(n, ang(i), 2.8, 4) * 0.5 + 0.5)) });
-    layers.push({ r: BD_R, col: [0.16, 0.24, 0.17], haze: 0.45, h: Array.from({ length: N + 1 }, (_, i) => 40 + 120 * (fb(n2, ang(i), 4.2, 4) * 0.5 + 0.5)) });
+    layers.push({ r: BD_R + 500, col: [0.12, 0.16, 0.19], haze: 0.48, h: Array.from({ length: N + 1 }, (_, i) => 110 + 170 * (fb(n, ang(i), 2.8, 4) * 0.5 + 0.5)) });
+    layers.push({ r: BD_R, col: [0.05, 0.09, 0.05], haze: 0.36, h: Array.from({ length: N + 1 }, (_, i) => 40 + 120 * (fb(n2, ang(i), 4.2, 4) * 0.5 + 0.5)) });
   }
   return { N, layers };
 }
@@ -170,8 +170,12 @@ export function buildBackdrop(theme, add, opts = {}) {
       void main(){
         float y = vW.y, top = vT.y, flags = vT.w;
         vec3 c = vC;
-        // Schnee: obere Teile der Gipfel, zackige Grenze
-        if ( mod( flags, 2.0 ) > 0.5 ) { float ang = atan( vW.z, vW.x ); float line = top * 0.62 - 40.0 + 60.0 * hh( vec2( floor( ang * 240.0 ), 1.0 ) ); c = mix( c, vec3( 0.9, 0.93, 0.98 ), smoothstep( line, line + 25.0, y ) ); }
+        // Grate: Helligkeit wechselt mit dem Winkel (Licht-/Schattenseiten der Flanken), unten dunkler
+        float ang = atan( vW.z, vW.x );
+        float a1 = ang * 90.0, n1 = mix( hh( vec2( floor( a1 ), 3.0 ) ), hh( vec2( floor( a1 ) + 1.0, 3.0 ) ), smoothstep( 0.0, 1.0, fract( a1 ) ) );
+        c *= ( 0.7 + 0.6 * n1 ) * ( 0.75 + 0.35 * smoothstep( 0.0, max( 40.0, top ), y ) );
+        // Schnee: obere Teile der Gipfel, zackige Grenze, Schattenseiten bläulich
+        if ( mod( flags, 2.0 ) > 0.5 ) { float line = top * 0.7 - 30.0 + 70.0 * hh( vec2( floor( ang * 240.0 ), 1.0 ) ); c = mix( c, vec3( 0.78, 0.82, 0.9 ) * ( 0.75 + 0.35 * n1 ), smoothstep( line, line + 20.0, y ) ); }
         // Schichtstufen (Tafelberge)
         if ( mod( floor( flags / 4.0 ), 2.0 ) > 0.5 ) c *= 0.85 + 0.25 * smoothstep( 0.3, 0.7, fract( y / 38.0 ) );
         // Fenster (Skyline): Raster, einzelne leuchten warm
@@ -187,7 +191,7 @@ export function buildBackdrop(theme, add, opts = {}) {
         gl_FragColor = vec4( c, 1.0 );
         #include <colorspace_fragment>
       }`,
-    fog: false, depthWrite: true,
+    fog: false, depthWrite: true, side: THREE.DoubleSide,
   });
   const mesh = new THREE.Mesh(g, m);
   mesh.name = 'kulisse-horizont';
@@ -444,7 +448,8 @@ export function buildRand(plan, ctx) {
   if (boxes.length) {
     const g = new THREE.BoxGeometry(1, 1, 1); g.translate(0, 0.5, 0);
     const cols = [[0.42, 0.42, 0.41], [0.5, 0.45, 0.38], [0.22, 0.28, 0.36], [0.44, 0.27, 0.2], [0.58, 0.55, 0.5]];
-    const list = boxes.map((t) => ({ x: t.x, y: gy(t.x, t.z) - 1, z: t.z, rot: t.rot, sx: t.w, sy: t.h + 1, sz: t.d, color: new THREE.Color(...cols[(t.v + Math.floor(t.h)) % 5]) }));
+    const foot = (t) => { let m = gy(t.x, t.z); const r = Math.max(t.w, t.d) / 2; for (const [a, b] of [[-1, -1], [1, -1], [-1, 1], [1, 1], [0, 1], [1, 0], [0, -1], [-1, 0]]) m = Math.min(m, gy(t.x + a * r, t.z + b * r)); return m; };
+    const list = boxes.map((t) => ({ x: t.x, y: foot(t) - 1, z: t.z, rot: t.rot, sx: t.w, sy: t.h + 1, sz: t.d, color: new THREE.Color(...cols[(t.v + Math.floor(t.h)) % 5]) }));
     const m = buildingMaterial();
     const im = instanced(g, m, list, 'kulisse-hochhaeuser', null, true);
     add(im, false); tris += list.length * 12;

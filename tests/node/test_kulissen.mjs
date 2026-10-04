@@ -116,6 +116,21 @@ console.log('Strecken', envs.length, '× Themen', THEME_IDS.length, '· Kulissen
   delete globalThis.location;
 }
 
+// ---- Zwischenspeicher geprüfter Strecken behält alle Merkmale der Stücke (Gelände: g, tilt0/tilt1; 3D: h1) ----
+{
+  const mem = {}; globalThis.localStorage = { getItem: (k) => mem[k] ?? null, setItem: (k, v) => { mem[k] = String(v); }, removeItem: (k) => { delete mem[k]; } };
+  const { Store } = await import('../../src/game/store.js?cache');
+  const st = new Store();
+  for (const [s, d, o] of [[1038, 1, { gel: true }], [25, 2, { gel: true }], [4711, 3, { d3: true }], [4711, 3, {}]]) {
+    const lay = generate(s, d, o);
+    st.setVerified('k', 'b', lay.pieces, 10, 0);
+    const back = new Store().getVerified('k', 'b').pieces;
+    const norm = (a) => JSON.stringify(a.map((p) => Object.fromEntries(Object.entries({ ...p, m: p.m || 1, lvl: p.lvl || 0 }).sort())));
+    ok(norm(back) === norm(lay.pieces), `zwischenspeicher: ${lay.meta.key} verliert Merkmale der Stücke`);
+  }
+  delete globalThis.localStorage;
+}
+
 // ---- Thema passend: deterministisch, Verteilung, .TRK-Horizonte ----
 {
   const seen = {};

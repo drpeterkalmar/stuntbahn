@@ -68,6 +68,20 @@ spielbar am Handy (quer oder hochkant), mit Gamepad oder Tastatur. Als App insta
   Abstand zu jeder Fahrbahn (auch Hochstraßen/Rampen), nie im Wasser. Dosiert nach Grafikstufe; ruckelt es, blendet die
   Automatik (nach der Unschärfe) zuerst Gras/Büsche/Wolkenschatten aus. `?deko=0` / `?wolken=0` zum Vergleich.
 
+## 🏞️ Landschaften und Streckenrand (seit 04.10.2026, n20)
+- Peter: „Mehr Streckenelemente und Kulissen.“ **7 Landschafts-Themen** – 🌾 Land, 🏜️ Wüste & Canyon, 🏔️ Alpen, 🏝️ Küste &
+  Tropen, 🏙️ Stadt, 🍂 Herbstwald, ❄️ Winter – je mit eigenem Himmel (Poly-Haven-HDRI), Licht, Nebel, Farbkorrektur im
+  Kino-Look, Boden/Fels (ambientCG), Pflanzen und Fernkulisse (Berge mit Schnee, Tafelberge, Meer mit Strand und Inseln,
+  Skyline mit Hochhäusern, Kränen, Hochstraße, Leuchtturm, Segelbooten). Alle Assets CC0 (`assets/LICENSES.md`).
+- **Passend zur Strecke:** generierte Strecken aus Seed/Stufe/Streckenart, .TRK und Sammlung aus dem Horizont. Menü →
+  **„🏞️ Landschaft“**: passend oder fest ein Thema; URL `?thema=wueste|alpen|kueste|stadt|herbst|winter|land`.
+- **Streckenrand:** Tribünen an Start, Sprüngen, Loopings und Kurven, **jubelnde Zuschauer**, Start/Ziel-Portal, Fahnen mit
+  erfundenen Marken, Kamerakräne, Heißluftballons, Zeppelin, Windräder. Keine Kollision, nie in Sprunglücken, Schluchten oder
+  auf Böschungen; **Fahrbahn und Bestzeiten unverändert** (47/47 Strecken bitgleich).
+- Themen-Pakete (1,7–2,5 MB) laden nur bei Bedarf, immer nur das aktuelle. Details, Messwerte, Fotos: `KULISSEN_BERICHT.md`.
+  Code: `src/track/themes.js` (Themen, passend, Fernkulisse), `src/track/kulisse.js` (Planung), `src/gfx/themes.js` (Laden/
+  Anwenden), `src/gfx/kulisse.js` (Bäume, Silhouetten, Meer, Bauten, Streckenrand).
+
 ## 🎞️ Kino-Replay nach dem Ziel (seit 03.10.2026, n18)
 - Peter: „Nachdem man durchs Ziel ist: Cinematic Replay mit Slow-Mo-Drohnen-Action-Cam der besten Stunteinlagen.“
   Nach dem Zieleinlauf läuft ein **Highlight-Film (~22–30 s)**: die 3–5 besten Momente der Fahrt, zeitlich sortiert, je mit
@@ -289,6 +303,11 @@ python3 tests/test_extras_ui.py           # Knöpfe quer/hoch/Desktop, Touch/Tas
 python3 tests/extras_shots.py             # Fotos: Knöpfe voll/leer, Nitro-Flammen, Hüpfer von der Seite
 node tests/node/test_quality_blur.mjs     # Automatik: Unschärfe aus, sobald sie Bildrate kostet; dann „Deko sparsam“
 node tests/node/test_deco.mjs 10          # Deko: Abstand zu jeder Fahrbahn, kein Wasser, Mengen (Generator + .TRK + Korpus)
+node tests/node/test_kulissen.mjs 4       # n20: Kulissen in allen Themen (Abstand, Sprunglücken, Böschung), Strecke/Bestzeit-Schlüssel unverändert, Thema passend
+node tools/kulissen_bitgleich.mjs [vorher] # n20: Strecken vorher/nachher Byte für Byte gleich (Wurzel = Stand vor n20)
+python3 tests/kulissen_shots.py quer      # n20: Fotos je Thema (Start, Kurve mit Tribüne, Sprung, Horizont; quer|hoch)
+python3 tests/kulissen_probe.py 4711-3-g land,alpen   # n20: schnelle Sichtprüfung je Thema (Start, Übersicht, Horizont)
+python3 tests/perf_kulissen.py <vorher> gel,flach 0,1 auto,stadt,kueste   # n20: Bildzeit/fps vorher-nachher je Thema (PERF_DEV=big|desk)
 python3 tests/optik_detail.py             # Detail-Fotos (Streckenrand, Luftbild), Draw-Calls/Dreiecke
 python3 tests/perf_gross.py [Wurzel]      # große .TRK (LONG_GO2, nur lokal): Draw-Calls < 200, Dreiecke, Bauzeit
 python3 tests/load_mb.py [Wurzel]         # Erstladung in MB
@@ -313,7 +332,7 @@ erlaubt 1 … 2,5; andere Welt als 2 wertet nicht). In Node: `STUNT_WELT=1 node 
 
 ## Credits
 - **Auto:** „Fictional supercar – V12 Goblin“ von **Olli Teittinen (ollitei)**, CC-BY 4.0 (Sketchfab), für das Spiel optimiert.
-- **Himmel:** „Kloofendal 48d Partly Cloudy (Pure Sky)“ von Greg Zaal & Jarod Guest, Poly Haven, CC0.
+- **Himmel:** „Kloofendal 48d Partly Cloudy (Pure Sky)“ von Greg Zaal & Jarod Guest, Poly Haven, CC0; Landschafts-Themen (n20): 6 weitere Poly-Haven-Himmel, ambientCG-Böden und Poly-Haven-Pflanzen, alle CC0 (`assets/LICENSES.md`).
 - **Texturen:** Poly Haven (CC0) – Rob Tuytel, Charlotte Baglioni, Rico Cilliers.
 - **Umgebung:** Poly Haven (CC0) – Pflanzen, Felsen, Kies von Rico Cilliers, Rob Tuytel, James Ray Cock, Jenelle van Heerden, Kless Gyzen, Dimitrios Savva (Details in `assets/LICENSES.md`).
 - **Bibliothek:** three.js (MIT).

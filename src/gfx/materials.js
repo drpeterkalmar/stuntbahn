@@ -357,7 +357,7 @@ function patchGrass(mat) {
           float sn = smoothstep( tSnowH - 25.0, tSnowH + 30.0, vGy + ( gNoise( vGw * 0.01 ) - 0.5 ) * 90.0 ) * smoothstep( 0.45, 0.75, ny2 );
           diffuseColor.rgb = mix( diffuseColor.rgb, vec3( 0.82, 0.85, 0.9 ) * ( 0.9 + 0.15 * gNoise( vGw * 0.2 ) ), sn );
         }
-        if ( vGy < tBeach ) {
+        if ( vGy < tBeach && rr > ${(Math.SQRT2 * (WORLD_HALF + 60 * WORLD_SCALE) + 20).toFixed(1)} ) {   // nur am Meer, außerhalb des Streckenrasters
           float sb = smoothstep( tBeach, tBeach - 2.5, vGy + ( gNoise( vGw * 0.03 ) - 0.5 ) * 2.0 );
           diffuseColor.rgb = mix( diffuseColor.rgb, vec3( 0.62, 0.53, 0.38 ) * ( 0.85 + 0.25 * gNoise( vGw * 0.4 ) ), sb );
         }
@@ -429,11 +429,11 @@ export function patchTreeTheme(m) {
       diffuseColor.rgb *= tTreeTint;
       if ( tTreeSnow > 0.0 ) {
         // weiche Schneeflecken (Wertrauschen, bilinear) statt harter Zellen
-        vec2 q = vMapUv * vec2( 9.0, 14.0 ), qi = floor( q ), qf = fract( q ); qf = qf * qf * ( 3.0 - 2.0 * qf );
+        vec2 q = vMapUv * vec2( 24.0, 36.0 ), qi = floor( q ), qf = fract( q ); qf = qf * qf * ( 3.0 - 2.0 * qf );
         float h00 = fract( sin( dot( qi, vec2( 127.1, 311.7 ) ) ) * 43758.5453 ), h10 = fract( sin( dot( qi + vec2( 1, 0 ), vec2( 127.1, 311.7 ) ) ) * 43758.5453 );
         float h01 = fract( sin( dot( qi + vec2( 0, 1 ), vec2( 127.1, 311.7 ) ) ) * 43758.5453 ), h11 = fract( sin( dot( qi + vec2( 1, 1 ), vec2( 127.1, 311.7 ) ) ) * 43758.5453 );
         float h = mix( mix( h00, h10, qf.x ), mix( h01, h11, qf.x ), qf.y );
-        float s = smoothstep( 0.35, 0.7, h ) * 0.8;
+        float s = smoothstep( 0.4, 0.75, h ) * 0.75 * smoothstep( 0.02, 0.12, dot( diffuseColor.rgb, vec3( 0.3, 0.59, 0.11 ) ) );
         diffuseColor.rgb = mix( diffuseColor.rgb, vec3( 0.86, 0.88, 0.92 ), s * tTreeSnow );
       }`);
   };

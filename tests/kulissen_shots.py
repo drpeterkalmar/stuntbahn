@@ -65,8 +65,8 @@ with Server() as srv, sync_playwright() as pw:
           // Küste: Richtung Leuchtturm/Meer, Stadt: Richtung der höchsten Hochhäuser
           if (P.light && P.light.length) ba = Math.atan2(P.light[0].z - p.z, P.light[0].x - p.x);
           if (P.tower && P.tower.length) { const t = P.tower.slice().sort((a, b) => b.h - a.h).slice(0, 12); let sx = 0, sz = 0; for (const q of t) { sx += q.x; sz += q.z; } ba = Math.atan2(sz / t.length - p.z, sx / t.length - p.x); }
-          window.__app.freezeCam = true; const c = g.camera, hy = Math.max(p.y + 30, T.height(p.x, p.z) + 30); c.position.set(p.x, hy, p.z); c.up.set(0, 1, 0);
-          c.lookAt(p.x + Math.cos(ba) * 1000, hy + 10, p.z + Math.sin(ba) * 1000); c.fov = 62; c.updateProjectionMatrix(); })()""")
+          window.__app.freezeCam = true; const c = g.camera, hy = Math.max(p.y, T.height(p.x, p.z)) + (innerHeight > innerWidth ? 70 : 30); c.position.set(p.x, hy, p.z); c.up.set(0, 1, 0);
+          c.lookAt(p.x + Math.cos(ba) * 1000, hy - (innerHeight > innerWidth ? 30 : -10), p.z + Math.sin(ba) * 1000); c.fov = 62; c.updateProjectionMatrix(); })()""")
         snap(s, f'{th}_horizont')
         # Kurve mit Tribüne (zweite Strecke): Auto fährt darauf zu
         ks, kd, *kr = code_k.split('-')
@@ -74,6 +74,7 @@ with Server() as srv, sync_playwright() as pw:
         s.ev(f"__game.newTrack({ks}, {kd}, '{'gel' if 'g' in kr else '3d' if '3d' in kr else 'flat'}')"); s.pg.wait_for_function(f"__game.env.meta.key === '{code_k}'", timeout=300000)
         s.ev("__game.start({ autopilot: true })"); s.ev("__game.sim(3.2)")
         plan = s.ev(PLAN); stands = plan['inst'].get('stand', []) if plan else []
+        print('Tribünen', code_k, th, len(stands), s.ev('__game.env.meta.key'), s.ev("__game.scene.children.filter(o => o.name === 'world').map(w => (w.userData.stats.deco.planObj.inst.stand || []).length)"), s.ev('__game.info().tier'), flush=True)
         st = None
         for want in ('kurve', 'looping', 'sprung', 'roehre', 'start'):
             st = st or next((x for x in stands if x.get('stunt') == want), None)
@@ -84,7 +85,7 @@ with Server() as srv, sync_playwright() as pw:
             s.ev(f"(() => {{ const g = __game; g.freeze(true); g.teleport({i}, 0); g.sim(0.05); }})()")
             s.ev(f"""(() => {{ const g = __game, L = g.env.track.line; window.__app.freezeCam = true; const c = g.camera;
               c.position.set(L.px[{i0}] - L.bx[{i0}] * 2, L.py[{i0}] + 5, L.pz[{i0}] - L.bz[{i0}] * 2); c.up.set(0, 1, 0);
-              c.lookAt(({st['x']} + L.px[{i}]) / 2, L.py[{i}] + 3, ({st['z']} + L.pz[{i}]) / 2); c.fov = 62; c.updateProjectionMatrix(); }})()""")
+              const kk = {0.8 if mode == 'hoch' else 0.5}; c.lookAt({st['x']} * kk + L.px[{i}] * (1 - kk), L.py[{i}] + 3, {st['z']} * kk + L.pz[{i}] * (1 - kk)); c.fov = 62; c.updateProjectionMatrix(); }})()""")
             snap(s, f'{th}_kurve')
             s.ev("window.__app.freezeCam = false")
     print('Fehler', s.errors[:6])

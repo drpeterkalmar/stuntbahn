@@ -59,10 +59,14 @@ export class Store {
     const v = this.verified[key];
     if (!v || v.b !== build) return null;
     // 3D-Strecken (n19): 7. Wert = Ebene an der Ausfahrt (h1), v = Variante des Generators
-    return { pieces: v.p.map(([type, i, j, d, m, lvl, h1]) => (h1 == null ? { type, i, j, d, m, lvl } : { type, i, j, d, m, lvl, h1 })), ap: v.ap, fixes: v.f, variant: v.v || 0 };
+    // n20: 8. Wert = weitere Merkmale des Stücks (Gelände n22: g = kuppe/gorge/drop …, tilt0/tilt1 = Schräglage). Bis n23
+    // gingen sie im Zwischenspeicher verloren → beim zweiten Laden fehlten Kuppe, Hang-Querfahrt & Co. (andere Strecke)
+    return { pieces: v.p.map(([type, i, j, d, m, lvl, h1, x]) => Object.assign(h1 == null ? { type, i, j, d, m, lvl } : { type, i, j, d, m, lvl, h1 }, x || {})), ap: v.ap, fixes: v.f, variant: v.v || 0 };
   }
   setVerified(key, build, pieces, ap, fixes, variant = 0) {
-    this.verified[key] = { b: build, p: pieces.map((q) => (q.h1 == null ? [q.type, q.i, q.j, q.d, q.m || 1, q.lvl || 0] : [q.type, q.i, q.j, q.d, q.m || 1, q.lvl || 0, q.h1])), ap, f: fixes, ...(variant ? { v: variant } : {}) };
+    const STD = new Set(['type', 'i', 'j', 'd', 'm', 'lvl', 'h1']);
+    const extra = (q) => { const x = {}; let any = false; for (const k of Object.keys(q)) if (!STD.has(k) && q[k] !== undefined) { x[k] = q[k]; any = true; } return any ? x : null; };
+    this.verified[key] = { b: build, p: pieces.map((q) => { const x = extra(q), a = [q.type, q.i, q.j, q.d, q.m || 1, q.lvl || 0]; if (q.h1 != null || x) a.push(q.h1 ?? null); if (x) a.push(x); return a; }), ap, f: fixes, ...(variant ? { v: variant } : {}) };
     const keys = Object.keys(this.verified);
     if (keys.length > 60) delete this.verified[keys[0]];
     try { localStorage.setItem(KEY + '.verified', JSON.stringify(this.verified)); } catch { /* voll */ }
