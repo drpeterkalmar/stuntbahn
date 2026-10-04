@@ -163,6 +163,13 @@ console.log('Strecken', envs.length, '× Themen', THEME_IDS.length, '· Kulissen
   }
 }
 
+// ---- GitHub Pages (Jekyll) liefert Ordner/Dateien mit „_“ am Anfang nicht aus → Themen-Pakete dürfen keine haben ----
+{
+  const fs = await import('fs'), path = await import('path');
+  const root = new URL('../../assets/themes/', import.meta.url).pathname;
+  (function walk(d) { for (const f of fs.readdirSync(d)) { ok(!f.startsWith('_') && !f.startsWith('.'), `pages: ${path.relative(root, path.join(d, f))} wird von GitHub Pages nicht ausgeliefert`); if (fs.statSync(path.join(d, f)).isDirectory()) walk(path.join(d, f)); } })(root);
+}
+
 if (bad) console.log('Fehler je Art', JSON.stringify(byKind));
 console.log(bad ? `${bad} Fehler bei ${checks} Prüfungen` : `Kulissen: ${checks} Prüfungen ok (${envs.length} Strecken × ${THEME_IDS.length} Themen)`);
 process.exit(bad ? 1 : 0);

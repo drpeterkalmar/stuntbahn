@@ -2,7 +2,7 @@
 // (Basis Universal ETC1S + Mipmaps, wie tools/build_ktx2.mjs: senkrecht gespiegelt, damit sie auf den UVs der WebP-Fassung
 // liegen). arm = AO (R), Rauheit (G), Metall 0 (B) wie bei den Poly-Haven-Sätzen.
 // Ausgabe: assets/themes/<thema>/ground_{diff,nor,arm}.ktx2, rock_{diff,nor}.ktx2 (Fels nur, wo das Thema eigenen Fels hat)
-// Gemeinsam genutzte Sätze liegen nur einmal im Repo (assets/themes/_tex/<Name>_*.ktx2), die Themen verweisen darauf.
+// Gemeinsam genutzte Sätze liegen nur einmal im Repo (assets/themes/tex/<Name>_*.ktx2), die Themen verweisen darauf.
 // Aufruf: node tools/build_themes.mjs [Name …]
 import { encodeToKTX2 } from 'ktx2-encoder';
 import sharp from 'sharp';
@@ -11,7 +11,7 @@ import path from 'path';
 
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const SRC = path.join(ROOT, 'assets_src', 'themes', 'tex');
-const OUT = path.join(ROOT, 'assets', 'themes', '_tex');
+const OUT = path.join(ROOT, 'assets', 'themes', 'tex');
 fs.mkdirSync(OUT, { recursive: true });
 // Satz → Größe (Boden 1024, Fels 512: Fels sieht man nur an steilen Hängen)
 const SETS = { Ground097: 1024, Grass004: 1024, Grass001: 1024, ScatteredLeaves009: 1024, Snow010A: 1024, Rock029: 512, Rock051: 512, Rock058: 512 };

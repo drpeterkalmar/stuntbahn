@@ -43,11 +43,11 @@ export class ThemeManager {
     };
     // Boden/Fels als KTX2; ohne KTX2 (?ktx=0, kein WASM) bleibt der Gras-Boden mit der Palette des Themas
     const opt = (p) => p.catch((e) => { console.warn('Thema-Textur fehlt', e && e.message); return null; });
-    if (P && P.ground) for (const k of ['diff', 'nor', 'arm']) jobs['g_' + k] = opt(tex(`${T}_tex/${P.ground}_${k}.ktx2`, k === 'diff'));
-    if (P && P.rock) jobs.rock = opt(tex(`${T}_tex/${P.rock}_diff.ktx2`, true));
+    if (P && P.ground) for (const k of ['diff', 'nor', 'arm']) jobs['g_' + k] = opt(tex(`${T}tex/${P.ground}_${k}.ktx2`, k === 'diff'));
+    if (P && P.rock) jobs.rock = opt(tex(`${T}tex/${P.rock}_diff.ktx2`, true));
     if (P && P.veg) {
-      jobs.vegTex = tl.loadAsync(`${T}_veg/${P.veg}.webp`).then((t) => { t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t; });
-      jobs.vegMeta = fetch(`${T}_veg/${P.veg}.json`).then((x) => x.json());
+      jobs.vegTex = tl.loadAsync(`${T}veg/${P.veg}.webp`).then((t) => { t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t; });
+      jobs.vegMeta = fetch(`${T}veg/${P.veg}.json`).then((x) => x.json());
     }
     const keys = Object.keys(jobs), vals = await Promise.all(Object.values(jobs));
     const pack = { id, def };

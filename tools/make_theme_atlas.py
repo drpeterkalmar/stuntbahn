@@ -1,6 +1,6 @@
 # Kulissen (n20): Pflanzen-Atlanten der Landschafts-Themen aus CC0-Modellen (Poly Haven, Kenney; tools/fetch_themes.py),
 # gerendert wie tools/make_impostors.py (Seitenansicht, tools/impostor.html über die GPU, Farbe in die Ränder gezogen).
-# Ausgabe: assets/themes/_veg/<atlas>.webp + .json (Zellen: uv, Breite/Höhe in Modell-Metern, Deckung).
+# Ausgabe: assets/themes/veg/<atlas>.webp + .json (Zellen: uv, Breite/Höhe in Modell-Metern, Deckung).
 # Aufruf: python3 tools/make_theme_atlas.py [atlas …]   (--probe: nur Einzelbilder nach /tmp/atlas_probe/)
 import os, sys, io, json, base64
 import numpy as np
@@ -72,7 +72,7 @@ ATLASES = {
 }
 PROBE = '--probe' in sys.argv
 want = [a for a in sys.argv[1:] if not a.startswith('--')] or list(ATLASES)
-out_dir = os.path.join(ROOT, 'assets', 'themes', '_veg')
+out_dir = os.path.join(ROOT, 'assets', 'themes', 'veg')
 os.makedirs(out_dir, exist_ok=True)
 with Server(ROOT) as srv, sync_playwright() as pw:
     b = pw.chromium.launch(args=ARGS)
