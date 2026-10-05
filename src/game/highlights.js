@@ -58,6 +58,10 @@ export const HL = {
   // Auslaufen), Zeitlupe slow von core[0] bis core[1] s um die Linie, Schnitt Tele → Zielbogen tele s nach der Linie; der
   // Zieleinlauf kommt zum Film dazu (Momente weiter höchstens film.max s)
   zshow: { pre: 2.4, post: 4.6, core: [-0.45, 0.5], slow: 0.4, tele: 0.6 },
+  // n27 Effekte: Speed-Ramp (vor und nach der Zeitlupe schneller als echt: fast, Übergang fastRamp s Aufzeichnung),
+  // Freeze-Frame beim Rekord-Stunt (bester Moment des Films ab freezeScore Punkten, freeze s Standbild mit Weißblitz),
+  // Reißschwenk zwischen zwei Einstellungen eines Clips (whip s Filmzeit je Seite), Übergänge zwischen Clips im Wechsel
+  fx: { fast: 1.35, fastRamp: 0.5, fastGap: 0.35, freeze: 0.7, freezeScore: 60, whip: 0.2, trans: ['fade', 'flash', 'whip'] },
 };
 
 // Einblendung je Art (Emoji + Text); n = Zahl (m, km/h …). km/h als Show-Tacho (core/showspeed.js, wie der Tacho), dazu
@@ -96,6 +100,10 @@ export const LABEL = {
 // Kameras je Art: Folge von [Kamera, bis] – bis = 'peak' (Höhepunkt), 'end' (Ende des Clips) oder Sekunden ab Clip-Anfang.
 // drone = Drohne (seitlich oben, weich, Kreisfahrt), action = Action-Cam (tief am Auto, Wackeln), tele = Stativ/Tele an
 // der Landestelle (Zoom + Schwenk), heli = Hubschrauber (weit), onboard = auf dem Dach (kurz)
+// n27 dazu: fan = Fan-Cam (Handkamera eines Zuschauers am Rand), crane = Kran/Dolly (fährt neben der Strecke mit, steigt),
+// low = Bodenkamera neben der Fahrbahn (Auto donnert vorbei/darüber), rear = Heckkamera rückwärts (Blick zurück)
+// SHOTS[Art] = erste Folge (wie bis n26, Tests/A-B), SHOTS_ALT[Art] = weitere Folgen; gewählt wird je Clip die Folge, deren
+// Kameras im Film bisher am seltensten vorkamen (Abwechslung, keine Kamera zweimal hintereinander)
 export const SHOTS = {
   jump: [['drone', 'peak'], ['tele', 'end']], gorge: [['heli', 'peak'], ['tele', 'end']], cliff: [['drone', 'peak'], ['action', 'end']],
   drop: [['drone', 'end']], air: [['drone', 'end']], hop: [['drone', 'end']], waves: [['action', 'end']], kuppe: [['action', 'end']],
@@ -104,8 +112,22 @@ export const SHOTS = {
   nitro: [['action', 1.6], ['onboard', 2.5], ['drone', 'end']], top: [['onboard', 1.0], ['drone', 'end']],
   near: [['action', 'end']], curve: [['action', 'peak'], ['drone', 'end']], drift: [['drone', 'peak'], ['action', 'end']], spin: [['drone', 'end']], wheels2: [['action', 'end']], crash: [['tele', 'end']], finish: [['tele', 'end']],
 };
+export const SHOTS_ALT = {
+  jump: [[['crane', 'peak'], ['low', 'end']], [['fan', 'peak'], ['rear', 'end']], [['drone', 'peak'], ['low', 'end']]],
+  gorge: [[['heli', 'peak'], ['low', 'end']], [['crane', 'peak'], ['rear', 'end']]],
+  cliff: [[['fan', 'peak'], ['rear', 'end']], [['crane', 'end']]],
+  drop: [[['crane', 'end']], [['fan', 'end']]], air: [[['fan', 'end']]], hop: [[['drone', 'peak'], ['low', 'end']]], kuppe: [[['rear', 'peak'], ['low', 'end']]],
+  hard: [[['fan', 'end']], [['crane', 'end']]],
+  loop: [[['fan', 'peak'], ['crane', 'end']], [['crane', 'peak'], ['tele', 'end']], [['low', 0.8], ['fan', 'end']]],
+  cork: [[['crane', 'end']], [['fan', 'peak'], ['action', 'end']]], tube: [[['crane', 'end']], [['rear', 'end']]], waves: [[['crane', 'end']], [['rear', 'end']]],
+  wendel: [[['crane', 'end']]], spiral: [[['crane', 'end']]], wall: [[['fan', 'end']], [['crane', 'end']]], halfpipe: [[['crane', 'end']], [['fan', 'end']]],
+  nitro: [[['low', 1.2], ['rear', 2.4], ['crane', 'end']], [['fan', 1.6], ['action', 'end']]], top: [[['low', 'peak'], ['rear', 'end']], [['fan', 'end']]],
+  slope: [[['crane', 'end']]], near: [[['fan', 'end']]], curve: [[['fan', 'peak'], ['crane', 'end']], [['low', 'peak'], ['drone', 'end']]],
+  drift: [[['fan', 'peak'], ['crane', 'end']], [['low', 'peak'], ['rear', 'end']], [['crane', 'peak'], ['action', 'end']]],
+  spin: [[['fan', 'end']], [['crane', 'end']]], wheels2: [[['fan', 'end']]], crash: [[['fan', 'end']]],
+};
 // Ausweich-Kamera, wenn derselbe Blick direkt hintereinander käme
-const ALT = { drone: 'heli', heli: 'drone', tele: 'drone', action: 'drone', onboard: 'action' };
+const ALT = { drone: 'heli', heli: 'drone', tele: 'drone', action: 'drone', onboard: 'action', fan: 'crane', crane: 'drone', low: 'drone', rear: 'action', arch: 'drone' };
 
 // ---------- Hilfen ----------
 function rotQ(qx, qy, qz, qw, x, y, z, out) {
@@ -439,6 +461,12 @@ export function clipSpeed(c, t) {
   if (c.smin >= 0.999) return 1;
   const r = HL.film.ramp;
   const w = t < c.c0 ? sstep(c.c0 - r, c.c0, t) : t > c.c1 ? 1 - sstep(c.c1, c.c1 + r, t) : 1;
+  // n27 Speed-Ramp: weit vor/nach der Zeitlupe schneller als echt (c.fast), dazwischen 1 → Zeitlupe → 1 → schnell
+  const F = c.fast || 1;
+  if (F > 1 && w <= 0) {
+    const X = HL.fx, g = X.fastGap, q = t < c.c0 ? sstep(c.c0 - r - g, c.c0 - r - g - X.fastRamp, t) : sstep(c.c1 + r + g, c.c1 + r + g + X.fastRamp, t);
+    return 1 + (F - 1) * q;
+  }
   return 1 - (1 - c.smin) * w;
 }
 // Filmdauer (Echtzeit-s bei Spieltempo 1) eines Clips
@@ -446,7 +474,7 @@ export function clipFilmTime(c) {
   let ft = 0;
   const h = 1 / 240;
   for (let t = c.a; t < c.b; t += h) ft += Math.min(h, c.b - t) / clipSpeed(c, t);
-  return ft;
+  return ft + (c.freeze ? c.freeze.dur : 0);
 }
 
 // Clip um einen Moment: Kern um den Höhepunkt (Zeitlupe), Vor-/Nachlauf, nie über einen Schnitt (Reset) hinweg
@@ -469,20 +497,14 @@ function makeClip(m, D, cutT, opt) {
   return { kind: m.kind, label: m.label, score: m.score, m, a, b, c0, c1, tp: clamp(m.tp, a, b), smin: opt.smin ?? Fm.smin };
 }
 
-// Kamera-Einstellungen eines Clips (Aufzeichnungszeit)
-function makeShots(c, prevCam) {
-  // Zieleinlauf mit Zielshow (n27): Tele an der Linie (Zeitlupe), dann Schwenk der Zielbogen-Kamera aufs Feuerwerk
-  if (c.kind === 'finish' && c.fin != null) {
-    const tz = Math.min(c.b - 0.5, Math.max(c.a + 0.3, c.fin + HL.zshow.tele));
-    const shots = [{ cam: 'tele', t0: c.a, t1: tz }, { cam: 'arch', t0: tz, t1: c.b }];
-    if (prevCam === 'tele') shots[0].cam = 'drone';
-    return shots;
-  }
-  const plan = SHOTS[c.kind] || [['drone', 'end']], shots = [];
+// Kamera-Einstellungen eines Clips (Aufzeichnungszeit). used = Zähler der Kameras im Film bisher (n27: Abwechslung)
+function planShots(plan, c) {
+  const shots = [];
   let t = c.a;
   for (let k = 0; k < plan.length; k++) {
     const [cam, until] = plan[k];
-    let e = until === 'end' ? c.b : until === 'peak' ? c.tp : c.a + until;
+    // 'lip' (n27): Absprung bzw. Beginn des Moments + 0,25 s (Bodenkamera an der Lippe: Auto fliegt über sie hinweg)
+    let e = until === 'end' ? c.b : until === 'peak' ? c.tp : until === 'lip' ? (c.m && c.m.t0 != null ? c.m.t0 + 0.25 : c.tp) : c.a + until;
     if (k === plan.length - 1) e = c.b;
     e = Math.min(c.b, e);
     if (e - t < 0.25) continue;
@@ -491,8 +513,30 @@ function makeShots(c, prevCam) {
   }
   if (!shots.length) shots.push({ cam: 'drone', t0: c.a, t1: c.b });
   shots[shots.length - 1].t1 = c.b;
+  return shots;
+}
+function makeShots(c, prevCam, used = null) {
+  // Zieleinlauf mit Zielshow (n27): Tele an der Linie (Zeitlupe), dann Schwenk der Zielbogen-Kamera aufs Feuerwerk
+  if (c.kind === 'finish' && c.fin != null) {
+    const tz = Math.min(c.b - 0.5, Math.max(c.a + 0.3, c.fin + HL.zshow.tele));
+    const shots = [{ cam: 'tele', t0: c.a, t1: tz }, { cam: 'arch', t0: tz, t1: c.b }];
+    if (prevCam === 'tele') shots[0].cam = 'drone';
+    return shots;
+  }
+  // Folge wählen: Standard (SHOTS) oder Alternative (SHOTS_ALT) – die mit den bisher seltensten Kameras, ohne die vorige
+  // Kamera am Anfang; bei Gleichstand die Standardfolge
+  const plans = [SHOTS[c.kind] || [['drone', 'end']], ...(used ? SHOTS_ALT[c.kind] || [] : [])];
+  let best = null, bs = Infinity;
+  plans.forEach((pl, k) => {
+    const sh = planShots(pl, c);
+    let sc = sh.reduce((n, x) => n + (used ? (used[x.cam] || 0) : 0), 0) / sh.length + (sh[0].cam === prevCam ? 5 : 0) + k * 0.01;
+    if (sc < bs) { bs = sc; best = sh; }
+  });
+  const shots = best;
   if (shots[0].cam === prevCam) shots[0].cam = ALT[prevCam] || 'drone';
   for (let k = 1; k < shots.length; k++) if (shots[k].cam === shots[k - 1].cam) shots[k].cam = ALT[shots[k].cam] || 'drone';
+  // Reißschwenk zwischen zwei Einstellungen desselben Clips (n27): Ende der einen und Anfang der nächsten schwenken schnell
+  if (used) for (let k = 1; k < shots.length; k++) { const d = (k + c.a * 7) % 2 ? 1 : -1; shots[k - 1].whipOut = d; shots[k].whipIn = d; }
   return shots;
 }
 
@@ -528,7 +572,7 @@ export function buildFilm(rec, env, marks = {}, opt = {}) {
     return f;
   };
   const fin0 = finClip(finT != null ? finT - Zs.pre : end - Fm.finish);
-  const budget = (opt.max ?? Fm.max) - (fin0 && finT == null ? fin0.film : 0);
+  const budget = (opt.max ?? Fm.max) - (fin0 && finT == null ? fin0.film : 0) - (opt.fx !== false ? HL.fx.freeze : 0);
   // gierige Auswahl nach Punkten (gleiche Art mehrfach abgewertet), ohne Überlappung, im Zeitbudget
   const chosen = [], used = {};
   const overlaps = (c) => chosen.some((x) => c.a < x.b + P.gap && c.b > x.a - P.gap);
@@ -561,8 +605,26 @@ export function buildFilm(rec, env, marks = {}, opt = {}) {
   const finish = finClip(Math.max(finT != null ? finT - Zs.pre : end - Fm.finish, last ? last.b + P.gap : 0));
   const clips = finish ? [...chosen, finish] : chosen;
   if (!clips.length) return null;
+  // n27 Effekte (opt.fx !== false): Speed-Ramp, Freeze-Frame beim Rekord-Stunt, Übergänge, Kamera-Abwechslung
+  const FX = opt.fx !== false ? HL.fx : null;
+  if (FX) {
+    for (const c of chosen) c.fast = FX.fast;
+    const top = chosen.slice().sort((x, y) => y.score - x.score)[0];
+    if (top && top.score >= FX.freezeScore) { top.freeze = { t: top.tp, dur: FX.freeze }; top.record = true; top.label = '⭐ ' + top.label; }
+    clips.forEach((c, k) => { c.trans = k === 0 ? 'fade' : FX.trans[(k + Math.round(c.a)) % FX.trans.length]; });
+    let fT = 0;
+    for (const c of clips) { c.film = clipFilmTime(c); if (c.kind !== 'finish') fT += c.film; }
+    filmT = fT;
+  }
   let prev = null;
-  for (const c of clips) { c.shots = makeShots(c, prev); prev = c.shots[c.shots.length - 1].cam; }
+  const camN = FX ? {} : null;
+  for (const c of clips) {
+    c.shots = makeShots(c, prev, camN);
+    prev = c.shots[c.shots.length - 1].cam;
+    if (camN) for (const x of c.shots) camN[x.cam] = (camN[x.cam] || 0) + 1;
+  }
+  // Übergang „Reißschwenk“ zwischen zwei Clips: letzte Einstellung schwenkt hinaus, erste der nächsten herein
+  if (FX) for (let k = 1; k < clips.length; k++) if (clips[k].trans === 'whip') { const a = clips[k - 1].shots, b = clips[k].shots; a[a.length - 1].whipOut = 1; b[0].whipIn = 1; }
   const duration = clips.reduce((s, c) => s + c.film, 0);
   return { clips, duration, cands, moments: chosen.length, finT, momentsT: filmT };
 }
@@ -572,6 +634,7 @@ export function buildFilm(rec, env, marks = {}, opt = {}) {
 export class FilmPlayer {
   constructor(film) {
     this.film = film; this.ci = 0; this.t = film.clips[0].a; this.ft = 0; this.done = false; this.cut = true; this.speed = 1;
+    this.hold = 0; this.frozeCi = -1; this.holdT = 0;
   }
   get clip() { return this.film.clips[this.ci]; }
   get shot() { const c = this.clip; if (!c) return null; for (const s of c.shots) if (this.t < s.t1) return s; return c.shots[c.shots.length - 1]; }
@@ -583,12 +646,15 @@ export class FilmPlayer {
     // in kleinen Schritten (die Kurve ändert sich in einem Bild kaum, an den Rampen genauer)
     while (left > 1e-6 && !this.done) {
       const h = Math.min(left, 1 / 120), c = this.clip;
+      // Freeze-Frame (n27): am Höhepunkt des Rekord-Stunts steht das Bild freeze.dur s (Filmzeit)
+      if (this.hold > 0) { const d = Math.min(h, this.hold); this.hold -= d; this.holdT += d; this.ft += d; left -= d; this.speed = 0; continue; }
+      if (c.freeze && this.frozeCi !== this.ci && this.t >= c.freeze.t) { this.frozeCi = this.ci; this.hold = c.freeze.dur; this.holdT = 0; this.t = c.freeze.t; continue; }
       const s = clipSpeed(c, this.t);
       this.t += h * s; this.ft += h; left -= h; this.speed = s;
       if (this.t >= c.b) {
         this.ci++;
         if (this.ci >= this.film.clips.length) { this.done = true; this.ci = this.film.clips.length - 1; this.t = c.b; break; }
-        this.t = this.clip.a; this.cut = true;
+        this.t = this.clip.a; this.cut = true; this.hold = 0;
       }
     }
     if (this.shot !== prevShot) this.cut = true;

@@ -31,6 +31,8 @@ export class ClipRecorder {
   frame(bars, cap) {
     const g = this.g, W = this.cv.width, H = this.cv.height;
     g.drawImage(this.src, 0, 0, W, H);
+    // Fan-Cam (n27): Zuschauer-Silhouetten im Vordergrund wie auf dem Bildschirm
+    if (cap && cap.fan && cap.fan.width) g.drawImage(cap.fan, 0, 0, W, H);
     const b = Math.round(H * bars);
     if (b > 0) { g.fillStyle = '#000'; g.fillRect(0, 0, W, b); g.fillRect(0, H - b, W, b); }
     const fs = Math.round(Math.min(W, H) * (W > H ? 0.075 : 0.055));

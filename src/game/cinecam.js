@@ -5,12 +5,21 @@
 //   tele    Stativ mit Tele an der Landestelle (bzw. am Looping, an der Crash-Stelle, hinter der Ziellinie): Zoom + Schwenk
 //   heli    Hubschrauber: weit und hoch, Überblick
 //   onboard auf dem Dach, Blick nach vorn (kurz)
+//   fan     Fan-Cam (n27): Handkamera eines Zuschauers am Rand/auf der Tribüne – wackelt, schwenkt mit Verzug, zoomt
+//           nach, Schärfe zieht hinterher (kurz unscharf), Köpfe/Hände als Silhouetten im Vordergrund (ui.js)
+//   crane   Kran/Dolly (n27): fährt neben der Strecke mit (langsamer als das Auto, es fährt durchs Bild), steigt, Schärfe
+//           wandert vom Vordergrund aufs Auto
+//   low     Bodenkamera (n27): knapp über der Fahrbahn neben der Spur (≥ 2 m seitlich), das Auto donnert vorbei bzw. fliegt
+//           an der Lippe über sie hinweg
+//   rear    Heckkamera (n27): über dem Dach, Blick zurück übers Heck (die Straße rast weg, im Sprung die Lippe)
+//   Reißschwenk zwischen zwei Einstellungen (shot.whipIn/whipOut): schneller Schwenk mit Bewegungsunschärfe (O.whip);
+//   Landungen: Kamera ruckelt kurz (alle Arten außer Zielbogen)
 //   arch    Zielbogen (n27): Kamera vor der Ziellinie neben der Fahrbahn, schwenkt vom wegfahrenden Auto hinauf auf den Bogen
 //           mit Fontänen und Feuerwerk (live in der Zielshow und im Highlight-Film; Standort nur aus der Strecke → gleich)
 // Kein Clipping: feste Standorte werden vorab gegen Strecke, Gelände und Wasser geprüft (frei, nicht unter einer Brücke,
 // nicht auf der Fahrbahn, Sicht aufs Auto über die ganze Einstellung); bewegte Kameras wählen die freiere Seite und
 // werden in jedem Bild per Strahl vom Auto aus herangezogen, wenn ein Bauteil oder der Hang dazwischen liegt.
-import { poseAt } from './highlights.js';
+import { poseAt, clipSpeed } from './highlights.js';
 import { pyroGeo, ZIEL } from './zielshow.js';
 
 export const CINE = {
@@ -25,6 +34,11 @@ export const CINE = {
   // Zielbogen (n27): Standorte hinter der Ziellinie (along m entgegen der Fahrtrichtung), seitlich off m über die Fahrbahn-
   // kante, h m hoch; Blickziel am Ende focus m über der Linie, Bildausschnitt fitCar m (Auto) → fitArch m (Bogen + Feuerwerk),
   // Kran steigt rise m, Schwenk ZIEL.pan s
+  fan: { lat: [7, 11, 16, 23], along: [-34, -20, -8, 6, 20, 34], eye: 1.7, stand: 3.2, fit: 8, fitBig: 26, zoomK: 2.6, focusK: 1.8, follow: 4.5, lead: 0.8, shake: 0.03, dof: 0.95, near: 7, dist: 18 },
+  crane: { off: [8, 12, 17], back: 14, vK: 0.55, h: [2.5, 9], fit: 9, fitBig: 20, dof: 0.9 },
+  low: { side: 2.6, h: 0.36, minLat: 2.0, fov: 72, fovHoch: 92, dof: 0.35 },
+  rear: { y: 0.5, z: -0.4, lookY: -1.6, look: 18, fov: 76, dof: 0.2 },
+  whip: { ang: 0.9, blur: 0.09 },
   arch: { along: [-16, -22, -30], off: [4, 8, 13], h: [2.5, 5, 8], focus: 16, fitCar: 12, fitArch: 46, rise: 2.5, dof: 0.25, dist: 26 },
   gap: 0.6,          // m Abstand zu Bauteilen (Strahl-Treffer)
   minDist: 2.6,      // m: näher zieht eine bewegte Kamera nicht heran
@@ -109,7 +123,114 @@ export class CineCam {
     if (s.cam === 'drone' || s.cam === 'heli') return this.setupOrbit(s, samples);
     if (s.cam === 'action') return this.setupAction(samples);
     if (s.cam === 'arch') return this.setupArch();
-    return {};
+    let S = {};
+    if (s.cam === 'fan') S = this.setupFan(c, s, samples);
+    else if (s.cam === 'crane') S = this.setupCrane(c, s, samples);
+    else if (s.cam === 'low') S = this.setupLow(c, s, samples);
+    // kein brauchbarer Standort (Bodenkamera eingeklemmt, Fan ohne Sicht): Drohne statt dessen
+    // (in Bauwerken – Looping, Röhre, Korkenzieher – die Action-Cam am Auto, sonst die Drohne)
+    if (S.fallback) {
+      s.fellBack = true;
+      if (/^(loop|tube|cork|wendel|spiral|waves)$/.test(c.kind)) { s.cam = 'action'; S = this.setupAction(samples); }
+      else { s.cam = 'drone'; S = this.setupOrbit(s, samples); }
+    }
+    S.lands = this.landings(s.t0, s.t1);
+    return S;
+  }
+  // Landungen in der Einstellung (Luftphase ≥ 0,3 s, dann Bodenkontakt): { t, k } – Kamera ruckelt
+  landings(t0, t1) {
+    const R = this.rec, n = Math.floor(R.length / 16), out = [];
+    let air = 0;
+    for (let i = Math.max(0, Math.floor((t0 - 3) * 60)); i < Math.min(n, Math.ceil(t1 * 60)); i++) {
+      const o = i * 16, a = R[o + 10] === 0 && R[o + 11] === 0 && R[o + 12] === 0 && R[o + 13] === 0;
+      if (a) air++; else { if (air >= 18 && i / 60 >= t0 - 0.05) out.push({ t: i / 60, k: Math.min(1, air / 90) }); air = 0; }
+    }
+    return out;
+  }
+  // Fan-Cam: Zuschauerplatz (Tribüne/Zuschauer aus dem Deko-Plan im Browser, sonst am Rand) mit Sicht aufs Auto
+  setupFan(c, s, samples) {
+    const C = CINE.fan, mid = this.pose(Math.max(s.t0, Math.min(s.t1, c.tp))), A = [...mid.p], fh = this.horiz(mid.f, V(), null), rx = -fh[2], rz = fh[0];
+    const cands = [];
+    const DP = this.env.track.decoPlan;
+    if (DP && DP.inst) for (const k of ['crowd', 'stand']) for (const o of DP.inst[k] || []) {
+      if (Math.hypot(o.x - A[0], o.z - A[2]) > 60) continue;
+      cands.push([o.x, this.floor(o.x, o.z) + (k === 'stand' ? C.stand : C.eye), o.z, 6]);
+    }
+    for (const side of [1, -1]) for (const lat of C.lat) for (const al of C.along) {
+      const x = A[0] + rx * side * lat + fh[0] * al, z = A[2] + rz * side * lat + fh[2] * al;
+      cands.push([x, Math.max(this.floor(x, z), A[1] - 1.5) + C.eye, z, 0]);
+    }
+    const car = V();
+    let best = null;
+    for (const [x, y, z, bonus] of cands) {
+      const p = [x, y, z];
+      if (!this.pointFree(p, 0.8, 0) || !this.offRoad(p, 3)) continue;
+      let vis = 0, near = 1e9, far = 0;
+      for (const q of samples) { set(car, q.p[0], q.p[1] + 0.5, q.p[2]); if (this.ray(p, car) > 0.97) vis++; const d = dist(p, q.p); near = Math.min(near, d); far = Math.max(far, d); }
+      if (near < C.near || far > 130) continue;
+      const v = vis / samples.length, sc = v * 100 + bonus - Math.abs(near - C.dist * 0.6) * 0.3;
+      if (!best || sc > best.score) best = { pos: p, score: sc, vis: v, stand: bonus > 0 };
+    }
+    // am Looping darf das Gerüst kurz davor sein (die Zuschauer stehen daneben), sonst durchgehend Sicht
+    if (!best || best.vis < (c.kind === 'loop' ? 0.6 : 0.78)) return { fallback: true };
+    best.big = /^(loop|tube|cork|wendel|spiral|wall|halfpipe)$/.test(c.kind);
+    return best;
+  }
+  // Kran/Dolly: fährt entlang der Linie mit vK des mittleren Auto-Tempos (startet back m hinter dem Auto), seitlich off m
+  // über die Fahrbahnkante, steigt von h[0] auf h[1] m. Positionen je Abtastung vorab (deterministisch, gegen Gelände geprüft)
+  setupCrane(c, s, samples) {
+    const C = CINE.crane, L = this.L, p0 = samples[0].p;
+    let i0 = 0, dm = 1e18;
+    for (let i = 0; i < L.n; i++) { const d = (L.px[i] - p0[0]) ** 2 + (L.py[i] - p0[1]) ** 2 + (L.pz[i] - p0[2]) ** 2; if (d < dm) { dm = d; i0 = i; } }
+    let path = 0; for (let k = 1; k < samples.length; k++) path += dist(samples[k].p, samples[k - 1].p);
+    const vd = C.vK * path / Math.max(0.3, s.t1 - s.t0);
+    const big = /^(loop|tube|cork|wendel|spiral|wall|halfpipe)$/.test(c.kind), yBase = p0[1];
+    const walk = (i, d) => { let j = i, acc = 0; const sg = d < 0 ? -1 : 1; for (let k = 0; k < L.n && acc < Math.abs(d); k++) { const nj = j + sg; if (nj < 0 || nj >= L.n) { if (!L.closed) break; } const jj = (nj + L.n) % L.n; acc += Math.hypot(L.px[jj] - L.px[j], L.pz[jj] - L.pz[j]); j = jj; } return j; };
+    const car = V();
+    let best = null;
+    for (const side of [1, -1]) for (const off of C.off) {
+      const pts = [];
+      let vis = 0, ok = 0;
+      samples.forEach((q, k) => {
+        const u = k / Math.max(1, samples.length - 1), j = walk(i0, -C.back + vd * (q.t - s.t0));
+        const bl = Math.hypot(L.bx[j], L.bz[j]) || 1, bx = L.bx[j] / bl, bz = L.bz[j] / bl, lat = L.hw[j] + off;
+        const x = L.px[j] + bx * side * lat, z = L.pz[j] + bz * side * lat;
+        const h = C.h[0] + (C.h[1] - C.h[0]) * u * u * (3 - 2 * u);
+        const p = [x, Math.max((big ? yBase : L.py[j]) + h, this.floor(x, z) + CINE.ground + h * 0.4), z];
+        pts.push(p);
+        if (this.pointFree(p, 0.8, 0) && this.offRoad(p, 2)) ok++;
+        set(car, q.p[0], q.p[1] + 0.5, q.p[2]);
+        if (this.ray(p, car) > 0.97) vis++;
+      });
+      const sc = (vis + ok) / (2 * samples.length) - off * 0.004;
+      if (!best || sc > best.score) best = { pts, score: sc, vis: vis / samples.length, side, big, dt: 0.15 };
+    }
+    if (!best || best.vis < 0.85) return { fallback: true };
+    return best;
+  }
+  // Bodenkamera: neben der Spur an der Stelle, an der das Auto bei ta ist (Lippe bzw. 80 % der Einstellung), knapp über
+  // der Fahrbahn (Strahl nach unten), mindestens minLat m seitlich von jeder Lage des Autos in der Einstellung
+  setupLow(c, s, samples) {
+    const C = CINE.low, ta = Math.min(s.t1 - 0.15, s.t0 + 0.8 * (s.t1 - s.t0)), P = this.pose(ta), fh = this.horiz(P.f, V(), null), rx = -fh[2], rz = fh[0];
+    let best = null;
+    for (const side of [1, -1]) for (const lat of [C.side, C.side + 1.2]) {
+      const x = P.p[0] + rx * side * lat, z = P.p[2] + rz * side * lat;
+      // Boden: Fahrbahn unter dem Punkt, sonst Gelände/Wasser (an der Lippe: unten in der Lücke – das Auto fliegt darüber)
+      const hit = this.W.rayTrack(x, P.p[1] + 1.5, z, 0, -1, 0, 6, false), fl = this.floor(x, z);
+      const gy = hit ? Math.max(P.p[1] + 1.5 - hit.t, fl) : fl;
+      if (gy > P.p[1] + 1 || gy < P.p[1] - 30) continue;
+      const p = [x, gy + C.h, z];
+      // frei nach den Seiten und oben (nach unten liegt ja die Fahrbahn)
+      if ([[1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1], [0, 1, 0]].some(([dx, dy, dz]) => this.W.rayTrack(p[0], p[1], p[2], dx, dy, dz, 0.45, false)) || this.ray([P.p[0], P.p[1] + 0.3, P.p[2]], p) < 0.99) continue;
+      let near = 1e9, vis = 0;
+      const car = V();
+      for (const q of samples) { near = Math.min(near, Math.hypot(q.p[0] - p[0], q.p[2] - p[2])); set(car, q.p[0], q.p[1] + 0.4, q.p[2]); if (this.ray(p, car) > 0.97) vis++; }
+      if (near < C.minLat) continue;
+      const sc = vis / samples.length - lat * 0.02;
+      if (!best || sc > best.score) best = { pos: p, score: sc, vis: vis / samples.length, side, ta };
+    }
+    if (!best || best.vis < 0.7) return { fallback: true };
+    return best;
   }
   // Zielbogen: Standort nur aus der Strecke (live wie im Film gleich) – frei, neben der Fahrbahn, mit Sicht auf Bogen,
   // Fontänen und die Fahrbahn hinter dem Ziel (dort fährt das Auto aus)
@@ -281,6 +402,61 @@ export class CineCam {
       this.mount(O.look, p, f, u, 0, this.carTop + C.y + C.lookUp, -C.look);
       copy(O.up, u);
       fov = C.fov; O.dof = C.dof;
+    } else if (cam === 'fan') {
+      // Handkamera: Wackeln (feste Funktionen der Zeit – gleiches Bild bei gleicher Stelle), Schwenk mit Verzug, Zoom und
+      // Schärfe ziehen nach
+      const C = CINE.fan, h = C.shake;
+      copy(O.pos, S.pos || [p[0] + 15, p[1] + 2, p[2]]);
+      O.pos[0] += h * (Math.sin(t * 1.7) * 0.6 + Math.sin(t * 7.3 + 1) * 0.25 + Math.sin(t * 13.1) * 0.1);
+      O.pos[1] += h * (Math.sin(t * 2.1 + 0.5) * 0.5 + Math.sin(t * 9.7) * 0.2);
+      O.pos[2] += h * (Math.sin(t * 1.3 + 2) * 0.5 + Math.sin(t * 6.1) * 0.2);
+      const tgt = [p[0], p[1] + 0.5, p[2]];
+      this.follow(this.lk, [vel[0] * C.lead, vel[1] * C.lead, vel[2] * C.lead], dt, tgt, cut ? 1 : 1 - Math.exp(-dt * C.follow));
+      const dC = Math.max(2, dist(O.pos, p)), wob = 0.012 * dC;
+      copy(O.look, this.lk);
+      O.look[0] += wob * Math.sin(t * 2.3 + 0.7); O.look[1] += wob * 0.7 * Math.sin(t * 3.1 + 1.9); O.look[2] += wob * Math.sin(t * 1.9);
+      // Zoom nachführen (mit Verzug und leichtem „Pumpen“), Schärfe hinterher – kommt das Auto schnell näher, ist es kurz unscharf
+      const want = 2 * Math.atan((S.big ? C.fitBig : C.fit) * (1 + 0.08 * Math.sin(t * 1.1)) / 2 / dC) * 180 / Math.PI;
+      if (cut || this.fanFov == null) { this.fanFov = want; this.fanFocus = dC; }
+      this.fanFov += (want - this.fanFov) * (1 - Math.exp(-dt * C.zoomK));
+      this.fanFocus += (dC - this.fanFocus) * (1 - Math.exp(-dt * C.focusK));
+      fov = clamp(this.fanFov, 6, 70);
+      // hochkant: Ausschnitt über die Bildbreite (das schmale Bild schneidet das Auto sonst ab)
+      const a = aspect || 1.6;
+      if (a < 1) fov = clamp(2 * Math.atan(Math.tan(fov * Math.PI / 360) * 1.25 / a) * 180 / Math.PI, 10, 100);
+      O.dof = C.dof; O.focusOv = this.fanFocus; O.fan = true;
+    } else if (cam === 'crane') {
+      // Kran: vorab berechnete Bahn (zwischen den Abtastungen linear), Blick aufs Auto, Schärfe wandert vom Vordergrund aufs Auto
+      const C = CINE.crane, P2 = S.pts || [[p[0] + 12, p[1] + 4, p[2]]], x = clamp((t - shot.t0) / (S.dt || 0.15), 0, P2.length - 1.001), i = Math.floor(x), a = x - i, q0 = P2[i], q1 = P2[Math.min(P2.length - 1, i + 1)];
+      set(O.pos, q0[0] + (q1[0] - q0[0]) * a, q0[1] + (q1[1] - q0[1]) * a, q0[2] + (q1[2] - q0[2]) * a);
+      this.follow(this.lk, vel, dt, [p[0], p[1] + 0.6, p[2]], cut ? 1 : 1 - Math.exp(-dt * 5));
+      copy(O.look, this.lk);
+      fit = S.big ? C.fitBig : C.fit;
+      O.dof = C.dof;
+      const dC = Math.max(2, dist(O.pos, p));
+      O.focusOv = dC * (0.35 + 0.65 * sstep(0, 0.45, uS));
+    } else if (cam === 'low') {
+      // Bodenkamera: fest, Blick aufs Auto (leicht nach oben), weites Objektiv, Rumpeln, wenn das Auto nah ist
+      const C = CINE.low;
+      copy(O.pos, S.pos || [p[0] + 3, p[1], p[2]]);
+      const dC = Math.max(1, dist(O.pos, p)), rb = Math.min(0.02, 0.06 / dC);
+      O.pos[1] += rb * Math.sin(t * 83); O.pos[0] += rb * Math.sin(t * 71 + 1);
+      this.follow(this.lk, vel, dt, [p[0], p[1] + 0.3, p[2]], cut ? 1 : 1 - Math.exp(-dt * 9));
+      copy(O.look, this.lk);
+      fov = (aspect || 1.6) < 1 ? C.fovHoch : C.fov;
+      O.dof = C.dof;
+    } else if (cam === 'rear') {
+      // Heckkamera: über dem Dach, Blick zurück übers Heck die Straße hinunter (im Flug: auf die Lippe)
+      const C = CINE.rear;
+      const want = this.mount(this._w || (this._w = V()), p, f, u, 0, this.carTop + C.y, C.z);
+      const fr = this.ray(p, want);
+      if (fr < 1) set(want, p[0] + (want[0] - p[0]) * Math.max(0.5, fr - 0.1), p[1] + (want[1] - p[1]) * Math.max(0.5, fr - 0.1), p[2] + (want[2] - p[2]) * Math.max(0.5, fr - 0.1));
+      want[1] = Math.max(want[1], this.floor(want[0], want[2]) + 0.4);
+      copy(O.pos, want);
+      this.mount(O.look, p, f, u, 0, this.carTop + C.lookY, C.look);
+      copy(O.up, u);
+      fov = (aspect || 1.6) < 1 ? clamp(C.fov * 1.25, 30, 100) : C.fov;
+      O.dof = C.dof;
     } else if (cam === 'arch') {
       // Zielbogen: fester Standort (Kran steigt leicht), Schwenk vom Auto hinauf auf Bogen und Feuerwerk
       const C = CINE.arch, uP = sstep(0, ZIEL.pan, t - shot.t0);
@@ -322,8 +498,36 @@ export class CineCam {
     } else if ((aspect || 1.6) < 1 && cam !== 'arch') fov = clamp(fov * 1.25, 30, 100);
     if (this.fovInit || cam === 'action' || cam === 'onboard') { this.fov = fov; this.fovInit = false; } else this.fov += (fov - this.fov) * (1 - Math.exp(-dt * 4));
     O.fov = this.fov;
-    O.focus = d;
+    O.focus = O.focusOv != null ? O.focusOv : d;
+    O.focusOv = null;
+    if (cam !== 'fan') O.fan = false;
+    this.effects(dt, t, shot, clip, cut);
     return O;
+  }
+  // n27: Landungs-Ruckeln und Reißschwenk (nach der eigentlichen Kamera, auf Position/Blick/Unschärfe)
+  effects(dt, t, shot, clip, cut) {
+    const O = this.out, S = shot.setup || {};
+    this.sRT = cut ? 0 : (this.sRT || 0) + dt;
+    O.whip = null;
+    if (shot.cam === 'arch') return;
+    // Landung: abklingendes Ruckeln (Aufzeichnungszeit – in der Zeitlupe länger)
+    let sh = 0;
+    for (const L of S.lands || []) if (t >= L.t && t < L.t + 1.2) sh += L.k * Math.exp(-(t - L.t) / 0.22);
+    if (sh > 0.01) {
+      const a = Math.min(0.25, sh * 0.16) * (shot.cam === 'onboard' || shot.cam === 'action' || shot.cam === 'rear' ? 0.6 : 1);
+      const ox = a * Math.sin(t * 61), oy = a * Math.sin(t * 47 + 1), oz = a * Math.sin(t * 53 + 2);
+      O.pos[0] += ox; O.pos[1] += oy; O.pos[2] += oz; O.look[0] += ox * 0.5; O.look[1] += oy * 0.5; O.look[2] += oz * 0.5;
+    }
+    // Reißschwenk: am Anfang (whipIn) bzw. Ende (whipOut) einer Einstellung schnell um die Hochachse, mit Unschärfe
+    const W = 0.2, sp = clip ? Math.max(0.15, clipSpeed(clip, t)) : 1, toEnd = (shot.t1 - t) / sp;
+    let ang = 0;
+    if (shot.whipIn && this.sRT < W) { const e = 1 - this.sRT / W; ang = shot.whipIn * CINE.whip.ang * e * e; }
+    if (shot.whipOut && toEnd < W) { const e = 1 - Math.max(0, toEnd) / W; ang = -shot.whipOut * CINE.whip.ang * e * e; }
+    if (Math.abs(ang) > 1e-3) {
+      const dx = O.look[0] - O.pos[0], dz = O.look[2] - O.pos[2], c = Math.cos(ang), sn = Math.sin(ang);
+      O.look[0] = O.pos[0] + dx * c - dz * sn; O.look[2] = O.pos[2] + dx * sn + dz * c;
+      O.whip = { len: CINE.whip.blur * Math.abs(ang) / CINE.whip.ang, ang: 0 };
+    }
   }
   // Zielpunkt vorausschauend nachführen: läuft mit dem Auto mit (kein Hinterherhinken bei Tempo), zieht weich nach
   follow(o, vel, dt, target, k) {

@@ -11,7 +11,7 @@ SEED = sys.argv[2] if len(sys.argv) > 2 else '1234'
 MODUS = sys.argv[3] if len(sys.argv) > 3 else 'gel'
 Q = f"?nosw&seed={SEED}&d=3" + ('&g=1' if MODUS == 'gel' else '&3d=1' if MODUS == '3d' else '')
 PORTRAIT = dict(PIXEL7_LAND, viewport={"width": 412, "height": 915})
-CAMS = ['drone', 'action', 'tele', 'heli', 'onboard']
+CAMS = ['drone', 'action', 'tele', 'heli', 'onboard', 'fan', 'crane', 'low', 'rear']   # n27: + Fan-Cam, Kran, Boden, Heck
 OUT = os.path.join(ROOT, 'tests', 'shots', 'kinoreplay')
 
 MEASURE = """(sec) => new Promise((res) => { const t = []; let last = performance.now(); const t0 = last;
@@ -153,7 +153,7 @@ for tag, r in res.items():
     bars_ok = all((min(v['balken_px']) >= 30) if tag == 'quer' else (max(v['balken_px']) == 0) for v in r['kameras'].values())
     good = r['ziel'] == 'finished' and r['film_startet'] and not r['ergebnis_waehrend_film'] and r['highlights_knopf'] and r['ueberspringen'] \
         and r['aus_direkt_ergebnis'] and not r['fehler'] and bars_ok \
-        and all(all(c == k for c in v['cam_im_bild']) for k, v in r['kameras'].items()) and not r['kleine_knoepfe_ergebnis']
+        and all(all(c == k or (v['erzwungen'] and c in ('drone', 'action')) for c in v['cam_im_bild']) for k, v in r['kameras'].items()) and not r['kleine_knoepfe_ergebnis']
     if tag == 'quer': good = good and r['ergebnis_nach_film'] and r['cine_stats'] and r['cine_stats'].get('skipped') is False \
         and r['video_rec_laeuft'] and r['video'] and r['video']['size'] > 100000 and r['video_knopf'] and r.get('video_datei', {}).get('bytes', 0) > 100000
     print(tag, 'Balken ok' if bars_ok else 'Balken FALSCH', 'grün' if good else 'ROT')

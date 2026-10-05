@@ -272,6 +272,19 @@ export class CarFX {
       else this.parts.spawn(this.p, this.v.set(0, 0.6, 0), 0.6, 2.6, 1.2, 0xd8d8d8, 0.35);
     }
   }
+  // Replay/Kino-Replay (n27): Landung nach einer Luftphase – Staubwolke an den Rädern, Funken vom Unterboden; k = Stärke
+  // (Flugzeit), slow = 1/Zeitlupe (mehr und größer, damit es in der Zeitlupe nach etwas aussieht)
+  replayLand(pose, k, slow = 1) {
+    const F = pose.frame, n = Math.round((3 + 6 * k) * Math.min(2.5, slow));
+    for (let i = 0; i < n; i++) {
+      const sx = (Math.random() - 0.5) * 2, sz = (Math.random() - 0.5) * 3.2;
+      this.p.set(pose.pos.x + F.r.x * sx + F.f.x * sz, pose.pos.y - 0.4, pose.pos.z + F.r.z * sx + F.f.z * sz);
+      this.parts.spawn(this.p, this.v.set((Math.random() - 0.5) * 5, 0.6 + Math.random() * 1.6, (Math.random() - 0.5) * 5), 0.8 + 0.4 * k, 3.5 + 2 * k, 1.4 + 0.6 * k, Math.random() < 0.5 ? 0xb9ad98 : 0x9c8f7a, 0.4);
+    }
+    if (this.rich) for (let i = 0; i < Math.round(8 * k * Math.min(2.5, slow)); i++) {
+      this.sparks.spawn(pose.pos.x, pose.pos.y - 0.45, pose.pos.z, F.f.x * 8 + (Math.random() - 0.5) * 6, 0.8 + Math.random() * 2.5, F.f.z * 8 + (Math.random() - 0.5) * 6, 0.3 + Math.random() * 0.5, pose.pos.y - 0.55);
+    }
+  }
   // Zielshow (n27): Schweif-Funken aus dem Heck in den ersten Sekunden hinter der Ziellinie (Rennen und Replay/Film;
   // dt = vergangene Spielzeit, pose = Lage, sp = Tempo m/s, k = Stärke 1 → 0). Fallen auf die Fahrbahn und springen ab.
   trail(dt, pose, sp, k) {

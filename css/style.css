@@ -382,6 +382,7 @@ body[data-orient="hoch"] #cine .cap { left: 50%; bottom: calc(max(14%, var(--sab
 body[data-orient="hoch"] #cine .cap.show { transform: translate(-50%, 0); }
 body[data-orient="hoch"] #cine .cskip { top: auto; bottom: max(16px, calc(var(--sab) + 10px)); right: 50%; transform: translateX(50%); }
 #cine.rec .ctag { color: #ff4a3a; opacity: 1; }
+#cine .fanfg { position: absolute; inset: 0; width: 100%; height: 100%; display: none; pointer-events: none; }
 /* Kulissen (n20): Landschafts-Auswahl */
 .themegrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
 .themegrid .themeopt { padding: 8px 10px; border-radius: 12px; background: #ffffff14; border: 1px solid #ffffff22; font-size: 15px; display: flex; flex-direction: column; align-items: flex-start; text-align: left; gap: 3px; min-height: 64px; white-space: normal; line-height: 1.2; }

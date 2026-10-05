@@ -820,6 +820,10 @@ function render(rdt) {
   // Replay/Kino-Replay (n25): Reifenqualm aus dem aufgezeichneten Schwimmwinkel
   if (fx && mode === 'replay' && replay && pose) {
     const rt = replay.paused ? 0 : rdt * timeScale * (cine ? cine.player.speed : replay.speedMul);
+    // n27: Landung im Replay/Film → Staub und Funken (in der Zeitlupe kräftiger)
+    const air = !!pose.air;
+    if (fx.repAir && !air && rt > 0 && (fx.repAirT || 0) > 0.3) fx.replayLand(pose, Math.min(1, fx.repAirT / 1.5), cine ? 1 / Math.max(0.25, cine.player.speed) : 1);
+    fx.repAirT = air ? (fx.repAirT || 0) + rt : 0; fx.repAir = air;
     fx.replayStep(rt, pose, replay.slip(), replay.speed());
     fx.update(replay.paused ? 0 : rdt * (cine ? cine.player.speed : replay.speedMul), camera);
   }
@@ -853,12 +857,27 @@ function render(rdt) {
   } else ui.gmeter(null);
   // Kino-Replay: Tiefenschärfe auf das Auto, Unschärfe in der Zeitlupe etwas länger belichtet (Wischer bleiben sichtbar)
   const cdof = cine && cine.cam.out ? { focus: cine.cam.out.focus, k: cine.cam.out.dof * (cine.player.speed < 0.6 ? 1 : 0.8) } : null;
+  // n27 Kino-Replay-Effekte: Weißblitz (Übergang „flash“, Freeze-Frame), Reißschwenk-Unschärfe, Zuschauer im Vordergrund
+  const cfx = cine ? cineFx(rdt) : null;
   const shutter = cine ? Math.min(2.5, 1 / Math.pow(Math.max(0.2, cine.player.speed), 0.6)) : 1;
   const flash = pyroTick(rdt, pose);
-  drawFrame({ run: running, speed: spd, boost, dt: rdt, cut: blurCut, cockpit: inCockpit, heat: !inCockpit && pose && mode !== 'menu' ? heatOf(spd, boost) : null, dof: cdof, shutter, flash });
+  drawFrame({ run: running, speed: spd, boost, dt: rdt, cut: blurCut, cockpit: inCockpit, heat: !inCockpit && pose && mode !== 'menu' ? heatOf(spd, boost) : null, dof: cdof, shutter, flash, white: cfx ? cfx.white : 0, whip: cfx ? cfx.whip : null, flareK: cine ? 1.5 : 1 });
   // Video-Aufnahme: Bild direkt nach dem Zeichnen kopieren (Balken wie im CSS: 2,39:1, mindestens 8,5 %)
   if (cine && cine.rec) { const W = innerWidth, H = innerHeight; cine.rec.frame(H > W ? 0 : Math.max(0.085, (H - W / 2.39) / 2 / H), ui.capState()); }
   blurCut = false;
+}
+
+// Kino-Replay-Effekte je Bild (n27): Weißblitz am Clip-Anfang (Übergang „flash“) und beim Freeze-Frame (Rekord-Stunt),
+// Reißschwenk-Unschärfe aus der Kamera, Zuschauer-Silhouetten bei der Fan-Cam (ui.js, auch im Video)
+function cineFx(rdt) {
+  const P = cine.player, c = P.clip;
+  if (cine.fxCi !== P.ci) { cine.fxCi = P.ci; cine.sinceClip = 0; } else cine.sinceClip = (cine.sinceClip || 0) + rdt;
+  let white = 0;
+  if (c && c.trans === 'flash') white = Math.max(white, 0.9 * Math.max(0, 1 - cine.sinceClip / 0.28) ** 2);
+  if (P.hold > 0 || (P.holdT > 0 && P.holdT < 0.3 && P.frozeCi === P.ci)) white = Math.max(white, 0.8 * Math.max(0, 1 - P.holdT / 0.22) ** 2);
+  app.cineFx = { white: +white.toFixed(3), whip: cine.whip ? +cine.whip.len.toFixed(3) : 0, fan: cine.fan, freeze: P.hold > 0, trans: c ? c.trans : null };
+  ui.cineFx(white, cine.fan, !(kino && kino.pipeline));
+  return { white: kino && kino.pipeline ? white : 0, whip: cine.whip };
 }
 
 // Kino-Replay: Kamera des Films (game/cinecam.js, reine Rechnung) auf die three.js-Kamera übertragen
@@ -868,6 +887,7 @@ function cineCamera(rdt, pose) {
   if (cine.force && cine.force.ci !== P.ci) cine.force = null;
   const O = cine.cam.update(rdt, P.t, pose, cine.force || P.shot, P.clip, camera.aspect, cine.cut);
   cine.cut = false;
+  cine.whip = O.whip; cine.fan = !!O.fan;
   clearLens(camera);
   camera.position.set(O.pos[0], O.pos[1], O.pos[2]);
   camera.up.set(O.up[0], O.up[1], O.up[2]);
@@ -883,7 +903,7 @@ function drawFrame(o) {
   const overlay = o.cockpit ? (r) => cockpit.render(r) : null;
   if (kino) {
     kino.setLevel(LOOK_FIX ?? quality.tier);
-    kino.render(scene, camera, { run: o.run, speed: o.speed, boost: o.boost, car: carVis.root, dt: o.dt, cut: o.cut, sunDir: sun.userData.dir, heat: o.heat, overlay, time: app.fixTime, dof: o.dof, shutter: o.shutter, flash: o.flash });
+    kino.render(scene, camera, { run: o.run, speed: o.speed, boost: o.boost, car: carVis.root, dt: o.dt, cut: o.cut, sunDir: sun.userData.dir, heat: o.heat, overlay, time: app.fixTime, dof: o.dof, shutter: o.shutter, flash: o.flash, white: o.white, whip: o.whip, flareK: o.flareK });
     return;
   }
   if (!post.render(scene, camera, { run: o.run, speed: o.speed, boost: o.boost, car: carVis.root, dt: o.dt, cut: o.cut })) renderer.render(scene, camera);

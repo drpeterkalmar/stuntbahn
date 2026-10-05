@@ -82,6 +82,7 @@ export class UI {
       <div id="replayui"><div class="rinfo"></div><div class="bar"><i></i></div><div class="btns"></div></div>
       <div id="cine" aria-label="Kino-Replay"><div class="lb top"></div><div class="lb bot"></div>
         <div class="ctag">🎬 Highlights</div><div class="cbar"><i></i></div>
+        <canvas class="fanfg" aria-hidden="true"></canvas>
         <div class="cap" aria-live="polite"></div>
         <button class="cskip" data-a="cineskip" aria-label="Kino-Replay überspringen">Überspringen ⏭</button></div>
       <div id="zshow" aria-label="Zielshow"><div class="ztime"></div><div class="zsub"></div><div class="zhint">Antippen ⏭</div></div>
@@ -793,7 +794,7 @@ export class UI {
     const t = (performance.now() - (this._capShow || 0)) / 1000;
     const a = !this._capShow ? 0 : t < 0.35 ? t / 0.35 : t < 2.8 ? 1 : Math.max(0, 1 - (t - 2.8) / 0.35);
     const gw = this._gmw && this.gview.shown ? { cv: this.gview.cv, x: this._gmw.x - this._gmw.d / 2, y: this._gmw.y - this._gmw.d / 2, w: this._gmw.d, h: this._gmw.d * (this._gmw.speed ? 1.32 : 1) } : null;
-    return { text: this._capText, a, fin: this._capFin, center: innerHeight > innerWidth, gm: gw };
+    return { text: this._capText, a, fin: this._capFin, center: innerHeight > innerWidth, gm: gw, fan: this._fanOn ? this.fanCv : null };
   }
   hideCine() { const C = $('#cine'); C.classList.remove('show', 'on'); const W = $('#wipe'); W.style.opacity = '0'; W.style.background = ''; this.cineObj = null; }
   // je Bild: Fortschritt, Einblendung zum Beginn der Zeitlupe, kurze Abblende an den Schnitten
@@ -811,8 +812,22 @@ export class UI {
       clearTimeout(this._capT); this._capT = setTimeout(() => { E.className = 'cap'; }, 2800);
     }
     // Schwarzblende: 0,15 s vor/nach jedem Clip-Wechsel (Filmzeit, aus der Aufzeichnungszeit des Clips grob geschätzt)
-    const W = $('#wipe'), a = cl ? Math.max(0, 1 - (P.t - cl.a) / 0.12, cl === c.film.clips[c.film.clips.length - 1] ? 0 : 1 - (cl.b - P.t) / 0.1) : 0;
+    // n27: nur bei Übergang „fade“ (Weißblitz und Reißschwenk machen main.js/cinecam.js)
+    const nx = cl ? c.film.clips[P.ci + 1] : null, fadeIn = !cl || !cl.trans || cl.trans === 'fade', fadeOut = nx && (!nx.trans || nx.trans === 'fade');
+    const W = $('#wipe'), a = cl ? Math.max(0, fadeIn ? 1 - (P.t - cl.a) / 0.12 : 0, fadeOut ? 1 - (cl.b - P.t) / 0.1 : 0) : 0;
     W.style.transition = 'none'; W.style.background = '#000'; W.style.opacity = a > 0 ? Math.min(0.85, a).toFixed(2) : '0';
+  }
+  // n27: Weißblitz ohne Kino-Look (Grafik Einfach: CSS statt Shader) und Zuschauer-Silhouetten der Fan-Cam
+  cineFx(white, fan, css) {
+    if (css && white > 0.01) { const W = $('#wipe'); W.style.transition = 'none'; W.style.background = '#fff'; W.style.opacity = white.toFixed(2); this._wWhite = true; }
+    else if (this._wWhite) { this._wWhite = false; const W = $('#wipe'); W.style.background = '#000'; }
+    const C = $('#cine .fanfg');
+    if (!fan) { if (this._fanOn) { C.style.display = 'none'; this._fanOn = false; } return; }
+    const w = Math.round(innerWidth / 2), h = Math.round(innerHeight / 2);
+    if (C.width !== w || C.height !== h) { C.width = w; C.height = h; }
+    C.style.display = 'block'; this._fanOn = true;
+    this.fanCv = C;
+    drawFans(C, performance.now() / 1000, innerHeight > innerWidth);
   }
   replayCam(m) { window.__game.cam(m); this.replayCamMark(m); }
   replayCamMark(m) { for (const b of document.querySelectorAll('#replayui [data-a=rcam]')) b.classList.toggle('on', b.dataset.v === m); }
@@ -924,4 +939,30 @@ export class UI {
     addEventListener('blur', () => this.releaseTouch());
     document.addEventListener('visibilitychange', () => { if (document.hidden) this.releaseTouch(); });
   }
+}
+
+// Fan-Cam (n27): Köpfe, Schultern und erhobene Arme (eins mit Handy) als unscharfe Silhouetten im Vordergrund, wippen
+// leicht – nur Formen, keine Bilder. Auf halber Auflösung gezeichnet (CSS streckt), unten zwischen den Kino-Balken
+function drawFans(C, t, hoch) {
+  const g = C.getContext('2d'), W = C.width, H = C.height;
+  g.clearRect(0, 0, W, H);
+  const bar = hoch ? 0 : Math.max(0.085 * H, (H - W / 2.39) / 2), base = H - bar + 6, s = Math.min(W, H) * (hoch ? 0.2 : 0.27);
+  g.save();
+  g.filter = `blur(${Math.max(2, s * 0.05).toFixed(1)}px)`;
+  g.fillStyle = 'rgba(8,10,14,0.9)';
+  const heads = hoch ? [[0.12, 0.95, 0], [0.86, 1.05, 1.3]] : [[0.07, 1.0, 0], [0.24, 0.85, 2.1], [0.9, 1.1, 1.3]];
+  for (const [fx, k, ph] of heads) {
+    const x = fx * W, b = Math.sin(t * 2.2 + ph) * s * 0.03, r = s * 0.3 * k, y = base - s * 0.62 * k + b;
+    g.beginPath(); g.ellipse(x, y, r * 0.85, r, 0, 0, Math.PI * 2); g.fill();
+    g.beginPath(); g.ellipse(x, base + s * 0.25 * k + b, r * 2.3, s * 0.62 * k, 0, Math.PI, 0); g.fill();
+  }
+  // erhobene Arme mit Händen (jubeln)
+  g.lineCap = 'round'; g.strokeStyle = 'rgba(8,10,14,0.9)'; g.lineWidth = s * 0.2;
+  for (const [fx, ph, lean] of hoch ? [[0.7, 0.4, 1]] : [[0.17, 0.4, -1], [0.79, 1.7, 1]]) {
+    const x0 = fx * W, y0 = base + s * 0.05, w = Math.sin(t * 4.2 + ph) * s * 0.12;
+    const hx = x0 + lean * s * 0.18 + w, hy = base - s * 1.45 + Math.abs(w) * 0.4;
+    g.beginPath(); g.moveTo(x0, y0); g.quadraticCurveTo(x0 + lean * s * 0.25, base - s * 0.7, hx, hy); g.stroke();
+    g.beginPath(); g.ellipse(hx, hy - s * 0.1, s * 0.13, s * 0.17, lean * 0.3, 0, Math.PI * 2); g.fill();
+  }
+  g.restore();
 }
