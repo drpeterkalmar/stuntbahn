@@ -37,6 +37,11 @@ export const HL = {
   // Kurve mit Max-G (n24): größte Querbeschleunigung (angezeigte G) am Boden außerhalb von Bauwerken, mindestens minS s
   // über lat G → base + k · (G − lat). Nur ein Kandidat je Fahrt (die stärkste Kurve), Lückenfüller mit wenig Punkten
   curve: { lat: 2.6, minS: 0.4, base: 8, k: 8 },
+  // Drift (n25, Leicht „Brachial“ bzw. jeder Spieler, der quer kommt): Schwimmwinkel (Bewegungsrichtung gegen die
+  // Fahrzeug-Längsachse, driftTrack) ab deg Grad mindestens minS s am Boden auf normaler Fahrbahn, ohne Crash danach
+  // (Lücken bis gap s zählen mit) → base + perS · Dauer + perDeg · (größter Winkel − deg). Nur der längste und der
+  // stärkste Drift werden Kandidaten; ab spin Grad ein Beinahe-Dreher (eigene Art, + spinBonus)
+  drift: { deg: 12, minS: 0.6, gap: 0.12, base: 16, perS: 7, perDeg: 0.35, spin: 58, spinBonus: 14 },
   // Beinahe-Unfall: am Boden (nicht in Stunt-Bauwerken) mehr als tilt° gegen die Fahrbahn geneigt, mindestens minS s,
   // ohne Crash in den folgenden safe s → base + k · (Neigung − tilt); auf zwei Rädern ab wheelsS s
   near: { tilt: 38, minS: 0.15, safe: 2, base: 28, k: 0.8, wheelsS: 0.3, wheelsBase: 26 },
@@ -76,6 +81,8 @@ export const LABEL = {
   nitro: (m) => `🔥 Nitro · ${R(showKmhMs(m.vmax))} km/h${gx(m.gLon)}`,
   top: (m) => `⚡ ${R(showKmhMs(m.vmax))} km/h Spitze`,
   curve: (m) => `🏁 Kurve · ${fmtG(m.g)} quer`,
+  drift: (m) => `🔥 ${m.longest && !m.strongest ? 'Längster Drift' : m.strongest && !m.longest ? 'Stärkster Drift' : 'Drift'} · ${R(m.deg)}° · ${m.dur.toFixed(1).replace('.', ',')} s${gx(m.g)}`,
+  spin: (m) => `🌪️ Beinahe-Dreher · ${R(m.deg)}° quer`,
   near: (m) => `😱 Beinahe-Unfall · ${R(m.deg)}° Schräglage`,
   wheels2: () => '😱 Auf zwei Rädern',
   crash: (m) => `💥 ${m.reason === 'Abgestürzt' ? 'Absturz' : m.reason === 'Zu kurz' ? 'Zu kurz gesprungen' : 'Überschlag'}`,
@@ -91,7 +98,7 @@ export const SHOTS = {
   hard: [['tele', 'end']], loop: [['onboard', 0.9], ['tele', 'end']], cork: [['action', 'end']], wendel: [['heli', 'end']],
   tube: [['action', 'end']], spiral: [['heli', 'end']], slope: [['onboard', 0.9], ['drone', 'end']], wall: [['drone', 'end']], halfpipe: [['drone', 'end']],
   nitro: [['action', 1.6], ['onboard', 2.5], ['drone', 'end']], top: [['onboard', 1.0], ['drone', 'end']],
-  near: [['action', 'end']], curve: [['action', 'peak'], ['drone', 'end']], wheels2: [['action', 'end']], crash: [['tele', 'end']], finish: [['tele', 'end']],
+  near: [['action', 'end']], curve: [['action', 'peak'], ['drone', 'end']], drift: [['drone', 'peak'], ['action', 'end']], spin: [['drone', 'end']], wheels2: [['action', 'end']], crash: [['tele', 'end']], finish: [['tele', 'end']],
 };
 // Ausweich-Kamera, wenn derselbe Blick direkt hintereinander käme
 const ALT = { drone: 'heli', heli: 'drone', tele: 'drone', action: 'drone', onboard: 'action' };
@@ -113,6 +120,34 @@ export function poseAt(rec, t, out = { p: [0, 0, 0], f: [0, 0, -1], u: [0, 1, 0]
   const q = a < 0.5 ? o : p;
   rotQ(rec[q + 3], rec[q + 4], rec[q + 5], rec[q + 6], 0, 0, -1, out.f);
   rotQ(rec[q + 3], rec[q + 4], rec[q + 5], rec[q + 6], 0, 1, 0, out.u);
+  return out;
+}
+
+// Schwimmwinkel je Bild (rad, n25): Bewegungsrichtung (Positionen ±1 Bild) gegen die Fahrzeug-Längsachse, in der Ebene
+// quer zur Hochachse; + = Heck nach rechts (Linksdrift). 0 in der Luft, an Schnitten und unter minV m/s. Leicht geglättet
+// (5 Bilder). Für Drift-Momente, Reifenqualm und -quietschen im Replay (wie car.js/drift.js im Rennen).
+export function driftTrack(rec, cuts = [], minV = 8) {
+  const F = Math.floor(rec.length / REC_STRIDE), raw = new Float32Array(F), out = new Float32Array(F), cut = new Set(cuts);
+  const f = [0, 0, 0], u = [0, 0, 0], S = REC_STRIDE;
+  for (let i = 1; i < F - 1; i++) {
+    const o = i * S;
+    if (cut.has(i) || cut.has(i + 1) || (rec[o + 10] === 0 && rec[o + 11] === 0 && rec[o + 12] === 0 && rec[o + 13] === 0)) continue;
+    let vx = (rec[o + S] - rec[o - S]) * REC_HZ / 2, vy = (rec[o + S + 1] - rec[o - S + 1]) * REC_HZ / 2, vz = (rec[o + S + 2] - rec[o - S + 2]) * REC_HZ / 2;
+    rotQ(rec[o + 3], rec[o + 4], rec[o + 5], rec[o + 6], 0, 0, -1, f);
+    rotQ(rec[o + 3], rec[o + 4], rec[o + 5], rec[o + 6], 0, 1, 0, u);
+    const vu = vx * u[0] + vy * u[1] + vz * u[2];
+    vx -= vu * u[0]; vy -= vu * u[1]; vz -= vu * u[2];
+    const rx = f[1] * u[2] - f[2] * u[1], ry = f[2] * u[0] - f[0] * u[2], rz = f[0] * u[1] - f[1] * u[0];
+    const vf = vx * f[0] + vy * f[1] + vz * f[2], vr = vx * rx + vy * ry + vz * rz;
+    if (Math.hypot(vf, vr) < minV) continue;
+    raw[i] = Math.atan2(vr, vf);
+  }
+  for (let i = 0; i < F; i++) {
+    if (raw[i] === 0) continue;
+    let s = 0, n = 0;
+    for (let k = Math.max(0, i - 2); k <= Math.min(F - 1, i + 2); k++) if (raw[k] !== 0) { s += raw[k]; n++; }
+    out[i] = s / n;
+  }
   return out;
 }
 
@@ -320,6 +355,31 @@ export function findMoments(rec, env, marks = {}) {
       i = j + 1;
     }
     if (best) { best.score = C.base + C.k * (best.g - C.lat); out.push(best); }
+  }
+
+  // 4c. Drifts (n25): längster und stärkster Drift, Beinahe-Dreher
+  {
+    const DR = HL.drift, Bt = driftTrack(rec, (marks.cuts || []).map((c) => c.f)), lim = DR.deg * Math.PI / 180, gapN = Math.round(DR.gap * REC_HZ);
+    D.beta = Bt;
+    const eps = [];
+    for (let i = 0; i < F;) {
+      const ok = (k) => plainAt(k) && Math.abs(Bt[k]) >= lim;
+      if (!ok(i)) { i++; continue; }
+      let j = i;
+      for (;;) { let k = j + 1; while (k < F && k - j <= gapN && !ok(k) && !D.cut[k]) k++; if (k < F && k - j <= gapN && ok(k)) j = k; else break; }
+      let mx = 0, im = i;
+      for (let k = i; k <= j; k++) if (Math.abs(Bt[k]) > mx) { mx = Math.abs(Bt[k]); im = k; }
+      const dur = (j - i + 1) * dt;
+      if (dur >= DR.minS && !crashNear(i, Math.min(F - 1, j + 2 * REC_HZ))) eps.push({ i0: i, i1: j, ip: im, dur, deg: mx * 180 / Math.PI });
+      i = j + 1;
+    }
+    const mk = (e, kind) => ({ kind, i0: Math.max(0, e.i0 - 20), i1: Math.min(F - 1, e.i1 + 20), ip: e.ip, dur: e.dur, deg: e.deg, score: DR.base + DR.perS * e.dur + DR.perDeg * Math.max(0, e.deg - DR.deg) + (kind === 'spin' ? DR.spinBonus : 0) });
+    const spin = eps.filter((e) => e.deg >= DR.spin).sort((a, b) => b.deg - a.deg)[0];
+    const rest = eps.filter((e) => e !== spin);
+    const longest = rest.slice().sort((a, b) => b.dur - a.dur)[0], strongest = rest.slice().sort((a, b) => b.deg - a.deg)[0];
+    if (spin) out.push(mk(spin, 'spin'));
+    if (longest) { const m = mk(longest, 'drift'); m.longest = true; m.strongest = longest === strongest; out.push(m); }
+    if (strongest && strongest !== longest) { const m = mk(strongest, 'drift'); m.strongest = true; out.push(m); }
   }
 
   // 5. Beinahe-Unfälle: starke Schräglage gegen die Fahrbahn bzw. auf zwei Rädern, am Boden, ohne Crash danach

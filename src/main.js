@@ -12,7 +12,7 @@ import { CameraRig, CAM_MODES, CAM_NAMES, cockpitDash, clearLens } from './gfx/c
 import { Cockpit } from './gfx/cockpit.js';
 import { displayGear } from './gfx/gauges.js';
 import { Input } from './game/input.js';
-import { Race, ASSISTS, GAME_SPEEDS, GAME_SPEED_STD } from './game/race.js';
+import { Race, ASSISTS, GAME_SPEEDS, GAME_SPEED_STD, FAHRSTIL_URL } from './game/race.js';
 import { UI } from './ui/ui.js';
 import { generate, demoLayout, galleryLayout, galleryGelLayout } from './track/generator.js';
 import { verify, prepare, probeLap } from './track/verify.js';
@@ -368,7 +368,8 @@ function startRace(opts = {}) {
   if (cine) { cine = null; ui.hideCine(); }
   if (fx) fx.reset();
   const S = store.settings;
-  race = new Race(env, { assist: S.assist, wreck: S.wreck, autopilot: !!opts.autopilot, extras: S.extras, autoExtras: S.autoExtras, brakeHelp: S.brakeHelp });
+  // Fahrstil des Autopiloten auf Leicht (n25): Einstellung bzw. ?fahrstil=; Zufall für die Show-Momente je Rennen neu
+  race = new Race(env, { assist: S.assist, wreck: S.wreck, autopilot: !!opts.autopilot, extras: S.extras, autoExtras: S.autoExtras, brakeHelp: S.brakeHelp, fahrstil: FAHRSTIL_URL || S.fahrstil || 'brachial', seed: opts.seed ?? ((Math.random() * 1e9) >>> 0) });
   timeScale = gameSpeed(S.assist);
   // Sammlung: „zuletzt gefahren“ / „noch nie gefahren“
   if (env.meta.sam) { S.samPlayed = { ...(S.samPlayed || {}), [env.meta.key]: Date.now() }; store.save(); }
@@ -474,6 +475,9 @@ function cineSound(rdt) {
   C.input.throttle = sp > last + 0.01 || sp > 40 ? 1 : 0.2; C._last = sp;
   C.rpm = replay.rpm() * (sound.nodes && sound.nodes.rec ? 1 : pitch); C.gear = replay.gear(); C.boost = replay.nitro(); C._sp = sp * pitch;
   let on = 0; ph.wheels.forEach((w, i) => { C.wheels[i].contact = w.comp > 0; on += w.comp > 0; });
+  // Reifenquietschen im Drift (n25): Rutschen der Hinterräder aus dem aufgezeichneten Schwimmwinkel
+  const sl = Math.tan(Math.min(1.3, Math.abs(replay.slip())));
+  C.wheels[2].slip = C.wheels[3].slip = sl; C.wheels[0].slip = C.wheels[1].slip = sl * 0.3;
   C.onGround = on;
   const y = replay.pose().pos.y; C.v.y = rdt > 0 && C._y != null && !P.cut ? (y - C._y) / Math.max(1e-3, rdt * timeScale * k) : 0; C._y = y;
   sound.update(C, rdt, 'running', { pitch });
@@ -672,6 +676,7 @@ function render(rdt) {
     pose = replay.pose();
     const ph = replay.phys();
     pose.wheels = ph.wheels;
+    pose.vel = replay.vel();
     carVis.sync(ph, 1, pose);
     boost = replay.nitro();
   } else if (race) {
@@ -687,6 +692,7 @@ function render(rdt) {
     } else pose = { pos: c.pos, q: c.q, frame: c.frame };
     pose.air = c.onGround === 0 && !c.surfaceKind && !c.crash;
     pose.wheels = c.wheels;
+    pose.vel = c.v;
     carVis.sync(c, 1, pose);
   }
   updateCheer(pose, rdt);
@@ -707,6 +713,7 @@ function render(rdt) {
     const sp = mode === 'replay' ? Math.abs(replay.speed()) : race ? race.car.speed() : 0;
     rig.boost = boost;
     rig.speedLook = mode === 'race' && race && race.assistKey === 'medium' && !race.autopilotOnly ? 1 : 0;   // Mittel (n23): weiter voraus
+    rig.driftCam = mode === 'replay' || (mode === 'race' && race && race.brachial);   // n25: Drift-Kamera (Leicht Brachial, Replays)
     if (cine) cineCamera(rdt, pose);
     else if (!frozen || !app.freezeCam) rig.update(rdt, pose, crashed, env && env.world, sp);
     // Sonne mit Schattenkamera folgt dem Auto
@@ -722,6 +729,12 @@ function render(rdt) {
   if (ghost && ghostVis.root.visible && mode === 'race') { ghost.sync(ghostVis); ghostVis.setNitro(ghost.nitro(), frozen ? 0 : rdt); }
   if (fx) fx.rich = !!(kino && kino.pipeline);
   if (fx && mode === 'race' && !frozen) fx.update(rdt, camera);
+  // Replay/Kino-Replay (n25): Reifenqualm aus dem aufgezeichneten Schwimmwinkel
+  if (fx && mode === 'replay' && replay && pose) {
+    const rt = replay.paused ? 0 : rdt * timeScale * (cine ? cine.player.speed : replay.speedMul);
+    fx.replayStep(rt, pose, replay.slip(), replay.speed());
+    fx.update(replay.paused ? 0 : rdt * (cine ? cine.player.speed : replay.speedMul), camera);
+  }
   if (lineViz) lineViz.update(camera, race, store.settings.assist, mode, store.settings.line);
   sky.position.copy(camera.position);
   if (mode === 'race' && race) { ui.hud(race, env, ghost); sound.update(race.car, rdt, race.state, { cockpit: rig.view === 'cockpit' }); }

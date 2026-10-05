@@ -39,6 +39,10 @@ export const SPEED_LOOK = { v0: 15, v1: 55, h: 1.0, dist: 1.2, look: 6, lookUp: 
 const AIM_MAX = 14 * Math.PI / 180;   // hochkant: größtes Eindrehen in die Kurve
 const CP_SUSP = +(Q.get('cpsusp') ?? 1);   // Cockpit: Anteil Federungs-Ausgleich (n14: 0,5)
 const LAG_MAX = 3.0; // m: größter Verzug des Verfolgers hinter dem Auto (Tempo-Nachführung)
+// Drift-Kamera (n25, Leicht „Brachial“ und Replays, rig.driftCam): rutscht das Auto quer (Winkel zwischen Fahrzeug-Längsachse
+// und Bewegungsrichtung ab b0 rad, voll ab b1), folgt der Verfolger zum Anteil k der Bewegungsrichtung statt der Karosserie –
+// das Auto steht sichtbar quer im Bild, die Kamera schwingt leicht mit
+export const DRIFT_CAM = { k: 0.55, b0: 0.12, b1: 0.45 };
 // Verdeckungs-Strahlen (n19): Versatz um die Wunschposition (seitlich, oben; m, ~Nahebene), Abstand zum Bauteil (m)
 const CAM_RAYS = [[0, 0], [0.45, 0], [-0.45, 0], [0, 0.35], [0, -0.35]], CAM_GAP = 0.55;
 
@@ -175,8 +179,22 @@ export class CameraRig {
     else this.baseY = Math.min(cp.y, this.baseY + dt * 0.4); // im Flug: bleibt unten, folgt nur abwärts
     const kf = 1 - Math.exp(-dt * 7);
     const ku = 1 - Math.exp(-dt * 3.2);
+    // Drift-Kamera: Bewegungsrichtung aus dem Weg seit dem letzten Bild (nur Verfolger, am Boden)
+    let fT = f;
+    if (this.driftCam && !crashed && !P.air && this.mode === 'chase' && (P.vel || this.hasCp)) {
+      // Geschwindigkeit des Autos (P.vel: Rennen/Replay) bzw. Weg seit dem letzten Bild
+      const d = this._dv || (this._dv = V());
+      if (P.vel) d.set(P.vel.x, P.vel.y, P.vel.z); else d.subVectors(cp, this.lastCp).multiplyScalar(1 / Math.max(dt, 1e-4));
+      const vv = d.length(), len = P.vel ? 1 : vv * dt;
+      if (vv > 8 && len < 30) {
+        d.multiplyScalar(1 / vv);
+        const b = Math.acos(Math.max(-1, Math.min(1, d.dot(f)))), q = Math.max(0, Math.min(1, (b - DRIFT_CAM.b0) / (DRIFT_CAM.b1 - DRIFT_CAM.b0)));
+        const k = DRIFT_CAM.k * q * q * (3 - 2 * q);
+        if (k > 0.001) fT = (this._fb || (this._fb = V())).copy(f).lerp(d, k).normalize();
+      }
+    }
     // Im Crash: Richtung von vor dem Unfall halten (Kamera dreht nicht mit dem Wrack), nur Oben → Welt
-    if (!crashed) this.fwd.lerp(f, kf).normalize();
+    if (!crashed) this.fwd.lerp(fT, kf).normalize();
     else { this.fwd.y *= 0.9; this.fwd.normalize(); }
     // im Flug: Oben → Welt-Oben (Kamera kippt nicht mit der Nase des Autos)
     if (this.airK > 0.01 && (this.mode === 'chase' || this.mode === 'far')) u.lerp(this._h.set(0, 1, 0), this.airK).normalize();

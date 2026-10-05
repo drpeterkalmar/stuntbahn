@@ -47,22 +47,26 @@ check(ids.size === T.length && hashes.size === T.length, 'Ids und Inhalte eindeu
 const nm = new Set(T.map((t) => t.name.toLowerCase()));
 check(nm.size === T.length, `Namen eindeutig (${nm.size})`);
 
-// ---------- 20 deterministisch gewählte: Autopilot „Leicht“ ----------
+// ---------- 20 deterministisch gewählte: Autopilot „Leicht“ (Fahrstil Sauber wie bisher und Brachial, n25) ----------
 const pick = Array.from({ length: 20 }, (_, q) => Math.floor((q + 0.5) * T.length / 20));
-let easyOk = 0;
+for (const stil of ['sauber', 'brachial']) {
+let easyOk = 0, crashes = 0;
 const t0 = Date.now();
 for (const k of pick) {
   const env = prepare(layouts[k].layout, { treeCount: 0 });
-  const race = new Race(env, { assist: 'easy', countdown: 0.05 });
+  const race = new Race(env, { assist: 'easy', countdown: 0.05, fahrstil: stil, seed: 3 });
   const maxT = Math.max(90, env.track.line.total / 7);
   let t = 0;
   const zero = { steer: 0, throttle: 0, brake: 0 };
   while (t < maxT && race.state !== 'finished') { race.step(DT, zero); t += DT; race.events.length = 0; }
   const ok = race.state === 'finished' && !race.skips;
+  crashes += race.crashes;
   if (ok) easyOk++;
-  else console.log(`   ${T[k].id} „${T[k].name}“: ${race.state}${race.skips ? ', Stunt übersprungen' : ''}`);
+  else console.log(`   ${stil}: ${T[k].id} „${T[k].name}“: ${race.state}${race.skips ? ', Stunt übersprungen' : ''}`);
 }
-check(easyOk >= 19, `Autopilot „Leicht“ im Ziel ohne übersprungenen Stunt: ${easyOk}/20 (${((Date.now() - t0) / 1000).toFixed(0)} s)`);
+check(easyOk >= 19, `Autopilot „Leicht“ (${stil}) im Ziel ohne übersprungenen Stunt: ${easyOk}/20, Crashs ${crashes} (${((Date.now() - t0) / 1000).toFixed(0)} s)`);
+if (stil === 'brachial') check(crashes <= 2, `Brachial: höchstens 1 Crash je 10 Runden (${crashes} in 20)`);
+}
 
 // ---------- Korpus (nur lokal) ----------
 const TRK_LOCAL = path.join(ROOT, 'trk_local');

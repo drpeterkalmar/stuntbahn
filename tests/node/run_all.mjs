@@ -7,7 +7,7 @@ import { fileURLToPath } from 'url';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const tests = [
   ['test_trk_parser.mjs'], ['test_trk_import.mjs'], ['test_loop_gate.mjs'], ['test_generator.mjs'], ['test_alte_codes.mjs'], ['test_strecken3d.mjs'], ['test_generator3d.mjs', '40'], ['test_leicht3d.mjs', '4'],
-  ['test_verify_batch.mjs', '10'], ['test_assists.mjs'], ['test_reset.mjs'], ['test_cockpit.mjs'], ['test_free_steer.mjs'], ['test_tilt.mjs'], ['test_extras.mjs'], ['test_quality_blur.mjs'], ['test_deco.mjs', '10'], ['test_sammlung.mjs'], ['test_fahrgefuehl.mjs'], ['test_leicht_zeiten.mjs'], ['test_wiese.mjs'], ['test_haftung.mjs'], ['test_sprung.mjs'], ['test_gelaende.mjs', '6'], ['test_kinoreplay.mjs'], ['test_gkraft.mjs'], ['test_mittel3.mjs'], ['test_kulissen.mjs', '4'],
+  ['test_verify_batch.mjs', '10'], ['test_assists.mjs'], ['test_reset.mjs'], ['test_cockpit.mjs'], ['test_free_steer.mjs'], ['test_tilt.mjs'], ['test_extras.mjs'], ['test_quality_blur.mjs'], ['test_deco.mjs', '10'], ['test_sammlung.mjs'], ['test_fahrgefuehl.mjs'], ['test_leicht_zeiten.mjs'], ['test_wiese.mjs'], ['test_haftung.mjs'], ['test_sprung.mjs'], ['test_gelaende.mjs', '6'], ['test_kinoreplay.mjs'], ['test_gkraft.mjs'], ['test_mittel3.mjs'], ['test_kulissen.mjs', '4'], ['test_drift.mjs'],
 ];
 if (fs.existsSync(path.join(HERE, '../../trk_local'))) tests.push(['test_trk_corpus.mjs', '20']);
 let bad = 0;

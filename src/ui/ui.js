@@ -1,6 +1,6 @@
 // Bedienoberfläche (DOM): Laden, Menü, HUD, Touch-Steuerung, Pause, Ergebnis, Replay, Kino-Replay, Credits.
 import { fmtTime, daySeed } from '../core/util.js';
-import { ASSISTS, PENALTY, BRAKE_HELP_MODES } from '../game/race.js';
+import { ASSISTS, PENALTY, BRAKE_HELP_MODES, FAHRSTILE, FAHRSTIL_URL } from '../game/race.js';
 import { DIFFS } from '../track/generator.js';
 import { PAINTS } from '../gfx/carmesh.js';
 import { PIECES } from '../track/pieces.js';
@@ -342,6 +342,7 @@ export class UI {
       case 'clipshare': if (this.lastClip) shareClip(this.lastClip.blob, this.lastClip.name).then((r) => this.toast(r === 'geteilt' ? '📤 Geteilt' : r === 'gespeichert' ? '💾 Video gespeichert' : 'Abgebrochen')); break;
       case 'tbsize': S.tbsize = v; document.body.dataset.tbsize = v; this.store.save(); this.showSettings(); break;
       case 'blur': S.blur = v; this.store.save(); if (A.quality.post) A.quality.post.autoOff = false; this.showSettings(); break;
+      case 'fahrstil': S.fahrstil = v; this.store.save(); if (window.__game && window.__game.race && !FAHRSTIL_URL) window.__game.race.fahrstil = v; if (this.screen === 'pause') this.showPause(true); else this.showSettings(); break;
       case 'brakehelp': S.brakeHelp = v; this.store.save(); if (window.__game && window.__game.race) window.__game.race.brakeHelp = v; this.showSettings(); break;
       case 'quality': S.quality = v; this.store.save(); A.quality.forced = v === 'auto' ? null : v; if (v !== 'auto') A.quality.tier = +v; dispatchEvent(new Event('resize')); this.showSettings(); break;
       default: break;
@@ -514,6 +515,9 @@ export class UI {
       <p class="hint">${S.extras
         ? `Je Runde <b>1× Hüpfer</b> (🦘, ~3,5 m hoch, nur mit Bodenkontakt, nicht in Looping/Röhre/Korkenzieher/an Schanzen) und <b>1× Nitro</b> (🔥, ${NITRO.dur} s kräftiger Schub). An Start/Ziel wieder voll. <span class="desk">Leertaste / Shift oder N, </span>Gamepad B / RB.${S.autoExtras ? ' Auf <b>Leicht</b> zündet der Autopilot den Nitro auf der längsten Geraden und hüpft nur, wo es sicher ist (über Bodenwellen) – du kannst jederzeit selbst drücken.' : ''}`
         : '<b>Aus:</b> ohne Hüpfer und Nitro wie im Original. Bestzeiten mit und ohne Extras werden getrennt gezählt.'}</p>
+      <div class="lbl">Autopilot-Fahrstil (Leicht)</div>
+      ${this.fahrstilSeg()}
+      <p class="hint">${(S.fahrstil || 'brachial') === 'brachial' ? '<b>Brachial</b> (Standard): Der Autopilot fährt am Limit – driftet quer durch die Kurven, mit Qualm und Gegenlenken, ab und zu ein Beinahe-Dreher oder ein Ausritt mit zwei Rädern ins Gras. Er lenkt dabei selbst; deutlich lenken übernimmt wie bisher. Loopings, Röhren, Schanzen, Steilkurven und Hochstraßen ohne Bande fährt er sauber.' : '<b>Sauber:</b> wie bis Oktober 2026 – mit Reserve, ohne Rutschen; du lenkst in Kurven etwas mit.'}${FAHRSTIL_URL ? ' (Link-Zusatz <code>?fahrstil=' + FAHRSTIL_URL + '</code> gilt vorrangig.)' : ''}</p>
       <div class="lbl">Bremshilfe (Mittel)</div>
       <div class="seg" data-g="brakehelp">${Object.entries(BRAKE_HELP_MODES).map(([k, n]) => `<button data-a="brakehelp" data-v="${k}" class="${(S.brakeHelp || 'hint') === k ? 'on' : ''}">${n}</button>`).join('')}</div>
       <p class="hint">${{ off: '<b>Aus:</b> keine Anzeige, kein Eingriff – nur die farbige Ideallinie.', hint: '<b>Hinweis</b> (Standard): Kurz „Bremsen!“ mit Ton, wenn du vor einer Kurve oder einem Stunt zu schnell bist. Die Hilfe bremst nie selbst.', soft: '<b>Sanft:</b> wie Hinweis; zusätzlich bremst die Hilfe leicht mit, wenn du deutlich zu schnell bist (> 15 %) und nicht Vollgas gibst. Vollgas gibt sie sofort frei.' }[S.brakeHelp || 'hint']}</p>
@@ -545,6 +549,7 @@ export class UI {
     this.sheet('Steuerung', `
       <p><b>Handy (quer oder hochkant):</b> Fahrhilfe <i>Leicht</i>: linke/rechte Bildschirmhälfte halten zum Lenken – Gas macht das Auto. Oder in den Optionen „Lenken durch Neigen“ (hochkant: seitlich kippen oder wie ein Lenkrad drehen). Drehst du das Handy im Rennen, pausiert es kurz – weiter mit „▶ Weiter“.</p>
       <p><b>Leicht:</b> Die Hilfe hält das Auto sicher auf der Fahrbahn und lenkt einen Teil jeder Kurve. Die Ideallinie triffst du, wenn du in Kurven etwas mitlenkst – ohne Lenken driftet das Auto nach außen und verliert Zeit. Drückst du deutlich über den Rand hinaus (kurz halten), hast <b>du Vorrang</b>: Die Hilfe lässt los, du kannst die Fahrbahn verlassen und durchs Gelände fahren. Loslassen – die Hilfe blendet weich ein und führt dich sanft zurück. Deine Bremse geht immer vor. Loopings, Röhren, Korkenzieher und Sprünge lenkt weiter das Auto; vorher steht oben „… voraus – Autopilot lenkt“. Gilt für Tastatur, Gamepad, Touch und Neigen.</p>
+      <p><b>Autopilot-Fahrstil</b> (Optionen bzw. Pause): <b>🔥 Brachial</b> (Standard) – der Autopilot fährt am Limit, driftet quer mit Qualm durch die Kurven, ab und zu ein Beinahe-Dreher oder ein Ausritt ins Gras; er lenkt dabei selbst, dein Lenken schiebt mit, gehalten übernimmst du. <b>🧼 Sauber</b> – wie bisher: mit Reserve, du lenkst in Kurven etwas mit.</p>
       <p><b>Mittel:</b> Du lenkst selbst – kein Zug zur Ideallinie. Das Auto hat mehr Bodenhaftung als auf Original, rutscht aber, wenn du zu schnell in die Kurve fährst. Im Looping und in der Röhre hält eine Spurhilfe die Fahrbahnmitte (oben „Looping – Spurhilfe“); deutliches Lenken schaltet sie sofort ab. Seit 04.10.2026 beschleunigt das Auto auf Mittel sanfter (Gas baut sich kurz auf, ab ~210 km/h auf dem Tacho geht es nur noch zäh weiter) – so bleibt es kontrollierbar. Vor einer Schanze steht oben das passende Absprung-Tempo (grün = passt); in der Luft zieht eine dezente Sprung-Hilfe die Landung Richtung Landerampe.</p>
       <p><i>Mittel/Original</i>: links ◀ ▶ lenken, rechts GAS und BREMSE (hochkant alle unten in einer Reihe). Bremse im Stand = Rückwärtsgang.</p>
       <p><b>Tastatur:</b> Pfeile oder WASD (bremsen: Pfeil runter/S), <b>Leertaste</b> Hüpfer, <b>Shift</b> oder <b>N</b> Nitro, <b>R</b> zurückspulen, <b>C</b> Kamera (Verfolger, Cockpit, Hubschrauber, Stoßstange, Strecke), <b>L</b> Ideallinie ein/aus, <b>Esc</b> Pause.</p>
@@ -690,6 +695,11 @@ export class UI {
     B.classList.toggle('off', S.line === 'off');
     B.setAttribute('aria-pressed', S.line === 'off' ? 'false' : 'true');
   }
+  // Fahrstil-Knöpfe (n25): Brachial / Sauber
+  fahrstilSeg() {
+    const cur = FAHRSTIL_URL || this.store.settings.fahrstil || 'brachial';
+    return `<div class="seg" data-g="fahrstil">${Object.entries(FAHRSTILE).map(([k, n]) => `<button data-a="fahrstil" data-v="${k}" class="${cur === k ? 'on' : ''}">${k === 'brachial' ? '🔥' : '🧼'} ${n}</button>`).join('')}</div>`;
+  }
   showPause(on) {
     if (!on) { this.show(null); return; }
     const S = this.store.settings;
@@ -697,6 +707,7 @@ export class UI {
       <button class="big go" data-a="resume">▶ Weiter</button>
       <div class="lbl">Fahrhilfe (wirkt sofort)</div>
       <div class="seg">${Object.entries(ASSISTS).map(([k, A]) => `<button data-a="assist" data-v="${k}" class="${S.assist === k ? 'on' : ''}">${A.icon} ${A.name}</button>`).join('')}</div>
+      ${S.assist === 'easy' ? `<div class="lbl">Autopilot-Fahrstil</div>${this.fahrstilSeg()}` : ''}
       <div class="lbl">Ideallinie${S.assist === 'original' ? ' (nicht auf Original)' : ''}</div>
       ${this.lineSeg()}
       <div class="row"><button data-a="restart">🔁 Neustart</button><button data-a="menu">☰ Menü</button></div></div>`;

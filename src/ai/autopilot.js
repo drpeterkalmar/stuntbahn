@@ -84,6 +84,7 @@ export class Autopilot {
     this.out = { steer: 0, throttle: 0, brake: 0 };
     this.offset = null; // optionale seitliche Versätze (Racing-Line), Float32Array
     this.shift = 0;     // zusätzlicher Seitenversatz des Ziels (m): sanftes Zurückführen nach freiem Lenken
+    this.extra = 0;     // weiterer Versatz (m, Leicht „Brachial“: Ausritt aufs Gras, ai/drift.js); zählt nicht zu lat
     this.lat = 0;       // Seitenlage der Vorderachse zur (unverschobenen) Linie, m
     this.speedScale = 1;
     this.lastTarget = [0, 0, 0];
@@ -106,7 +107,7 @@ export class Autopilot {
     // Stanley-Regler im Rahmen der Fahrlinie (funktioniert auch kopfüber im Looping):
     // Lenkwinkel = −Kursfehler − atan(k·Querfehler/v) + Vorsteuerung aus der Linienkrümmung
     const ja = this.ahead(i, Math.max(1.2, Math.abs(v) * 0.12));
-    const off = (this.offset ? this.offset[ja] : 0) + this.shift;
+    const off = (this.offset ? this.offset[ja] : 0) + this.shift + this.extra;
     let px = L.px[ja] + L.bx[ja] * off, py = L.py[ja] + L.by[ja] * off, pz = L.pz[ja] + L.bz[ja] * off;
     this.lastTarget[0] = px; this.lastTarget[1] = py; this.lastTarget[2] = pz;
     // Querfehler am Vorderachs-Bezugspunkt
@@ -119,7 +120,7 @@ export class Autopilot {
     const psi = Math.atan2(fpx * L.bx[ja] + fpy * L.by[ja] + fpz * L.bz[ja], fpx * L.tx[ja] + fpy * L.ty[ja] + fpz * L.tz[ja]);
     const jf = this.ahead(i, 1.2 + Math.abs(v) * 0.06);
     const ff = Math.atan(2.72 * (this.P.kA ? this.P.kA[jf] : 0));
-    this.psi = psi; this.cross = e; this.lat = e + this.shift;
+    this.psi = psi; this.cross = e; this.lat = e + this.shift + this.extra;
     let delta = -psi - Math.atan2(2.4 * e, Math.abs(v) + 3) + ff;
     // Gierraten-Dämpfung (verhindert Pendeln bei hohem Tempo)
     const yaw = car.w.x * F.u.x + car.w.y * F.u.y + car.w.z * F.u.z;

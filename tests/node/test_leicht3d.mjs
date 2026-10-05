@@ -27,8 +27,8 @@ const seeds = [20260930, 4711, ...Array.from({ length: N - 2 }, (_, k) => 3000 +
 const flach = !!process.env.FLACH;
 for (const seed of seeds) for (const diff of [1, 2, 3]) {
   const v = verifySync(generate(seed, diff, flach ? {} : { d3: true }));
-  for (const [assist, kind] of [['easy', 'nichts'], ['easy', 'zappelig'], ['medium', 'normal']]) {
-    const race = new Race(v.env, { assist, countdown: 0.5 });
+  for (const [assist, kind, fahrstil] of [['easy', 'nichts'], ['easy', 'zappelig'], ['medium', 'normal'], ['easy', 'nichts', 'brachial'], ['easy', 'zappelig', 'brachial']]) {
+    const race = new Race(v.env, { assist, countdown: 0.5, fahrstil, seed: 5 });
     const b = bot(kind, seed + kind.length);
     const reasons = {};
     race.on && 0;
@@ -41,10 +41,10 @@ for (const seed of seeds) for (const diff of [1, 2, 3]) {
     }
     const ok = race.state === 'finished';
     const fell = reasons['Abgestürzt'] || 0;
-    const k = assist + '/' + kind; falls[k] = (falls[k] || 0) + fell;
+    const k = assist + '/' + kind + (fahrstil ? '/' + fahrstil : ''); falls[k] = (falls[k] || 0) + fell;
     const need = ok && (assist !== 'easy' || fell === 0);
     if (!need) fails++;
-    console.log(`${need ? 'OK  ' : 'FAIL'} ${seed}-${diff}-3d ${assist.padEnd(7)} ${kind.padEnd(9)} ${ok ? fmtTime(race.finalTime) : '—'} (AP ${fmtTime(v.apTime)}) Crashs ${race.crashes} ${JSON.stringify(reasons)}`);
+    console.log(`${need ? 'OK  ' : 'FAIL'} ${seed}-${diff}-3d ${assist.padEnd(7)} ${(kind + (fahrstil ? '+' + fahrstil : '')).padEnd(18)} ${ok ? fmtTime(race.finalTime) : '—'} (AP ${fmtTime(v.apTime)}) Crashs ${race.crashes} ${JSON.stringify(reasons)}`);
   }
 }
 // Echter Absturz: Auto fährt auf der Hochstraße, wird seitlich über die Brüstung versetzt → „Abgestürzt“, Reset +5 s

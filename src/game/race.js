@@ -9,6 +9,8 @@ import { HOP, NITRO, NITRO_TOTAL, nitroLevel, hopModel, hopHeightAt } from '../p
 import { BrakeWarn } from './warn.js';
 import { JumpAssist } from './jumpassist.js';
 import { showKmhMs } from '../core/showspeed.js';
+import { computeProfile } from '../ai/profile.js';
+import { DriftCtl, BRACHIAL } from '../ai/drift.js';
 
 // Mittel (n16, Peter 29.09.2026: „Mittlere Schwierigkeit mehr Bodenhaftung und kein Magnet zur Ideallinie“): kein
 // Lenkzug zur Linie mehr (steerPull bis n15 0,28, im Stunt stuntPull 0,6), dafür mehr Reifenhaftung (grip, Faktor auf
@@ -126,6 +128,20 @@ export function haftOffAt(track, idx) {
   return false;
 }
 const STUNT_NAMES = { loop: 'Looping', tube: 'Röhre', cork: 'Korkenzieher', jump: 'Sprung' };
+// Autopilot-Fahrstil auf Leicht (n25, Option „Autopilot-Fahrstil“, store.settings.fahrstil; Standard im Spiel Brachial):
+// 'sauber' = Stand bis n24 (Mitlenk-Modell, Profil mit Reserve), 'brachial' = Tempo am Limit, Drifts, Show-Momente
+// (ai/drift.js). Der Autopilot lenkt dann selbst (Hände weg = er fährt); Lenken schiebt um nudge mit (im Drift nudgeDrift,
+// gehalten in pushT s bis voll),
+// übernehmen wie beim Mitlenk-Modell nur, wer außerhalb des Bandes weiter von der Linie wegdrückt.
+// URL ?fahrstil=sauber|brachial übersteuert die Einstellung.
+export const FAHRSTILE = { brachial: 'Brachial', sauber: 'Sauber' };
+export const FAHRSTIL_URL = urlQ && FAHRSTILE[urlQ.get('fahrstil')] ? urlQ.get('fahrstil') : null;
+export const BRACHIAL_STEER = { nudge: 0.3, nudgeDrift: 0.1, pushT: 1.6, lift: 0.85, liftThr: 0.35, nitroLead: 250 };
+// Brachial-Profil je Strecke einmal (env.profB): wie prepare() in verify.js, nur mit den Brachial-Reserven
+export function brachialProfile(env) {
+  if (!env.profB) { const T = env.track; env.profB = computeProfile(env.ideal || T.line, { jumps: T.jumps, startIdx: T.start.idx, prof: BRACHIAL.prof }); }
+  return env.profB;
+}
 
 export const REC_HZ = 60;
 export const REC_STRIDE = 16; // floats pro Frame
@@ -161,6 +177,10 @@ export class Race {
     this.cuts = [];  // Schnitte (Auto versetzt) { f } – fürs Replay
     this.crashLog = [];   // Crashs { f, reason, v, imp } – fürs Kino-Replay (n18, auch mit Totalschaden)
     this.autopilotOnly = !!opts.autopilot;
+    // Fahrstil (n25): Node-Werkzeuge/Tests ohne Angabe fahren 'sauber' (Stand bis n24); das Spiel übergibt die Einstellung
+    this.fahrstil = FAHRSTILE[opts.fahrstil] ? opts.fahrstil : 'sauber';
+    this.driftSeed = opts.seed;
+    this.drift = null; this.brachial = false;
     this.noCutRule = !!opts.noCutRule;
     this.maxProgress = 0;
     this.offT = 0;
@@ -246,8 +266,21 @@ export class Race {
     }
     // ---- Rennen läuft ----
     this.time += dt;
+    // Fahrstil Brachial (n25): nur Leicht, nicht in der reinen Autopilot-Fahrt (Prüffahrt/Generator bleiben gleich)
+    const brachial = this.fahrstil === 'brachial' && this.assistKey === 'easy' && !this.autopilotOnly;
+    if (brachial !== this.brachial) { if (this.drift) this.drift.reset(); this.ap.extra = 0; }   // umgeschaltet (Pause-Menü)
+    this.brachial = brachial;
+    if (brachial && !this.drift) this.drift = new DriftCtl(this.env, brachialProfile(this.env), { high: this.high, seed: this.driftSeed });
+    // (lenkt der Spieler selbst – Übernahme –, gilt das Sauber-Tempo: am Limit fährt nur der Autopilot)
+    this.ap.P = brachial && !this.manual && this.own < 0.5 ? this.drift.P : this.env.prof;
+    // Brachial: Ziel der weichen Rückführung (ap.shift nach Drift/Ausritt) nie außerhalb der Fahrbahn der nächsten Sekunde
+    // (Verengung, Autobahn-Übergang) – sonst fährt das Auto mit dem alten Versatz in die Wand
+    if (brachial && (this.ap.shift || this.ap.extra)) this.clampShift(this.ap.tr.idx);
     const ap = this.ap.control(car);
     const idx = this.ap.tr.idx;
+    let dres = null;
+    if (brachial) dres = this.drift.step(dt, car, this.ap, ap, this.manual || this.own > 0.02, this.tracker.lap);
+    else { ap.hand = 0; this.ap.extra = 0; }
     const stunt = L.loop[idx] || L.tube[idx] || L.air[idx] || this.isJumpZone(idx);
     let steer = input.steer, thr = input.throttle, brk = input.brake;
     this.hud = null;
@@ -263,7 +296,18 @@ export class Race {
         // Rückführung nach freiem Lenken: Autopilot mit voller Kraft (sonst max. 82 %)
         const p = this.back ? 1 : pull;
         // Leicht mit Mitlenk-Modell (LEICHT.lk > 0): Teil-Vorsteuerung + Korridor + Spieler; sonst Zug zur Linie
-        if (A.free && LEICHT.lk > 0 && !this.back) steer = this.leichtSteer(input.steer, idx);
+        if (brachial) {
+          // Band wie beim Mitlenk-Modell (ohne Lenk-Eingriff): Tempo-Abschlag neben der Linie und Übernahme-Regel (freeSteer:
+          // nur wer außerhalb des Bandes weiter wegdrückt, lenkt selbst); im Drift weder Abschlag noch Übernahme
+          if (!this.drift.st) this.corridor(idx, this.ap.lat); else { this.cw = 0; this.ex = 0; }
+          // Lenken gehalten (gleiche Richtung, > 0,5): Wirkung wächst in pushT s auf voll – so kommt der Spieler aus dem Band
+          // und übernimmt; kurze Tipps schieben nur
+          const u = input.steer, sgU = Math.abs(u) > 0.5 ? Math.sign(u) : 0;
+          this.pushT = sgU && sgU === this.pushS ? (this.pushT || 0) + dt : 0; this.pushS = sgU;
+          const q = Math.min(1, (this.pushT || 0) / BRACHIAL_STEER.pushT), nd = this.drift.st ? BRACHIAL_STEER.nudgeDrift : BRACHIAL_STEER.nudge;
+          steer = ap.steer + u * (nd + (1 - nd) * q * q * (3 - 2 * q));
+        }
+        else if (A.free && LEICHT.lk > 0 && !this.back) steer = this.leichtSteer(input.steer, idx);
         else steer = ap.steer * p + steer * (1 - pull) + (pull > 0.5 && !A.stuntPull ? steer * 0.25 : 0);
         if (lane && lane.k > 0) steer = lane.steer * lane.k + steer * (1 - lane.k);
         if (A.free) steer = steer * (1 - this.own) + input.steer * this.own;   // Spieler hat Vorrang
@@ -271,7 +315,7 @@ export class Race {
       steer = Math.max(-1, Math.min(1, steer));
       // Rückführung ohne Ruck: Lenkänderung höchstens 4/s (wie eine ruhige Hand an der Tastatur). Die Glättung endet
       // erst, wenn die Lenkung ihr Ziel erreicht hat – vorher sprang sie beim Ablauf von calmT schlagartig nach (n14)
-      if ((this.calmT > 0 || this.calmLag) && !this.manual) {
+      if ((this.calmT > 0 || this.calmLag) && !this.manual && !(brachial && this.drift.st)) {
         const d = 4 * dt, s2 = Math.max(this.lastInput.steer - d, Math.min(this.lastInput.steer + d, steer));
         this.calmLag = Math.abs(s2 - steer) > 1e-6;
         steer = s2;
@@ -280,7 +324,7 @@ export class Race {
       if (lane && lane.zone) this.hud = { kind: 'lane', text: `${lane.zone.name}${lane.zone.inside ? '' : ' voraus'} – Spurhilfe${lane.k > 0 || !lane.zone.inside ? '' : ' aus'}` };
       // Leicht: außerhalb der toten Zone Tempo raus (wirkt im nächsten Regler-Schritt); sonst unverändert
       // (nicht vor und in Stunts: dort muss das Profil-Tempo stimmen, z. B. das Absprung-Tempo der Schanze)
-      this.ap.assistScale = A.free && LEICHT.lk > 0 && !this.manual && !this.back && !stunt && !zone ? 1 - LEICHT.slow * (this.cw || 0) : 1;
+      this.ap.assistScale = A.free && LEICHT.lk > 0 && !this.manual && (!this.back || brachial) && !stunt && !zone ? 1 - LEICHT.slow * (this.cw || 0) : 1;
       if (A.autoSpeed) {
         thr = ap.throttle; brk = ap.brake;
         // neben der Fahrbahn gemäßigt
@@ -291,6 +335,8 @@ export class Race {
           const over = car.fwdSpeed() - vOff;
           if (over > 0) { thr = 0; brk = Math.max(brk, Math.min(0.6, 0.15 + over * 0.08)); } else thr = Math.min(thr, 0.8);
         }
+        // Brachial: Lenkung am Anschlag ohne Drift (Auto schiebt über die Vorderräder) → Gas weg
+        if (brachial && !this.drift.st && Math.abs(steer) > BRACHIAL_STEER.lift && car.fwdSpeed() > 10) thr = Math.min(thr, BRACHIAL_STEER.liftThr);
         // die Bremse des Spielers geht immer vor
         if (input.brake > 0.05) { thr = 0; brk = Math.max(brk, input.brake); }
       }
@@ -328,6 +374,7 @@ export class Race {
     if (A.thrRamp && !this.autopilotOnly) { this.thrR = thr > (this.thrR || 0) ? Math.min(thr, (this.thrR || 0) + dt / A.thrRamp) : thr; thr = this.thrR; }
     this.lastInput = { steer, throttle: thr, brake: brk };
     car.input.steer = steer; car.input.throttle = thr; car.input.brake = brk; car.input.hold = !!A.autoSpeed && !this.autopilotOnly && input.brake < 0.5;
+    car.input.hand = brachial && input.brake <= 0.05 ? ap.hand : 0;
     car.assist.magnet = this.autopilotOnly ? 0 : A.magnet;
     car.assist.air = this.autopilotOnly ? 0 : A.air;
     car.assist.grip = this.autopilotOnly ? 1 : A.grip || 1;
@@ -336,6 +383,9 @@ export class Race {
     car.assist.drive = this.autopilotOnly ? 1 : A.drive || 1;
     car.assist.vSoft = this.autopilotOnly ? 0 : A.vSoft || 0; car.assist.vTop = this.autopilotOnly ? 0 : A.vTop || 0;   // Mittel n24
     car.assist.esc = this.autopilotOnly ? 0 : A.esc || 0;
+    // Drift-Physik (n25, Brachial): Soll-Schwimmwinkel, Gegenlenk-Einschlag, Heckhaftung, Antriebsverteilung – sonst aus
+    car.assist.drift = dres ? dres.drift : null; car.assist.lock = dres ? dres.lock : 0;
+    car.assist.rearGrip = dres ? dres.rearGrip : 0; car.assist.driveFront = dres ? dres.driveFront : null;
     car.surfaceKind = (L.loop[idx] || L.tube[idx]) ? 1 : 0;
     // Bodenhaftung bei Tempo (n21, car.js) nicht an Schanzen (Anlauf, Lippe, Luft, Landung) und nicht auf den
     // Achterbahn-Wellen (dort ist die kurze Luftphase gewollt)
@@ -466,6 +516,18 @@ export class Race {
     this.jumpSt = null;
   }
 
+  // Brachial (n25): Versatz des Autopiloten-Ziels (shift + extra) auf die engste Stelle der Ideallinien-Grenzen (I.lo/hi,
+  // Sicherheitsabstand enthalten) der nächsten v · 1,2 s + 20 m begrenzen; der Ausritt (extra) darf bis 1,5 m darüber
+  clampShift(idx) {
+    const I = this.env.ideal || this.env.track.line, v = Math.abs(this.car.fwdSpeed());
+    const j1 = this.ap.ahead(idx, v * 1.2 + 20);
+    let lo = -1e9, hi = 1e9;
+    for (let j = idx, c = 0; c < 600; c++) { lo = Math.max(lo, I.lo[j]); hi = Math.min(hi, I.hi[j]); if (j === j1) break; j = j + 1 >= I.n ? (I.closed ? 1 : I.n - 1) : j + 1; }
+    if (lo > hi) lo = hi = (lo + hi) / 2;
+    const ap = this.ap;
+    ap.shift = Math.max(lo, Math.min(hi, ap.shift));
+    if (ap.extra) ap.extra = Math.max(lo - 1.5 - ap.shift, Math.min(hi + 1.5 - ap.shift, ap.extra));
+  }
   // Brems-Rechnung (warn.js) für diese Strecke – auch für die dynamische Ideallinie (lineviz.js)
   brakeWarn() { return this.warn || (this.warn = new BrakeWarn(this.env.ideal || this.env.track.line, this.env.prof)); }
 
@@ -868,6 +930,8 @@ export class Race {
   // nach Versetzen/Rückspulen: Hilfe wieder voll, keine Rückführung, kein laufender Ausflug
   freeReset() {
     this.own = 0; this.manual = false; this.holdT = 0; this.back = null; this.ap.shift = 0; this.shortcut = null; this.calmT = 0; this.anchorDriven = 0; this.calmLag = false;
+    this.ap.extra = 0;
+    if (this.drift) this.drift.reset();
     const t = this.tracker;
     this.onRoad = { prog: t.progress(), idx: t.idx, lap: t.lap, cp: this.cpNext };
   }
@@ -963,6 +1027,14 @@ export class Race {
     const car = this.car;
     if (this.tracker.lap >= 1 && this.cpNext >= this.cps.length) return;   // Zieleinfahrt: lohnt nicht mehr
     if (this.charges.nitro && P.nitro && this.nitroT < 0 && car.onGround >= 2 && this.inRange(idx, P.nitro.i0, P.nitro.i1)) { this.want.nitro = true; this.autoNitro = true; }
+    // Brachial (n25): Nitro schon am Ausgang eines Drifts, wenn die geplante Gerade gleich danach beginnt (bis nitroLead m)
+    else if (this.brachial && this.charges.nitro && P.nitro && this.nitroT < 0 && car.onGround >= 3 && this.drift.endT != null && car.time - this.drift.endT < 0.3) {
+      const L = this.env.track.line;
+      let d = L.s[P.nitro.i0] - L.s[idx]; if (d < 0 && L.closed) d += L.total;
+      let free = d >= 0 && d < BRACHIAL_STEER.nitroLead;
+      for (let j = idx, c = 0; free && j !== P.nitro.i0 && c < L.n; c++) { if (L.air[j] || L.loop[j] || L.tube[j] || this.isJumpZone(j)) free = false; j = j + 1 >= L.n ? (L.closed ? 1 : L.n - 1) : j + 1; }
+      if (free) { this.want.nitro = true; this.autoNitro = true; this.nitroExit = (this.nitroExit || 0) + 1; }
+    }
     if (this.charges.hop && !this.want.hop && P.hops.some((h) => this.inRange(idx, h.i0, h.i1)) && this.hopSafe(idx)) this.want.hop = true;
   }
   inRange(i, a, b) { return a <= b ? i >= a && i <= b : i >= a || i <= b; }
@@ -970,7 +1042,7 @@ export class Race {
   // der Vorwärtslauf in profile.js, gedeckelt vom Brems-Profil vt) –, das ist der Anfang der längsten Geraden.
   // Ausgeschlossen, wenn während der Wirkung ein Sprung, Looping, Korkenzieher oder eine Röhre kommt.
   planExtras() {
-    const L = this.env.track.line, T = this.env.track, P = this.env.prof, n = L.n, def = CAR_DEF;
+    const L = this.env.track.line, T = this.env.track, P = this.ap.P || this.env.prof, n = L.n, def = CAR_DEF;
     const stunt = (i) => L.air[i] || L.loop[i] || L.tube[i] || this.isJumpZone(i);
     // Runde in Fahrtrichtung ab dem Start (nur eine Runde zählt: Gewinn hinter dem Ziel ist nichts wert)
     const ord = [];
@@ -1037,7 +1109,7 @@ export class Race {
   // Landung nirgends langsamer als jetzt nötig (in der Luft kann das Auto nicht bremsen). Das Tempo-Limit der
   // Wellen selbst zählt nicht – über sie fliegt das Auto ja hinweg.
   hopSafe(idx) {
-    const L = this.env.track.line, I = this.env.ideal || L, P = this.env.prof, car = this.car, n = L.n;
+    const L = this.env.track.line, I = this.env.ideal || L, P = this.ap.P || this.env.prof, car = this.car, n = L.n;
     const H = this.xplan.hops.find((h) => this.inRange(idx, h.i0, h.i1));
     if (!H) return false;
     const v = car.fwdSpeed();

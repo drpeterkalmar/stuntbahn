@@ -1,5 +1,6 @@
 // Kino-Replay (n18): fährt Strecken per Fahrhilfe/Autopilot bis ins Ziel, wertet die Aufzeichnung mit dem Moment-Finder
 // aus und zeigt alle Kandidaten + den gebauten Film. Aufruf: node tools/kinoreplay_probe.mjs [--json=datei] [--nur=0,2]
+// --fahrstil=brachial: Leicht-Fahrten mit dem Drift-Autopiloten (n25).
 // Fahrten: flach Irre (Looping/Schanze/Röhre), 3D Irre (Spirale, Klippe, Steilwand, Wellen), Gelände Sportlich
 // (Schlucht, Kuppe, Halfpipe), Sammlung (Korkenzieher …), Beispielstrecke mit Totalschaden.
 import fs from 'fs';
@@ -29,7 +30,7 @@ export function samLayout(k) {
 
 // Fahrt bis ins Ziel: Leicht mit „Extras automatisch“ (Nitro + Hüpfer) bzw. Autopilot auf Mittel
 export function runRace(env, opts = {}) {
-  const race = new Race(env, { assist: opts.assist || 'easy', countdown: 0.05, autoExtras: opts.autoExtras ?? true, autopilot: !!opts.autopilot, wreck: !!opts.wreck });
+  const race = new Race(env, { assist: opts.assist || 'easy', countdown: 0.05, autoExtras: opts.autoExtras ?? true, autopilot: !!opts.autopilot, wreck: !!opts.wreck, fahrstil: opts.fahrstil ?? arg('fahrstil') ?? undefined, seed: opts.seed });
   const lim = Math.max(120, env.track.line.total / 6);
   let t = 0;
   const inp = opts.autopilot ? () => zero : () => zero;

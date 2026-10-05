@@ -75,6 +75,9 @@ export const PHYS = (() => {
 // Schleuderschutz (Mittel ab n23, Car.step): Bezugs-Gierrate aus Lenkwinkel (Einspur-Modell) begrenzt auf lat × Haftung,
 // Totband dead + deadK × Bezug (rad/s), Gegenmoment k × Überschuss (rad/s²) höchstens max
 export const ESC = { lat: 1.0, dead: 0.12, deadK: 0.15, k: 6, max: 4 };
+// Drift-Regler (Leicht „Brachial“, n25, Car.step): Giermoment kp × Winkelfehler − kd × Winkelrate + I-Anteil (ki, bis iMax)
+// (rad/s²), höchstens max
+export const DRIFT = { kp: 80, kd: 12, ki: 200, iMax: 8, max: 20 };
 // Antriebs-Kappe (Mittel n24): 1 bis vSoft, dann (1 − k)² mit k = (v − vSoft)/(vTop − vSoft), 0 ab vTop
 export function driveTaper(v, vSoft, vTop) {
   if (!(vTop > vSoft) || v <= vSoft) return 1;
@@ -240,7 +243,9 @@ export class Car {
     const vF = this.fwdSpeed();
     const sp = this.speed();
     // Lenkung (drehzahl-/tempoabhängiger Einschlag, begrenzte Lenkgeschwindigkeit)
-    const maxSteer = maxSteerAt(d, vF);
+    // Drift-Lenkung (Leicht „Brachial“, n25, assist.lock rad): beim Gegenlenken im Drift mehr Einschlag als die tempo-
+    // abhängige Grenze erlaubt (wie ein Drift-Auto mit großem Lenkwinkel); ohne assist.lock wie bisher
+    const maxSteer = this.assist.lock ? Math.max(maxSteerAt(d, vF), this.assist.lock) : maxSteerAt(d, vF);
     const target = steerIn * maxSteer;
     const ds = d.steerSpeed * dt;
     this.steerAng += Math.max(-ds, Math.min(ds, target - this.steerAng));
@@ -315,13 +320,16 @@ export class Car {
       this._pointVel(hit.x, hit.y, hit.z, vp);
       const vLong = vp.x * wfx + vp.y * wfy + vp.z * wfz;
       const vLat = vp.x * wrx + vp.y * wry + vp.z * wrz;
-      const grip = (GRIP[w.mat] ?? 1) * d.mu * (this.assist.grip || 1);   // Fahrhilfe Mittel: mehr Reifenhaftung (n16)
+      let grip = (GRIP[w.mat] ?? 1) * d.mu * (this.assist.grip || 1);   // Fahrhilfe Mittel: mehr Reifenhaftung (n16)
+      // Drift (Leicht „Brachial“, n25): Hinterräder mit weniger Haftung (assist.rearGrip, wie ein durchdrehendes Heck)
+      if (!w.front && this.assist.rearGrip) grip *= this.assist.rearGrip;
       const fmax = grip * load;
       const slip = vLat / Math.max(Math.abs(vLong), 3.2);
       w.slip = slip;
       let fLat = -fmax * Math.tanh(slip / (d.slip0 * (this.assist.slipK || 1)));
       let fLong = 0;
-      const share = w.front ? d.driveFront / 2 : (1 - d.driveFront) / 2;
+      const dF = this.assist.driveFront ?? d.driveFront;   // Drift (n25): Antrieb hecklastig
+      const share = w.front ? dF / 2 : (1 - dF) / 2;
       const onGrass = WIESE.on && w.mat === MAT.GRASS;
       if (onGrass) { grassN++; gnx += hit.nx; gny += hit.ny; gnz += hit.nz; }
       let fDrive = (onGrass ? driveGrass : drive) * share;
@@ -336,6 +344,9 @@ export class Car {
         const bshare = w.front ? d.brakeFront / 2 : (1 - d.brakeFront) / 2;
         fLong -= brake * d.brake * aero * bshare * Math.max(-1, Math.min(1, vLong / 0.6));
       }
+      // Handbremse (n25, input.hand 0 … 1, nur der Drift-Autopilot): Hinterräder blockieren – Längskraft bis zur Haftung,
+      // der Haftungskreis lässt dann kaum Seitenführung übrig, das Heck bricht aus
+      if (!w.front && inp.hand > 0 && !wrecked) fLong -= inp.hand * fmax * 1.5 * Math.max(-1, Math.min(1, vLong / 0.6));
       const rr = (ROLL[w.mat] ?? 0.02) * load * Math.max(-1, Math.min(1, vLong / 0.4));
       fLong -= rr;
       // Haftungskreis
@@ -427,6 +438,27 @@ export class Car {
         this.escOn = Math.min(1, excess / 0.3);
       }
     }
+    // Drift-Regler (Leicht „Brachial“, n25, assist.drift = Soll-Schwimmwinkel in rad, + = Heck nach rechts / Linksdrift;
+    // null = aus): hält den Winkel zwischen Fahrzeug-Längsachse und Fahrtrichtung über ein Giermoment (PD auf den
+    // Schwimmwinkel, höchstens DRIFT.max rad/s²) – wie ein Drift-Fahrer mit Gas und Gegenlenken, nur verlässlich. Die
+    // Reifen rutschen dabei wirklich (Qualm, Spuren); Lenkung und Gas kommen vom Autopiloten (ai/drift.js). Nicht in
+    // Looping/Röhre, nicht in der Luft, nicht im Wrack.
+    this.driftOn = 0;
+    const dB = this.assist.drift;
+    if (dB != null && contacts >= 3 && !this.surfaceKind && !wrecked && sp > 5) {
+      const vr = this.v.x * F.r.x + this.v.y * F.r.y + this.v.z * F.r.z;
+      const beta = Math.atan2(vr, vF);
+      let bd = this._betaPrev == null ? 0 : beta - this._betaPrev;
+      if (bd > Math.PI) bd -= 2 * Math.PI; else if (bd < -Math.PI) bd += 2 * Math.PI;
+      this._betaD = this._betaPrev == null ? 0 : this._betaD + (bd / dt - this._betaD) * 0.35;
+      this._betaPrev = beta;
+      // I-Anteil gleicht das rückstellende Moment der rutschenden Hinterräder aus (sonst bleibt der Winkel ~3° zu klein)
+      this._betaI = Math.max(-DRIFT.iMax, Math.min(DRIFT.iMax, (this._betaI || 0) + DRIFT.ki * (dB - beta) * dt));
+      const a = Math.max(-DRIFT.max, Math.min(DRIFT.max, DRIFT.kp * (dB - beta) - DRIFT.kd * this._betaD + this._betaI));
+      const m0 = a * d.inertia[1];
+      tx += F.u.x * m0; ty += F.u.y * m0; tz += F.u.z * m0;
+      this.driftOn = 1;
+    } else { this._betaPrev = null; this._betaD = 0; this._betaI = 0; }
     // Magnet-Hilfe (Fahrhilfe "Leicht"/Stunts): drückt auf die Fahrbahn, wenn Räder Kontakt haben
     if (this.assist.magnet > 0 && contacts >= 2) {
       const l = Math.hypot(nAvgX, nAvgY, nAvgZ) || 1;

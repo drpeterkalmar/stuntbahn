@@ -86,10 +86,13 @@ export function genericJumpWindow(L, lip, land) {
 export const PROF = GRIP_ALT
   ? { res: 0.82, resPre: 0.65, preLen: 25, aero: 0.8, nmin: 0.45, nmax: 6.2, brake: 8, vNarrow: 15.5, rollMax: 3.2, crestAero: false, brakeCircle: 0, jumpSafe: 0 }
   : { res: 0.76, resPre: 0.65, preLen: 25, aero: 0.8, nmin: 0.45, nmax: 6.2, brake: 8, vNarrow: 25, rollMax: 3.2, crestAero: true, brakeCircle: 0.7, jumpSafe: 1.5, haft: 0 };
+const PROF_STD = PROF;
 
 export const KUPPE_N = -0.45;
+// opts.prof: abweichende Grenzen/Reserven (Teilmenge von PROF), z. B. Leicht „Brachial“ (ai/drift.js BRACHIAL.prof)
 export function computeProfile(L, opts = {}) {
   const n = L.n;
+  const PROF = opts.prof ? { ...PROF_STD, ...opts.prof } : PROF_STD;
   // Querhaftung = Belag × Reifen (def.mu) × Reserve PROF.res (bis 27.09.2026 Reifen fest 1,0)
   const muBase = opts.mu ?? 1.25 * (opts.def ?? CAR_DEF).mu * PROF.res;
   const muAt = (i) => (L.grip ? L.grip[i] * (opts.def ?? CAR_DEF).mu * PROF.res : muBase);
@@ -221,8 +224,10 @@ export function computeProfile(L, opts = {}) {
     for (let i = li; i >= 0 && L.s[li] - L.s[i] < runup; i--) { vmax[i] = Math.min(vmax[i], vAim + 0.6); vmin[i] = Math.max(vmin[i], w.vmin + 0.6); if (D) dl('schanze')[i] = vAim + 0.6; }
     for (let i = li + 1; i < n && L.air[i]; i++) { vmax[i] = Math.max(vAim + 0.6, 10); vmin[i] = 0; if (D) dl('luft')[i] = vmax[i]; }
   }
+  // Tempo-Deckel von außen (opts.vcap, m/s je Punkt): Leicht „Brachial“ fährt Drift-Kurven etwas langsamer (ai/drift.js)
+  if (opts.vcap) for (let i = 0; i < n; i++) if (opts.vcap[i] > 0 && !L.air[i]) vmax[i] = Math.max(vmin[i], Math.min(vmax[i], opts.vcap[i]));
   const aBrake = opts.abrake ?? PROF.brake * def.mu;   // Grundwert wächst mit der Reifenhaftung (alt: mu 1 → 8)
-  const { vt, vf, infeasible } = speedPasses(L, vmax, vmin, { kA, kC, def, dAero, aBrake, startIdx: opts.startIdx ?? 0, v0: opts.v0 ?? 0 });
+  const { vt, vf, infeasible } = speedPasses(L, vmax, vmin, { kA, kC, def, dAero, aBrake, startIdx: opts.startIdx ?? 0, v0: opts.v0 ?? 0, brakeCircle: PROF.brakeCircle });
   return { vmax, vmin, vt, vf, kA, kC, jump: jw, windows, infeasible, ...(D ? { diag: { ...D, vTop, aBrake, dAero, def } } : {}) };
 }
 
@@ -230,6 +235,7 @@ export function computeProfile(L, opts = {}) {
 // ctx: { kA, kC, def, dAero, aBrake, startIdx, v0 } → { vt, vf, infeasible }
 export function speedPasses(L, vmax, vmin, ctx) {
   const n = L.n, closed = L.closed, { kA, kC, def, dAero, aBrake } = ctx;
+  const brakeCircle = ctx.brakeCircle ?? PROF.brakeCircle;
   const idx = (i) => closed ? ((i % n) + n) % n : Math.max(0, Math.min(n - 1, i));
   // Bremsplan aus dem Haftungskreis (PROF.brakeCircle, n14): Reibung = Belag·mu·Anpressdruck (Schwerkraft quer zur
   // Fahrbahn + Kuppe/Senke + Abtrieb), davon braucht die Kurve den Querteil |A·v² + g_quer|; der Rest steht zum Bremsen
@@ -242,7 +248,7 @@ export function speedPasses(L, vmax, vmin, ctx) {
     const N = Math.max(0, G * L.ny[i] + x * (kC[i] + dAero));
     const lat = Math.abs(x * kA[i] + G * L.by[i]);
     const lon = Math.min(Math.sqrt(Math.max(0, muF * muF * N * N - lat * lat)), def.brake * aeroLoad(def, v) / def.mass);
-    return Math.max(0.5, PROF.brakeCircle * lon + def.dragK * x / def.mass + 0.015 * G + G * L.ty[i]);
+    return Math.max(0.5, brakeCircle * lon + def.dragK * x / def.mass + 0.015 * G + G * L.ty[i]);
   };
   // Rückwärtslauf (Bremsen). Verzögerung wächst mit dem Tempo (Abtrieb + Luftwiderstand, car.js brakeDecel);
   // bis 27.09.2026 fest 8 m/s² (≈ 58 % der gemessenen Vollbremsung, Reserve für den Regler).
@@ -256,7 +262,7 @@ export function speedPasses(L, vmax, vmin, ctx) {
       // Bremsverzögerung je Belag (Eis/Schotter bremsen schlechter; Asphalt = aBrake)
       const ab0 = L.grip ? Math.min(aBrake, aBrake * L.grip[i] / 1.25) : aBrake;
       // am (langsameren) Ende des Schritts → vorsichtig; mit PROF.brakeCircle aus dem Haftungskreis
-      const ab = PROF.brakeCircle > 0 ? planBrake(i, vt[j]) : brakeDecel(def, vt[j], ab0);
+      const ab = brakeCircle > 0 ? planBrake(i, vt[j]) : brakeDecel(def, vt[j], ab0);
       const lim = Math.sqrt(vt[j] * vt[j] + 2 * ab * ds);
       if (vt[i] > lim) vt[i] = lim;
     }

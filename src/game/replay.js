@@ -4,6 +4,7 @@ import { REC_HZ, REC_STRIDE } from './race.js';
 import { gearTrack, displayGear } from '../gfx/gauges.js';
 import { nitroLevel } from '../physics/extras.js';
 import { gTrack } from '../core/gforce.js';
+import { driftTrack } from './highlights.js';
 
 export class Replay {
   constructor(rec, env, marks = {}) {
@@ -29,6 +30,8 @@ export class Replay {
     this.gPeak = new Float32Array(this.frames);
     for (let i = 0, p = 0; i < this.frames; i++) { p = Math.max(p, this.G.now[i]); this.gPeak[i] = p; }
     this.gS = { lon: 0, lat: 0, vert: 0, g: 0, peak: 0 };
+    // Schwimmwinkel je Bild (n25): Reifenqualm und -quietschen im Replay/Kino-Replay
+    this.beta = driftTrack(this.rec, [...this.cutF]);
     this.P = { pos: { x: 0, y: 0, z: 0 }, q: { x: 0, y: 0, z: 0, w: 1 }, frame: { f: { x: 0, y: 0, z: -1 }, u: { x: 0, y: 1, z: 0 }, r: { x: 1, y: 0, z: 0 } } };
   }
   advance(dt) {
@@ -80,6 +83,14 @@ export class Replay {
     return S;
   }
   speed() { const [i] = this._i(); return this.rec[i * REC_STRIDE + 14]; }
+  slip() { const [i] = this._i(); return this.beta[i]; }
+  // Geschwindigkeit (m/s, Welt) aus den Nachbarbildern – Drift-Kamera (n25)
+  vel(out = this._vel || (this._vel = { x: 0, y: 0, z: 0 })) {
+    const [i] = this._i(), r = this.rec, a = Math.max(0, i - 1) * REC_STRIDE, b = Math.min(this.frames - 1, i + 1) * REC_STRIDE, k = REC_HZ / Math.max(1, (b - a) / REC_STRIDE);
+    if (this.cutF.has(i) || this.cutF.has(i + 1)) { out.x = out.y = out.z = 0; return out; }
+    out.x = (r[b] - r[a]) * k; out.y = (r[b + 1] - r[a + 1]) * k; out.z = (r[b + 2] - r[a + 2]) * k;
+    return out;
+  }
   rpm() { const [i] = this._i(); return this.rec[i * REC_STRIDE + 15]; }
   gear() { const [i] = this._i(); return displayGear(this.rec[i * REC_STRIDE + 14], this.gears[i] || 1); }
 }

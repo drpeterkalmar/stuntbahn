@@ -212,7 +212,9 @@ export class CarFX {
       this.skids.add(k, this.p, this.n, this.side, s * Math.min(1, sp / 6));
       if (emit && onRoad && s > 0.5 && sp > 8) {
         // Reifenrauch: Kino dichter, größer, steigt und treibt hinter dem Auto her
-        if (this.rich) this.parts.spawn(this.p.setY(this.p.y + 0.4), this.v.set(car.v.x * 0.18 + (Math.random() - 0.5), 0.5 + Math.random() * 0.6, car.v.z * 0.18 + (Math.random() - 0.5)), 0.8, 4.2, 1.7, 0xc4c4c2, 0.3 + 0.15 * Math.min(1, s - 0.5));
+        // n25: quer rutschend (Drift, Rutschwinkel > ~25°) dichter und größer
+        const big = Math.max(0, Math.min(1, (slip - 0.45) / 0.35));
+        if (this.rich) this.parts.spawn(this.p.setY(this.p.y + 0.4), this.v.set(car.v.x * 0.18 + (Math.random() - 0.5), 0.5 + Math.random() * 0.6, car.v.z * 0.18 + (Math.random() - 0.5)), 0.8 + 0.4 * big, 4.2 + 2.2 * big, 1.7 + 0.5 * big, 0xc4c4c2, 0.3 + 0.15 * Math.min(1, s - 0.5) + 0.2 * big);
         else this.parts.spawn(this.p, this.v.set(0, 0.6, 0), 0.6, 2.6, 1.2, 0xd8d8d8, 0.35);
       }
       if (emit && !onRoad && sp > 5 && k >= 2) {
@@ -251,6 +253,24 @@ export class CarFX {
       for (let i = 0; i < 6; i++) this.parts.spawn(this.p.set(car.pos.x, car.pos.y, car.pos.z), this.v.set((Math.random() - 0.5) * 6, Math.random() * 4, (Math.random() - 0.5) * 6), 0.18, 0.1, 0.35, 0xffc060, 1);
     }
     car.lastImpact = 0;
+  }
+  // Replay/Kino-Replay (n25): Reifenqualm an den Hinterrädern aus dem aufgezeichneten Schwimmwinkel (beta rad, wie im Rennen
+  // ab ~19° Rutschen der Hinterräder), dt = vergangene Aufzeichnungszeit; pose = Replay-Lage, sp = Tempo m/s
+  replayStep(dt, pose, beta, sp) {
+    if (dt <= 0 || pose.air) return;
+    this.acc += dt;
+    if (this.acc < 0.035) return;
+    this.acc = 0;
+    const s = Math.max(0, Math.min(1, (Math.tan(Math.min(1.3, Math.abs(beta))) - 0.18) * 3));
+    if (s <= 0.5 || Math.abs(sp) < 8) return;
+    const F = pose.frame;
+    for (const sx of [-0.88, 0.88]) {
+      this.p.set(pose.pos.x + F.r.x * sx - F.f.x * 1.36 - F.u.x * 0.4, pose.pos.y + F.r.y * sx - F.f.y * 1.36 - F.u.y * 0.4 + 0.4, pose.pos.z + F.r.z * sx - F.f.z * 1.36 - F.u.z * 0.4);
+      const vx = F.f.x * sp, vz = F.f.z * sp;
+      const big = Math.max(0, Math.min(1, (Math.tan(Math.min(1.3, Math.abs(beta))) - 0.45) / 0.35));
+      if (this.rich) this.parts.spawn(this.p, this.v.set(vx * 0.18 + (Math.random() - 0.5), 0.5 + Math.random() * 0.6, vz * 0.18 + (Math.random() - 0.5)), 0.8 + 0.4 * big, 4.2 + 2.2 * big, 1.7 + 0.5 * big, 0xc4c4c2, 0.3 + 0.15 * Math.min(1, s - 0.5) + 0.2 * big);
+      else this.parts.spawn(this.p, this.v.set(0, 0.6, 0), 0.6, 2.6, 1.2, 0xd8d8d8, 0.35);
+    }
   }
   // pro Frame: Partikel bewegen
   update(dt, camera) {
