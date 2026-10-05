@@ -47,7 +47,9 @@ with Server() as srv, sync_playwright() as pw:
     blocked, frames, pulled, enclosed = 0, 0, 0, 0
     for k in range(260):
         st = s.ev("__game.sim(0.5)")
-        s.frames(2)
+        # nach 0,5 s Vorspulen ohne Bild gleitet die Kamera erst nach – wie im Spiel (jedes Bild) ein paar Bilder abwarten
+        # (mit 2 Bildern stand sie an einer Steilrampe noch hinter der Fahrbahn, auch bis n25)
+        s.frames(8)
         r = s.ev("""(() => { const g = __game, c = g.camera.position, p = g.race.car.pos, u = g.rig.up, w = g.env.world;
           const o = [p.x + u.x * 1.2, p.y + u.y * 1.2, p.z + u.z * 1.2]; const d = [c.x - o[0], c.y - o[1], c.z - o[2]]; const L = Math.hypot(...d);
           if (L < 0.5) return [0, g.rig.occK || 0]; const h = w.rayTrack(o[0], o[1], o[2], d[0] / L, d[1] / L, d[2] / L, L, false);

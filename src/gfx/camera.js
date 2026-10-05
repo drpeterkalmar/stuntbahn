@@ -102,7 +102,9 @@ export class CameraRig {
       if (!want) continue;
       lastS = L.s[i];
       const side = (out.length % 2) ? 1 : -1;
-      const p = new THREE.Vector3(L.px[i] + L.bx[i] * side * off, Math.max(L.py[i], 0) + 5.5, L.pz[i] + L.bz[i] * side * off);
+      // n26: an großen Loopings/Röhren (Stunt-Maßstab k) weiter weg und höher – sonst passt der 23-m-Looping nicht ins Bild
+      const big = (L.loop[i] || L.tube[i]) ? Math.max(0, (track.stuntScale ?? 1) - 1) : 0, offI = off + 12 * big, hI = 5.5 + 6 * big;
+      const p = new THREE.Vector3(L.px[i] + L.bx[i] * side * offI, Math.max(L.py[i], 0) + hI, L.pz[i] + L.bz[i] * side * offI);
       out.push({ p, s: L.s[i], i });
     }
     this.trackCams = out;

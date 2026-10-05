@@ -69,6 +69,21 @@ spielbar am Handy (quer oder hochkant), mit Gamepad oder Tastatur. Als App insta
   Abstand zu jeder Fahrbahn (auch Hochstraßen/Rampen), nie im Wasser. Dosiert nach Grafikstufe; ruckelt es, blendet die
   Automatik (nach der Unschärfe) zuerst Gras/Büsche/Wolkenschatten aus. `?deko=0` / `?wolken=0` zum Vergleich.
 
+## 🌀 Größere Stunts, passend zur großen Welt (seit 05.10.2026, n26)
+- Peter: „Und die Stunteinlagen ebenfalls vergrößern, passend zu den Strecken.“ Die Bauwerke hatten seit der doppelt so
+  großen Welt und der breiteren Fahrbahn (n23) ihr altes Maß – jetzt wachsen sie mit (Stunt-Maßstab **1,6**).
+- **Looping** 14,5 → **23 m** hoch, Spur 4,5 → **7,2 m** (kein Engpass mehr), **Röhre** 7 → **11 m** hoch und breiter als
+  die Straße, **Korkenzieher** 7 → **11,5 m**, **Schanze** höher (Lippe 2,1 m, Landerampe 4 m, Scheitel ~7,7 m über Grund,
+  Flug 2,75 statt 2,3 s, Fenster 122–144 km/h), **Steilwand** 18,6 m, **Halfpipe** Kante 6,4 m, **Schlucht** 28,6 m tief,
+  Wellen, Bodenwellen und Kuppe etwas kräftiger. Stützen, Bügel, Banden, Portale wachsen mit. Alles bleibt in seinen
+  Feldern – Strecken-Codes und Layouts unverändert.
+- **Nicht schwerer:** Leicht weiter ohne Crash, Mittel crasht 15 % seltener (breitere Spuren), Original gleich. Mittel:
+  Sprung-Hilfe kräftiger, kein „Bremsen!“ mehr im Looping. Klippe und importierte Strecken (.TRK, Sammlung) behalten
+  bewusst ihr altes Maß (gemessen, Details im Bericht).
+- **Bestzeiten der Zufallsstrecken einmalig neu** (Hinweis im Menü); Sammlung und .TRK behalten ihre Zeiten.
+  `?stunt=1` = Stunts wie bis n25 (A/B, wertet nicht).
+- Details, Messwerte, Fotos vorher/nachher: `STUNTGROESSE_BERICHT.md`. Handy: App einmal ganz schließen und neu öffnen.
+
 ## 🔥 Autopilot auf Leicht brachial: Driften und Schleudern (seit 05.10.2026, n25)
 - Peter: „Kannst du den Autopilot auf Leicht etwas brachialer fahren lassen? Mit Driften und Schleudern so häufig wie
   möglich am oberen Grenzbereich des Machbaren?“
@@ -321,6 +336,13 @@ node tests/node/test_drift.mjs            # n25: Fahrstil-Option, wo Brachial wi
 node tools/drift_mess.mjs --seed=0        # n25: Leicht Sauber/Brachial auf 42 Strecken – Driftanteil, Drifts/Runde, Crashs, Rundenzeit, Schanzen (--set=spinP:1 …, --json, --sum)
 python3 tests/drift_shots.py quer         # n25: Option, Drift-Fotoserien im Verfolger, Beinahe-Dreher, Cockpit, Kino-Replay (quer|hoch) → tests/shots/drift/
 python3 tests/perf_drift.py 3 12          # n25: Bildrate Sauber gegen Brachial (Qualm-Partikel)
+node tests/node/test_stuntgroesse.mjs     # n26: Stunt-Maße, Fenster erreichbar, keine Überlappung, Importe alt, Bestzeiten, ?stunt=1 = n25 bitgleich
+node tools/stunt_masse.mjs                # n26: Maße + Tempo je Stunt (STUNT_STUNT=1 = bis n25; --json, --cmp=alt.json,neu.json)
+node tools/stunt_check.mjs                # n26: Überlappung aller Stunt-Bauwerke (Feld, Lichtraum, Deko, Gelände) auf 613 Strecken
+node tools/stunt_mess.mjs --seeds=1,2     # n26: Erfolgsquote je Stunt (Leicht Sauber/Brachial, Mittel-Handy, Original-Bot) auf 80 Strecken (--root=alter Stand, --sum=a.json,b.json)
+node tools/stunt_quote.mjs 100            # n26: Prüffahrt flach/3D/Gelände je Stufe (ohne/mit Entschärfen)
+python3 tests/stuntgroesse_shots.py quer  # n26: Fotos je Stunt (Verfolger + Fern; [Wurzel] [Name]) → tests/shots/stuntgroesse/, Collagen: python3 tools/stunt_collage.py
+python3 tests/perf_stunt.py <vorher>      # n26: Bildzeit an den Bauwerken + Bildrate, vorher/nachher
 node tests/node/test_gkraft.mjs           # n24: Show-Tacho (Monotonie, Fixpunkte, ab 250 echt) + G-Kräfte (Band, live = Replay, Untertitel)
 node tools/gkraft_mess.mjs                # n24: G je Situation (Kurve, Looping, Landung, Flug, Stand); STUNT_G=echt ohne Show-Faktor
 python3 tests/gkraft_shots.py quer        # n24: Fotos Cockpit Kurve/Landung, HUD, Replay, Kino-Replay mit G (quer|hoch|desktop)
@@ -388,6 +410,7 @@ Cockpit: `?eye=0.45` (Augenhöhe in m über dem Auto-Ursprung), `?hz=0.32` (Hori
 `?m=n16` (Mittel wie bis 02.10.2026, n16–n22: Spieltempo 1,25, ohne Traktionskontrolle/Schleuderschutz/Touch-Rampe, alter Hinweis – wertet nicht), `?breit=alt` (Fahrbahn so schmal wie bis n22: halbe Breite 5,6 statt 7,3 m – wertet nicht), `?dynlinie=0` (Ideallinie nur mit den festen Plan-Farben), `?mgrip=1` (Mittel wie bis 29.09.2026: Zug zur Ideallinie, weniger Haftung – A/B-Vergleich; wertet nicht). Messung: `MITTEL_BERICHT.md`.
 `?lk=0…1` (Leicht: Anteil der Kurve, den der Spieler selbst lenkt, Standard 0.8; `?lk=0` = alte Schienen) und
 `?lkband=3.5` (Leicht: Band um die Linie in m, in dem die Hilfe nicht zur Linie zieht – größer = mehr Treiben bei „Hände weg“).
+`?stunt=1` (Stunt-Bauwerke wie bis n25, A/B, wertet nicht; erlaubt 1 … 2, Standard 1,6; in Node `STUNT_STUNT=1`).
 `?welt=1` (alter, kleiner Weltmaßstab bis 27.09.2026 zum A/B-Vergleich, Standard 2 = Felder 40 statt 20 m;
 erlaubt 1 … 2,5; andere Welt als 2 wertet nicht). In Node: `STUNT_WELT=1 node …`.
 
