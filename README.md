@@ -69,6 +69,23 @@ spielbar am Handy (quer oder hochkant), mit Gamepad oder Tastatur. Als App insta
   Abstand zu jeder Fahrbahn (auch Hochstraßen/Rampen), nie im Wasser. Dosiert nach Grafikstufe; ruckelt es, blendet die
   Automatik (nach der Unschärfe) zuerst Gras/Büsche/Wolkenschatten aus. `?deko=0` / `?wolken=0` zum Vergleich.
 
+## 🔥 Autopilot auf Leicht brachial: Driften und Schleudern (seit 05.10.2026, n25)
+- Peter: „Kannst du den Autopilot auf Leicht etwas brachialer fahren lassen? Mit Driften und Schleudern so häufig wie
+  möglich am oberen Grenzbereich des Machbaren?“
+- **Neue Option „Autopilot-Fahrstil“** (Optionen, Pause-Menü auf Leicht): **🔥 Brachial** (Standard) / **🧼 Sauber** (wie
+  bisher). `?fahrstil=sauber|brachial` gilt vorrangig.
+- **Brachial:** Tempo am Limit (96 statt 76 % der Querhaftung, später bremsen), **Drifts quer durch die Kurven** (18–34°,
+  Qualm, Gummispuren, Gegenlenken), ab und zu ein **Beinahe-Dreher** (~65°, eingefangen), **Ausritt mit zwei Rädern ins
+  Gras**, Wackeln nach Landungen, Nitro am Kurvenausgang. Der Autopilot lenkt dabei selbst; Tippen schiebt mit, gehaltenes
+  Wegdrücken übernimmt (dann Sauber-Tempo). Loopings, Röhren, Schanzen, Steilkurven, Wellen, Engstellen und Hochstraßen
+  ohne Bande fährt er sauber.
+- **Gemessen** (42 Strecken × 5 Seeds): alle im Ziel, **0 Crashs**, Drift in 29 % der Kurvenzeit (vorher 0,1 %),
+  6,4 Drifts je Runde, Runden 11,6 % schneller als Sauber.
+- Replay/Kino-Replay mit Qualm und Quietschen, **Drift-Kamera** (Verfolger folgt teils der Fahrtrichtung), neue
+  Highlights „🔥 Längster/Stärkster Drift“ und „🌪️ Beinahe-Dreher“.
+- Mittel, Original, Prüffahrt und Leicht-Sauber Bit für Bit unverändert. Details, Messwerte, Fotos: `DRIFT_BERICHT.md`.
+  Handy: App einmal ganz schließen und neu öffnen.
+
 ## 🟡 Mittel kontrollierbar, Sprünge nicht zu weit, Schanze sauber (seit 05.10.2026, n24 Etappe 2)
 - Peter: „Sprünge gehen zu weit und Auto ist unkontrollierbar schnell. Idee: weniger schnell beschleunigen. Textur der
   Sprungschanze sieht ungustiös aus.“
@@ -201,7 +218,7 @@ spielbar am Handy (quer oder hochkant), mit Gamepad oder Tastatur. Als App insta
 ## Fahrhilfen
 | Stufe | Was hilft |
 |---|---|
-| 🟢 **Leicht** | Gas automatisch (Bremse des Spielers geht vor). **Mitlenken statt Schienen** (seit 29.09.2026): Die Hilfe hält das Auto auf der Fahrbahn und lenkt einen Teil jeder Kurve; die Ideallinie trifft man mit etwas Mitlenken, ohne Lenken driftet das Auto nach außen und wird langsamer (`?lk=0` = alte Schienen, `?lk=0.5` weniger mitlenken). Wer deutlich über den Rand hinaus drückt, hat Vorrang – auch quer durchs Gelände, Loslassen führt weich zurück. Loopings, Röhren, Korkenzieher und Sprünge lenkt das Auto selbst (mit Ansage im HUD), Engstellen und Steilkurven hält es eng auf der Linie. Handy: linke/rechte Bildschirmhälfte halten (oder Neigen). |
+| 🟢 **Leicht** | **Autopilot-Fahrstil (seit 05.10.2026, n25):** Standard **🔥 Brachial** – der Autopilot fährt am Limit, driftet durch die Kurven und lenkt selbst; Tippen schiebt mit, gehaltenes Wegdrücken übernimmt (`DRIFT_BERICHT.md`). **🧼 Sauber** = das Folgende. Gas automatisch (Bremse des Spielers geht vor). **Mitlenken statt Schienen** (seit 29.09.2026): Die Hilfe hält das Auto auf der Fahrbahn und lenkt einen Teil jeder Kurve; die Ideallinie trifft man mit etwas Mitlenken, ohne Lenken driftet das Auto nach außen und wird langsamer (`?lk=0` = alte Schienen, `?lk=0.5` weniger mitlenken). Wer deutlich über den Rand hinaus drückt, hat Vorrang – auch quer durchs Gelände, Loslassen führt weich zurück. Loopings, Röhren, Korkenzieher und Sprünge lenkt das Auto selbst (mit Ansage im HUD), Engstellen und Steilkurven hält es eng auf der Linie. Handy: linke/rechte Bildschirmhälfte halten (oder Neigen). |
 | 🟡 **Mittel** | Du lenkst und bremst selbst. **Seit 05.10.2026 (n24):** sanftere Beschleunigung (0–100 in 3,1 s, Höchsttempo ~264 km/h, Gas-Rampe 0,45 s), Sprung-Hilfe in der Luft bis an den Rand der Landerampe, Schanzen-Hinweis mit Absprung-Tempo (`MITTEL3_BERICHT.md`, `?m=n23` = wie bisher). **Seit 03.10.2026 (n23):** Echtzeit (Spieltempo 1,0 statt 1,25 – die Tacho-Zahl ist das Tempo, das du siehst; Beschleunigung in echten Sekunden wie bisher), Traktionskontrolle, Schleuderschutz (ESP über die Drehrate, kein Zug zur Linie), Haftung ×1,3 (Kurvengrenztempo +30 % gegen Original), Touch-Pfeile mit Lenk-Rampe (tippen = kleine Korrektur), „Bremsen!“ tempoabhängig früher, Kamera schaut bei Tempo weiter voraus. **Dynamische Ideallinie:** das Stück vor dem Auto färbt sich nach deinem Tempo (grün/gelb/orange/rot, dieselbe Rechnung wie „Bremsen!“). Optionen → „Bremshilfe“ Aus / **Hinweis** / Sanft. Kein Zug zur Ideallinie (n16); Spurhilfe im Looping/in der Röhre, Rückspul-Knopf. Messung: `MITTEL2_BERICHT.md`. |
 | 🔴 **Original** | Keine Hilfen – so tricky wie damals. |
 
@@ -300,6 +317,10 @@ node tools/sprung_probe.mjs --seeds=7,8,9,10,11   # n24: Lippen-Tempo und Landun
 python3 tests/mittel3_shots.py quer       # n24: Mittel im Browser – Tempo nach 3 s, Schanzen-Hinweis, Sprung, ?m=n23 (quer|hoch)
 python3 tests/schanze_shots.py quer . nachher   # n24: Schanze je Grafikstufe + Belagfarbe neutral (Wurzel/Name für Vorher-Fotos)
 node tools/build_deck.mjs && node tools/build_ktx2.mjs metal   # n24: Schanzen-Belag aus dem CC0-Riffelblech neu bauen
+node tests/node/test_drift.mjs            # n25: Fahrstil-Option, wo Brachial wirkt, Übernahme, Drift-Stellen, Drift-Regler, Regression (fester Seed, 8 Strecken), Kino-Replay-Drifts
+node tools/drift_mess.mjs --seed=0        # n25: Leicht Sauber/Brachial auf 42 Strecken – Driftanteil, Drifts/Runde, Crashs, Rundenzeit, Schanzen (--set=spinP:1 …, --json, --sum)
+python3 tests/drift_shots.py quer         # n25: Option, Drift-Fotoserien im Verfolger, Beinahe-Dreher, Cockpit, Kino-Replay (quer|hoch) → tests/shots/drift/
+python3 tests/perf_drift.py 3 12          # n25: Bildrate Sauber gegen Brachial (Qualm-Partikel)
 node tests/node/test_gkraft.mjs           # n24: Show-Tacho (Monotonie, Fixpunkte, ab 250 echt) + G-Kräfte (Band, live = Replay, Untertitel)
 node tools/gkraft_mess.mjs                # n24: G je Situation (Kurve, Looping, Landung, Flug, Stand); STUNT_G=echt ohne Show-Faktor
 python3 tests/gkraft_shots.py quer        # n24: Fotos Cockpit Kurve/Landung, HUD, Replay, Kino-Replay mit G (quer|hoch|desktop)
