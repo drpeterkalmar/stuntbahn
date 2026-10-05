@@ -174,7 +174,7 @@ export class Cockpit {
       // Kotflügel: flach angeschaut spiegelt voller Klarlack nur den Himmel (wirkt lila) → matter als außen
       paint: new THREE.MeshPhysicalMaterial({ color: 0xa3120e, metalness: 0.2, roughness: 0.42, clearcoat: 0.35, clearcoatRoughness: 0.2 }),
       leather: T.leather, alcantara: T.alcantara, carbon: T.carbon, alu: T.brushed,
-      accent: new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, roughness: 0.5, metalness: 0, emissive: 0x6a2a08 }),
+      accent: new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, roughness: 0.5, metalness: 0, emissive: 0x140802 }),
       needle: new THREE.MeshBasicMaterial({ color: 0xffffff, vertexColors: true }),
       knob: new THREE.MeshStandardMaterial({ color: 0xb01a12, roughness: 0.22, metalness: 0.1, emissive: 0x3a0503 }),
       // Instrumenten-Glas: spiegelt die Umgebung (Himmel, Sonne) – Glanzlicht über den Zifferblättern
@@ -280,7 +280,7 @@ export class Cockpit {
     const acc_push = (c, e, n) => stitches.push(quad(c.clone().sub(e).sub(n), c.clone().add(e).sub(n), c.clone().add(e).add(n), c.clone().sub(e).add(n)));
     stitch(xs.map((x) => P(x, yDx(x) + 0.004 * U, DF - 0.012)));
     stitch(face1.map((p) => p.clone()), 0.018, 0.011, 0.0038, 0.005);
-    for (const g of stitches) acc.push(tint(g, [0.95, 0.42, 0.08]));
+    for (const g of stitches) acc.push(tint(g, [1.7, 0.75, 0.16]));
     // ---------- Instrumenten-Hutze (Leder) mit Lippe, Naht und Drehzahl-LEDs ----------
     this.leds = null;
     if (gd) {
@@ -298,7 +298,7 @@ export class Cockpit {
       const lipA = front.map((p) => new THREE.Vector3(p.x * 0.99, p.y - 0.003, p.z + 0.008)), lipB = front.map((p) => new THREE.Vector3(p.x * 0.975, p.y - 0.012, p.z + 0.01));
       leather.push(pot(sheet([front, lipA, lipB], 0.12)));
       stitch(mid, 0.016, 0.01, 0.0034, 0.004);
-      for (const g of stitches.splice(0)) acc.push(tint(g, [0.95, 0.42, 0.08]));
+      for (const g of stitches.splice(0)) acc.push(tint(g, [1.7, 0.75, 0.16]));
       // Drehzahl-LEDs auf der Lippe (Schaltblitze): 12 Stück, grün → gelb → rot → blau, Farben je Bild (update)
       const n = 12, led = [];
       for (let k = 0; k < n; k++) {
@@ -491,7 +491,7 @@ export class Cockpit {
       const rim = new THREE.TorusGeometry(R, r, 14, 120); rim.scale(1, 1, 0.85); wl.push(pot(rim, 1));
       for (const a of [40 * DEG, 140 * DEG]) { const g2 = new THREE.TorusGeometry(R, r * 1.22, 12, 24, 36 * DEG); g2.rotateZ(a - 18 * DEG); wl.push(pot(g2, 1)); }
       // Ziernaht innen und außen am Kranz (orange)
-      for (const k of [-1, 1]) { const st = new THREE.TorusGeometry(R + k * r * 0.86, r * 0.09, 4, 120); wa.push(tint(st, [0.95, 0.42, 0.08])); }
+      for (const k of [-1, 1]) { const st = new THREE.TorusGeometry(R + k * r * 0.86, r * 0.09, 4, 120); wa.push(tint(st, [1.5, 0.66, 0.14])); }
       // 12-Uhr-Marke
       const mk = new THREE.TorusGeometry(R, r * 1.08, 10, 8, 7 * DEG); mk.rotateZ(90 * DEG - 3.5 * DEG); wa.push(tint(mk, [0.95, 0.66, 0.0]));
       // Speichen (Carbon, leicht hängend) bei 3, 9 und 6 Uhr
@@ -502,11 +502,12 @@ export class Cockpit {
       // Nabe (Leder) mit Prallplatte (Carbon), Logo-Ring (orange)
       const hub = new THREE.CylinderGeometry(R * 0.24, R * 0.27, r * 2.4, 32); hub.rotateX(Math.PI / 2); wl.push(pot(hub, 1));
       const plt = new THREE.CylinderGeometry(R * 0.2, R * 0.2, r * 0.4, 32); plt.rotateX(Math.PI / 2); plt.translate(0, 0, r * 1.3); wc.push(pot(plt, 6));
-      const logo = new THREE.TorusGeometry(R * 0.11, R * 0.012, 6, 32); logo.translate(0, 0, r * 1.55); wa.push(tint(logo, [0.95, 0.42, 0.08]));
+      const logo = new THREE.TorusGeometry(R * 0.11, R * 0.012, 6, 32); logo.translate(0, 0, r * 1.55); wa.push(tint(logo, [0.35, 0.2, 0.08]));
       // Tasten auf den Speichen (rot, gelb, blau, weiß) und Drehschalter
       const btn = [[0.42, 0.06, [0.85, 0.1, 0.08]], [0.52, 0.06, [0.95, 0.75, 0.1]], [0.42, -0.07, [0.15, 0.4, 0.95]], [-0.42, 0.06, [0.9, 0.9, 0.9]], [-0.52, 0.06, [0.85, 0.1, 0.08]], [-0.42, -0.07, [0.2, 0.75, 0.3]]];
-      for (const [x, y, col] of btn) { const b = new THREE.CylinderGeometry(R * 0.035, R * 0.035, r * 0.5, 14); b.rotateX(Math.PI / 2); b.translate(R * x, R * y, r * 0.35); wa.push(tint(b, col)); }
-      for (const sg of [-1, 1]) { const d = new THREE.CylinderGeometry(R * 0.05, R * 0.05, r * 0.6, 16); d.rotateX(Math.PI / 2); d.translate(sg * R * 0.33, -R * 0.2, r * 0.4); wa.push(tint(d, [0.6, 0.62, 0.66])); }
+      // (fast schwarz mit Farbhauch: hochkant liegt die Nabe zwischen den Touch-Tasten – nichts soll dort wie ein Bedienknopf wirken)
+      for (const [x, y, col] of btn) { const b = new THREE.CylinderGeometry(R * 0.03, R * 0.03, r * 0.45, 14); b.rotateX(Math.PI / 2); b.translate(R * x, R * y, r * 0.35); wa.push(tint(b, col.map((c) => 0.1 + c * 0.08))); }
+      for (const sg of [-1, 1]) { const d = new THREE.CylinderGeometry(R * 0.05, R * 0.05, r * 0.6, 16); d.rotateX(Math.PI / 2); d.translate(sg * R * 0.33, -R * 0.2, r * 0.4); wa.push(tint(d, [0.3, 0.31, 0.33])); }
       // Schaltwippen (Carbon) hinter dem Kranz bei 3 und 9 Uhr
       for (const sg of [-1, 1]) { const pd = new THREE.BoxGeometry(R * 0.32, R * 0.12, r * 0.25); pd.translate(sg * R * 0.84, R * 0.12, -r * 1.6); wc.push(pot(pd, 6)); }
       const mW = new THREE.Mesh(merge(wl), M.leather), mC = new THREE.Mesh(merge(wc), M.carbon), mA = new THREE.Mesh(merge(wa), M.accent);
