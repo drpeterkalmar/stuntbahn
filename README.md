@@ -69,6 +69,25 @@ spielbar am Handy (quer oder hochkant), mit Gamepad oder Tastatur. Als App insta
   Abstand zu jeder Fahrbahn (auch Hochstraßen/Rampen), nie im Wasser. Dosiert nach Grafikstufe; ruckelt es, blendet die
   Automatik (nach der Unschärfe) zuerst Gras/Büsche/Wolkenschatten aus. `?deko=0` / `?wolken=0` zum Vergleich.
 
+## 🎆 Zielshow, mehr Fan-Cam im Film, schöneres Cockpit (seit 05.10.2026, n27)
+- Peter: „Pyro-Effekte bei Zieleinfahrt, ein paar Sekunden weiterfahren nach dem Ziel-Durchfahren (auch im Replay und
+  Highlight). Mehr Fan-Cam-Schwenks und Effekte bei den Highlights. Cockpit detaillierter und schöner machen.“
+- **Zielshow:** Funkenfontänen und Flammensäulen am Zielbogen, Raketen mit Bursts, Rauch und Glitzer, Konfetti, Lichtblitze,
+  Funken am Heck; bei **Bestzeit** größer und golden. Das Auto **rollt 5 s aus** (auf Leicht/Brachial mit Platz ein
+  **Jubel-Dreher**), die Kamera **schwenkt aufs Feuerwerk**, dann Film bzw. Ergebnis – **Antippen überspringt**. Replay und
+  Film zeigen Auslaufen und Feuerwerk genauso; Zeit, Bestzeit und Geist enden an der Linie. Budget je Grafikstufe
+  (0,8k / 2,3k / 4,1k Teilchen, ein Draw-Call), Ton synthetisch. `?show=0` = ohne Show.
+- **Highlight-Film:** neue Kameras **Fan-Cam** (Handkamera eines Zuschauers, Köpfe/Hände im Vordergrund), **Kran/Dolly**,
+  **Bodenkamera**, **Heckkamera**, **Zielbogen**; Reißschwenks, Speed-Ramps, **Freeze-Frame beim Rekord-Stunt (⭐)**,
+  Weißblitz, Landungs-Ruckeln, mehr Staub/Funken in der Zeitlupe; Kameras wechseln je Stunt-Art ab. Film ~36 s (Momente
+  höchstens 30 s + Zieleinlauf).
+- **Cockpit:** Leder-Armaturenbrett mit Ziernaht, Carbon, Lüftungsdüsen, **Drehzahl-LEDs**, schlanke A-Säulen (mehr Straße
+  im Bild), Lenkrad mit Speichen, Nabe und Schaltwippen, Schalthebel, gewölbtes Instrumentenglas, **echter Innenspiegel**
+  (ab Standard), wandernde Schatten, im Tunnel dunkler mit vorbeiziehendem Lampenlicht, leichtes **Kopfnicken** bei G-Kräften
+  (`?kopf=0` aus). Materialien werden im Spiel erzeugt (0 KB Download).
+- Bildrate gemessen gleich wie vorher (Cockpit −3 % im Rauschen), Draw-Calls im Cockpit +10. Details, Messwerte, Fotos:
+  `ZIELSHOW_BERICHT.md`. Handy: App einmal ganz schließen und neu öffnen.
+
 ## 🌀 Größere Stunts, passend zur großen Welt (seit 05.10.2026, n26)
 - Peter: „Und die Stunteinlagen ebenfalls vergrößern, passend zu den Strecken.“ Die Bauwerke hatten seit der doppelt so
   großen Welt und der breiteren Fahrbahn (n23) ihr altes Maß – jetzt wachsen sie mit (Stunt-Maßstab **1,6**).
@@ -347,6 +366,11 @@ node tests/node/test_gkraft.mjs           # n24: Show-Tacho (Monotonie, Fixpunkt
 node tools/gkraft_mess.mjs                # n24: G je Situation (Kurve, Looping, Landung, Flug, Stand); STUNT_G=echt ohne Show-Faktor
 python3 tests/gkraft_shots.py quer        # n24: Fotos Cockpit Kurve/Landung, HUD, Replay, Kino-Replay mit G (quer|hoch|desktop)
 python3 tests/perf_gkraft.py <vorher>     # n24: Bildrate vorher/nachher (Cockpit, Verfolger, Replay)
+node tests/node/test_zielshow.mjs         # n27: Auslauf aufgezeichnet (Zeit/Geist/bitgleich), Jubel-Dreher auf der Fahrbahn, Pyro-Budget je Stufe, deterministisch, Zielbogen-Kamera
+python3 tests/zielshow_shots.py quer 4711-3   # n27: Zielshow in Zeitlupe abfotografiert (Bestzeit, Leicht/Cockpit, Tippen überspringt) → tests/shots/zielshow/
+python3 tests/fancam_shots.py quer 1234-3-g   # n27: Fan-Cam (3 Einstellungen), Kran, Bodenkamera, Heckkamera, Reißschwenk, Freeze-Frame → tests/shots/fancam/
+python3 tests/cockpit_n27_shots.py quer   # n27: Cockpit gerade/Kurve/Tunnel/Einfach mit Draw-Calls, Spiegel, Tunnel-Abdunklung (quer|hoch|desktop)
+STRESS=4 python3 tests/perf_zielshow.py <vorher> quer 2   # n27: Bildrate + Draw-Calls vorher/nachher (Rennen, Cockpit, nach dem Ziel, Film)
 node tests/node/test_kinoreplay.mjs       # n18: Moment-Finder auf 5 Fahrten, Film-Regeln, Zeitlupe, Kameras gegen Strecke/Gelände (quer+hoch)
 node tools/kinoreplay_probe.mjs           # n18: Kandidaten + Film je Fahrt anzeigen (--json=datei, --nur=0,2)
 python3 tests/test_kinoreplay.py beide    # n18: Film nach dem Ziel, Überspringen, Highlights, Video, Balken, Fotos je Kamera (tests/shots/kinoreplay/)
@@ -402,6 +426,7 @@ Nützliche URL-Parameter: `?seed=4711&d=3`, `?demo`, `?gallery` (alle Bausteine)
 (Beispielstrecke im .TRK-Format), `?speed=1` (Originaltempo statt 1,25×), `?q=0|1|2` (Grafikstufe), `?nosw`,
 `?air=1` (volle Schwerkraft im Flug, Standard 0.7), `?lip=15` (alte Schanze; mit `?air=1` exakt der alte Sprung).
 `?blur=off|light|strong` (Bewegungsunschärfe übersteuern).
+Zielshow/Cockpit (n27): `?show=0` (nach dem Ziel ohne Show), `?kopf=0|2` (Kopfnicken im Cockpit aus/doppelt).
 Cockpit: `?eye=0.45` (Augenhöhe in m über dem Auto-Ursprung), `?hz=0.32` (Horizont, Anteil der Bildhöhe von oben),
 `?dash=0.7` (Oberkante Armaturenbrett, Anteil von oben), `?cpsusp=1` (Federungs-Ausgleich, 0,5 = Stand bis 28.09.).
 `?auto=alt` (alte, langsamere Abstimmung bis 27.09.2026 zum Vergleich; wertet nicht).

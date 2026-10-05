@@ -1,0 +1,65 @@
+{
+ "dev": "quer",
+ "gerade": {
+  "calls": 136,
+  "cockpitCalls": 24,
+  "mirrorCalls": 29,
+  "cover": 0,
+  "tris": 315326,
+  "tier": 2,
+  "view": "cockpit",
+  "head": [
+   0.15,
+   2.69
+  ],
+  "dash": 288.4,
+  "mode": "full"
+ },
+ "kurve": {
+  "calls": 71,
+  "cockpitCalls": 20,
+  "mirrorCalls": 23,
+  "cover": 0,
+  "tris": 207666,
+  "tier": 2,
+  "view": "cockpit",
+  "head": [
+   2.24,
+   1.33
+  ],
+  "dash": 288.4,
+  "mode": "full"
+ },
+ "einfach": {
+  "calls": 57,
+  "cockpitCalls": 20,
+  "mirrorCalls": 23,
+  "cover": 0,
+  "tris": 207056,
+  "tier": 0,
+  "view": "cockpit",
+  "head": [
+   -0.78,
+   -1.99
+  ],
+  "dash": 288.4,
+  "mode": "full"
+ },
+ "tunnel_idx": 646,
+ "tunnel": {
+  "calls": 86,
+  "cockpitCalls": 20,
+  "mirrorCalls": 18,
+  "cover": 1,
+  "tris": 219170,
+  "tier": 2,
+  "view": "cockpit",
+  "head": [
+   0,
+   0
+  ],
+  "dash": 288.4,
+  "mode": "full"
+ },
+ "fehler": []
+}
