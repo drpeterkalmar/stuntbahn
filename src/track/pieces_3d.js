@@ -5,8 +5,8 @@
 //
 // Geometrie, Querschnitte (PROFILES_3D, von build.js eingebunden) und Materialwahl (MAT3) stehen hier beisammen:
 // Der Kino-Look (n17) kann die neuen Teile über MAT3 an einer Stelle umfärben, ohne die Formen anzufassen.
-import { TILE, ROAD_HW, MAT, WORLD_SCALE } from './defs.js';
-import { PIECES, HOOK, JUMP, JUMP_T, kickerY, jumpWindow } from './pieces.js';
+import { TILE, ROAD_HW, MAT, WORLD_SCALE, STUNT_SCALE, stuntK } from './defs.js';
+import { PIECES, HOOK, JUMP, JUMP_T, JUMP_N21, kickerY, jumpWindow } from './pieces.js';
 import { AIR, flightPath, pathAt } from '../physics/air.js';
 import { CAR_DEF } from '../physics/car.js';
 import { smootherstep } from '../core/util.js';
@@ -170,9 +170,16 @@ function buildSlope(pb, cells) {
 // WAVE.n Kuppen (Sinus²) hintereinander, Wellenlänge WAVE.len m, Höhe WAVE.h m, davor/dahinter flach. Das Tempo-
 // Profil lässt an den Kuppen einen leicht negativen Anpressdruck zu (WAVE.nmin) → kurze Luftphase über jeder Kuppe.
 export const WAVE = { n: 4, len: 26, h: 1.9, nmin: -0.35, cells: 3 };
+// n26: Wellen im Stunt-Maßstab k – länger und höher bei gleicher Steigung (beides gedämpft: 26 → 32 m, 1,9 → 2,34 m bei
+// k = 1,6), so viele, wie ins Stück passen (drei statt vier). Steiler (3 m auf 35 m) ließ den Original-Bot an den Kuppen
+// abheben und aufschlagen (6 Seeds: 80 → 49 % geschafft); mit gleicher Steigung wie bisher 79 % (12 Seeds, vorher 81 %).
+export function waveGeom(k = STUNT_SCALE) {
+  const g = stuntK(k, 0.383), len = WAVE.len * g, L = WAVE.cells * T;
+  return { len, h: WAVE.h * g, n: Math.min(WAVE.n, Math.floor((L - 12) / len)) };
+}
 function buildWaves(pb) {
-  const L = WAVE.cells * T, span = WAVE.n * WAVE.len, f0 = (L - span) / 2;
-  const hy = (f) => (f > f0 && f < f0 + span ? WAVE.h * Math.sin(PI * (f - f0) / WAVE.len) ** 2 : 0);
+  const WG = waveGeom(pb.ss), L = WAVE.cells * T, span = WG.n * WG.len, f0 = (L - span) / 2;
+  const hy = (f) => (f > f0 && f < f0 + span ? WG.h * Math.sin(PI * (f - f0) / WG.len) ** 2 : 0);
   const S = lin(0, L, Math.round(L / 0.8)).map((f) => ({ f, y: hy(f), r: 0, wave: f > f0 - 4 && f < f0 + span + 4 ? 1 : 0 }));
   pb.path(S, { profile: 'road', kerbIn: true, kind: 'waves' });
   pb.mound(0, L, hy, HW + 1.5, 6);
@@ -193,6 +200,11 @@ function buildWaves(pb) {
 export const CLIFF = { xk: 10, yk: 0.5, alpha: 8 * PI / 180, Rk: 40, Ra: 25, vnMax: 8.5, runout: 26, a0: 8 };
 const CLIFF_N19 = { xk: 18, yk: 3.0, alpha: 17 * PI / 180, Rk: 20, Ra: 25 };
 if (JUMP.span === 60) Object.assign(CLIFF, CLIFF_N19);   // ?schanze=alt: Klippe wie bis n19
+// Anlauf-Bogen und Lippe der Klippe: n26 bleibt die Klippe bei der Schanze bis n25 (n21: 15 m Bogen, 11°-Lippe, 1,4 m),
+// auch wenn die Standard-Schanze mit dem Stunt-Maßstab höher wird. Gemessen mit der höheren Lippe (15°, Hang-Kuppe neu
+// gesucht, Fenster 45–90 km/h): Klippe geschafft Original-Bot 82 → 77 %, Mittel-Handy-Bot 89 → 86 % (12 Seeds); mit der
+// bisherigen Lippe 83 / 90 %. Tiefer geht die Klippe nicht – die Fallhöhe sind die Ebenen der Strecke (Layout bleibt).
+export const CLIFF_KICK = JUMP.span === 60 ? JUMP : (() => { const J = { ...JUMP_N21 }; Object.defineProperty(J, 'lipH', { get() { return kickerY(this.lipF, this).y; } }); return J; })();
 const cliffCache = new Map();
 function cliffHill(D) {
   const { xk, yk, alpha, Rk, Ra } = CLIFF, sa = Math.sin(alpha), ca = Math.cos(alpha), ta = Math.tan(alpha);
@@ -208,9 +220,9 @@ function cliffHill(D) {
   return { f, xe: x3 };
 }
 export function cliffDesign(D) {
-  const key = `${D}|${AIR.factor}|${JUMP.lipDeg}`;
+  const key = `${D}|${AIR.factor}|${CLIFF_KICK.lipDeg}`;
   if (cliffCache.has(key)) return cliffCache.get(key);
-  const th = JUMP.lipDeg * PI / 180, lipY = JUMP.lipH, { xk } = CLIFF;
+  const th = CLIFF_KICK.lipDeg * PI / 180, lipY = CLIFF_KICK.lipH, { xk } = CLIFF;
   const H = cliffHill(D), hill = H.f, xe = H.xe;
   // Tempo-Fenster wie jumpWindow: Flugbahn der Radaufstandspunkte, Landung auf dem Hang; gültig, wenn weder vor dem Hang
   // noch an der Kante und der Aufprall senkrecht zur Fläche höchstens vnMax m/s
@@ -236,7 +248,7 @@ export function cliffDesign(D) {
   }
   const vmin = best ? best.a : 0, vmax = best ? best.b : 0;
   const vbest = best ? Math.min(vmax, Math.max(vmin, bv)) : 0;
-  const len = JUMP.lipF + xe + CLIFF.runout;         // Schanze + Flug/Hang + Auslauf (ohne Anfahrt; bis n19 Schanze JUMP_T)
+  const len = CLIFF_KICK.lipF + xe + CLIFF.runout;         // Schanze + Flug/Hang + Auslauf (ohne Anfahrt; bis n19 Schanze JUMP_T)
   const cells = Math.ceil((len + CLIFF.a0) / T);
   const d = { D, xk, xe, hill, lipY, cells, win: { vmin, vmax, vbest, air: best ? landAt(vbest).t : 0 }, len };
   cliffCache.set(key, d);
@@ -244,14 +256,14 @@ export function cliffDesign(D) {
 }
 function buildCliff(pb) {
   const pc = pb.pc, D = -dlOf(pc) * pb.LH, C = cliffDesign(D);
-  const L = PIECES[pc.type].cells.length * T, J = JUMP.lipF;   // Anlauf-Bogen der Standard-Schanze (bis n19 JUMP_T = 20 m)
+  const L = PIECES[pc.type].cells.length * T, J = CLIFF_KICK.lipF;   // Anlauf-Bogen der Standard-Schanze (bis n19 JUMP_T = 20 m)
   const a0 = Math.max(2, (L - C.len) / 2);         // Anfahrt auf der oberen Ebene (Rest hinten: längerer Auslauf)
   const s = [];
   // Gelände-Strecken (n22): Plateau-Abfahrt – oben und unten liegt Gelände, keine Hochstraße, Landehang als Straße
   const up = (y) => !pb.gel && y + pb.lvl * pb.LH > 1.2;
   for (const f of lin(0, a0, Math.max(2, Math.round(a0 / 2))).slice(0, -1)) s.push({ f, y: 0, r: 0, surf: 1, prof: up(0) ? 'deck3' : 'road' });
-  for (const f of lin(0, J, 40)) { const k = kickerY(f); s.push({ f: a0 + f, y: k.y, r: 0, surf: 1, prof: 'ramp', ...(f < 2 ? {} : { lo: -0.15, hi: 0.15 }) }); }
-  const lip = kickerY(J), fl = a0 + J;
+  for (const f of lin(0, J, 40)) { const k = kickerY(f, CLIFF_KICK); s.push({ f: a0 + f, y: k.y, r: 0, surf: 1, prof: 'ramp', ...(f < 2 ? {} : { lo: -0.15, hi: 0.15 }) }); }
+  const lip = kickerY(J, CLIFF_KICK), fl = a0 + J;
   const P = flightPath(lip.y, Math.atan(lip.slope), C.win.vbest || jumpWindow().vbest, { xMax: C.xk + 1, drag: AIR_DRAG });
   for (const x of lin(0, C.xk, Math.max(8, Math.round(C.xk / 3))).slice(1, -1)) {
     s.push({ f: fl + x, y: Math.max(C.hill(C.xk), pathAt(P, x).y), r: 0, surf: 0, air: 1, lo: 0, hi: 0 });
@@ -266,14 +278,16 @@ function buildCliff(pb) {
   if (low) supportAlong(pb, s.filter((q) => q.f > f3 - 1), { step: 13, first: 4 });
   // Wasser in der Lücke, wenn unten Boden ist (wie bei der Schanze); sonst stürzt man ins Gelände (Reset)
   if (pb.lvl * pb.LH - D < 0.5 && !pb.gel) pb.pit(fl - 1, fl + C.xk + 1, HW + 3);
-  pb.jumpInfo({ lipF: fl, lipY: lip.y, lipDeg: JUMP.lipDeg, landF: fl + C.xk, win: C.win, cliff: D });
+  pb.jumpInfo({ lipF: fl, lipY: lip.y, lipDeg: CLIFF_KICK.lipDeg, landF: fl + C.xk, win: C.win, cliff: D });
 }
 
 // ---------- 5) Steilwand (Wallride) ----------
 // 90°-Kurve (2×2 Felder, Radius 1,5 Felder) mit Querneigung bis WALL.bank: am Ein- und Ausgang verwunden, in der Mitte
 // eine Wand. Innen liegt ein waagrechter Auslauf auf Bodenhöhe – wer zu langsam ist, rutscht dorthin (sicher, keine
 // Kante). Mindesttempo (nicht abrutschen) aus Haftung und Neigung liefert das Tempo-Profil (vmin).
-export const WALL = { bank: 68 * PI / 180, twist: 0.4, hw: HW + 0.4, nmin: 0.15 };
+// n26: Wand breiter (gedämpft mit dem Stunt-Maßstab, 1,6 → ×1,3: 7,7 → 10 m, Oberkante 7,2 → 9,3 m hoch); Radius und
+// Neigung bleiben (Mindesttempo unverändert), die Fahrbahnmitte liegt dadurch höher an der Wand
+export const WALL = { bank: 68 * PI / 180, twist: 0.4, hw: (HW + 0.4) * stuntK(STUNT_SCALE, 0.5), nmin: 0.15 };
 function buildWall(pb) {
   const m = pb.m, radius = 1.5 * T, hw = WALL.hw, n = Math.round(radius * PI / 2 / 0.9);
   const S = lin(0, PI / 2, n).map((th) => {

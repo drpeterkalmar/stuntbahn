@@ -68,7 +68,9 @@ function jumpAt(assist, v, pull) {
   Object.keys(ASSISTS[assist]).forEach((k) => delete ASSISTS[assist][k]); Object.assign(ASSISTS[assist], saved);
   return { land, crash: r.car.crash ? r.car.crash.reason : '', maxK };
 }
-const fast = 52, wild = 62, slow = 37;   // m/s an der Lippe: 187 km/h (zu schnell, P90 des Vollgas-Bots), 223 km/h (weit drüber), 133 km/h (knapp zu kurz)
+// m/s an der Lippe, relativ zum Fenster der Schanze (n24: 187 km/h zu schnell = P90 des Vollgas-Bots, 223 km/h weit drüber,
+// 133 km/h knapp zu kurz bei Fenster 140–168 km/h; n26-Schanze 122–144 km/h: gleiche Abstände zum Fenster)
+const JW = env.prof.windows[0], fast = JW.vmax + 5.2, wild = JW.vmax + 15.2, slow = JW.vmin - 1.8;
 const F1 = jumpAt('medium', fast, 1), F0 = jumpAt('medium', fast, 0), FO = jumpAt('original', fast, 0), W1 = jumpAt('medium', wild, 1), W0 = jumpAt('medium', wild, 0);
 console.log(`     zu schnell (${Math.round(fast * 3.6)} km/h): mit Hilfe ${f2(F1.land)} m ${F1.crash}, ohne ${f2(F0.land)} m ${F0.crash}, Original ${f2(FO.land)} m (Rampe ${J.landLen} m)`);
 check(F0.land > J.landLen, `ohne Hilfe zu schnell: hinter der Landerampe (${f2(F0.land)} m > ${J.landLen} m)`);
@@ -78,8 +80,8 @@ check(W1.land < W0.land - 25 && !W1.crash, `weit drüber (${Math.round(wild * 3.
 const S1 = jumpAt('medium', slow, 1), S0 = jumpAt('medium', slow, 0);
 console.log(`     zu langsam (${Math.round(slow * 3.6)} km/h): mit Hilfe ${f2(S1.land)} m ${S1.crash}, ohne ${f2(S0.land)} m ${S0.crash}`);
 check((S0.land == null || S0.land < JUMP_PULL.lo) && S1.land != null && S1.land >= 0 && !S1.crash, `zu langsam: ohne Hilfe ${S0.crash || 'vor der Rampe'}, mit Hilfe auf der Rampe (${f2(S1.land)} m)`);
-const N1 = jumpAt('medium', 44, 1);
-check(N1.maxK < 0.05, `im Fenster (158 km/h): Hilfe greift nicht (größte Stärke ${f2(N1.maxK)})`);
+const N1 = jumpAt('medium', JW.vbest, 1);
+check(N1.maxK < 0.05, `im Fenster (${Math.round(JW.vbest * 3.6)} km/h): Hilfe greift nicht (größte Stärke ${f2(N1.maxK)})`);
 
 console.log('--- D: Landequote menschenähnlicher Bots ---');
 {
@@ -117,7 +119,8 @@ console.log('--- E: Schanzen-Hinweis, Bestzeiten, A/B ---');
   check(!!hint && /\d+ km\/h/.test(hint.text) && /^jump j(ok|lo|hi)$/.test(hint.kind), `Schanzen-Hinweis vor der Lippe: „${hint && hint.text}“ (${hint && hint.kind})`);
 }
 mem.clear();
-mem.set('stuntbahn.v1', JSON.stringify({ settings: { assist: 'medium' }, reset: 21, best: { 'T1|medium+reset@x': { time: 50 }, 'T1|original+reset@x': { time: 55 }, 'T2|medium+wrack': { time: 70 } }, ghostIndex: ['T1|medium+reset@x', 'T1|original+reset@x'] }));
+// (stuntReset 26: der n26-Einmal-Reset der Zufallsstrecken ist hier schon gelaufen – geprüft in test_stuntgroesse.mjs)
+mem.set('stuntbahn.v1', JSON.stringify({ settings: { assist: 'medium' }, reset: 21, stuntReset: 26, best: { 'T1|medium+reset@x': { time: 50 }, 'T1|original+reset@x': { time: 55 }, 'T2|medium+wrack': { time: 70 } }, ghostIndex: ['T1|medium+reset@x', 'T1|original+reset@x'] }));
 mem.set('stuntbahn.ghost.T1|medium+reset@x', 'AAAA'); mem.set('stuntbahn.ghost.T1|original+reset@x', 'BBBB');
 let S = new Store();
 check(Object.keys(S.best).join(',') === 'T1|original+reset@x' && !mem.has('stuntbahn.ghost.T1|medium+reset@x') && mem.has('stuntbahn.ghost.T1|original+reset@x') && S.medNote === 2,

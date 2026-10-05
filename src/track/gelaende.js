@@ -14,7 +14,7 @@
 //     Landschaft; dazu Formen der Gelände-Elemente (Hügel über dem Tunnel, Schlucht unter dem Sprung, Plateau-Kante am
 //     Drop, Hang an der Querfahrt, Mulde an der Steilkurve, Tal um die Halfpipe). Physik und Grafik nutzen dasselbe
 //     5-m-Höhenraster (im Tunnel liegt das Physik-Gelände unter der Fahrbahn, die Grafik zeigt den Hügel).
-import { TILE, GRID, WORLD_SCALE, WORLD_HALF, ROAD_HW, ROAD_WIDEN, tileX, tileZ } from './defs.js';
+import { TILE, GRID, WORLD_SCALE, WORLD_HALF, ROAD_HW, ROAD_WIDEN, STUNT_SCALE, stuntK, tileX, tileZ } from './defs.js';
 import { makeNoise2, smoothstep, smootherstep, clamp } from '../core/util.js';
 import { adaptiveGrid, gridExt } from './terrgrid.js';
 
@@ -40,10 +40,12 @@ export const ENV = {
   // delta: Gelände so weit unter der Fahrbahn (n23: breitere Fahrbahn 0,2 m – am Außenrand der Steilkurven lag das 5-m-Raster
   // sonst bis 2 cm unter der Prüfgrenze; mit ?breit=alt wie bis n22 0,15 m, bitgleich)
   delta: ROAD_WIDEN > 1 ? 0.2 : 0.15, w0: ROAD_HW + 8, w0Rigid: 20, w0Bank: 22, kUp: 0.9, kLo: 0.7, kCliff: 4,
-  tunnelHW: ROAD_HW + 1.6, tunnelH: 7.2, cover: 11, gorgeDepth: 22, gorgeLen: 110, bridgeGap: 3.5, reach: 140,
+  // n26: Schlucht tiefer mit dem Stunt-Maßstab (gedämpft, 1,6 → 22 · 1,3 = 28,6 m)
+  tunnelHW: ROAD_HW + 1.6, tunnelH: 7.2, cover: 11, gorgeDepth: 22 * stuntK(STUNT_SCALE, 0.5), gorgeLen: 110, bridgeGap: 3.5, reach: 140,
 };
 // Halfpipe (pieces_gel.js): flache Fahrbahn ±hf, Viertelröhren Radius R bis zum Winkel A, Übergang über ramp m
-export const HALFPIPE = { hf: ROAD_HW + 0.4, R: 9, A: 62 * Math.PI / 180, ramp: 30 };
+// n26: Viertelröhren größer (Radius 9 → 12 m bei Stunt-Maßstab 1,6, Kante 4,8 → 6,4 m hoch; Breite bleibt im Feld)
+export const HALFPIPE = { hf: ROAD_HW + 0.4, R: 9 * stuntK(STUNT_SCALE, 0.55), A: 62 * Math.PI / 180, ramp: 30 };
 // Stücke mit festem Sockel (ein Höhenwert je Stück): Stunts und Bauwerke, deren Form an der Waagrechten hängt
 export const RIGID = new Set(['start', 'loop', 'jump', 'tube', 'tr_corklr', 'waves', 'bumps', 'bank', 'wall', 'chicane', 'crest', 'cliff', 'cliff2',
   'halfpipe', 'tr_bankC', 'spiral', 'tr_corkud', 'slope2', 'slope3', 'slope4', 'rampUp', 'rampDown', 'bridge']);

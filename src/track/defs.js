@@ -36,6 +36,25 @@ export const ROAD_WIDEN = (() => {
 })();
 export const ROAD_HW_ALT = 4.5 * (1 + 0.25 * (S - 1));
 export const ROAD_HW = ROAD_HW_ALT * ROAD_WIDEN;
+// Stunt-Maßstab (n26, Peter 03.10.2026: „Und die Stunteinlagen ebenfalls vergrößern, passend zu den Strecken“): Die
+// Stunt-Bauwerke behielten beim Weltmaßstab (n12) und der breiteren Fahrbahn (n23) ihr Auto-Maß – in der großen Welt mit
+// 14,6 m breiter Straße wirkten Looping & Co. klein, die Fahrbahn verengte sich am Stunt. Ein Regler für alle Bauwerke:
+// Looping (Bogenlänge, Höhe, Spurbreite, Spurversatz), Röhren-Querschnitt, Korkenzieher-Rolle, Slalom-Blöcke ×STUNT_SCALE;
+// Schanze höher (Lippe, Landerampe, Scheitel), Wellen/Bodenwellen/Kuppe, Steilwand, Halfpipe, Schlucht gedämpft (je Teil,
+// siehe stuntK). Standard 1,6 = Verhältnis Fahrbahn n23 zu Spur bis n22 (7,3 / 4,5 m). Alles bleibt in seinen Feldern.
+// URL ?stunt=1 (Bauwerke wie bis n25, A/B, wertet nicht), ?stunt=1.4 o. ä. für Versuche (1 … 2); Node: STUNT_STUNT=1.
+export const STUNT_SCALE_DEFAULT = 1.6;
+export const STUNT_SCALE = (() => {
+  const q = globalThis.location && globalThis.location.search;
+  let v = q ? parseFloat(new URLSearchParams(q).get('stunt')) : NaN;
+  if (!(v > 0) && globalThis.process && globalThis.process.env) v = parseFloat(globalThis.process.env.STUNT_STUNT);
+  return v >= 1 && v <= 2 ? Math.round(v * 20) / 20 : STUNT_SCALE_DEFAULT;
+})();
+// Zwischenspeicher geprüfter Strecken je Stunt-Maßstab getrennt (main.js); Standard ohne Zusatz
+export const STUNT_TAG = STUNT_SCALE === STUNT_SCALE_DEFAULT ? '' : '@st' + STUNT_SCALE;
+// Wachstum je Bauwerk bei Stunt-Maßstab k: voll (Looping, Röhre, Korkenzieher) oder gedämpft um den Anteil a
+// (k = 1,6, a = 0,5 → 1,3). k = 1 → 1 (Bauwerke exakt wie bis n25)
+export const stuntK = (k, a = 1) => 1 + (k - 1) * a;
 export const ROAD_Y = 0.06;      // Fahrbahn liegt knapp über dem Gelände
 export const WORLD_HALF = GRID * TILE / 2;   // halbe Kantenlänge des Rasters (m)
 

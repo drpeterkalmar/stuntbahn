@@ -2,7 +2,7 @@
 // Lokale Koordinaten je Element: f = vorwärts ab Einfahrtskante, r = rechts, y = hoch (Meter).
 // Jedes Element beschreibt: belegte Felder (a vorwärts, b rechts), Ausfahrt, Höhenwechsel und
 // baut Fahrlinie + Geometrie über den Piece-Builder (pb, siehe build.js).
-import { TILE, LEVEL_H, ROAD_HW, MAT, WORLD_SCALE } from './defs.js';
+import { TILE, LEVEL_H, ROAD_HW, MAT, WORLD_SCALE, STUNT_SCALE, stuntK } from './defs.js';
 import { smoothstep, smootherstep, clamp } from '../core/util.js';
 import { AIR, flightPath, pathAt } from '../physics/air.js';
 import { CAR_DEF } from '../physics/car.js';
@@ -16,9 +16,14 @@ const nS = (n) => Math.max(1, Math.round(n * WORLD_SCALE));
 // Tempo-Profil (bis n19 auch Bogen/Lücke/Landung der Schanze, seit n21 JUMP unten)
 export const JUMP_T = 20;
 
-// ---------- Looping: Klothoiden-Form (Krümmung ~ sin), einmal vorberechnet ----------
-export const LOOP = (() => {
-  const S = 56, N = 1400;
+// ---------- Looping: Klothoiden-Form (Krümmung ~ sin), je Stunt-Maßstab einmal vorberechnet ----------
+// Bis n25 fest: Bogenlänge 56 m, Höhe 14,5 m, Spur ±2,25 m, Spurversatz 2,95 m. n26: × Stunt-Maßstab k (1,6 → 90 m
+// Bogen, 23 m hoch, Spur 7,2 m breit, Versatz 4,3 m) – die Form bleibt, das Mindesttempo oben wächst mit √k (Radius am
+// Scheitel × k).
+const loopCache = new Map();
+export function loopGeom(k = STUNT_SCALE) {
+  if (loopCache.has(k)) return loopCache.get(k);
+  const S = 56 * k, N = 1400;
   let tot = 0;
   const w = (t) => Math.sin(PI * t);
   for (let i = 0; i < N; i++) tot += w((i + 0.5) / N);
@@ -28,16 +33,27 @@ export const LOOP = (() => {
   for (let i = 0; i <= N; i++) {
     pts.push({ f, y, th });
     if (i === N) break;
-    const ds = S / N, k = k0 * w((i + 0.5) / N);
-    f += Math.cos(th + 0.5 * k * ds) * ds;
-    y += Math.sin(th + 0.5 * k * ds) * ds;
-    th += k * ds;
+    const ds = S / N, kk = k0 * w((i + 0.5) / N);
+    f += Math.cos(th + 0.5 * kk * ds) * ds;
+    y += Math.sin(th + 0.5 * kk * ds) * ds;
+    th += kk * ds;
   }
   const dF = pts[N].f;
   let H = 0;
   for (const p of pts) H = Math.max(H, p.y);
-  return { S, N, pts, dF, H, shift: 2.95, hw: 2.25 };
-})();
+  // Spurversatz = halbe Spurbreite + 0,7 m wie bis n25: die Lücke zwischen Auf- und Abfahrt-Spur am Boden bleibt so schmal
+  // wie bisher (mit Versatz × k rollte ein geradeaus fahrendes Auto zwischen den Spuren unter dem Looping durch)
+  const g = { S, N, pts, dF, H, shift: 2.25 * k + 0.7, hw: 2.25 * k, k };
+  loopCache.set(k, g);
+  return g;
+}
+export const LOOP = loopGeom(STUNT_SCALE);
+
+// ---------- Röhre: Querschnitt (flacher Boden ±b, Viertelkreise Radius R, Wand th), bis n25 2,2 / 3,5 / 0,45 m ----------
+// n26: × Stunt-Maßstab (1,6 → Boden 7 m, 11,2 m hoch, 18 m breit); Spielraum der Linie ±lim (bis n25 1,2 m)
+export function tubeGeom(k = STUNT_SCALE) {
+  return { b: 2.2 * k, R: 3.5 * k, th: 0.45 * stuntK(k, 0.5), lim: 1.2 * k };
+}
 
 // ---------- Sprung: Schanze, Lücke mit Hindernissen, Landerampe (3 Felder) ----------
 // n21 (Peter 30.09.2026: „Sprungschanze ist derzeit eher eine orbitale Startrampe“ – „mach die Sprünge länger und stell
@@ -56,10 +72,26 @@ export const JUMP_N21 = { kickStart: 0, lipF: 15, lipDeg: 11, landF: 75, landH: 
 // 30 m Anlauf im Element: Lücke 30 m, Fenster ~111–143 km/h, Scheitel ~2,7 m – gleiche Lippe, gleiche Landerampe.
 export const JUMP_N21_KURZ = { kickStart: 30, lipF: 45 };
 export const JUMP_N19 = { kickStart: 4, lipF: 20, lipDeg: 28, landF: 40, landH: 3.5, landLen: 20, aim: 0.85, landShape: 'smooth', span: 60, obstacles: false };
+// n26 (Stunt-Maßstab): Schanze höher, gleiche 3 Felder – steilere Lippe (15° nach 16 m Bogen, 2,1 statt 1,4 m hoch),
+// Landerampe 4 statt 2,5 m hoch, ab 78 m (42 m lang). Bei vbest Scheitel ~5,7 m über der Lippe (~7,7 m über Grund statt
+// ~5,5), Flug ~2,75 s statt 2,3, ~98 m weit (mehr gibt das Element nicht her), Fenster ~122–144 km/h statt 140–168:
+// weniger Anlauf nötig (Mittel n24). Steiler wäre höher, aber mit Übertempo (Mittel bis 264 km/h) wieder eine „orbitale
+// Startrampe“ (n21): bei 240 km/h ~21 m statt ~11 m (n24 Sprung-Hilfe zieht zurück, Hinweis im HUD).
+// Zwischen k = 1 und 1,6 linear (jumpDef), darüber wie 1,6. Kurzer Anlauf: Bogen ab 30 m wie n21 (JUMP_KURZ).
+export const JUMP_N26 = { kickStart: 0, lipF: 16, lipDeg: 15, landF: 78, landH: 4, landLen: 42, aim: 0.85, landShape: 'smooth', span: 120, obstacles: true };
+export function jumpDef(k = STUNT_SCALE) {
+  const t = Math.max(0, Math.min(1, (k - 1) / 0.6)), mix = (a, b) => a + (b - a) * t;
+  if (t <= 0) return { ...JUMP_N21 };
+  const J = { ...JUMP_N21 };
+  for (const q of ['lipF', 'lipDeg', 'landF', 'landH', 'landLen']) J[q] = mix(JUMP_N21[q], JUMP_N26[q]);
+  return J;
+}
+const JUMP_STD = jumpDef(STUNT_SCALE);
+const JUMP_KURZ = STUNT_SCALE > 1 ? { kickStart: JUMP_N21_KURZ.kickStart, lipF: JUMP_N21_KURZ.kickStart + (JUMP_STD.lipF - JUMP_STD.kickStart) } : JUMP_N21_KURZ;
 const OLD_LAND = { landH: 2.5, landLen: 18, aim: 0.45, landShape: 'quad' };
 export const SCHANZE_ALT = !!(globalThis.location && globalThis.location.search && new URLSearchParams(globalThis.location.search).get('schanze') === 'alt');
 export const JUMP = {
-  ...(SCHANZE_ALT ? JUMP_N19 : JUMP_N21),
+  ...(SCHANZE_ALT ? JUMP_N19 : JUMP_STD),
   get lipH() { return kickerY(this.lipF, this).y; }, // Lippenhöhe folgt aus dem Kreisbogen (11° → 1,4 m; bis n19 28° → 3,8 m)
 };
 // Schanze mit kurzem Anlauf (vor ihr liegt keine Gerade): gleiche Werte, Bogen später (nur n21-Schanze)
@@ -67,12 +99,12 @@ export const JUMP = {
 export function jumpFor(prevType, nextType) {
   const plain = (t) => !t || t === 'straight' || t === 'checkpoint' || t === 'start';
   if ((plain(prevType) && plain(nextType)) || JUMP.span !== JUMP_N21.span) return JUMP;
-  const J = { ...JUMP, ...JUMP_N21_KURZ };
+  const J = { ...JUMP, ...JUMP_KURZ };
   Object.defineProperty(J, 'lipH', { get() { return kickerY(this.lipF, this).y; } });
   return J;
 }
 // Für Tests/Messungen (Node): Schanze umschalten ('alt' = bis n19, sonst n21); Tempo-Fenster rechnen sich neu
-export function setSchanze(alt) { Object.assign(JUMP, alt ? JUMP_N19 : JUMP_N21); }
+export function setSchanze(alt) { Object.assign(JUMP, alt ? JUMP_N19 : JUMP_STD); }
 export function setLip(deg) {
   JUMP.lipDeg = Math.max(5, Math.min(35, deg));
   if (deg <= 18 && JUMP.span === JUMP_N19.span) Object.assign(JUMP, OLD_LAND);
@@ -240,15 +272,20 @@ export const PIECES = {
     name: 'Bodenwellen', cells: [[0, 0]], next: [1, 0], turn: 0, dl: 0, stunt: 1,
     build(pb) {
       // drei Wellen à 5 m (Auto-Maßstab) mittig im Feld; bis 27.09.2026 bei f 2,5 … 17,5 im 20-m-Feld
-      const b0 = T / 2 - 7.5;
-      const s = lin(0, T, nS(60)).map((f) => ({ f, y: (f > b0 && f < b0 + 15) ? 0.42 * Math.sin(PI * (f - b0) / 5) ** 2 : 0, r: 0 }));
+      // n26: kräftiger – Länge und Höhe gedämpft mit dem Stunt-Maßstab (1,6 → ×1,3: drei Wellen à 6,5 m, 0,55 m hoch).
+      // Mit ×1,6 (8 m, 0,67 m) überschlug sich der Original-Bot öfter (12 Seeds: 99,3 → 96,6 % geschafft; ×1,3: 97,8 %)
+      const k = stuntK(pb.ss, 0.5), wl = 5 * k, wh = 0.42 * k, b0 = T / 2 - 1.5 * wl;
+      const s = lin(0, T, nS(60)).map((f) => ({ f, y: (f > b0 && f < b0 + 3 * wl) ? wh * Math.sin(PI * (f - b0) / wl) ** 2 : 0, r: 0 }));
       pb.path(s, { profile: 'road' });
     },
   },
   crest: {
     name: 'Kuppe', cells: [[0, 0], [1, 0]], next: [2, 0], turn: 0, dl: 0, stunt: 1,
     build(pb) {
-      const H = 3.4 * WORLD_SCALE;   // gleiche Form im größeren Feld (Kuppen-Tempo wächst wie bei Kurven mit √Maßstab)
+      // gleiche Form im größeren Feld (Kuppen-Tempo wächst wie bei Kurven mit √Maßstab); n26: höher, stark gedämpft mit
+      // dem Stunt-Maßstab (1,6 → ×1,18: 6,8 → 8,0 m). Mehr nicht: die Bodenhaftung bei Tempo (n21) hält das Auto mit
+      // 180 km/h bis ×1,24 am Boden, ab ×1,3 hebt es ab (test_haftung)
+      const H = 3.4 * WORLD_SCALE * stuntK(pb.ss, 0.3);
       const hy = (f) => H * Math.sin(PI * f / (2 * T)) ** 2;
       const s = lin(0, 2 * T, nS(40)).map((f) => ({ f, y: hy(f), r: 0 }));
       pb.path(s, { profile: 'road' });
@@ -312,20 +349,33 @@ export const PIECES = {
     build(pb) {
       // Spur im Looping liegt links (−a) beim Hochfahren und rechts (+a) beim Herunterkommen;
       // Wechsel oben (hoher Anpressdruck). Anfahrt/Ausfahrt: breite Straße, Ideallinie wechselt dort.
-      const L = LOOP, f0 = (2 * T - L.dF) / 2, a = L.shift * pb.m, M = 1.3;
+      // n26: Looping im Stunt-Maßstab (loopGeom), mittig im Stück
+      const L = loopGeom(pb.ss), f0 = (2 * T - L.dF) / 2, a = L.shift * pb.m, M = 1.3;
       // Anfahrt/Ausfahrt im größeren Feld länger: gleiche Punktdichte wie im 20-m-Feld (8 Punkte)
-      const nA = Math.max(8, Math.round(8 * f0 / ((2 * JUMP_T - L.dF) / 2)));
+      const nA = Math.max(8, Math.round(8 * f0 / ((2 * JUMP_T * L.k - L.dF) / 2)));
       const s = [];
       const road = (f, r) => ({ f, y: 0, r, hw: hwRoad, prof: 'none', lo: -hwRoad + M - r, hi: hwRoad - M - r });
-      for (const f of lin(0, f0, nA)) s.push(road(f, -a * smootherstep(f / f0)));
+      // n26 (Stunt-Maßstab > 1): Der volle Spurversatz a wird erst dort gebraucht, wo Auf- und Abfahrt-Spur sich in der
+      // Draufsicht kreuzen (t ≈ 0,15, ~1,7 m hoch); an der Einfahrt liegt die Abfahrt-Spur noch ~8 m darüber. Der Versatz
+      // verteilt sich deshalb über Anfahrt + die ersten tA der Schleife (Spur biegt im Bauwerk sanft weiter nach außen):
+      // Schlenker so sanft wie bis n25 (Krümmung 0,020 statt 0,036 1/m) – mit dem Versatz 4,3 m allein auf der 26-m-Anfahrt
+      // schoss ein verzögert lenkender Fahrer (Original-Bot) über die Spur hinaus an die Bande (Aufprall an der Einfahrt ×3).
+      const tA = L.k > 1 ? 0.13 : 0, D0 = f0 + tA * L.S;
+      for (const f of lin(0, f0, nA)) s.push(road(f, -a * smootherstep(f / D0)));
       const step = 4;
+      // Banden an der Einfahrt auf den ersten 8 m flach anlaufen lassen (wf: Anteil der Höhe; keine stumpfe Stirnseite)
+      const taper = L.k > 1 ? 8 : 0;
       for (let i = step; i <= L.N; i += step) {
         const p = L.pts[i], t = i / L.N;
-        const r = -a + 2 * a * smootherstep((t - 0.28) / 0.44);
-        s.push({ f: f0 + p.f, y: p.y, r, up: [-Math.sin(p.th), Math.cos(p.th), 0], hw: L.hw, loop: 1, prof: 'loopLane' });
+        let r = -a + 2 * a * smootherstep((t - 0.28) / 0.44);
+        if (t < tA) r = -a * smootherstep((f0 + t * L.S) / D0);
+        else if (t > 1 - tA) r = a * smootherstep((2 * T - f0 - L.dF + (1 - t) * L.S) / D0);
+        const q = { f: f0 + p.f, y: p.y, r, up: [-Math.sin(p.th), Math.cos(p.th), 0], hw: L.hw, loop: 1, prof: 'loopLane' };
+        if (taper && t * L.S < taper) q.wf = Math.max(0.08, smoothstep(0, 1, t * L.S / taper));
+        s.push(q);
       }
       const f1 = f0 + L.dF;
-      for (const f of lin(f1, 2 * T, nA).slice(1)) s.push(road(f, a * (1 - smootherstep((f - f1) / (2 * T - f1)))));
+      for (const f of lin(f1, 2 * T, nA).slice(1)) s.push(road(f, tA ? a * smootherstep((2 * T - f) / D0) : a * (1 - smootherstep((f - f1) / (2 * T - f1)))));
       pb.path(s, { profile: 'loop', kind: 'loop' });
       // Fahrbahn vor/nach dem Looping (volle Breite, Mitte r=0) + Betonplatte darunter
       pb.ribbon(straightSamples(f0, 1.5), { profile: 'road' });
@@ -337,7 +387,8 @@ export const PIECES = {
   tube: {
     name: 'Röhre', cells: [[0, 0], [1, 0]], next: [2, 0], turn: 0, dl: 0, stunt: 1,
     build(pb) {
-      const s = lin(0, 2 * T, nS(20)).map((f) => ({ f, y: 0, r: 0, tube: f > 3 && f < 2 * T - 3 ? 1 : 0, lo: -1.2, hi: 1.2 }));
+      const lim = tubeGeom(pb.ss).lim;   // n26: Spielraum wächst mit dem Querschnitt (bis n25 ±1,2 m)
+      const s = lin(0, 2 * T, nS(20)).map((f) => ({ f, y: 0, r: 0, tube: f > 3 && f < 2 * T - 3 ? 1 : 0, lo: -lim, hi: lim }));
       pb.path(s, { profile: 'tube', kind: 'tube' });
       pb.portal(4); pb.portal(2 * T - 4);
     },

@@ -87,7 +87,10 @@ check(ASSISTS.medium.steerPull === 0 && ASSISTS.medium.stuntPull === 0 && ASSIST
       if (r.state === 'countdown') continue;
       if (r.state !== 'running') break;
       const i = r.ap.tr.idx;
-      if (!(L.loop[i] || L.tube[i]) && Math.abs(r.ap.psi) < BRAKE_HELP.espFrom && r.car.input.steer !== 0) own = false;
+      // Spurhilfe gilt am Stück der Auto-Position (race.tracker); der Autopilot-Zeiger kann an der Looping-Kante 1 Punkt
+      // zurückliegen (n26: größerer Looping, andere Punktabstände)
+      const it = r.tracker.idx;
+      if (!(L.loop[i] || L.tube[i] || L.loop[it] || L.tube[it]) && Math.abs(r.ap.psi) < BRAKE_HELP.espFrom && r.car.input.steer !== 0) own = false;
       lat.push(Math.abs(r.ap.lat));
     }
     Object.keys(ASSISTS.medium).forEach((k) => delete ASSISTS.medium[k]); Object.assign(ASSISTS.medium, saved);

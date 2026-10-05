@@ -26,8 +26,9 @@ const seeds = Array.from({ length: N }, (_, k) => 1000 + k * 7919 % 90000);
   ok(generate(4711, 2).meta.key === '4711-2' && !generate(4711, 2).gel, 'flacher Code ohne Gelände');
   // n23: die Fahrbahn ist breiter (ROAD_WIDEN) – bitgleich gilt für die Breite bis n22 (STUNT_BREIT=alt); Layout und Seeds
   // sind ohnehin gleich (test_alte_codes), mit neuer Breite baut nur die Fahrbahn breiter
-  const r = spawnSync(process.execPath, [new URL('./build_hash.mjs', import.meta.url).pathname], { encoding: 'utf8', env: { ...process.env, STUNT_BREIT: 'alt' } });
-  ok(r.status === 0, 'alte Codes (flach, -3d, Demo, Galerie) bauen mit der Breite bis n22 bitgleich: ' + (r.stdout || '').trim().split('\n').pop());
+  // n26: dazu die Stunt-Bauwerke wie bis n25 (STUNT_STUNT=1)
+  const r = spawnSync(process.execPath, [new URL('./build_hash.mjs', import.meta.url).pathname], { encoding: 'utf8', env: { ...process.env, STUNT_BREIT: 'alt', STUNT_STUNT: '1' } });
+  ok(r.status === 0, 'alte Codes (flach, -3d, Demo, Galerie) bauen mit der Breite bis n22 und Stunts bis n25 bitgleich: ' + (r.stdout || '').trim().split('\n').pop());
 }
 
 // 2) Geometrie je Strecke

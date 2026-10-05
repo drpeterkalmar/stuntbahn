@@ -184,7 +184,10 @@ export class UI {
     this.env = env;
     document.body.dataset.mode = 'menu';
     // n24: Mittel-Bestzeiten einmalig neu (neue Fahrphysik) – einmal Bescheid sagen
-    if (this.store.medNote) { this.store.medNote = 0; setTimeout(() => this.toast('🟡 Mittel fährt jetzt zahmer (neue Fahrphysik) – Mittel-Bestzeiten starten neu', 4500), 600); }
+    const medNote = !!this.store.medNote;
+    if (medNote) { this.store.medNote = 0; setTimeout(() => this.toast('🟡 Mittel fährt jetzt zahmer (neue Fahrphysik) – Mittel-Bestzeiten starten neu', 4500), 600); }
+    // n26: nur, wenn es auf Zufallsstrecken Bestzeiten gab (nach dem Mittel-Hinweis, falls beide)
+    if (this.store.stuntNote) { this.store.stuntNote = 0; setTimeout(() => this.toast('🌀 Größere Stunts (Looping, Schanze, Röhre …) – Bestzeiten der Zufallsstrecken starten neu, Sammlung und .TRK bleiben', 5000), medNote ? 5200 : 600); }
     const S = this.store.settings, m = env.meta, lay = env.layout;
     const stunts = {};
     for (const p of lay.pieces) { const t = p.g === 'gorge' ? 'gorge' : p.g === 'drop' ? 'drop' : { tr_bankC: 'bank', cliff2: 'cliff', slope4: 'slope3', tr_corkud: 'spiral' }[p.type] || p.type; if (ICON[t] && (t !== 'straight')) stunts[t] = (stunts[t] || 0) + 1; }

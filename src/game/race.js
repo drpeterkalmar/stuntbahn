@@ -491,6 +491,9 @@ export class Race {
       for (let j = idx, c = 0; c < 400; c++) { vmin = Math.min(vmin, P.vt[j]); if (j === j1) break; j = j + 1 >= L.n ? (L.closed ? 1 : L.n - 1) : j + 1; }
       need = v > vmin * (1 + H.hintOver) + 1 && input.brake < 0.3;
     }
+    // n26: im (größeren) Looping/in der Röhre kein „Bremsen!“ – dort bremst niemand; das Profil begrenzt das Tempo im
+    // großen Looping über die Höchstlast (6,2 g), der Hinweis blinkte sonst im Bauwerk statt „Looping – Spurhilfe“
+    if (need && (L.loop[idx] || L.tube[idx]) && (this.env.track.stuntScale ?? 1) > 1) need = false;
     if (need && !this.bhOn && this.simTime - (this.bhT ?? -99) > H.gap) { this.bhT = this.simTime; this.emit('brakehint', { dv: v - vmin }); }
     this.bhOn = need;
     if (need) this.hud = { kind: 'brake', text: 'Bremsen!' };
@@ -529,7 +532,7 @@ export class Race {
     if (ap.extra) ap.extra = Math.max(lo - 1.5 - ap.shift, Math.min(hi + 1.5 - ap.shift, ap.extra));
   }
   // Brems-Rechnung (warn.js) für diese Strecke – auch für die dynamische Ideallinie (lineviz.js)
-  brakeWarn() { return this.warn || (this.warn = new BrakeWarn(this.env.ideal || this.env.track.line, this.env.prof)); }
+  brakeWarn() { return this.warn || (this.warn = new BrakeWarn(this.env.ideal || this.env.track.line, this.env.prof, undefined, { loopEnergy: (this.env.track.stuntScale ?? 1) > 1 })); }
 
   // Mittel: Spurhilfe in Looping/Röhre/Korkenzieher (nicht in der Luft, nicht an Schanzen). Liefert { steer, k, zone }:
   // steer = Lenkung des Spurhalters (Fahrbahnmitte), k = sein Anteil (0 … lanePull), zone = Stück fürs HUD (oder null)

@@ -5,7 +5,7 @@
 // Luft-Physik wie die Schanze, weiche Landung über das Fenster), Steilwand (60–75°, zu langsam = rutscht sicher ab),
 // TRK-Teile im Generator-Kontext, ganze Galerie.
 import { pieceCells, PIECES, JUMP, jumpWindow } from '../../src/track/pieces.js';
-import { cliffDesign, WALL, WAVE, SPIRAL } from '../../src/track/pieces_3d.js';
+import { cliffDesign, WALL, WAVE, SPIRAL, CLIFF_KICK } from '../../src/track/pieces_3d.js';
 import '../../src/track/pieces_trk.js';
 import { galleryLayout } from '../../src/track/generator.js';
 import { LEVEL_H, ROAD_HW } from '../../src/track/defs.js';
@@ -129,11 +129,12 @@ for (const [nm, lay, dl] of [
     ok(C.win.vmax - C.win.vmin >= 3.5, `${nm}: Tempo-Fenster zu schmal ${C.win.vmin.toFixed(1)}–${C.win.vmax.toFixed(1)}`);
     // n21: gleiche Lippe wie die Standard-Schanze (11°), aber als Fall-Sprung langsamer (Hang direkt hinter der Lippe;
     // die Standard-Schanze fliegt ~100 m und passt so nicht in 3 Felder) – bis n19 lagen beide Fenster gleich
-    ok(C.win.vmin >= 12 && C.win.vmin < jw.vmin && C.lipY === JUMP.lipH, `${nm}: Fenster ${C.win.vmin.toFixed(1)}–${C.win.vmax.toFixed(1)} m/s (Schanze ${jw.vmin.toFixed(1)}–${jw.vmax.toFixed(1)}), Lippe ${C.lipY.toFixed(2)} m`);
+    // n26: die Klippe behält die Schanze bis n25 (CLIFF_KICK), die Standard-Schanze wird mit dem Stunt-Maßstab höher
+    ok(C.win.vmin >= 12 && C.win.vmin < jw.vmin && C.lipY === CLIFF_KICK.lipH && (JUMP.span === 60 || CLIFF_KICK.lipDeg === 11), `${nm}: Fenster ${C.win.vmin.toFixed(1)}–${C.win.vmax.toFixed(1)} m/s (Schanze ${jw.vmin.toFixed(1)}–${jw.vmax.toFixed(1)}), Lippe ${C.lipY.toFixed(2)} m`);
     const lay = chain([...S3, { type, h1 }, 'straight', 'straight'], 3, 15, 0, lvl);
     const { env, res } = run(nm, lay);
     const j = env.track.jumps[0];
-    ok(j && j.lipDeg === JUMP.lipDeg && j.win === C.win, `${nm}: Lippe/Fenster nicht aus der Schanzen-Konstante`);
+    ok(j && j.lipDeg === CLIFF_KICK.lipDeg && j.win === C.win, `${nm}: Lippe/Fenster nicht aus der Schanzen-Konstante`);
     // Landebahn lang genug: nach dem Aufsetzen noch ≥ 20 m bis zum Stückende
     const L = env.track.line, ids = inPiece(L, 3);
     const land = res.log.find((x) => x.idx > j.lipIdx + 5 && x.gnd && L.s[x.idx] > L.s[j.landIdx] - 2);

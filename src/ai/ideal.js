@@ -9,8 +9,9 @@
 // Startwert und Randmenge für 12 → 6 → 3 → 1,5 m. So braucht jede Stufe nur wenige Durchgänge.
 
 import { WORLD_SCALE } from '../track/defs.js';
-import { LOOP, JUMP_T } from '../track/pieces.js';
-import { CORK } from '../track/pieces_trk.js';
+import { loopGeom, JUMP_T } from '../track/pieces.js';
+import { corkGeom } from '../track/pieces_trk.js';
+import { STUNT_SCALE } from '../track/defs.js';
 
 const STEP = 1.5;
 // Toleranzen: Randverletzung (m) und Kraft, ab der ein Randpunkt frei wird. Auf Geraden liegt die Linie oft
@@ -69,8 +70,13 @@ const KEEP_TYPES = new Set(['tube', 'tr_corkud', 'tr_pipe', 'tr_pipeT', 'tr_pobs
 // wie im 20-m-Feld, + 1 m) – im größeren Feld (Weltmaßstab) ist davor/danach normale Straße, auf der sich die
 // Linie frei aufstellen darf. Über das ganze Stück festgelegt, entstand vor der Rolle ein Knick in der Linie
 // (Profil bremste auf 14 m/s, das Auto streifte beim Verlassen die Spurwand). Maßstab 1: ganzes Stück wie bisher.
-const KEEP_AROUND = { loop: (2 * JUMP_T - LOOP.dF) / 2 + 1, tr_loop: (2 * JUMP_T - LOOP.dF) / 2 + 1, tr_corklr: Math.max(CORK.f0, 2 * JUMP_T - CORK.f1) + 1 };
+// n26: Anfahrt/Ausfahrt wachsen mit dem Stunt-Maßstab k der Strecke (Looping, Rolle × k)
+const KEEP_AROUND = (k) => {
+  const LP = loopGeom(k), CK = corkGeom(k), lp = (2 * JUMP_T * k - LP.dF) / 2 + 1;
+  return { loop: lp, tr_loop: lp, tr_corklr: CK.a + 1 };
+};
 export function stuntBounds(L, track) {
+  const KA = KEEP_AROUND((track && track.stuntScale) ?? STUNT_SCALE);
   const n = L.n, lo = Float32Array.from(L.lo), hi = Float32Array.from(L.hi);
   const lim = new Float32Array(n).fill(Infinity);
   const zone = (s0, s1, w) => { for (let i = 0; i < n; i++) if (L.s[i] >= s0 && L.s[i] <= s1) lim[i] = Math.min(lim[i], w); };
@@ -79,7 +85,7 @@ export function stuntBounds(L, track) {
     if (L.loop[i] || L.tube[i] || (pc && KEEP_TYPES.has(pc.type))) lim[i] = KEEP;
   }
   for (const pc of (track && track.pieces) || []) {
-    const m = KEEP_AROUND[pc.type];
+    const m = KA[pc.type];
     if (!m || pc.lineEnd < pc.lineStart) continue;
     let a = -1, b = -1;
     for (let i = pc.lineStart; i <= pc.lineEnd; i++) if (L.loop[i]) { if (a < 0) a = i; b = i; }

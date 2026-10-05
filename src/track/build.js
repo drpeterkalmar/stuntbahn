@@ -2,8 +2,8 @@
 // Fahrlinie mit Rahmen (Tangente/Normale/Rechts), Render-Geometrie (je Material + Chunk),
 // Kollisionsdreiecke (identisch zur Render-Geometrie), Gelände-Höhenfeld, Bäume, Checkpoints.
 // Reines JS ohne DOM/three.js → läuft auch in Node (Tests, Generator-Prüfung).
-import { TILE, LEVEL_H, ROAD_HW, ROAD_Y, GRID, DIRS, tileX, tileZ, MAT, ROAD_MATS, SURF_MAT, GRIP, WORLD_SCALE, WORLD_HALF } from './defs.js';
-import { PIECES, JUMP, LOOP, pieceCells } from './pieces.js';
+import { TILE, LEVEL_H, ROAD_HW, ROAD_Y, GRID, DIRS, tileX, tileZ, MAT, ROAD_MATS, SURF_MAT, GRIP, WORLD_SCALE, WORLD_HALF, STUNT_SCALE, stuntK } from './defs.js';
+import { PIECES, JUMP, loopGeom, tubeGeom, pieceCells } from './pieces.js';
 import './pieces_trk.js';
 import './obstacles.js';   // Hindernisse in Sprunglücken (n21, HOOK.gapObstacles)
 import { PROFILES_3D } from './pieces_3d.js';
@@ -132,8 +132,10 @@ const PROFILES = {
     ];
     return (o.turn || 1) > 0 ? segs : mirrorSegs(segs);
   },
-  loopLane(s) {
-    const hw = s.hw, wh = 0.55, wt = 0.25, bot = -0.4;
+  loopLane(s, o, ss = 1) {
+    // Spur in Looping/Korkenzieher-Rolle; n26: Bande wächst gedämpft mit dem Stunt-Maßstab (0,55 → 0,72 m bei 1,6)
+    // s.wf (n26): Banden-Höhe an der Einfahrt anlaufend (0 … 1)
+    const hw = s.hw, wh = 0.55 * stuntK(ss, 0.5) * (s.wf ?? 1), wt = 0.25, bot = -0.4;
     return [
       { a: [-hw, 0], b: [hw, 0], mat: MAT.ROAD, col: 1, road: 1 },
       { a: [hw, 0], b: [hw, wh], mat: MAT.WALL, col: 1 },
@@ -145,8 +147,9 @@ const PROFILES = {
       { a: [-hw, wh], b: [-hw, 0], mat: MAT.WALL, col: 1 },
     ];
   },
-  tube() {
-    const b = 2.2, R = 3.5, H = 2 * R, th = 0.45, n = 10;
+  tube(s, o, ss = 1) {
+    // Querschnitt: flacher Boden ±b, Viertelkreise Radius R, Decke auf 2R (n26: × Stunt-Maßstab, tubeGeom)
+    const { b, R, th } = tubeGeom(ss), H = 2 * R, n = 10;
     const inner = [
       { a: [-b, 0], b: [b, 0], mat: MAT.ROAD, col: 1, road: 1 },
       ...arcSegs(b, R, R, -Math.PI / 2, Math.PI / 2, n, MAT.CONCRETE, 1, true),
@@ -230,6 +233,8 @@ function belowIndex(layout, LH) {
 // ---------- Hauptfunktion ----------
 export function buildTrack(layout, opt = {}) {
   const LH = layout.levelH ?? LEVEL_H;
+  // Stunt-Maßstab (n26): je Strecke (layout.stuntScale, z. B. Importe) oder global (defs.js STUNT_SCALE)
+  const SS = layout.stuntScale ?? STUNT_SCALE;
   // Gelände-Strecken (n22, gelaende.js): erst flach bauen (Fahrlinie), daraus den Höhenverlauf je Stück planen, dann
   // ein zweites Mal bauen – jedes Stück um seinen Verlauf D(f) angehoben (Sockel-Stücke um einen festen Wert)
   let gel = null;
@@ -249,6 +254,9 @@ export function buildTrack(layout, opt = {}) {
   const groundAt = trkTerr ? (x, z) => trkTerr.heightFn(x, z) : () => 0;
   const batches = new Map();
   const colPos = [], colNrm = [], colMat = [];
+  // n26 (nur Prüfwerkzeuge, opt.tagCol): Stück je Kollisionsdreieck (Index ins Layout, Deko-Stücke −1 − k, danach −1e6)
+  const colPiece = opt.tagCol ? [] : null;
+  let curPiece = -1;
   const line = [];           // Samples der Fahrlinie (Welt)
   const shapes = [];         // Geländeformen (Grube, Hügel, Teich)
   const decals = [];         // Portale/Banner für die Grafik
@@ -272,6 +280,7 @@ export function buildTrack(layout, opt = {}) {
     colPos.push(p0[0], p0[1], p0[2], p1[0], p1[1], p1[2], p2[0], p2[1], p2[2]);
     colNrm.push(n0[0], n0[1], n0[2], n1[0], n1[1], n1[2], n2[0], n2[1], n2[2]);
     colMat.push(mat);
+    if (colPiece) colPiece.push(curPiece);
   };
 
   // Deko-Stücke (nicht befahrene Teile importierter Strecken): Geometrie ohne Fahrlinie
@@ -345,7 +354,7 @@ export function buildTrack(layout, opt = {}) {
           p, up: s.up ? norm(Wv(s.up)) : [0, 1, 0], bank: (s.bank || 0) + (tiltAt ? tiltAt(s.f) : 0), hw: s.hw ?? o.hw ?? ROAD_HW,
           surf: s.surf ?? 1, air: s.air || 0, loop: s.loop || 0, tube: s.tube || 0, wave: s.wave || 0, f: s.f,
           hg: s.y + lvl * LH - (trkTerr || Dat ? gAt(p[0], p[2]) : 0), prof: s.prof || (o.profile === 'loop' ? (s.loop ? 'loopLane' : 'road') : o.profile === 'tube' ? (s.tube ? 'tube' : 'road') : o.profile),
-          lo: s.lo, hi: s.hi, bankH: s.bankH, ex: s.ex,
+          lo: s.lo, hi: s.hi, bankH: s.bankH, ex: s.ex, wf: s.wf,
         };
       });
       // Randtangenten exakt waagrecht in Ein-/Ausfahrtsrichtung (glatte Übergänge) – außer das Stück
@@ -412,7 +421,7 @@ export function buildTrack(layout, opt = {}) {
 
     const buildRun = (S, prof, o) => {
       const pf = PROFILES[prof];
-      let profs = S.map((s) => pf(s, o));
+      let profs = S.map((s) => pf(s, o, SS));
       const nseg0 = profs[0].length;
       for (const pr of profs) if (pr.length !== nseg0) throw new Error('Profil-Segmentzahl variiert: ' + prof);
       profs = splitTwisted(S, profs);
@@ -442,7 +451,7 @@ export function buildTrack(layout, opt = {}) {
           let ia, ib;
           if (sg.road) {
             // aRoad = (quer x, hw + 100*Typ, s entlang, Abstand zur Markierung); Typ: 0 normal, 1 Start, 2 CP, +10 schmal
-            const typ = (o.mark === 'start' ? 1 : o.mark === 'cp' ? 2 : 0) + (s.hw < 3.2 ? 10 : 0);
+            const typ = (o.mark === 'start' ? 1 : o.mark === 'cp' ? 2 : 0) + (s.hw < 3.2 || prof === 'loopLane' ? 10 : 0);
             const md = o.mark && o.markAt != null ? (s.f - o.markAt) : 999;
             ia = b.v(pa, nA, sg.a[0], v, [sg.a[0], s.hw + 100 * typ, v, md]);
             ib = b.v(pbb, nB, sg.b[0], v, [sg.b[0], s.hw + 100 * typ, v, md]);
@@ -492,7 +501,7 @@ export function buildTrack(layout, opt = {}) {
       }
     };
     const pb = {
-      m, lvl, pc, LH, decor, T: TILE, base, F, R, E,
+      m, lvl, pc, LH, decor, T: TILE, base, F, R, E, ss: SS,
       W, Wv, wbox,
       // Gelände-Strecke (n22): gel = an, gx = Plan dieses Stücks (Brücke, Tunnel, Portale …), D(f) = Anhebung
       gel: !!gel, gx, D: Dat,
@@ -566,20 +575,24 @@ export function buildTrack(layout, opt = {}) {
         addBox(len / 2, 0.9 + H, 0, 0.35, 0.35, 2 * hw, MAT.STEEL, {});
       },
       loopSupports: (f0) => {
-        // Stahlrahmen seitlich des Loopings + Querträger über dem Scheitel
-        const fc = f0 + LOOP.dF / 2, top = LOOP.H + 1.3, off = Math.max(7.6, ROAD_HW + 2.1);   // außerhalb der Platte
+        // Stahlrahmen seitlich des Loopings + Querträger über dem Scheitel. n26: wachsen mit dem Looping (Stunt-Maßstab):
+        // Abstand außerhalb der breiteren Spuren, Stützen-Abstand, Profil und ein Riegel mehr je ~10 m Höhe
+        const LP = loopGeom(SS), k = SS, fc = f0 + LP.dF / 2, top = LP.H + 1.3 * k;
+        const off = Math.max(7.6, ROAD_HW + 2.1, LP.shift + LP.hw + 1.4);   // außerhalb der Platte und der Spuren
+        const sp = 3 * k, th = 0.6 * Math.sqrt(k), nR = Math.max(1, Math.round((top - 4) / 10));
         for (const sgn of [-1, 1]) {
-          addBox(fc - 3, top / 2, sgn * off, 0.6, top, 0.6, MAT.STEEL, { collide: true });
-          addBox(fc + 3, top / 2, sgn * off, 0.6, top, 0.6, MAT.STEEL, { collide: true });
-          addBox(fc, top - 0.3, sgn * off, 6.6, 0.6, 0.6, MAT.STEEL, {});
-          addBox(fc, 4.0, sgn * off, 6.6, 0.4, 0.4, MAT.STEEL, {});
+          addBox(fc - sp, top / 2, sgn * off, th, top, th, MAT.STEEL, { collide: true });
+          addBox(fc + sp, top / 2, sgn * off, th, top, th, MAT.STEEL, { collide: true });
+          addBox(fc, top - 0.3, sgn * off, 2 * sp + th, th, th, MAT.STEEL, {});
+          for (let q = 0; q < nR; q++) addBox(fc, 4.0 + q * (top - 4.0) / nR, sgn * off, 2 * sp + th, 0.4, 0.4, MAT.STEEL, {});
         }
-        addBox(fc, top + 0.2, 0, 1.0, 0.6, 2 * off + 0.6, MAT.STEEL, {});
+        addBox(fc, top + 0.2, 0, 1.0 * Math.sqrt(k), th, 2 * off + th, MAT.STEEL, {});
       },
       jumpInfo: (j) => { if (!decor) jumps.push({ piece: pidx, ...j, E, F, R, base: Dat ? base + Dat(j.lipF, 0) : base }); },
       portal: (f, facingOpt) => {
         // Betonfassade um die Röhrenöffnung (Ring zwischen Innenkontur und Rechteck)
-        const b0 = 2.2, R0 = 3.5, Wx = Math.max(7.2, ROAD_HW + 1.6), Yb = -0.5, Yt = 2 * R0 + 1.4, n = 10;   // Fassade deckt die Fahrbahn
+        // n26: Öffnung = Röhren-Querschnitt des Stunt-Maßstabs (bis n25 b 2,2 / R 3,5 m), Fassade mindestens so breit
+        const TG = tubeGeom(SS), b0 = TG.b, R0 = TG.R, Wx = Math.max(7.2, ROAD_HW + 1.6, SS > 1 ? b0 + R0 + TG.th + 1.2 : 0), Yb = -0.5, Yt = 2 * R0 + 1.4 * Math.sqrt(SS), n = 10;   // Fassade deckt die Fahrbahn
         const pts = [];
         for (let k = 0; k <= 4; k++) pts.push([-b0 + 2 * b0 * k / 4, 0]);
         for (let k = 1; k <= n; k++) { const t = -Math.PI / 2 + Math.PI * k / n; pts.push([b0 + R0 * Math.cos(t), R0 + R0 * Math.sin(t)]); }
@@ -612,6 +625,7 @@ export function buildTrack(layout, opt = {}) {
       },
     };
     info.lineStart = line.length;
+    curPiece = pidx;   // Deko-Stücke: −1 − k
     P.build(pb);
     info.lineEnd = line.length - 1;
     info.exitDir = exitDir;
@@ -623,6 +637,7 @@ export function buildTrack(layout, opt = {}) {
   };
   layout.pieces.forEach((pc, k) => buildPiece(pc, k, false));
   (layout.decor || []).forEach((pc, k) => buildPiece(pc, -1 - k, true));
+  curPiece = -1e6;   // danach (Szenerie, Gelände-Bauten): kein Stück
   // Szenerie (Häuser, Bäume, Windmühle …) importierter Strecken
   const sceneryTrees = [];
   if (layout.scenery && layout.scenery.length) {
@@ -656,7 +671,7 @@ export function buildTrack(layout, opt = {}) {
     L.closed = Math.hypot(dx, dy, dz) < 0.5;
   }
   // Gelände-Strecke, erster (flacher) Bau: nur die Fahrlinie wird gebraucht
-  if (opt._flat) return { line: L, _line: line, pieces: pieceInfo };
+  if (opt._flat) return { line: L, _line: line, pieces: pieceInfo, stuntScale: SS };
   // Kuppen mit Luftphase (n22): dort wie auf den Achterbahn-Wellen leicht negativer Anpressdruck im Tempo-Profil erlaubt,
   // keine Saugkraft (race.js haftOffAt) – die kurze Luftphase am Scheitel ist gewollt
   if (gel) for (const z of gel.plan.zones) {
@@ -718,8 +733,8 @@ export function buildTrack(layout, opt = {}) {
   }
   return {
     layout, line: L, batches: outBatches,
-    col: { pos: new Float32Array(colPos), nrm: new Float32Array(colNrm), mat: new Uint8Array(colMat) },
-    checkpoints, start, jumps, decals, shapes, terrain, trees, pieces: pieceInfo,
+    col: { pos: new Float32Array(colPos), nrm: new Float32Array(colNrm), mat: new Uint8Array(colMat), ...(colPiece ? { piece: Int32Array.from(colPiece) } : {}) },
+    checkpoints, start, jumps, decals, shapes, terrain, trees, pieces: pieceInfo, stuntScale: SS,
     bounds: { minX, maxX, minZ, maxZ, maxY },
     ...(gel ? { gel } : {}),
   };

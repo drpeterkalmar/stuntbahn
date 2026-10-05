@@ -157,7 +157,9 @@ export class CineCam {
     if (c.kind !== 'loop') this.horiz(this.pose(c.kind === 'finish' ? c.b : jumpy && m.t1 != null ? m.t1 : c.tp).f, fh, fh);
     const cand = V(), car = V(), rx = -fh[2], rz = fh[0];
     let best = null;
-    for (const side of [1, -1]) for (const d of C.dist) for (const al of C.along) for (const h of C.h) {
+    const dk = c.kind === 'loop' ? Math.sqrt(this.env.track.stuntScale ?? 1) : 1;   // n26: größerer Looping → etwas weiter weg
+    for (const side of [1, -1]) for (const d0 of C.dist) for (const al of C.along) for (const h of C.h) {
+      const d = d0 * dk;
       const along = c.kind === 'finish' ? al + 16 : c.kind === 'loop' ? al * 0.4 : al;
       set(cand, A[0] + rx * side * d + fh[0] * along, 0, A[2] + rz * side * d + fh[2] * along);
       cand[1] = Math.max(A[1] + h, this.floor(cand[0], cand[2]) + Math.max(CINE.ground, h * 0.6));
@@ -169,7 +171,7 @@ export class CineCam {
         near = Math.min(near, dist(cand, q.p));
       }
       if (near < 6) continue;
-      const score = vis / samples.length * 100 - Math.abs(d - 30) * 0.15 - h * 0.25 + (along > 0 ? 2 : 0);
+      const score = vis / samples.length * 100 - Math.abs(d - 30 * dk) * 0.15 - h * 0.25 + (along > 0 ? 2 : 0);
       if (!best || score > best.score) best = { pos: [...cand], score, vis: vis / samples.length, anchor: A };
     }
     // nichts frei: hoch über dem Anker (Hubschrauber-Standbild)
@@ -235,7 +237,9 @@ export class CineCam {
       copy(O.look, this.lk);
       const z = clip ? clamp((t - shot.t0) / Math.max(0.2, clip.tp - shot.t0), 0, 1) : uS;
       const [fw, ft] = (clip && C.fit[clip.kind]) || [C.fitWide, C.fitTight];
-      fit = fw + (ft - fw) * (z * z * (3 - 2 * z));
+      // n26: am Looping wächst der Ausschnitt mit dem Stunt-Maßstab der Strecke (Looping 23 statt 14,5 m hoch)
+      const sk = clip && clip.kind === 'loop' ? (this.env.track.stuntScale ?? 1) : 1;
+      fit = (fw + (ft - fw) * (z * z * (3 - 2 * z))) * sk;
       O.dof = C.dof;
     }
     const d = Math.max(1, dist(O.pos, p));

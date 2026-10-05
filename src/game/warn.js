@@ -11,6 +11,7 @@
 import { CAR_DEF, aeroLoad } from '../physics/car.js';
 import { G } from '../physics/air.js';
 import { PROF } from '../ai/profile.js';
+import { STUNT_SCALE } from '../track/defs.js';
 
 export const BRAKE_WARN = { react: 0.6, lift: 0.3, brake: 0.5, hint: 0.55, hyst: 0.12, over: 0.03, horizon: 7, hMin: 60, prom: 3, promLen: 150, flat: 30 };
 
@@ -23,12 +24,16 @@ export function planDecel(def, v) {
 
 export class BrakeWarn {
   // L: Linie, auf der prof gerechnet ist (env.ideal), prof: Tempo-Profil
-  constructor(L, prof, def = CAR_DEF) {
+  // opt.loopEnergy (n26, Standard bei Stunt-Maßstab > 1): im Looping verliert das Auto bergauf von selbst Tempo
+  // (v² − 2·g·Höhe) – das Ziel-Tempo oben (Höchstlast) zählt deshalb mit diesem Abschlag, und der Scheitel ist keine
+  // „Kurve“ (mins). Sonst kam „Bremsen!“ vor jedem großen Looping (23 m hoch), obwohl Ausrollen genügt.
+  constructor(L, prof, def = CAR_DEF, opt = {}) {
     this.L = L; this.vt = prof.vt; this.def = def;
+    this.lp = !!(opt.loopEnergy ?? STUNT_SCALE > 1) && !!L.loop;
     const n = L.n, vt = prof.vt, W = BRAKE_WARN, mins = [];
     const sd = (a, b) => { let d = L.s[b] - L.s[a]; if (L.closed && d < 0) d += L.total; return d; };
     for (let i = 0; i < n; i++) {
-      if (L.air[i]) continue;
+      if (L.air[i] || (this.lp && L.loop[i])) continue;
       const p = i > 0 ? i - 1 : L.closed ? n - 2 : i, q = i < n - 1 ? i + 1 : L.closed ? 1 : i;
       if (!(vt[i] < vt[p] - 1e-4 || (p === i)) || vt[i] > vt[q] + 1e-4) continue;   // erster Punkt eines Tiefs
       // ausgeprägt: tiefster Wert ± flat m und mindestens prom m/s unter dem Höchstwert der promLen m davor
@@ -70,7 +75,8 @@ export class BrakeWarn {
     for (let q = idx, c = 0; c < n; c++) {
       const D = this.dist(idx, q);
       if (D > H) break;
-      const vk = vt[q];
+      let vk = vt[q];
+      if (this.lp && L.loop[q] && L.py[q] > L.py[idx]) vk = Math.sqrt(vk * vk + 2 * G * (L.py[q] - L.py[idx]));
       if (vk < v && D >= d0 - 0.5 && !L.air[q]) {
         const aEff = (planDecel(this.def, vk) + a) / 2;
         const x = (v2 - vk * vk) / (2 * Math.max(1, D - d0)) / aEff;

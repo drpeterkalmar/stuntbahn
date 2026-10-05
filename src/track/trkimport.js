@@ -220,8 +220,12 @@ export function trkToLayout(trk, opt = {}) {
   const counts = {};
   for (const pc of pieces) if (pc.kind) counts[pc.kind] = (counts[pc.kind] || 0) + 1;
   const key = 'trk-' + trkHash(trk.bytes);
+  // n26: Importe (eigene .TRK, Sammlung, Beispielstrecken) behalten die Stunt-Bauwerke bis n25 (Stunt-Maßstab 1): Die
+  // Strecken des Klassikers stapeln Bauwerke dicht (Sprünge über Röhren/Korkenzieher, Hochstraßen in 6-m-Ebenen) – mit dem
+  // großen Maßstab ragte die 11 m hohe Röhre in Flugbahnen (Korpus 200: Leicht 95 → 90,5 % im Ziel, 9 × Überschlag an
+  // Lücken). Die Sammlung ist eingefroren (Autopilot-Referenzen, Bestzeiten) und bleibt so bitgleich.
   const layout = {
-    pieces, decor, scenery, trk: { terr: trk.terr, horizon: trk.horizon }, levelH: IMPORT_LH, seed: parseInt(trkHash(trk.bytes).slice(0, 6), 36) || 1,
+    pieces, decor, scenery, trk: { terr: trk.terr, horizon: trk.horizon }, levelH: IMPORT_LH, seed: parseInt(trkHash(trk.bytes).slice(0, 6), 36) || 1, stuntScale: 1,
     meta: { key, name: trk.name, diffName: HORIZONS[trk.horizon] || '', imported: true, closed: best.closed },
   };
   const report = {

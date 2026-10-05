@@ -8,8 +8,13 @@
 // wer viel zu schnell ist, fliegt weiter hinaus. Rein rechnerisch (kein three.js), deterministisch.
 import { G, AIR } from '../physics/air.js';
 import { CAR_DEF } from '../physics/car.js';
+import { STUNT_SCALE } from '../track/defs.js';
 
-export const JUMP_PULL = { lo: 10, hiMargin: 4, aH: 3.0, gUp: 3.0, gDown: 2.5, rate: 4, dtP: 1 / 40, tMax: 6 };
+// n26: Die höhere Schanze (15°-Lippe, pieces.js JUMP_N26) trägt Übertempo weiter – Zug nach unten (gUp) und Bremsen (aH)
+// wachsen mit dem Stunt-Maßstab bis 6 / 4,5 m/s² (bei k = 1,6; bis n25 3 / 3). Gemessen (tools/sprunghilfe_probe.mjs, Mittel-Bots,
+// 8 Strecken × 2): Vollgas-Bot 0 von 29 Sprüngen hinter der Rampe (mit 3/3: 5), Handy-Bot 24/26 sauber wie bis n25.
+const PT = Math.max(0, Math.min(1, (STUNT_SCALE - 1) / 0.6));
+export const JUMP_PULL = { lo: 10, hiMargin: 4, aH: 3.0 + 1.5 * PT, gUp: 3.0 + 3 * PT, gDown: 2.5, rate: 4, dtP: 1 / 40, tMax: 6 };
 const DRAG = CAR_DEF.dragK / CAR_DEF.mass;
 
 // Boden hinter der Lücke (Landerampe und Strecke danach) als Höhe über der Achse Lippe → Landung (x ab Lippe, waagrecht)

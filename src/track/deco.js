@@ -11,6 +11,7 @@
 import { TILE, WORLD_SCALE, WORLD_HALF, tileX, tileZ } from './defs.js';
 import { rng, makeNoise2 } from '../core/util.js';
 import { planKulisse } from './kulisse.js';
+import { HALFPIPE } from './gelaende.js';
 
 const WS = WORLD_SCALE;
 // Mindestabstand (m) von der Fahrbahnkante (Linienpunkt − halbe Breite) je Art
@@ -25,7 +26,17 @@ export const MIN_CLEAR = {
 const DENS = [0.3, 0.55, 1];
 
 // Räumliches Gitter der Fahrlinie: waagrechter Abstand zur nächsten Fahrbahnkante
-function lineHash(L) {
+// n26: Bauwerke, die über die Fahrbahn hinaus breit sind – Halfpipe (Viertelröhren bis hf + R·sin A, Kante 1,2 m): deren
+// Punkte zählen um so viel breiter (sonst standen Banden, Schilder und Büsche auf der größeren Halfpipe-Wand)
+function extraWidth(track) {
+  const L = track.line, P = track.pieces || [];
+  if (!P.some((p) => p.type === 'halfpipe')) return null;
+  const ext = new Float32Array(L.n);
+  const w = HALFPIPE.hf + HALFPIPE.R * Math.sin(HALFPIPE.A) + 1.3;
+  for (const pc of P) if (pc.type === 'halfpipe') for (let i = pc.lineStart; i <= pc.lineEnd; i++) ext[i] = Math.max(0, w - L.hw[i]);
+  return ext;
+}
+function lineHash(L, ext = null) {
   const C = 24, cells = new Map();
   const key = (i, j) => i * 73856093 ^ j * 19349663;
   for (let i = 0; i < L.n; i++) {
@@ -38,7 +49,7 @@ function lineHash(L) {
     let best = 1e9;
     for (let dj = -r; dj <= r; dj++) for (let di = -r; di <= r; di++) {
       const a = cells.get(key(ci + di, cj + dj)); if (!a) continue;
-      for (const i of a) { const d = Math.hypot(x - L.px[i], z - L.pz[i]) - L.hw[i]; if (d < best) best = d; }
+      for (const i of a) { const d = Math.hypot(x - L.px[i], z - L.pz[i]) - L.hw[i] - (ext ? ext[i] : 0); if (d < best) best = d; }
     }
     return best;
   };
@@ -69,7 +80,7 @@ export function planDeco(track, o = {}) {
   const VK = o.veg || {}, vk = (k) => (VK[k] ?? 1);
   const R = rng((o.seed || track.layout?.seed || 1) * 7919 + 11);
   const noise = makeNoise2((o.seed || 1) * 31 + 5);
-  const H = lineHash(L), occ = occHash();
+  const H = lineHash(L, extraWidth(track)), occ = occHash();
   const ground = (x, z) => T.height(x, z);
   // .TRK-Szenerie-Felder (Häuser, Tankstelle …) freihalten
   const sceneryTiles = new Set((track.layout?.scenery || []).filter((s) => s.kind !== 'pine').map((s) => s.i + ',' + s.j));
@@ -436,4 +447,4 @@ export function planDeco(track, o = {}) {
 }
 
 // Für Tests: waagrechter Abstand zur Fahrbahnkante
-export function roadClearance(track) { return lineHash(track.line).dist; }
+export function roadClearance(track) { return lineHash(track.line, extraWidth(track)).dist; }

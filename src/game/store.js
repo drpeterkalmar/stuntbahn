@@ -1,6 +1,6 @@
 // Speicher (localStorage): Einstellungen, Bestzeiten + Geisterautos getrennt je Strecke, Fahrhilfe, Totalschaden-
 // Einstellung und Extras-Einstellung.
-import { WORLD_SCALE_DEFAULT } from '../track/defs.js';
+import { WORLD_SCALE_DEFAULT, STUNT_SCALE_DEFAULT } from '../track/defs.js';
 
 const KEY = 'stuntbahn.v1';
 const GHOST_MAX = 40;
@@ -20,11 +20,19 @@ const RESET_MARK = 21;
 // Mittel-Bestzeiten und -Geister löschen (MED_RESET, idempotent; wie n21 „Bestzeiten streichen“, ohne Altlisten),
 // einmal Hinweis im Menü. Original und die Leicht-Zeiten bleiben.
 const MED_RESET = 24;
-const AB_PARAMS = [['auto', 'alt'], ['grip', '1'], ['mgrip', '1'], ['m', 'n16'], ['m', 'n23'], ['antrieb', null], ['breit', 'alt'], ['wiese', 'alt'], ['haft', 'alt'], ['schanze', 'alt'], ['welt', null], ['air', null], ['lip', null]];
+// n26: größere Stunt-Bauwerke (Stunt-Maßstab) – auf Zufallsstrecken (flach, 3D, Gelände, Demo, Galerie) ändern sich
+// Looping, Schanze, Röhre & Co. und damit Fahrlinie und Zeiten; Geister führen sonst durch die alten Bauwerke. Einmalig
+// deren Bestzeiten und Geister löschen (STUNT_RESET, idempotent, Hinweis im Menü) – Importe (.TRK, Sammlung, Beispiel-
+// strecken) behalten ihre Bauwerke und Zeiten. Leicht-Zeiten bleiben (werten nicht).
+const STUNT_RESET = 26;
+export const IMPORTED_KEY = /^(trk-|sam-|demo-)/;
+// n26: ?stunt=1 (Stunt-Bauwerke wie bis n25) bzw. jeder andere Stunt-Maßstab als der Standard
+const AB_PARAMS = [['auto', 'alt'], ['grip', '1'], ['mgrip', '1'], ['m', 'n16'], ['m', 'n23'], ['antrieb', null], ['breit', 'alt'], ['wiese', 'alt'], ['haft', 'alt'], ['schanze', 'alt'], ['welt', null], ['stunt', null], ['air', null], ['lip', null]];
+const AB_SCALE = { welt: WORLD_SCALE_DEFAULT, stunt: STUNT_SCALE_DEFAULT };
 export function abMode(search = globalThis.location ? globalThis.location.search : '') {
   if (!search) return false;
   const q = new URLSearchParams(search);
-  return AB_PARAMS.some(([k, v]) => q.has(k) && (k === 'welt' ? Math.abs(parseFloat(q.get(k)) - WORLD_SCALE_DEFAULT) > 1e-6 : v === null ? q.get(k) !== '' : q.get(k) === v));
+  return AB_PARAMS.some(([k, v]) => q.has(k) && (AB_SCALE[k] ? Math.abs(parseFloat(q.get(k)) - AB_SCALE[k]) > 1e-6 : v === null ? q.get(k) !== '' : q.get(k) === v));
 }
 export const AB = abMode();
 export function modeKey(assist, wreck, extras = true) {
@@ -46,6 +54,8 @@ export class Store {
     if (this.reset < RESET_MARK) { this.clearBests(); this.reset = RESET_MARK; this.save(); }
     this.medReset = d.medReset || 0;
     if (this.medReset < MED_RESET) { this.medNote = this.clearBests('medium'); this.medReset = MED_RESET; this.save(); }
+    this.stuntReset = d.stuntReset || 0;
+    if (this.stuntReset < STUNT_RESET) { this.stuntNote = this.clearBests(null, (k) => !IMPORTED_KEY.test(k)); this.stuntReset = STUNT_RESET; this.save(); }
     // Streckenart (n22): flach / Hochstraße (n19, „3D“) / Gelände (Standard ab n22). Bisher nur der Schalter „flach“:
     // wer flach gewählt hatte, behält flach; alle anderen bekommen das neue Gelände
     if (!this.settings.trackMode) this.settings.trackMode = this.settings.flat ? 'flat' : 'gel';
@@ -53,16 +63,17 @@ export class Store {
   }
   // Einmalig (n21): alle Bestzeiten und Geisterautos löschen – auch die der alten Physik/Welt/Mittel-Listen und die
   // aus früheren Leicht-Bestzeiten übernommenen Einträge („früher“) der Leicht-Zeiten-Liste
-  // assist: nur diese Fahrhilfe (n24: 'medium'), liefert die Zahl gelöschter Bestzeiten
-  clearBests(assist = null) {
-    const mine = (k) => !assist || k.includes('|' + assist + '+');
+  // assist: nur diese Fahrhilfe (n24: 'medium'), keyOk: nur Strecken, deren Schlüssel passt (n26: Zufallsstrecken);
+  // liefert die Zahl gelöschter Bestzeiten
+  clearBests(assist = null, keyOk = null) {
+    const mine = (k) => (!assist || k.includes('|' + assist + '+')) && (!keyOk || keyOk(k.replace(/^stuntbahn\.ghost\./, '')));
     const n = Object.keys(this.best).filter(mine).length;
-    if (!assist) this.best = {}; else for (const k of Object.keys(this.best)) if (mine(k)) delete this.best[k];
+    if (!assist && !keyOk) this.best = {}; else for (const k of Object.keys(this.best)) if (mine(k)) delete this.best[k];
     this.ghostIndex = this.ghostIndex.filter((k) => !mine(k));
     const ghosts = [];
     for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && k.startsWith('stuntbahn.ghost.') && mine(k)) ghosts.push(k); }
     for (const k of ghosts) localStorage.removeItem(k);
-    if (!assist) for (const [id, L] of Object.entries(this.times)) { const f = L.filter((e) => !e.old); if (f.length) this.times[id] = f; else delete this.times[id]; }
+    if (!assist && !keyOk) for (const [id, L] of Object.entries(this.times)) { const f = L.filter((e) => !e.old); if (f.length) this.times[id] = f; else delete this.times[id]; }
     return n;
   }
   // Geprüfte Strecken (Autopilot) cachen: Layout nach Entschärfen + Referenzzeit
@@ -83,7 +94,7 @@ export class Store {
     try { localStorage.setItem(KEY + '.verified', JSON.stringify(this.verified)); } catch { /* voll */ }
   }
   save() {
-    try { localStorage.setItem(KEY, JSON.stringify({ settings: this.settings, best: this.best, ghostIndex: this.ghostIndex, times: this.times, timesMig: this.timesMig, reset: this.reset, medReset: this.medReset })); } catch { /* voll */ }
+    try { localStorage.setItem(KEY, JSON.stringify({ settings: this.settings, best: this.best, ghostIndex: this.ghostIndex, times: this.times, timesMig: this.timesMig, reset: this.reset, medReset: this.medReset, stuntReset: this.stuntReset })); } catch { /* voll */ }
   }
   // Leicht: letzte Zeiten dieser Strecke (neueste zuerst, nicht nach Zeit sortiert)
   timesFor(key) { return this.times[key] || []; }

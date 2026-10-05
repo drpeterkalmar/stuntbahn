@@ -75,7 +75,11 @@ export function rueckweg(env, n = 24, seed = 1) {
   const rnd = () => ((s = (s * 9301 + 49297) % 233280) / 233280);
   const res = [];
   for (let tries = 0; res.length < n && tries < n * 20; tries++) {
-    const i = Math.floor(rnd() * L.n);
+    // Startpunkt: Stück + Anteil darin (n26: nicht nach Punktnummer – größere Stunt-Bauwerke haben mehr Punkte und eine
+    // längere Fahrlinie, die Auswahl verschob sich sonst auf allen übrigen Stücken)
+    const P = env.track.pieces, pc = P[Math.floor(rnd() * P.length)], u = rnd();
+    if (!pc || pc.lineEnd < pc.lineStart) continue;
+    const i = pc.lineStart + Math.floor(u * (pc.lineEnd - pc.lineStart + 1));
     if (L.air[i] || L.loop[i] || L.tube[i]) continue;
     const side = rnd() < 0.5 ? -1 : 1, off = L.hw[i] + 25 + rnd() * 35;
     const rx = -L.tz[i], rz = L.tx[i], rl = Math.hypot(rx, rz) || 1;
