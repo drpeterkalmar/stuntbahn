@@ -5,7 +5,7 @@ Ziel-Durchfahren (auch im Replay und Highlight). Mehr Fan-Cam-Schwenks und Effek
 detaillierter und schöner machen.“
 
 ## Kurz
-- **Live:** https://drpeterkalmar.github.io/stuntbahn/ – Build **ca76bd05b7**, im Browser geprüft (Pixel 7 quer): Rennen →
+- **Live:** https://drpeterkalmar.github.io/stuntbahn/ – Build **9f8ff0fc2e**, im Browser geprüft (Pixel 7 quer, auch test_live): Rennen →
   Zielshow mit 4017 Feuerwerks-Teilchen (Bestzeit) → Highlight-Film „Looping · Röhre · ⭐ 100 m Sprung [Kran → Boden] ·
   99 m Sprung [Fan-Cam → Heck] · Ziel [Tele → Zielbogen]“, Cockpit mit Spiegelbild, **0 Fehler**.
 - **Zielshow:** An der Ziellinie zünden Funkenfontänen und Flammensäulen links und rechts, Raketen steigen auf und
