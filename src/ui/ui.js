@@ -266,13 +266,14 @@ export class UI {
   // Kulissen (n20): Einstellung „Landschaft“ – passend (aus Seed/Horizont) oder fest ein Thema für alle Strecken
   themeLabel(env) {
     const v = this.store.settings.theme || 'auto';
+    if (env && env.themeRandom && THEMES[env.theme]) return `🎲 Zufall (${THEMES[env.theme].icon} ${THEMES[env.theme].name})`;
     if (v !== 'auto' && THEMES[v]) return `${THEMES[v].icon} ${THEMES[v].name}`;
     const a = env && env.layout ? themeAuto(env.layout) : null;
     return `passend${a ? ` (${THEMES[a].icon} ${THEMES[a].name})` : ''}`;
   }
   themeIcon(env) {
     const v = this.store.settings.theme || 'auto';
-    const id = v !== 'auto' && THEMES[v] ? v : env && env.theme;
+    const id = env && env.themeRandom ? env.theme : v !== 'auto' && THEMES[v] ? v : env && env.theme;
     return THEMES[id] ? THEMES[id].icon : '🏞️';
   }
   showThemes() {
@@ -301,7 +302,7 @@ export class UI {
       case 'start': A.startRace(); break;
       case 'assist': A.setAssist(v); if (this.screen === 'pause') this.showPause(true); break;
       case 'diff': S.diff = +v; this.store.save(); this.refresh(); break;
-      case 'random': A.newTrack((Math.random() * 90000 + 1000) | 0, S.diff || 2); break;
+      case 'random': A.newTrack((Math.random() * 90000 + 1000) | 0, S.diff || 2, undefined, true); break;   // würfelt auch die Landschaft
       case 'today': A.newTrack(daySeed(), 2); break;
       case 'flat': S.trackMode = v === '1' ? 'flat' : 'gel'; this.store.save(); this.refresh(); break;
       case 'mode': { S.trackMode = v; this.store.save(); this.refresh(); const md = MODES.find((q) => q[0] === v); if (md) this.toast(`${md[1]} ${md[2]}: ${md[3]}`, 2800); break; }

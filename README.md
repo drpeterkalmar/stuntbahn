@@ -157,6 +157,8 @@ spielbar am Handy (quer oder hochkant), mit Gamepad oder Tastatur. Als App insta
   Skyline mit Hochhäusern, Kränen, Hochstraße, Leuchtturm, Segelbooten). Alle Assets CC0 (`assets/LICENSES.md`).
 - **Passend zur Strecke:** generierte Strecken aus Seed/Stufe/Streckenart, .TRK und Sammlung aus dem Horizont. Menü →
   **„🏞️ Landschaft“**: passend oder fest ein Thema; URL `?thema=wueste|alpen|kueste|stadt|herbst|winter|land`.
+  **„🎲 Zufall“ würfelt auch die Landschaft** (seit 05.10.2026; nie dieselbe wie gerade, gilt nur für diese Strecke –
+  eine Wahl unter „Landschaft“ hebt sie auf, Tages-Strecke/Code folgen wieder der Einstellung).
 - **Streckenrand:** Tribünen an Start, Sprüngen, Loopings und Kurven, **jubelnde Zuschauer**, Start/Ziel-Portal, Fahnen mit
   erfundenen Marken, Kamerakräne, Heißluftballons, Zeppelin, Windräder. Keine Kollision, nie in Sprunglücken, Schluchten oder
   auf Böschungen; **Fahrbahn und Bestzeiten unverändert** (47/47 Strecken bitgleich).

@@ -5,7 +5,7 @@ import { BUILD } from './build.js';
 import { makeMaterials, shadowUniforms, preloadKtx2 } from './gfx/materials.js';
 import { makeSky, sunDirFromUV, bakeStaticShadow } from './gfx/env.js';
 import { ThemeManager } from './gfx/themes.js';
-import { themeFor, THEMES } from './track/themes.js';
+import { themeFor, THEMES, THEME_IDS } from './track/themes.js';
 import { buildWorld, STATIC_LAYER } from './gfx/world.js';
 import { makeCar, loadCarModel, parkedCarGeometry, EXHAUST } from './gfx/carmesh.js';
 import { CameraRig, CAM_MODES, CAM_NAMES, cockpitDash, clearLens } from './gfx/camera.js';
@@ -200,12 +200,22 @@ async function boot() {
 // Streckenart: 'flat' | '3d' (Hochstraße, n19) | 'gel' (Gelände, n22); true/false wie bis n21 (3D/flach)
 // Landschafts-Thema einer Strecke: URL ?thema= > Einstellung „Landschaft“ > passend (track/themes.js)
 let URL_THEMA = params.get('thema');   // gilt, bis im Menü eine Landschaft gewählt wird
-const themeOf = (layout) => themeFor(layout, store.settings.theme || 'auto', URL_THEMA);
+// „🎲 Zufall“ würfelt auch die Landschaft (Peter 05.10.): gilt nur für genau diese Strecke (Schlüssel) und hat Vorrang vor
+// Einstellung und ?thema=; eine Wahl im Landschafts-Menü hebt es auf. Andere Strecken (Tages-Strecke, Code, .TRK) wie bisher.
+let RANDOM_THEMA = null;   // { key, id }
+const randomThemaOf = (layout) => (RANDOM_THEMA && layout && layout.meta && layout.meta.key === RANDOM_THEMA.key ? RANDOM_THEMA.id : null);
+const themeOf = (layout) => randomThemaOf(layout) || themeFor(layout, store.settings.theme || 'auto', URL_THEMA);
+// zufällige Landschaft, möglichst eine andere als die gerade sichtbare
+function pickRandomThema(rnd = Math.random) {
+  const ids = THEME_IDS.filter((id) => id !== (env && env.theme));
+  return ids[Math.floor(rnd() * ids.length) % ids.length] || THEME_IDS[0];
+}
 const modeOf = (m) => (m === true ? '3d' : m === false ? 'flat' : m === '3d' || m === 'gel' || m === 'flat' ? m : store.settings.trackMode || 'gel');
-async function loadGenerated(seed, diff, mode = 'flat') {
+async function loadGenerated(seed, diff, mode = 'flat', randomTheme = false) {
   mode = modeOf(mode);
   const gopt = (variant) => (mode === '3d' ? { d3: true, variant } : mode === 'gel' ? { gel: true, variant } : {});
   let lay = generate(seed, diff, gopt(0));
+  if (randomTheme) RANDOM_THEMA = { key: lay.meta.key, id: typeof randomTheme === 'string' && THEMES[randomTheme] ? randomTheme : pickRandomThema() };
   themes.prefetch(themeOf(lay));   // Kulissen-Paket lädt, während der Autopilot prüft
   const key = lay.meta.key;
   const cached = store.getVerified(key + WORLD_TAG, VBUILD);
@@ -355,6 +365,7 @@ async function loadTrack(layout, meta = {}, pre = null) {
   // Kulissen (n20): Thema laden/anwenden (Himmel, Licht, Boden), dann die Welt mit seinen Pflanzen, Bauten, Fernkulisse
   const th = await themes.use(themeOf(layout));
   env.theme = th.id;
+  env.themeRandom = !!randomThemaOf(layout);
   if (worldGroup) { scene.remove(worldGroup); worldGroup.traverse((o) => { if (o.geometry) o.geometry.dispose(); }); worldGroup = null; }
   worldGroup = buildWorld(track, M, { world, tier: quality.tier, ideal, prof, deco: params.get('deko') !== '0', theme: { id: th.id, def: th.def, veg: th.veg, horizon: th.horizon, seed: layout.seed || layout.meta?.seed || 1 } });
   scene.add(worldGroup);
@@ -393,10 +404,10 @@ function startRace(opts = {}) {
   prevPose = null;
 }
 function retry() { startRace(); }
-async function newTrack(seed, diff, mode) {
+async function newTrack(seed, diff, mode, randomTheme = false) {
   ui.loading(0.5, 'Strecke bauen …');
   await new Promise((r) => setTimeout(r, 30));
-  await loadGenerated(seed, diff, modeOf(mode));
+  await loadGenerated(seed, diff, modeOf(mode), randomTheme);
   ui.loading(1);
   ui.showMenu(env);
   mode = 'menu';
@@ -404,7 +415,7 @@ async function newTrack(seed, diff, mode) {
 // Kulissen (n20): Einstellung „Landschaft“ ('auto' = passend oder ein Thema) – die aktuelle Strecke bekommt sofort das neue
 // Thema (Welt neu, Strecke/Physik/Bestzeiten unverändert)
 async function setTheme(v) {
-  store.settings.theme = v; store.save(); URL_THEMA = null;
+  store.settings.theme = v; store.save(); URL_THEMA = null; RANDOM_THEMA = null;
   if (!env) return;
   ui.loading(0.5, 'Landschaft …');
   await new Promise((r) => setTimeout(r, 20));
@@ -945,7 +956,7 @@ window.__game = {
   // G-Kräfte (n24): live (Rennen) bzw. Replay an der aktuellen Stelle; Lage des runden G-Meters
   gState() { if (mode === 'replay' && replay) return { ...replay.gState() }; if (!race) return null; gLiveSync(); return gLive.m.state(); },
   gmeterBox() { const e = document.getElementById('gmeter'); if (!e || !e.classList.contains('show')) return null; const b = e.getBoundingClientRect(); return [b.left, b.top, b.right, b.bottom]; },
-  newTrack: (s, d, mode) => newTrack(s, d, mode),
+  newTrack: (s, d, mode, randomTheme) => newTrack(s, d, mode, randomTheme),
   setAssist,
   setLine,
   toggleLine,
