@@ -5,10 +5,13 @@
 //   tele    Stativ mit Tele an der Landestelle (bzw. am Looping, an der Crash-Stelle, hinter der Ziellinie): Zoom + Schwenk
 //   heli    Hubschrauber: weit und hoch, Überblick
 //   onboard auf dem Dach, Blick nach vorn (kurz)
+//   arch    Zielbogen (n27): Kamera vor der Ziellinie neben der Fahrbahn, schwenkt vom wegfahrenden Auto hinauf auf den Bogen
+//           mit Fontänen und Feuerwerk (live in der Zielshow und im Highlight-Film; Standort nur aus der Strecke → gleich)
 // Kein Clipping: feste Standorte werden vorab gegen Strecke, Gelände und Wasser geprüft (frei, nicht unter einer Brücke,
 // nicht auf der Fahrbahn, Sicht aufs Auto über die ganze Einstellung); bewegte Kameras wählen die freiere Seite und
 // werden in jedem Bild per Strahl vom Auto aus herangezogen, wenn ein Bauteil oder der Hang dazwischen liegt.
 import { poseAt } from './highlights.js';
+import { pyroGeo, ZIEL } from './zielshow.js';
 
 export const CINE = {
   drone: { R: 10, H: 4.2, phi0: -0.6, phi1: 0.3, fit: 8, dof: 0.75, follow: 6, look: 8 },
@@ -19,6 +22,10 @@ export const CINE = {
   // Bildausschnitt (m um das Auto) von weit (Anfang) auf eng (Höhepunkt); am Looping der ganze Looping im Bild (Blick
   // zwischen Looping-Mitte und Auto), am Ziel etwas weiter
   tele: { dist: [22, 32, 44], h: [1.6, 4, 9], along: [-14, 0, 14], fitWide: 11, fitTight: 5, fit: { loop: [30, 20], finish: [14, 7] }, anchorK: { loop: 0.45 }, pan: 5, dof: 1 },
+  // Zielbogen (n27): Standorte hinter der Ziellinie (along m entgegen der Fahrtrichtung), seitlich off m über die Fahrbahn-
+  // kante, h m hoch; Blickziel am Ende focus m über der Linie, Bildausschnitt fitCar m (Auto) → fitArch m (Bogen + Feuerwerk),
+  // Kran steigt rise m, Schwenk ZIEL.pan s
+  arch: { along: [-16, -22, -30], off: [4, 8, 13], h: [2.5, 5, 8], focus: 16, fitCar: 12, fitArch: 46, rise: 2.5, dof: 0.25, dist: 26 },
   gap: 0.6,          // m Abstand zu Bauteilen (Strahl-Treffer)
   minDist: 2.6,      // m: näher zieht eine bewegte Kamera nicht heran
   ground: 0.9,       // m über Gelände/Wasser mindestens
@@ -33,6 +40,7 @@ const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
 const norm = (o) => { const l = len(o) || 1; o[0] /= l; o[1] /= l; o[2] /= l; return o; };
 const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 const lerpTo = (o, a, k) => set(o, o[0] + (a[0] - o[0]) * k, o[1] + (a[1] - o[1]) * k, o[2] + (a[2] - o[2]) * k);
+const sstep = (a, b, x) => { const q = clamp((x - a) / (b - a), 0, 1); return q * q * (3 - 2 * q); };
 
 export class CineCam {
   // env = { track, world }, rec = Aufzeichnung, film = buildFilm(…), opt.carTop = Dachhöhe über dem Auto-Ursprung (m)
@@ -100,7 +108,52 @@ export class CineCam {
     if (s.cam === 'tele') return this.setupTele(c, s, samples);
     if (s.cam === 'drone' || s.cam === 'heli') return this.setupOrbit(s, samples);
     if (s.cam === 'action') return this.setupAction(samples);
+    if (s.cam === 'arch') return this.setupArch();
     return {};
+  }
+  // Zielbogen: Standort nur aus der Strecke (live wie im Film gleich) – frei, neben der Fahrbahn, mit Sicht auf Bogen,
+  // Fontänen und die Fahrbahn hinter dem Ziel (dort fährt das Auto aus)
+  setupArch() {
+    if (this._arch) return this._arch;
+    const C = CINE.arch, g = pyroGeo(this.env.track), [px, py, pz] = g.p, [tx, , tz] = g.t, [bx, , bz] = g.b;
+    const A = [px, py + C.focus, pz], arch = [px, py + 9, pz];
+    const fnt = [-1, 1].map((sd) => [px + bx * sd * (g.hw - 0.6), py + 2.5, pz + bz * sd * (g.hw - 0.6)]);
+    const L = this.L, ahead = [];
+    for (let j = g.idx, c = 0, d = 0; c < L.n && ahead.length < 4; c++) {
+      const k = j + 1 >= L.n ? (L.closed ? 1 : -1) : j + 1;
+      if (k < 0) break;
+      d += Math.max(0, L.s[k] - L.s[j]); j = k;
+      if (d >= [12, 35, 70, 110][ahead.length]) ahead.push([L.px[j], L.py[j] + 0.8, L.pz[j]]);
+    }
+    // Streckenrand-Objekte (Fahnen, Masten, Tribünen, Kräne, Portal – ohne Kollision, nur aus dem Deko-Plan im Browser):
+    // nicht näher als 5 m, und keines zwischen Kamera und Bogen (Abstand zur Sichtlinie in der Ebene < 1,5 m)
+    const obs = [], DP = this.env.track.decoPlan;
+    if (DP && DP.inst) for (const [k, arr] of Object.entries(DP.inst)) {
+      if (!Array.isArray(arr) || !/^(flag|light|stand|cam|portal|tower|crane|block|turbine|crowd)/.test(k)) continue;
+      for (const o of arr) if (o && Math.hypot(o.x - px, o.z - pz) < 90) obs.push([o.x, o.z, k === 'stand' || k === 'block' ? 6 : 2]);
+    }
+    const blocked = (c) => obs.some(([x, z, r]) => {
+      if (Math.hypot(x - c[0], z - c[2]) < 3 + r) return true;
+      const ax = px - c[0], az = pz - c[2], L2 = ax * ax + az * az, q = Math.max(0, Math.min(1, ((x - c[0]) * ax + (z - c[2]) * az) / L2));
+      return q > 0.05 && q < 0.8 && Math.hypot(c[0] + ax * q - x, c[2] + az * q - z) < 1.2 + r * 0.4;
+    });
+    const cand = V();
+    let best = null;
+    for (const side of [1, -1]) for (const al of C.along) for (const off of C.off) for (const h of C.h) {
+      set(cand, px + tx * al + bx * side * (g.hw + off), 0, pz + tz * al + bz * side * (g.hw + off));
+      cand[1] = Math.max(py + h, this.floor(cand[0], cand[2]) + Math.max(CINE.ground, h * 0.6));
+      if (!this.pointFree(cand) || !this.offRoad(cand)) continue;
+      const bl = blocked(cand) ? 45 : 0;
+      const vA = this.ray(cand, A) > 0.98 ? 1 : 0, vB = this.ray(cand, arch) > 0.98 ? 1 : 0;
+      const vF = fnt.reduce((n, q) => n + (this.ray(cand, q) > 0.97 ? 0.5 : 0), 0);
+      const vC = ahead.length ? ahead.reduce((n, q) => n + (this.ray(cand, q) > 0.97 ? 1 : 0), 0) / ahead.length : 0;
+      const d = Math.hypot(cand[0] - px, cand[2] - pz);
+      const score = 30 * vA + 25 * vB + 20 * vF + 30 * vC - Math.abs(d - C.dist) * 0.25 - h * 0.2 - bl;
+      if (!best || score > best.score) best = { pos: [...cand], score, vis: (vA + vB + vF + vC) / 4, anchor: A, arch: g.p, side };
+    }
+    // nichts frei: hoch über dem Anfang der Fahrbahn vor dem Ziel
+    if (!best) { const p = [px - tx * 40, py + 30, pz - tz * 40]; p[1] = Math.max(p[1], this.floor(p[0], p[2]) + 25); best = { pos: p, score: 0, vis: 0, anchor: A, arch: g.p, side: 1, fallback: true }; }
+    return (this._arch = best);
   }
   // Drohne/Hubschrauber: Seite (links/rechts) mit freier Sicht über die ganze Einstellung
   setupOrbit(s, samples) {
@@ -152,13 +205,13 @@ export class CineCam {
       for (let t = m.t0; t <= m.t1; t += 0.05) { const p = this.pose(t).p; A[0] += p[0]; A[1] += p[1]; A[2] += p[2]; n++; }
       A[0] /= n; A[1] /= n; A[2] /= n;
       this.horiz(this.pose(m.t0).f, fh, fh);
-    } else if (c.kind === 'finish') A = at(c.b);
+    } else if (c.kind === 'finish') A = at(c.fin ?? c.b);
     else A = at(c.tp);
-    if (c.kind !== 'loop') this.horiz(this.pose(c.kind === 'finish' ? c.b : jumpy && m.t1 != null ? m.t1 : c.tp).f, fh, fh);
+    if (c.kind !== 'loop') this.horiz(this.pose(c.kind === 'finish' ? c.fin ?? c.b : jumpy && m.t1 != null ? m.t1 : c.tp).f, fh, fh);
     const cand = V(), car = V(), rx = -fh[2], rz = fh[0];
     let best = null;
     const dk = c.kind === 'loop' ? Math.sqrt(this.env.track.stuntScale ?? 1) : 1;   // n26: größerer Looping → etwas weiter weg
-    for (const side of [1, -1]) for (const d0 of C.dist) for (const al of C.along) for (const h of C.h) {
+    for (const side of [1, -1]) for (const d0 of C.dist) for (const al of C.along) for (const h of c.kind === 'loop' ? [...C.h, 14, 20] : C.h) {
       const d = d0 * dk;
       const along = c.kind === 'finish' ? al + 16 : c.kind === 'loop' ? al * 0.4 : al;
       set(cand, A[0] + rx * side * d + fh[0] * along, 0, A[2] + rz * side * d + fh[2] * along);
@@ -228,6 +281,22 @@ export class CineCam {
       this.mount(O.look, p, f, u, 0, this.carTop + C.y + C.lookUp, -C.look);
       copy(O.up, u);
       fov = C.fov; O.dof = C.dof;
+    } else if (cam === 'arch') {
+      // Zielbogen: fester Standort (Kran steigt leicht), Schwenk vom Auto hinauf auf Bogen und Feuerwerk
+      const C = CINE.arch, uP = sstep(0, ZIEL.pan, t - shot.t0);
+      copy(O.pos, S.pos || [p[0] + 20, p[1] + 5, p[2]]);
+      O.pos[1] += C.rise * uS;
+      const A = S.anchor || p, car = [p[0], p[1] + 0.6, p[2]];
+      const tgt = [car[0] + (A[0] - car[0]) * uP, car[1] + (A[1] - car[1]) * uP, car[2] + (A[2] - car[2]) * uP];
+      this.follow(this.lk, uP < 0.98 ? vel : [0, 0, 0], dt, tgt, cut ? 1 : 1 - Math.exp(-dt * 6));
+      // leichtes Schweben (Kran), fest an der Zeit
+      O.pos[0] += 0.08 * Math.sin(t * 0.9); O.pos[1] += 0.06 * Math.sin(t * 1.3 + 0.4);
+      copy(O.look, this.lk);
+      const dC = Math.max(4, dist(O.pos, car)), dA = Math.max(8, dist(O.pos, A));
+      const fC = 2 * Math.atan(C.fitCar / 2 / dC) * 180 / Math.PI, fA = 2 * Math.atan(C.fitArch / 2 / dA) * 180 / Math.PI;
+      fov = clamp(fC + (fA - fC) * uP, 18, 86);
+      if ((aspect || 1.6) < 1) fov = clamp(fov * 1.15, 24, 95);
+      O.dof = C.dof * (1 - uP);
     } else {
       // Stativ: fester Standort, Schwenk weich hinterher, Zoom von weit (Anfang) auf eng (Höhepunkt)
       const C = CINE.tele;
@@ -250,7 +319,7 @@ export class CineCam {
       fov = 2 * Math.atan(fit / 2 / d) * 180 / Math.PI;
       if (a < 1) fov = Math.max(fov, 2 * Math.atan(fit * 1.15 / 2 / d / a) * 180 / Math.PI);
       fov = clamp(fov, 4, cam === 'heli' ? 70 : 90);
-    } else if ((aspect || 1.6) < 1) fov = clamp(fov * 1.25, 30, 100);
+    } else if ((aspect || 1.6) < 1 && cam !== 'arch') fov = clamp(fov * 1.25, 30, 100);
     if (this.fovInit || cam === 'action' || cam === 'onboard') { this.fov = fov; this.fovInit = false; } else this.fov += (fov - this.fov) * (1 - Math.exp(-dt * 4));
     O.fov = this.fov;
     O.focus = d;

@@ -18,6 +18,8 @@ export class Replay {
     this.pens = (marks.pens || []).map((p) => ({ t: p.f / REC_HZ, sec: p.sec }));
     // Extras: Nitro-Zündungen (Frame bis Ende bzw. Abbruch) → Flammen im Replay
     this.nitros = (marks.xev || []).filter((e) => e.k === 'nitro').map((e) => ({ t0: e.f / REC_HZ, t1: e.end != null ? e.end / REC_HZ : Infinity }));
+    // n27: Aufzeichnung mit Auslaufen – die Rennzeit bleibt ab der Ziellinie stehen
+    this.finT = marks.fin ? marks.fin.f / REC_HZ : null;
     this.jumped = false;
     const mk = () => ({ comp: 0, steer: 0, spin: 0 });
     this.fake = { wheels: [mk(), mk(), mk(), mk()] };
@@ -46,7 +48,7 @@ export class Replay {
   fade() { let a = 0; for (const tc of this.cutT) a = Math.max(a, 1 - Math.abs(this.t - tc) / 0.3); return a; }
   // Strafen bis zur aktuellen Stelle + Rennzeit (Aufzeichnungszeit + Strafen)
   penaltiesSoFar() { let n = 0, sec = 0; for (const p of this.pens) if (p.t <= this.t) { n++; sec += p.sec; } return { n, sec }; }
-  raceTime() { return this.t + this.penaltiesSoFar().sec; }
+  raceTime() { return (this.finT != null ? Math.min(this.t, this.finT) : this.t) + this.penaltiesSoFar().sec; }
   pose() {
     const [i, a] = this._i(), r = this.rec, o = i * REC_STRIDE, p = o + REC_STRIDE;
     const P = this.P;

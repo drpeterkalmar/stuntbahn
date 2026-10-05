@@ -5,7 +5,8 @@
 //
 // Schnittstelle (Szene/Kamera/Renderer rein, Bild raus):
 //   const kino = new KinoLook(renderer, { level: 1, stages: '-ssao,+haze', grade: 'mittag' });
-//   kino.render(scene, camera, { dt, sunDir, run, speed, boost, car, cut, heat, overlay, time, dof, shutter });   // zeichnet auf den Bildschirm
+//   kino.render(scene, camera, { dt, sunDir, run, speed, boost, car, cut, heat, overlay, time, dof, shutter, flash, white, whip });   // zeichnet auf den Bildschirm
+//     flash = { k 0…1, col } Lichtblitz (n27, Feuerwerk), white 0…1 Weißblitz, whip = { len, ang } Reißschwenk-Unschärfe
 //     dof = { focus (m), k 0…1 } Tiefenschärfe auf das Auto (n18, Kino-Replay); shutter = Belichtung × (Zeitlupe)
 //   kino.setLevel(0|1|2)   0 = Einfach (direkt, wie bisher), 1 = Standard, 2 = Kino
 //   kino.stages            einzelne Stufen an/aus (siehe STAGES), kino.describe() für Tests/Bericht
@@ -244,6 +245,7 @@ const COMP_FS = `
   uniform vec3 uSunScr; uniform float uFlare;
   uniform vec4 uHaze0, uHaze1; uniform vec2 uHazeR; uniform float uHazeK;
   uniform vec3 uWB, uLift, uGamma, uGain, uShTint, uHiTint; uniform float uSplit, uSat, uVib, uContrast, uGreen;
+  uniform vec4 uFx; uniform vec3 uFlashCol;
   varying vec2 vUv;
   ${COMMON}
   ${BLUR_CORE}
@@ -347,6 +349,12 @@ const COMP_FS = `
     }
   #endif
     vec3 col = kinoSR( uv );
+  #ifdef WHIP
+    // Reißschwenk (n27, Kino-Replay): Bewegungsunschärfe entlang der Schwenkrichtung, 12 Abtastungen
+    { vec2 wd = vec2( cos( uFx.w ), sin( uFx.w ) * uRes.x / uRes.y ) * uFx.z; vec3 a = vec3( 0.0 );
+      for ( int i = 0; i < 12; i++ ) a += texture2D( tColor, uv + wd * ( float( i ) / 11.0 - 0.5 ) ).rgb;
+      col = mix( col, a / 12.0, smoothstep( 0.0, 0.01, uFx.z ) ); }
+  #endif
   #ifdef BLUR_FULL
     if ( uBlurOn > 0.5 ) { vec4 b = kBlur( tColor, tDepth, uv, d, car, uRes ); col = mix( col, b.rgb, b.a ); }
   #endif
@@ -385,6 +393,8 @@ const COMP_FS = `
   #ifdef FLARE
     col += kFlare( vUv );
   #endif
+    // Lichtblitz (n27, Feuerwerk der Zielshow): helle Stellen stärker, getönt
+    col += uFlashCol * uFx.x * ( 0.3 + 0.7 * kLuma( col ) );
   #ifdef GRADE
     col = kGrade( col );
   #endif
@@ -394,6 +404,7 @@ const COMP_FS = `
   #ifdef DITHER
     col += ( kIgn( gl_FragCoord.xy + fract( uTime * 7.31 ) * 61.0 ) - 0.5 ) / 255.0;
   #endif
+    col = mix( col, vec3( 1.0 ), uFx.y );   // Weißblitz-Übergang (Kino-Replay)
     gl_FragColor = vec4( col, 1.0 );
   }`;
 
@@ -447,6 +458,7 @@ export class KinoLook {
       uBoxMin: V3(-1.1, -0.6, -2.5), uBoxMax: V3(1.1, 1.4, 2.5),
       uCarOn: F(0), uScale: F(0), uMaxLen: F(0.03), uRadial: F(0), uNear: F(0.25), uFar: F(8000),
       uRadius: F(1), uFadeFar: F(160), uTh: F(0.8), uSky: F(0.08), uK: F(1), uGreen: F(0),
+      uFx: { value: new THREE.Vector4() }, uFlashCol: V3(1, 0.9, 0.7),
     };
     this.mats = new Map();
     this.rt = null; this.aoRT = null; this.blurRT = null; this.bloomRT = []; this.dofRT = null;
@@ -604,7 +616,7 @@ export class KinoLook {
     // 3. Bloom
     if (st.bloom) {
       const B = P.bloom || PRESETS[1].bloom, L = this.bloomRT.length;
-      U.uTh.value = B.threshold; U.uBloomStr.value = B.strength;
+      U.uTh.value = B.threshold; U.uBloomStr.value = B.strength * (1 + 2.2 * (o.flash ? o.flash.k : 0));
       U.uTexel.value.set(1 / sw, 1 / sh);
       this.pass(this.mat('bpre', {}, BLOOM_PRE_FS), this.bloomRT[0]);
       for (let i = 1; i < L; i++) {
@@ -658,7 +670,11 @@ export class KinoLook {
       haze = this.hazeSetup(camera, o.heat);
     }
     if (st.grade) this.applyGrade();
+    // n27: Lichtblitz (Feuerwerk), Weißblitz-Übergang, Reißschwenk (o.whip = { len Anteil der Bildbreite, ang rad })
+    U.uFx.value.set(o.flash ? o.flash.k : 0, o.white || 0, o.whip ? o.whip.len : 0, o.whip ? o.whip.ang : 0);
+    if (o.flash && o.flash.col) U.uFlashCol.value.fromArray(o.flash.col);
     const defs = {};
+    if (o.whip && o.whip.len > 0.002) defs.WHIP = 1;
     if (st.aa && sc < 0.999 || st.aa && this.msaa() === 0) defs.AA = 1;
     if (st.sharpen) defs.SHARP = 1;
     if (st.ssao) defs.AO = 1;

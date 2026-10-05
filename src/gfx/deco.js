@@ -297,6 +297,8 @@ export function buildDeco(track, M, surfaceY, add, opts = {}) {
   const TH = opts.theme ? opts.theme.def : null, V = TH ? TH.veg : {}, TV = opts.theme && opts.theme.veg;
   const plan = planDeco(track, { ideal: opts.ideal, prof: opts.prof, tier, seed: track.layout?.seed || 1, veg: V, themeId: opts.theme ? opts.theme.id : 'land' });
   stats.planObj = plan;
+  // n27: Standorte der Streckenrand-Objekte für die Zielbogen-Kamera (cinecam.js: nicht direkt hinter Masten/Tribünen)
+  Object.defineProperty(track, 'decoPlan', { value: plan, configurable: true, enumerable: false, writable: true });
   stats.plan = Object.fromEntries(Object.entries(plan.inst).map(([k, v]) => [k, v.length]));
   const count = (mesh, n, triPer) => { stats.inst += n; stats.tris += n * triPer; stats.meshes++; };
   const P = plan.inst;

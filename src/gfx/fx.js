@@ -154,9 +154,9 @@ export class Sparks {
     this.next = 0; this.alive = 0;
     this.a = new THREE.Vector3(); this.b = new THREE.Vector3(); this.d = new THREE.Vector3(); this.v = new THREE.Vector3(); this.sd = new THREE.Vector3();
   }
-  spawn(x, y, z, vx, vy, vz, life) {
+  spawn(x, y, z, vx, vy, vz, life, floor = y - 0.05) {
     const P = this.p[this.next]; this.next = (this.next + 1) % this.max;
-    Object.assign(P, { x, y, z, vx, vy, vz, life, max: life, y0: y - 0.05 });
+    Object.assign(P, { x, y, z, vx, vy, vz, life, max: life, y0: floor });
   }
   update(dt, camera) {
     let alive = 0; const cp = camera.position;
@@ -270,6 +270,20 @@ export class CarFX {
       const big = Math.max(0, Math.min(1, (Math.tan(Math.min(1.3, Math.abs(beta))) - 0.45) / 0.35));
       if (this.rich) this.parts.spawn(this.p, this.v.set(vx * 0.18 + (Math.random() - 0.5), 0.5 + Math.random() * 0.6, vz * 0.18 + (Math.random() - 0.5)), 0.8 + 0.4 * big, 4.2 + 2.2 * big, 1.7 + 0.5 * big, 0xc4c4c2, 0.3 + 0.15 * Math.min(1, s - 0.5) + 0.2 * big);
       else this.parts.spawn(this.p, this.v.set(0, 0.6, 0), 0.6, 2.6, 1.2, 0xd8d8d8, 0.35);
+    }
+  }
+  // Zielshow (n27): Schweif-Funken aus dem Heck in den ersten Sekunden hinter der Ziellinie (Rennen und Replay/Film;
+  // dt = vergangene Spielzeit, pose = Lage, sp = Tempo m/s, k = Stärke 1 → 0). Fallen auf die Fahrbahn und springen ab.
+  trail(dt, pose, sp, k) {
+    this.trailAcc = (this.trailAcc || 0) + dt * (this.rich ? 70 : 28) * Math.max(0, k);
+    const F = pose.frame;
+    if (!F || !F.r) return;
+    while (this.trailAcc >= 1) {
+      this.trailAcc -= 1;
+      const sx = (Math.random() - 0.5) * 1.5, h = 0.25 + Math.random() * 0.25;
+      const x = pose.pos.x + F.r.x * sx - F.f.x * 2.25 + F.u.x * (h - 0.3), y = pose.pos.y + F.r.y * sx - F.f.y * 2.25 + F.u.y * (h - 0.3), z = pose.pos.z + F.r.z * sx - F.f.z * 2.25 + F.u.z * (h - 0.3);
+      const s = Math.abs(sp) * (0.35 + 0.25 * Math.random());
+      this.sparks.spawn(x, y, z, F.f.x * s + (Math.random() - 0.5) * 5, 1.2 + Math.random() * 3.2, F.f.z * s + (Math.random() - 0.5) * 5, 0.35 + Math.random() * 0.5, pose.pos.y - 0.5);
     }
   }
   // pro Frame: Partikel bewegen

@@ -54,6 +54,10 @@ export const HL = {
   // Film (s): Länge höchstens max (Richtwert 15–30 s), Vorlauf pre und Nachlauf post in Echtzeit, Tempo-Rampen ramp
   // (Aufzeichnungszeit), Zeitlupe smin am Höhepunkt (Kern core s Aufzeichnung), Zieleinlauf finish s
   film: { max: 30, min: 15, pre: 0.8, post: 0.5, tail: 0.8, ramp: 0.4, smin: 0.25, core: [0.5, 0.9], finish: 3.2, finishSlow: 0.45 },
+  // Zielshow (n27, Aufzeichnung mit Auslaufen, marks.fin): Zieleinlauf pre s vor der Linie bis post s danach (Feuerwerk,
+  // Auslaufen), Zeitlupe slow von core[0] bis core[1] s um die Linie, Schnitt Tele → Zielbogen tele s nach der Linie; der
+  // Zieleinlauf kommt zum Film dazu (Momente weiter höchstens film.max s)
+  zshow: { pre: 2.4, post: 4.6, core: [-0.45, 0.5], slow: 0.4, tele: 0.6 },
 };
 
 // Einblendung je Art (Emoji + Text); n = Zahl (m, km/h …). km/h als Show-Tacho (core/showspeed.js, wie der Tacho), dazu
@@ -447,7 +451,7 @@ export function clipFilmTime(c) {
 
 // Clip um einen Moment: Kern um den Höhepunkt (Zeitlupe), Vor-/Nachlauf, nie über einen Schnitt (Reset) hinweg
 function makeClip(m, D, cutT, opt) {
-  const Fm = HL.film, dur = D.F / REC_HZ;
+  const Fm = HL.film, dur = Math.min(D.F / REC_HZ, opt.endT ?? Infinity);
   const coreLen = clamp(opt.core ?? Fm.core[1], Fm.core[0], Fm.core[1]);
   let c0 = m.tp - coreLen * 0.45, c1 = m.tp + coreLen * 0.55;
   if (m.kind === 'crash') { c1 = Math.min(c1, m.t1); c0 = Math.min(c0, c1 - coreLen); }
@@ -467,6 +471,13 @@ function makeClip(m, D, cutT, opt) {
 
 // Kamera-Einstellungen eines Clips (Aufzeichnungszeit)
 function makeShots(c, prevCam) {
+  // Zieleinlauf mit Zielshow (n27): Tele an der Linie (Zeitlupe), dann Schwenk der Zielbogen-Kamera aufs Feuerwerk
+  if (c.kind === 'finish' && c.fin != null) {
+    const tz = Math.min(c.b - 0.5, Math.max(c.a + 0.3, c.fin + HL.zshow.tele));
+    const shots = [{ cam: 'tele', t0: c.a, t1: tz }, { cam: 'arch', t0: tz, t1: c.b }];
+    if (prevCam === 'tele') shots[0].cam = 'drone';
+    return shots;
+  }
   const plan = SHOTS[c.kind] || [['drone', 'end']], shots = [];
   let t = c.a;
   for (let k = 0; k < plan.length; k++) {
@@ -490,22 +501,34 @@ function makeShots(c, prevCam) {
 export function buildFilm(rec, env, marks = {}, opt = {}) {
   const F = Math.floor(rec.length / REC_STRIDE);
   if (F < 5 * REC_HZ) return null;
-  const { D, cands } = findMoments(rec, env, marks);
+  const { D, cands: all } = findMoments(rec, env, marks);
   const cutT = (marks.cuts || []).map((c) => c.f / REC_HZ);
-  const P = HL.pick, Fm = HL.film;
+  const P = HL.pick, Fm = HL.film, Zs = HL.zshow;
+  // n27: Aufzeichnung mit Auslaufen hinter dem Ziel (marks.fin) – Momente nur bis zur Linie, Zieleinlauf mit Zielshow
+  const finT = marks.fin && marks.fin.f > 0 && marks.fin.f < F ? marks.fin.f / REC_HZ : null;
+  const cands = finT != null ? all.filter((m) => m.tp < finT - 0.3) : all;
+  const mOpt = finT != null ? { ...opt, endT: finT - 0.1 } : opt;
   // Zieleinlauf (am Ende, wenn Platz): Tele an der Ziellinie, leichte Zeitlupe kurz vor dem Ende. Ein Moment kurz vor dem
   // Ziel hat Vorrang – der Zieleinlauf wird dann kürzer oder entfällt
   const end = (F - 1) / REC_HZ;
   const finClip = (a0) => {
     let fa = Math.max(0, a0);
-    for (const tc of cutT) if (tc > fa && tc < end) fa = tc;
-    if (end - fa < 1.5) return null;
-    const f = { kind: 'finish', label: LABEL.finish(), score: 0, m: { kind: 'finish' }, a: fa, b: end, c0: Math.max(fa, end - 1.1), c1: end, tp: end - 0.3, smin: Fm.finishSlow };
+    for (const tc of cutT) if (tc > fa && tc < (finT ?? end)) fa = tc;
+    let f;
+    if (finT != null) {
+      // Zielshow: über die Linie hinweg bis ins Auslaufen (Feuerwerk), Zeitlupe um die Linie
+      const b = Math.min(end, finT + Zs.post);
+      if (finT - fa < 0.6 || b - fa < 2) return null;
+      f = { kind: 'finish', label: LABEL.finish(), score: 0, m: { kind: 'finish' }, a: fa, b, c0: Math.max(fa, finT + Zs.core[0]), c1: Math.min(b, finT + Zs.core[1]), tp: finT, fin: finT, smin: Zs.slow };
+    } else {
+      if (end - fa < 1.5) return null;
+      f = { kind: 'finish', label: LABEL.finish(), score: 0, m: { kind: 'finish' }, a: fa, b: end, c0: Math.max(fa, end - 1.1), c1: end, tp: end - 0.3, smin: Fm.finishSlow };
+    }
     f.film = clipFilmTime(f);
     return f;
   };
-  const fin0 = finClip(end - Fm.finish);
-  const budget = (opt.max ?? Fm.max) - (fin0 ? fin0.film : 0);
+  const fin0 = finClip(finT != null ? finT - Zs.pre : end - Fm.finish);
+  const budget = (opt.max ?? Fm.max) - (fin0 && finT == null ? fin0.film : 0);
   // gierige Auswahl nach Punkten (gleiche Art mehrfach abgewertet), ohne Überlappung, im Zeitbudget
   const chosen = [], used = {};
   const overlaps = (c) => chosen.some((x) => c.a < x.b + P.gap && c.b > x.a - P.gap);
@@ -520,12 +543,12 @@ export function buildFilm(rec, env, marks = {}, opt = {}) {
     pool.splice(bi, 1);
     if (bs < (chosen.length < P.min ? P.lowScore : P.minScore)) { if (chosen.length >= P.min) break; else continue; }
     if (best.kind === 'crash' && chosen.some((x) => x.kind === 'crash')) continue;
-    const c = makeClip(best, D, cutT, opt);
+    const c = makeClip(best, D, cutT, mOpt);
     if (!c || overlaps(c)) continue;
     c.film = clipFilmTime(c);
     // Budget: zu lang → mit kürzerem Kern versuchen, sonst weglassen
     if (filmT + c.film > budget) {
-      const c2 = makeClip(best, D, cutT, { ...opt, core: Fm.core[0], pre: 0.5, post: 0.3 });
+      const c2 = makeClip(best, D, cutT, { ...mOpt, core: Fm.core[0], pre: 0.5, post: 0.3 });
       if (!c2 || overlaps(c2)) continue;
       c2.film = clipFilmTime(c2);
       if (filmT + c2.film > budget) continue;
@@ -535,13 +558,13 @@ export function buildFilm(rec, env, marks = {}, opt = {}) {
   }
   chosen.sort((x, y) => x.a - y.a);
   const last = chosen[chosen.length - 1];
-  const finish = finClip(Math.max(end - Fm.finish, last ? last.b + P.gap : 0));
+  const finish = finClip(Math.max(finT != null ? finT - Zs.pre : end - Fm.finish, last ? last.b + P.gap : 0));
   const clips = finish ? [...chosen, finish] : chosen;
   if (!clips.length) return null;
   let prev = null;
   for (const c of clips) { c.shots = makeShots(c, prev); prev = c.shots[c.shots.length - 1].cam; }
   const duration = clips.reduce((s, c) => s + c.film, 0);
-  return { clips, duration, cands, moments: chosen.length };
+  return { clips, duration, cands, moments: chosen.length, finT, momentsT: filmT };
 }
 
 // ---------- Abspielen ----------

@@ -11,6 +11,7 @@ import { JumpAssist } from './jumpassist.js';
 import { showKmhMs } from '../core/showspeed.js';
 import { computeProfile } from '../ai/profile.js';
 import { DriftCtl, BRACHIAL } from '../ai/drift.js';
+import { ZIEL } from './zielshow.js';
 
 // Mittel (n16, Peter 29.09.2026: „Mittlere Schwierigkeit mehr Bodenhaftung und kein Magnet zur Ideallinie“): kein
 // Lenkzug zur Linie mehr (steerPull bis n15 0,28, im Stunt stuntPull 0,6), dafür mehr Reifenhaftung (grip, Faktor auf
@@ -238,13 +239,7 @@ export class Race {
       if (this.countdown <= 0) { this.state = 'running'; car.input.hold = false; this.emit('go'); }
       return;
     }
-    if (this.state === 'finished') {
-      // Auslaufen mit Autopilot, langsam
-      const c = this.ap.control(car);
-      car.input.steer = c.steer; car.input.throttle = 0; car.input.brake = 0.35; car.input.hold = true;
-      car.step(dt, this.env.world);
-      return;
-    }
+    if (this.state === 'finished') { this.runout(dt); return; }
     if (this.state === 'wreck') {
       car.input.steer = 0; car.input.throttle = 0; car.input.brake = 0.4; car.input.hold = true;
       car.step(dt, this.env.world);
@@ -470,6 +465,8 @@ export class Race {
       if (this.snaps.length > 80) this.snaps.shift();
     }
     this.record(dt);
+    // Ziel in diesem Schritt (n27): das eben aufgezeichnete Bild gehört noch zur Fahrt (Geist, Replay-Uhr)
+    if (this.state === 'finished' && this.finT === 0) this.finF = this.recFrames();
     if (car.crash) this.onCrash();
   }
 
@@ -793,7 +790,127 @@ export class Race {
     this.stopNitro();
     this.state = 'finished';
     this.finalTime = this.time;
+    // Zielshow (n27): Zeit stoppt hier, die Aufzeichnung läuft im Auslaufen noch ZIEL.rec s weiter (Replay, Highlight-
+    // Film); Geister und Bestzeit nehmen nur die Fahrt bis zur Linie (ghostRec, finF)
+    this.finF = this.recFrames(); this.finSim = this.simTime; this.finT = 0;
+    this.finV = Math.max(0, this.car.fwdSpeed());
+    this.ap.shift = 0; this.ap.extra = 0; this.ap.P = this.env.prof;
+    this.spinPlan = this.planSpin();
     this.emit('finish', { time: this.time });
+  }
+
+  // ---------- Auslaufen nach dem Ziel (n27) ----------
+  // Fühlt sich wie eine Ehrenrunde an: ZIEL.hold s Tempo halten, dann sanft ausrollen (höchstens ZIEL.decel m/s²) bis auf
+  // vEnd des Ziel-Tempos – vor Sprüngen/Loopings hinter dem Ziel fährt der Autopilot das Profil-Tempo (nie zu kurz). Auf
+  // Leicht mit Fahrstil Brachial, wenn Platz ist: Jubel-Dreher (Handbremse, Heck kommt herum, Auto steht quer).
+  // Aufgezeichnet wird ZIEL.rec s lang. Deterministisch (kein Zufall) – Replay und Film zeigen genau das.
+  runout(dt) {
+    const car = this.car, Z = ZIEL, ap = this.ap;
+    this.finT = (this.finT || 0) + dt;
+    const u = this.finT, v = car.fwdSpeed();
+    const idx = ap.tr.idx;
+    const k = Math.max(0, u - Z.hold), ramp = Math.min(1, k / Z.ramp);
+    let cap = Math.max(this.finV * Z.vEnd, this.finV - Z.decel * Math.max(0, k - Z.ramp * 0.5) * ramp);
+    // Stunt hinter dem Ziel (Schanze, Looping, Röhre): rechtzeitig davor anhalten (stopGap m davor, höchstens stopDecel
+    // m/s²) – reicht der Weg nicht, fährt der Autopilot mit Profil-Tempo hindurch (nie zu kurz springen)
+    const z = this.zoneAhead(idx, 500);
+    if (z) {
+      if (!this.runZone || this.runZone.i0 !== z.i0) this.runZone = { i0: z.i0, thru: z.inside || v * v / (2 * Z.stopDecel * 0.75) > z.dist - Z.stopGap };
+      if (this.runZone.thru) cap = Infinity;
+      else cap = Math.min(cap, Math.sqrt(2 * Z.stopDecel * Math.max(0, z.dist - Z.stopGap)));
+    }
+    const S = this.spinPlan, spin = S && cap < Infinity ? this.spinStep(dt, S, idx) : null;
+    // Jubel-Dreher geplant: kräftiger auf das Dreh-Tempo herunterbremsen
+    if (S && S.ph === 'brake' && cap < Infinity) cap = Math.min(cap, Math.max(Z.spin.v - 2, this.finV - Z.spin.decel * Math.max(0, u - 0.35)));
+    ap.vCap = cap;
+    const c = ap.control(car);
+    car.input.steer = c.steer; car.input.throttle = c.throttle; car.input.brake = c.brake; car.input.hold = true; car.input.hand = 0;
+    car.assist.drift = null; car.assist.lock = 0; car.assist.rearGrip = 0; car.assist.driveFront = null;
+    if (spin) { Object.assign(car.input, spin.input); Object.assign(car.assist, spin.assist); }
+    car.haftOff = haftOffAt(this.env.track, idx);
+    car.step(dt, this.env.world);
+    this.tracker.update(car.pos.x, car.pos.y, car.pos.z);
+    if (this.finT <= Z.rec + 1e-6) this.record(dt);
+    ap.vCap = Infinity;
+  }
+  // Jubel-Dreher möglich? Nur Leicht + Brachial (Spieler-Rennen); ob Platz ist, prüft spinStep, sobald das Auto auf das
+  // Dreh-Tempo abgebremst hat
+  planSpin() {
+    if (!(this.fahrstil === 'brachial' && this.assistKey === 'easy' && !this.autopilotOnly)) return null;
+    return { ph: 'brake', t: 0, sg: ((this.driftSeed ?? 0) + this.tracker.idx) % 2 ? 1 : -1 };
+  }
+  // Platz für den Dreher: gerade Fahrbahn über ZIEL.spin.len m ab idx, ohne Stunt, Steilkurve, Engstelle, Hochstraße
+  spinRoom(idx) {
+    const Z = ZIEL.spin, L = this.env.track.line, I = this.env.ideal || L, P = this.env.prof;
+    let d = 0;
+    for (let j = idx, c = 0; c < L.n; c++) {
+      if (L.air[j] || L.loop[j] || L.tube[j] || this.isJumpZone(j) || this.high[j] || Math.abs(L.by[j]) > 0.12 || Math.abs(P.kA[j]) > Z.kMax || (I.hi[j] - I.lo[j]) < 6) return false;
+      const k = j + 1 >= L.n ? (L.closed ? 1 : -1) : j + 1;
+      if (k < 0) return false;
+      d += Math.max(0, L.s[k] - L.s[j]); j = k;
+      if (d > Z.len) return true;
+    }
+    return false;
+  }
+  spinProbe(S, idx) {
+    const car = this.car, L = this.env.track.line, tr = new Tracker(L), dt = 1 / 120;
+    // vollständiger Zustand (alle Zahlenwerte des Autos und der Räder, Vektoren), damit das echte Auslaufen unberührt bleibt
+    const prim = (o) => { const r = {}; for (const k of Object.keys(o)) { const v = o[k]; if (v === null || typeof v !== 'object') r[k] = v; } return r; };
+    const vec = ['pos', 'q', 'v', 'w'].filter((k) => car[k] && typeof car[k] === 'object');
+    const snap = { c: prim(car), vec: vec.map((k) => ({ ...car[k] })), wh: car.wheels.map(prim), input: { ...car.input }, assist: { ...car.assist } };
+    const back = () => { Object.assign(car, snap.c); vec.forEach((k, i) => Object.assign(car[k], snap.vec[i])); car.wheels.forEach((w, i) => Object.assign(w, snap.wh[i])); Object.assign(car.input, snap.input); Object.assign(car.assist, snap.assist); car.updateFrame(); };
+    let res = 0;
+    for (const sg of [S.sg, -S.sg]) {
+      back(); tr.reset(idx);
+      const T = { ph: 'spin', t: 0, sg };
+      let ok = true;
+      for (let k = 0; k < 640 && T.ph !== 'done'; k++) {
+        // nach dem Dreher weiter bis zum Stillstand (Bremse + Handbremse wie im echten Auslaufen)
+        const o = T.ph === 'stop' ? { input: { steer: 0, throttle: 0, brake: 1, hand: 1 }, assist: { drift: null, lock: 0, rearGrip: 0, driveFront: null } } : this.spinCmd(dt, T);
+        if (T.ph === 'stop' && car.speed() < 0.5) break;
+        if (!o) continue;
+        Object.assign(car.input, o.input); Object.assign(car.assist, o.assist);
+        car.step(dt, this.env.world);
+        const ti = tr.update(car.pos.x, car.pos.y, car.pos.z);
+        if (tr.dist > L.hw[ti] - ZIEL.spin.edge || car.crash) { ok = false; break; }
+      }
+      if (ok) { res = sg; break; }
+    }
+    back();
+    this.spinProbes = (this.spinProbes || 0) + 1;
+    return res;
+  }
+  spinStep(dt, S, idx) {
+    const Z = ZIEL.spin, car = this.car;
+    if (S.ph === 'done') return null;
+    const v = car.fwdSpeed();
+    // nach dem Dreher: stehen bleiben (Bremse + Handbremse), der Autopilot fährt nicht wieder an
+    if (S.ph === 'stop') return { input: { steer: 0, throttle: 0, brake: 1, hand: 1 }, assist: { drift: null, lock: 0, rearGrip: 0, driveFront: null } };
+    if (S.ph === 'brake') {
+      if (this.finT > Z.latest) { S.ph = 'done'; return null; }
+      if (v > Z.v + 1 || car.onGround < 4) return null;
+      if (!this.spinRoom(idx) || Math.abs(this.ap.lat) > Z.latMax) { S.ph = 'done'; return null; }
+      // Probe-Dreher (einmal, ~3 s Physik im Voraus, beide Richtungen): nur drehen, wenn das Auto dabei auf der Fahrbahn
+      // bleibt (Wagenmitte mindestens edge m innerhalb der Kante) – sonst gerade ausrollen
+      const sg = this.spinProbe(S, idx);
+      if (!sg) { S.ph = 'done'; return null; }
+      S.sg = sg; S.ph = 'spin'; S.t = 0; S.t0 = this.finT; S.lat0 = this.ap.lat;
+    }
+    return this.spinCmd(dt, S);
+  }
+  // Steuerung im Dreher (auch für den Probe-Dreher): Handbremse, Soll-Schwimmwinkel steigt weich bis ZIEL.spin.deg
+  spinCmd(dt, S) {
+    const Z = ZIEL.spin, car = this.car;
+    S.t += dt;
+    const F = car.frame, vf = car.v.x * F.f.x + car.v.y * F.f.y + car.v.z * F.f.z, vr = car.v.x * F.r.x + car.v.y * F.r.y + car.v.z * F.r.z;
+    S.beta = Math.max(S.beta || 0, Math.abs(Math.atan2(vr, vf)));
+    if (car.onGround < 2) { S.ph = 'done'; return null; }
+    if (S.t > Z.tIn + 0.3 && Math.hypot(vf, vr) < 2.5 || S.t > 3) { S.ph = 'stop'; S.tStop = this.finT; return null; }
+    const q = Math.min(1, S.t / Z.tIn), b = S.sg * Z.deg * Math.PI / 180 * q * q * (3 - 2 * q);
+    return {
+      input: { steer: -S.sg * 0.9 * (1 - q * 0.6), throttle: S.t < Z.hand ? 0 : Z.thr * (1 - q * 0.5), brake: q >= 1 ? 0.4 : 0, hand: S.t < Z.hand ? 1 : 0.35 },
+      assist: { drift: b, lock: Z.lock, rearGrip: Z.rearGrip, driveFront: 0.2 },
+    };
   }
 
   onCrash() {
@@ -1146,8 +1263,10 @@ export class Race {
   // Aufzeichnung fürs Geisterauto: jede Zeitstrafe als Stillstand an der Crash-Stelle einfügen,
   // damit Geist und Uhr zusammenpassen (Rennzeit = Aufzeichnungszeit + Strafen).
   ghostRec() {
-    if (!this.pens.length) return this.rec;
-    const R = this.rec, out = [];
+    // n27: nur die Fahrt bis zur Ziellinie (das Auslaufen danach gehört nicht zum Geist)
+    const R = this.finF != null ? this.rec.slice(0, this.finF * REC_STRIDE) : this.rec;
+    if (!this.pens.length) return R;
+    const out = [];
     let from = 0;
     for (const p of this.pens) {
       const o = Math.min(p.f * REC_STRIDE, R.length);

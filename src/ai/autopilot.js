@@ -85,6 +85,7 @@ export class Autopilot {
     this.offset = null; // optionale seitliche Versätze (Racing-Line), Float32Array
     this.shift = 0;     // zusätzlicher Seitenversatz des Ziels (m): sanftes Zurückführen nach freiem Lenken
     this.extra = 0;     // weiterer Versatz (m, Leicht „Brachial“: Ausritt aufs Gras, ai/drift.js); zählt nicht zu lat
+    this.vCap = Infinity;   // Tempo-Obergrenze (m/s, n27: Auslaufen nach dem Ziel); Infinity = nur das Profil
     this.lat = 0;       // Seitenlage der Vorderachse zur (unverschobenen) Linie, m
     this.speedScale = 1;
     this.lastTarget = [0, 0, 0];
@@ -139,7 +140,7 @@ export class Autopilot {
     if (L.air[jr] && !L.air[i]) jr = i;
     let jn = this.ahead(jr, 4), dsn = this.aheadAcc;
     if (L.air[jn] && !L.air[jr]) { jn = jr; dsn = 0; }
-    const vr = this.P.vt[jr] * sc, vn = this.P.vt[jn] * sc;
+    const vr = Math.min(this.P.vt[jr] * sc, this.vCap), vn = Math.min(this.P.vt[jn] * sc, this.vCap);
     this.vtIdx = jr; this.vRef = vr;
     const aff = dsn > 0.5 ? Math.min(40, (vn * vn - vr * vr) / (2 * dsn)) : 0;
     const acmd = aff + SPEED.kv * (vr - v);

@@ -352,6 +352,19 @@ body.dropping #drop { display: flex; }
 /* ---------- Kino-Replay nach dem Ziel (n18) ---------- */
 /* Querformat: Kino-Balken oben/unten (2,39:1, mindestens 8,5 % je Balken), fahren ein; hochkant keine Balken – dort
    rahmen die Kameras das Auto fürs schmale Bild (cinecam.js). Ein neuer Tipp irgendwo überspringt. */
+/* Zielshow (n27): Zeit groß, Bestzeit golden, Hinweis unten; der ganze Bildschirm nimmt den Tipp zum Überspringen */
+#zshow { position: absolute; inset: 0; display: none; pointer-events: auto; touch-action: none; }
+#zshow.show { display: block; }
+#zshow .ztime { position: absolute; left: max(22px, calc(var(--sal) + 14px)); top: 64%; transform: translate(0, -10px) scale(.92); transform-origin: left center; font-size: clamp(36px, 8.5vw, 78px); font-weight: 900; font-style: italic; text-shadow: 0 0 22px #ff7a2a88, 0 4px 12px #000c; opacity: 0; transition: opacity .35s, transform .45s cubic-bezier(.2, .9, .3, 1.3); white-space: nowrap; }
+#zshow .zsub { position: absolute; left: max(26px, calc(var(--sal) + 18px)); top: calc(64% + clamp(40px, 8vw, 74px)); font-size: clamp(18px, 3.4vw, 30px); font-weight: 800; text-shadow: 0 2px 8px #000c; opacity: 0; transition: opacity .4s .25s; white-space: nowrap; }
+#zshow .zhint { position: absolute; right: max(14px, var(--sar)); bottom: max(12px, calc(var(--sab) + 8px)); font-size: 14px; font-weight: 700; opacity: 0; transition: opacity .4s 1s; background: #0d1117aa; border: 1px solid #ffffff33; border-radius: 12px; padding: 8px 14px; }
+#zshow.on .ztime { opacity: 1; transform: none; }
+#zshow.on .zsub, #zshow.on .zhint { opacity: .95; }
+#zshow.best .ztime, #zshow.best .zsub { color: #ffd23d; text-shadow: 0 0 26px #ffb02a, 0 4px 12px #000c; }
+body[data-orient="hoch"] #zshow .ztime { top: 70%; left: 50%; transform: translate(-50%, -10px) scale(.92); transform-origin: center; }
+body[data-orient="hoch"] #zshow.on .ztime { transform: translate(-50%, 0); }
+body[data-orient="hoch"] #zshow .zsub { top: calc(70% + clamp(40px, 10vw, 60px)); left: 50%; transform: translateX(-50%); }
+body[data-orient="hoch"] #zshow .zhint { right: 50%; transform: translateX(50%); }
 #cine { position: absolute; inset: 0; display: none; pointer-events: auto; touch-action: none; }
 #cine.show { display: block; }
 #cine .lb { position: absolute; left: 0; right: 0; height: 0; background: #000; transition: height .6s cubic-bezier(.2, .7, .2, 1); }

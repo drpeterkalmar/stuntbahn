@@ -25,7 +25,10 @@ def fps(s, sec=8.0):
 def finish(s):
     for k in range(120):
         st = s.ev("__game.sim(2.0)")
-        if st['state'] == 'finished': return st
+        if st['state'] == 'finished': break
+    # n27: erst die Zielshow (Auslaufen mit Feuerwerk, ~4 s), dann Film bzw. Ergebnis
+    t0 = time.time()
+    while s.ev("!!__game.show") and time.time() - t0 < 30: time.sleep(0.2)
     return st
 
 def collage(paths, out):

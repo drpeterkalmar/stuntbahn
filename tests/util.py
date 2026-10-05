@@ -51,8 +51,9 @@ class Session:
         self.ctx = self.b.new_context(**opts)
         # Kino-Replay nach dem Ziel (n18, Standard an) für die älteren Tests aus: sie erwarten das Ergebnis direkt nach
         # dem Ziel. tests/test_kinoreplay.py schaltet ihn mit kino=True ein (oder KINO=1 für alle Tests).
+        # Zielshow (n27) ebenso: window.__noShow = Ergebnis gleich (das Auslaufen wird sofort vorgerechnet)
         if not kino and os.environ.get('KINO') != '1':
-            self.ctx.add_init_script("window.__noKino = true")
+            self.ctx.add_init_script("window.__noKino = true; window.__noShow = true")
         self.pg = self.ctx.new_page()
         self.errors = []; self.console = []
         self.pg.on("pageerror", lambda e: self.errors.append("PAGEERROR " + str(e)))

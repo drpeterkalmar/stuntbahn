@@ -9,6 +9,7 @@ import { fileURLToPath } from 'url';
 import { generate } from '../src/track/generator.js';
 import { verifySync, prepare } from '../src/track/verify.js';
 import { Race, REC_HZ } from '../src/game/race.js';
+import { ZIEL } from '../src/game/zielshow.js';
 import { buildFilm, FilmPlayer } from '../src/game/highlights.js';
 import { parseTrk, TRK_BYTES } from '../src/track/trk.js';
 import { trkToLayout } from '../src/track/trkimport.js';
@@ -39,9 +40,11 @@ export function runRace(env, opts = {}) {
     if (opts.nitroAt && race.state === 'running' && Math.abs(race.time - opts.nitroAt) < DT) race.requestNitro();
     race.step(DT, inp()); t += DT; race.events.length = 0;
   }
+  // n27: Auslaufen nach dem Ziel mit aufzeichnen (wie im Spiel: ZIEL.rec s)
+  if (race.state === 'finished' && opts.runout !== false) while (race.finT < ZIEL.rec) { race.step(DT, zero); race.events.length = 0; }
   return race;
 }
-export const marksOf = (race) => ({ cuts: race.cuts, pens: race.pens, xev: race.xev, crashes: race.crashLog });
+export const marksOf = (race) => ({ cuts: race.cuts, pens: race.pens, xev: race.xev, crashes: race.crashLog, fin: race.finF != null ? { f: race.finF, time: race.finalTime } : null });
 
 export const RUNS = [
   { name: 'flach 4711-3 (Irre)', env: () => verifySync(generate(4711, 3)).env, opts: { assist: 'medium', autopilot: true, nitroAt: 9 } },

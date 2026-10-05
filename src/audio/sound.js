@@ -177,7 +177,7 @@ const urlQ = globalThis.location && globalThis.location.search ? new URLSearchPa
 export const SND_ALT = !!urlQ && urlQ.get('snd') === 'alt';
 const REC_URL = typeof import.meta !== 'undefined' ? new URL('../../assets/snd/', import.meta.url).href : 'assets/snd/';
 // Pegel (abgeglichen mit tests/sound_levels.py und tests/ton_probe.py: Motor und Crash so laut wie bis n15)
-export const MIX = { eng: 1.2, off: 0.5, tire: 0.42, scrape: 0.5, crash: 0.95, land: 0.8, pop: 0.42, nitro: 0.4, lpOut: 3800, lpOff: 2200, lpCockpit: 1300 };
+export const MIX = { eng: 1.2, off: 0.5, tire: 0.42, scrape: 0.5, crash: 0.95, land: 0.8, pop: 0.42, nitro: 0.4, lpOut: 3800, lpOff: 2200, lpCockpit: 1300, pyro: 0.55 };
 const clamp01 = (x) => Math.max(0, Math.min(1, x));
 const rnd = (a, b) => a + Math.random() * (b - a);
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
@@ -229,6 +229,41 @@ function engMix(set, rpm) {
   let k = 0; while (rpm >= set[k + 1].rpm) k++;
   const a = Math.log(rpm / set[k].rpm) / Math.log(set[k + 1].rpm / set[k].rpm);
   return [[set[k], Math.cos(a * Math.PI / 2)], [set[k + 1], Math.sin(a * Math.PI / 2)]];
+}
+
+// Feuerwerks-Töne (n27) rein synthetisch: Knall = tiefer Schlag mit fallender Tonhöhe + gefiltertes Rauschen + Knack,
+// Knistern = dichter werdende, dann ausdünnende Klicks, Rakete = Pfeifen mit steigender Tonhöhe + Rauschen, Fontäne =
+// helles Zischen, Flamme = anschwellendes dumpfes Rauschen, Konfetti-Kanone = kurzer Plopp. Fester Zufall (gleicher Klang)
+function makePyroBank(ctx) {
+  const R = 22050;
+  let seed = 4242;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647) * 2 - 1;
+  const buf = (sec, fn) => {
+    const n = Math.round(sec * R), a = new Float32Array(n);
+    fn(a, n);
+    let m = 0; for (let i = 0; i < n; i++) m = Math.max(m, Math.abs(a[i]));
+    if (m > 0) for (let i = 0; i < n; i++) a[i] *= 0.9 / m;
+    const b = ctx.createBuffer(1, n, R); b.copyToChannel(a, 0); return b;
+  };
+  const lp = (a, k) => { let y = 0; for (let i = 0; i < a.length; i++) { y += k * (a[i] - y); a[i] = y; } return a; };
+  const bangF = (big) => (a, n) => {
+    const nz = new Float32Array(n); for (let i = 0; i < n; i++) nz[i] = rnd();
+    lp(nz, big ? 0.08 : 0.12);
+    let ph = 0;
+    for (let i = 0; i < n; i++) {
+      const t = i / R, f = 38 + 50 * Math.exp(-t * 9);
+      ph += 2 * Math.PI * f / R;
+      a[i] = Math.sin(ph) * Math.exp(-t * (big ? 3.2 : 4.5)) * 1.1 + nz[i] * 3.2 * Math.exp(-t * (big ? 2.2 : 3)) + (t < 0.01 ? rnd() * (1 - t / 0.01) * 0.9 : 0);
+    }
+  };
+  return {
+    bang: buf(1.6, bangF(false)), bangBig: buf(2.2, bangF(true)),
+    crackle: buf(1.4, (a, n) => { for (let i = 0; i < n; i++) { const t = i / R, d = 0.012 * Math.sin(Math.PI * Math.min(1, t / 1.3)); if (Math.random() < d) { const L = 20 + Math.floor(Math.random() * 60), A = 0.4 + Math.random() * 0.6; for (let k = 0; k < L && i + k < n; k++) a[i + k] += rnd() * A * (1 - k / L); } } }),
+    launch: buf(1.1, (a, n) => { let ph = 0; for (let i = 0; i < n; i++) { const t = i / R, f = 900 + 1700 * t; ph += 2 * Math.PI * f / R; const env = Math.min(1, t / 0.05) * Math.exp(-t * 1.6); a[i] = (Math.sin(ph) * 0.35 + rnd() * 0.25) * env; } lp(a, 0.5); }),
+    fountain: buf(3.2, (a, n) => { let y = 0; for (let i = 0; i < n; i++) { const t = i / R, x = rnd(); y = 0.9 * y + 0.1 * x; a[i] = (x - y) * Math.min(1, t / 0.08) * (t > 2.8 ? Math.max(0, 1 - (t - 2.8) / 0.4) : 1) * (0.8 + 0.2 * Math.sin(t * 37)); } }),
+    whoosh: buf(0.8, (a, n) => { for (let i = 0; i < n; i++) { const t = i / R; a[i] = rnd() * Math.sin(Math.PI * Math.min(1, t / 0.75)) ** 1.5; } lp(a, 0.06); }),
+    pop: buf(0.25, (a, n) => { let ph = 0; for (let i = 0; i < n; i++) { const t = i / R; ph += 2 * Math.PI * (120 - 260 * t) / R; a[i] = Math.sin(ph) * Math.exp(-t * 22) + rnd() * 0.3 * Math.exp(-t * 40); } }),
+  };
 }
 
 export class Sound {
@@ -357,6 +392,19 @@ export class Sound {
     if (!this.enabled || !this.bank) return;
     this.shot(this.bank.whoosh, 0.5 * k, 0.55);
     if (this.bank.rec) this.shot(this.bank.rec.thud, 0.22 * k, 0.5, 0.04); else this.shot(this.bank.thump, 0.4 * k, 0.6, 0.04);
+  }
+  // Zielshow (n27): Feuerwerks-Töne, einmal synthetisiert (22 kHz, ~0,3 MB im Speicher, keine Datei). ev = Ereignis aus
+  // game/zielshow.js (launch, bang, crackle, fountain, whoosh, pop), gain = Abstand zur Kamera (0 … 1), rate = Zeitlupe
+  pyro(ev, gain = 1, rate = 1) {
+    if (!this.enabled || !this.ctx || !this.bank) return;
+    const B = this.pyroBank || (this.pyroBank = makePyroBank(this.ctx));
+    const g = MIX.pyro * gain, r = rate * (0.94 + Math.random() * 0.12);
+    if (ev.kind === 'bang') { this.shot(ev.big ? B.bangBig : B.bang, g * (ev.big ? 1 : 0.85), r); }
+    else if (ev.kind === 'crackle') this.shot(B.crackle, g * 0.55, r);
+    else if (ev.kind === 'launch') this.shot(B.launch, g * 0.45, r);
+    else if (ev.kind === 'fountain') this.shot(B.fountain, g * 0.35, rate, 0);
+    else if (ev.kind === 'whoosh') this.shot(B.whoosh, g * 0.6, r);
+    else if (ev.kind === 'pop') this.shot(B.pop, g * 0.7, r);
   }
   update(car, dt, state, opt = {}) {
     if (!this.running || !this.nodes) return;

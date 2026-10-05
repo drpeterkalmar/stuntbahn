@@ -84,6 +84,7 @@ export class UI {
         <div class="ctag">🎬 Highlights</div><div class="cbar"><i></i></div>
         <div class="cap" aria-live="polite"></div>
         <button class="cskip" data-a="cineskip" aria-label="Kino-Replay überspringen">Überspringen ⏭</button></div>
+      <div id="zshow" aria-label="Zielshow"><div class="ztime"></div><div class="zsub"></div><div class="zhint">Antippen ⏭</div></div>
       <div id="sheet" class="screen"></div>
       <div id="drop"><div>📂 Strecken hier ablegen<small>.TRK, .RPL oder .ZIP</small></div></div>`;
     // Datei-Auswahl (Handy + Desktop); wird per Knopf im Nutzer-Klick geöffnet
@@ -107,6 +108,12 @@ export class UI {
       if (performance.now() - (this._cineT0 || 0) < 600) return;
       e.preventDefault();
       if (this.a.skipCine) this.a.skipCine();
+    });
+    // Zielshow (n27): ein neuer Tipp überspringt (frühestens ZIEL.tap s nach dem Ziel – ein liegender Finger zählt nicht)
+    $('#zshow').addEventListener('pointerdown', (e) => {
+      if (performance.now() - (this._zT0 || 0) < 350) return;
+      e.preventDefault();
+      if (this.a.skipShow) this.a.skipShow();
     });
     this.root.addEventListener('click', (e) => {
       const b = e.target.closest('[data-a]');
@@ -748,6 +755,22 @@ export class UI {
       + '<button data-a="rplay" aria-label="Pause/Weiter">⏯</button><button data-a="rslow" aria-label="Zeitlupe">🐢</button><button data-a="rend" aria-label="Replay beenden">✕</button>';
     this.replayCamMark('chase');
   }
+  // ---------- Zielshow (n27) ----------
+  // Zeit groß in der Mitte (Bestzeit golden), darunter Bestzeit/Deine Zeit, Hinweis „Antippen“; Touch-Tasten weg
+  showShow(race, res) {
+    this._zT0 = performance.now();
+    document.body.dataset.mode = 'show';
+    this.setTouchMode(false);
+    $('#hud').classList.remove('show');
+    this.wipe(false);
+    const Z = $('#zshow');
+    Z.querySelector('.ztime').textContent = '🏁 ' + fmtTime(res.time);
+    Z.querySelector('.zsub').textContent = res.easy ? 'Deine Zeit' : res.ab ? 'A/B-Vergleich' : res.isBest ? '🏆 Neue Bestzeit!' : res.prev ? `Bestzeit ${fmtTime(res.prev)}` : '';
+    Z.classList.toggle('best', !!res.isBest && !res.ab);
+    Z.classList.remove('on'); Z.classList.add('show');
+    requestAnimationFrame(() => Z.classList.add('on'));
+  }
+  hideShow() { const Z = $('#zshow'); Z.classList.remove('show', 'on'); }
   // ---------- Kino-Replay (n18) ----------
   showCine(c) {
     this.cineObj = c; this._cineT0 = performance.now(); this._capClip = -1;
