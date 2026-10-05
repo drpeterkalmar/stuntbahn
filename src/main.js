@@ -169,7 +169,7 @@ async function boot() {
   });
   ghostVis.root.visible = false;
   scene.add(ghostVis.root);
-  cockpit = new Cockpit(scene.environment, carVis.mats.paint);
+  cockpit = new Cockpit(scene.environment, carVis.mats.paint, { tier: quality.tier });
   lineViz = new LineViz(scene);
   fx = new CarFX(scene);
   pyro = new PyroFX(scene);
@@ -695,6 +695,7 @@ function cockpitValues() {
   return { kmh: Math.abs(showKmhMs(c.fwdSpeed())), rpm: c.rpm, gear: displayGear(c.fwdSpeed(), c.gear), steer: c.steerAng };
 }
 
+const cpCover = { v: null };
 // G-Kräfte live (n24): dieselbe Rechnung wie im Replay (core/gforce.js) auf der Aufzeichnung des Rennens – neue Bilder
 // nachführen, an Schnitten (Reset, Rückspulen mit Uhr) und beim Zurückspulen neu ansetzen; Spitze je Rennen
 const gLive = { m: new GMeter(), race: null, fed: 0, cut: 0 };
@@ -843,7 +844,11 @@ function render(rdt) {
   if (inCockpit) {
     cockpit.layout({ ...cockpitZone(), vfov: camera.fov });
     const cv = cockpitValues();
-    cockpit.update(frozen ? 0 : rdt * (mode === 'replay' && replay ? replay.speedMul * (replay.paused ? 0 : 1) : 1), cv, camera, sun.userData.dir);
+    // n27: Tunnel/Brücke über dem Auto (Strahl nach oben, alle 5 Bilder) → Innenraum dunkler, Tunnellichter
+    if (app.frames % 5 === 0 || cpCover.v == null) cpCover.v = env && env.world.rayTrack(pose.pos.x, pose.pos.y + 1.2, pose.pos.z, 0, 1, 0, 35, false) ? 1 : 0;
+    cockpit.tier = quality.tier;
+    cockpit.update(frozen ? 0 : rdt * (mode === 'replay' && replay ? replay.speedMul * (replay.paused ? 0 : 1) : 1), cv, camera, sun.userData.dir, { cover: cpCover.v, speed: spd, head: rig.head });
+    if (!frozen && !(replay && replay.paused)) cockpit.renderMirror(renderer, scene, camera);
     ui.cockpitMode(cockpit.gaugePx, cv.gear);
   }
   // G-Kräfte (n24): Cockpit-Display, Replay-/Kino-Einblendung (mit km/h), sonst dezente Zahl im HUD
@@ -852,6 +857,7 @@ function render(rdt) {
     if (mode === 'replay' && replay && pose) { gs = replay.gState(); gk = Math.abs(showKmhMs(replay.speed())); }
     else if (mode === 'race' && race && pose) { gLiveSync(); gs = gLive.m.state(); }
     if (gs) gw = inCockpit ? cockpitGSpot(cockpit.gaugePx) : mode === 'replay' ? ui.gmeterSpot(cine ? 'cine' : 'replay') : null;
+    rig.gHead = gs ? { lon: gs.lon, lat: gs.lat } : null;   // n27: Kopfnicken im Cockpit (nächstes Bild)
     ui.gmeter(gw, gs, gk, frozen || (replay && replay.paused) ? 0 : rdt);
     ui.hudG(mode === 'race' && gs && !gw ? gs.g : null);
   } else ui.gmeter(null);

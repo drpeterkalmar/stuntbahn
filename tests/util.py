@@ -68,6 +68,8 @@ class Session:
                 self.pg.wait_for_function("window.__app && window.__app.ready && window.__app.frames > 3", timeout=20000)
                 break
             except Exception:
+                if any(e.startswith('PAGEERROR') for e in self.errors):
+                    print('BOOT FEHLER', self.errors[:5]); raise
                 if (time.time() - t0) * 1000 > timeout:
                     print('BOOT TIMEOUT', self.errors[:5]); raise
                 print('  … lädt noch', round(time.time() - t0), 's, frames', self.ev("window.__app ? window.__app.frames : -1"), flush=True)

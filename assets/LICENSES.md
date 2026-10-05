@@ -158,3 +158,9 @@ und Quaternius gibt es keine realistische CC0-Palme; Kenneys Low-Poly-Palmen wur
 (Silhouetten-Ring, Tafelberge, Berge, Skyline, Meer), Tribünen, Zuschauer (Canvas, auch jubelnd), Fahnen, Start/Ziel-Portal,
 Kamerakräne, Windräder, Heißluftballons, Zeppelin, Hochhäuser, Baukräne, Hochstraße, Leuchtturm, Segelboote, Ranch, Hütten,
 Strandhäuser, Boden-Paletten je Thema (Schnee, Strand, Canyon-Schichten, Stadtviertel).
+
+### Zielshow, Highlight-Kameras und Cockpit (n27, 05.10.2026) – eigene Arbeit, keine Dateien
+Feuerwerk/Fontänen/Konfetti (`src/game/zielshow.js`, `src/gfx/pyro.js`) und die Feuerwerks-Töne (synthetisch in
+`src/audio/sound.js`) sind eigener Code ohne Fremd-Assets. Die Cockpit-Materialien Leder, Alcantara, Carbon und gebürstetes
+Alu (`src/gfx/cockpitmat.js`) werden zur Laufzeit prozedural erzeugt (Rauschen → Farbe, Rauheit, Normal-Map) – keine
+Bilddateien, 0 KB zusätzlicher Download. Zuschauer-Silhouetten der Fan-Cam: Canvas-Formen (`src/ui/ui.js`).

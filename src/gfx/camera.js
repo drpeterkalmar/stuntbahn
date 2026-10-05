@@ -38,6 +38,10 @@ export function portraitK(aspect) { return Math.max(0, Math.min(1, (1 - aspect) 
 export const SPEED_LOOK = { v0: 15, v1: 55, h: 1.0, dist: 1.2, look: 6, lookUp: 0.35, fov: 0.5 };
 const AIM_MAX = 14 * Math.PI / 180;   // hochkant: größtes Eindrehen in die Kurve
 const CP_SUSP = +(Q.get('cpsusp') ?? 1);   // Cockpit: Anteil Federungs-Ausgleich (n14: 0,5)
+// Kopfnicken im Cockpit (n27): der Kopf gibt den G-Kräften gedämpft nach – je G längs z m nach hinten/vorn und pitch rad
+// Nicken, je G quer x m zur Seite und roll rad Neigen; Feder mit Eigenfrequenz w (kritisch gedämpft), höchstens maxG.
+// Bewusst klein (gegen Übelkeit am Handy). ?kopf=0 aus, ?kopf=2 doppelt
+export const HEAD = { z: 0.014, x: 0.011, pitch: 0.007, roll: 0.009, w: 7, maxG: 3, k: qnum('kopf', 0, 3) ?? 1 };
 const LAG_MAX = 3.0; // m: größter Verzug des Verfolgers hinter dem Auto (Tempo-Nachführung)
 // Drift-Kamera (n25, Leicht „Brachial“ und Replays, rig.driftCam): rutscht das Auto quer (Winkel zwischen Fahrzeug-Längsachse
 // und Bewegungsrichtung ab b0 rad, voll ab b1), folgt der Verfolger zum Anteil k der Bewegungsrichtung statt der Karosserie –
@@ -365,14 +369,28 @@ export class CameraRig {
     }
     this._e.set(CP_SUSP * pitch, 0, -CP_SUSP * roll);
     const target = this._q2.copy(q).multiply(this._q3.setFromEuler(this._e));
-    if (!this.cInit) { this.cq.copy(target); this.cInit = true; }
+    if (!this.cInit) { this.cq.copy(target); this.cInit = true; this.cInit2 = false; }
     const a = this.cq.angleTo(target);
     if (a > 0.9) this.cq.copy(target);
     else this.cq.slerp(target, 1 - Math.exp(-dt * 16));
     const eye = this._h.set(EYE.x, EYE.y, EYE.z).applyQuaternion(this.cq);
     this.pos.copy(cp).add(eye).addScaledVector(u, CP_SUSP * heave);
+    // Kopfnicken (n27): Feder je Achse auf das Ziel aus den G-Kräften (gHead = { lon, lat } in G, von main.js)
+    const Hd = this.hd || (this.hd = { x: 0, z: 0, vx: 0, vz: 0, pos: new THREE.Vector3(), quat: new THREE.Quaternion(), e: new THREE.Euler() });
+    const gh = this.gHead || { lon: 0, lat: 0 }, cl = (v) => Math.max(-HEAD.maxG, Math.min(HEAD.maxG, v || 0)), hw = HEAD.w, kk = HEAD.k;
+    const tz = cl(gh.lon) * HEAD.z * kk, tx = -cl(gh.lat) * HEAD.x * kk;
+    if (!this.cInit2) { Hd.x = tx; Hd.z = tz; Hd.vx = Hd.vz = 0; this.cInit2 = true; }
+    const st = Math.min(dt, 0.05);
+    Hd.vx += (hw * hw * (tx - Hd.x) - 2 * hw * Hd.vx) * st; Hd.x += Hd.vx * st;
+    Hd.vz += (hw * hw * (tz - Hd.z) - 2 * hw * Hd.vz) * st; Hd.z += Hd.vz * st;
+    Hd.pos.set(Hd.x, 0, Hd.z);
+    Hd.e.set(HEAD.z ? Hd.z / HEAD.z * HEAD.pitch * -1 : 0, 0, HEAD.x ? Hd.x / HEAD.x * HEAD.roll : 0);
+    Hd.quat.setFromEuler(Hd.e);
+    this.head = kk > 0 ? Hd : null;
+    if (this.head) this.pos.add(this._d.copy(Hd.pos).applyQuaternion(this.cq));
     cam.position.copy(this.pos);
     cam.quaternion.copy(this.cq);
+    if (this.head) cam.quaternion.multiply(Hd.quat);
     cam.up.copy(u);
     this.look.copy(this.pos).addScaledVector(this._d.set(0, 0, -1).applyQuaternion(this.cq), 10);
     this.fov = cockpitFov(cam.aspect);
