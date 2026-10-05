@@ -196,8 +196,11 @@ andere Maßstäbe werten nicht.
 - Browser: Rauchtest Pixel 7 quer, Hochformat (Drehen), 3D-Strecken, Gelände, Rennen/Bestzeit/Geist/Replay, Grafik-Start,
   Kino-Replay quer+hoch: alle grün, **0 JS-Fehler** (auch alle 88 Fotos quer und hoch ohne Fehler).
 
-## Live-Prüfung
-(siehe unten, nach dem Push)
+## Live-Prüfung (05.10.2026, https://drpeterkalmar.github.io/stuntbahn/)
+- Build **58b378326d** live = lokal, HTTP 200, Start 4,4 s, Strecke des Tages mit dem Autopiloten im Ziel ohne Crash,
+  Service-Worker aktiv, offline startbar, **0 Fehler** (`python3 tests/test_live.py`).
+- Galerie live auf Pixel 7 **hochkant und quer**: Stunt-Maßstab 1,6, Looping **23,2 m** hoch, Spur **7,2 m**; mit
+  `?stunt=1` Maßstab 1 und 14,5 m wie bis n25; Autopilot-Fahrt ohne Crash, **0 JS-Fehler**.
 
 ## Am Handy
 Die App einmal ganz schließen und neu öffnen, dann lädt die neue Version. Beim ersten Öffnen erscheint der Hinweis zu den
