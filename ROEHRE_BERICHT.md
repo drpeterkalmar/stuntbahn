@@ -127,3 +127,8 @@ nirgends durchstoßen, keine Naht am Mantel (eine 1-cm-Naht über dem Buckel-Fu�
 
 App einmal ganz schließen und neu öffnen (bzw. Seite neu laden) – dann lädt der Service-Worker den neuen Stand.
 Danach im Menü einmal der Hinweis „Die Röhre hat jetzt einen Buckel …“, falls es Bestzeiten auf Zufallsstrecken gab.
+
+## Live-Prüfung
+
+Build **4165b67133** auf https://drpeterkalmar.github.io/stuntbahn/ = lokal; `python3 tests/test_live.py`: Rennen bis ins
+Ziel (3/3 Checkpoints, 0 Crashs), Service-Worker aktiv, Offline-Start ok, 0 Fehler, 0 Warnungen.
