@@ -69,6 +69,18 @@ spielbar am Handy (quer oder hochkant), mit Gamepad oder Tastatur. Als App insta
   Abstand zu jeder Fahrbahn (auch Hochstraßen/Rampen), nie im Wasser. Dosiert nach Grafikstufe; ruckelt es, blendet die
   Automatik (nach der Unschärfe) zuerst Gras/Büsche/Wolkenschatten aus. `?deko=0` / `?wolken=0` zum Vergleich.
 
+## 🕳️ Röhre mit Hindernis (seit 06.10.2026, n29)
+- Peter: „Röhre hat normalerweise ein Hindernis in der Mitte am Boden.“ Die Röhre der Zufallsstrecken (flach, 3D,
+  Gelände) hat jetzt wie im Original einen **Buckel quer über den Boden**: 0,45 m hoch, 16 m lang, mit gelb-schwarzen
+  Warnstreifen auf der Vorderseite (auch im Cockpit und in der Stoßstangen-Kamera gut zu sehen). Das Auto **hüpft
+  spürbar** (80 / 150 / 220 km/h → 0,4 / 1,0 / 1,7 m Luft), die Decke bleibt weit weg. Der flachere Buckel als in der
+  .TRK-„Röhre mit Hindernis“ (0,95 m auf 12 m) ist Absicht: der warf das Auto ab 150 km/h an die Decke.
+- Leicht/Mittel sagen „Röhre – Buckel!“ an; der Autopilot rechnet ein, dass man in der Luft nicht bremsen kann (Kurve
+  hinter der Röhre). Leicht und Mittel: kein Crash am Buckel (66 Strecken gemessen), Lösbarkeit der Zufallsstrecken
+  unverändert 100 %.
+- Bestzeiten der Zufallsstrecken starten einmalig neu (Hinweis im Menü); Sammlung und .TRK bleiben, wie sie sind.
+  `?roehre=glatt` = glatte Röhre wie bisher (A/B, wertet nicht). Details: `ROEHRE_BERICHT.md`. Handy: App einmal neu laden.
+
 ## 🎆 Zielshow, mehr Fan-Cam im Film, schöneres Cockpit (seit 05.10.2026, n27)
 - Peter: „Pyro-Effekte bei Zieleinfahrt, ein paar Sekunden weiterfahren nach dem Ziel-Durchfahren (auch im Replay und
   Highlight). Mehr Fan-Cam-Schwenks und Effekte bei den Highlights. Cockpit detaillierter und schöner machen.“
@@ -369,6 +381,11 @@ node tools/gkraft_mess.mjs                # n24: G je Situation (Kurve, Looping,
 python3 tests/gkraft_shots.py quer        # n24: Fotos Cockpit Kurve/Landung, HUD, Replay, Kino-Replay mit G (quer|hoch|desktop)
 python3 tests/perf_gkraft.py <vorher>     # n24: Bildrate vorher/nachher (Cockpit, Verfolger, Replay)
 node tests/node/test_zielshow.mjs         # n27: Auslauf aufgezeichnet (Zeit/Geist/bitgleich), Jubel-Dreher auf der Fahrbahn, Pyro-Budget je Stufe, deterministisch, Zielbogen-Kamera
+node tests/node/test_roehre_buckel.mjs    # n29: Buckel mittig (Höhe/Länge, Decke), Profil, 80/150/220 km/h ohne Crash, Autopilot, ?roehre=glatt = n28 bitgleich, .TRK bitgleich, Bestzeiten, HUD
+node tools/roehre_mess.mjs fest           # n29: Buckel mit festem Tempo (Flughöhe/-weite, Decke, Lage); STUNT_BUCKEL=h,len zum Ausprobieren
+node tools/roehre_mess.mjs fahrer --mehr=90 --json=x.json [--root=<alter Stand>]   # n29: Leicht/Mittel/Original-Bots über 66 Strecken mit Röhre; --sum=vorher.json,nachher.json
+node tools/roehre_tris.mjs                # n29: Dreiecke/Batches der Röhre mit/ohne Buckel
+python3 tests/roehre_shots.py             # n29: Fotos vor/über dem Buckel (Verfolger, Cockpit, Stoßstange; quer/hoch; ?roehre=glatt) → tests/shots/roehre/
 python3 tests/zielshow_shots.py quer 4711-3   # n27: Zielshow in Zeitlupe abfotografiert (Bestzeit, Leicht/Cockpit, Tippen überspringt) → tests/shots/zielshow/
 python3 tests/fancam_shots.py quer 1234-3-g   # n27: Fan-Cam (3 Einstellungen), Kran, Bodenkamera, Heckkamera, Reißschwenk, Freeze-Frame → tests/shots/fancam/
 python3 tests/cockpit_n27_shots.py quer   # n27: Cockpit gerade/Kurve/Tunnel/Einfach mit Draw-Calls, Spiegel, Tunnel-Abdunklung (quer|hoch|desktop)
@@ -428,6 +445,7 @@ Nützliche URL-Parameter: `?seed=4711&d=3`, `?demo`, `?gallery` (alle Bausteine)
 (Beispielstrecke im .TRK-Format), `?speed=1` (Originaltempo statt 1,25×), `?q=0|1|2` (Grafikstufe), `?nosw`,
 `?air=1` (volle Schwerkraft im Flug, Standard 0.7), `?lip=15` (alte Schanze; mit `?air=1` exakt der alte Sprung).
 `?blur=off|light|strong` (Bewegungsunschärfe übersteuern).
+Röhre (n29): `?roehre=glatt` (glatte Röhre wie bis n28, A/B, wertet nicht; Node `STUNT_ROEHRE=glatt`).
 Zielshow/Cockpit (n27): `?show=0` (nach dem Ziel ohne Show), `?kopf=0|2` (Kopfnicken im Cockpit aus/doppelt).
 Cockpit: `?eye=0.45` (Augenhöhe in m über dem Auto-Ursprung), `?hz=0.32` (Horizont, Anteil der Bildhöhe von oben),
 `?dash=0.7` (Oberkante Armaturenbrett, Anteil von oben), `?cpsusp=1` (Federungs-Ausgleich, 0,5 = Stand bis 28.09.).

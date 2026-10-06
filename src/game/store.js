@@ -25,9 +25,13 @@ const MED_RESET = 24;
 // deren Bestzeiten und Geister löschen (STUNT_RESET, idempotent, Hinweis im Menü) – Importe (.TRK, Sammlung, Beispiel-
 // strecken) behalten ihre Bauwerke und Zeiten. Leicht-Zeiten bleiben (werten nicht).
 const STUNT_RESET = 26;
+// n29: Röhre mit Buckel (Peter 05.10.2026) – auf Zufallsstrecken ändert sich die Röhre und damit Flug, Linie und Zeit;
+// einmalig deren Bestzeiten und Geister löschen (TUBE_RESET, idempotent, Hinweis im Menü) wie n26. Sammlung, .TRK und
+// Beispielstrecken behalten ihre Röhren (Buckel nur, wo die Datei ihn hat) und Zeiten. Leicht-Zeiten bleiben.
+const TUBE_RESET = 29;
 export const IMPORTED_KEY = /^(trk-|sam-|demo-)/;
 // n26: ?stunt=1 (Stunt-Bauwerke wie bis n25) bzw. jeder andere Stunt-Maßstab als der Standard
-const AB_PARAMS = [['auto', 'alt'], ['grip', '1'], ['mgrip', '1'], ['m', 'n16'], ['m', 'n23'], ['antrieb', null], ['breit', 'alt'], ['wiese', 'alt'], ['haft', 'alt'], ['schanze', 'alt'], ['welt', null], ['stunt', null], ['air', null], ['lip', null]];
+const AB_PARAMS = [['auto', 'alt'], ['grip', '1'], ['mgrip', '1'], ['m', 'n16'], ['m', 'n23'], ['antrieb', null], ['breit', 'alt'], ['wiese', 'alt'], ['haft', 'alt'], ['schanze', 'alt'], ['welt', null], ['stunt', null], ['air', null], ['lip', null], ['roehre', 'glatt']];
 const AB_SCALE = { welt: WORLD_SCALE_DEFAULT, stunt: STUNT_SCALE_DEFAULT };
 export function abMode(search = globalThis.location ? globalThis.location.search : '') {
   if (!search) return false;
@@ -56,6 +60,8 @@ export class Store {
     if (this.medReset < MED_RESET) { this.medNote = this.clearBests('medium'); this.medReset = MED_RESET; this.save(); }
     this.stuntReset = d.stuntReset || 0;
     if (this.stuntReset < STUNT_RESET) { this.stuntNote = this.clearBests(null, (k) => !IMPORTED_KEY.test(k)); this.stuntReset = STUNT_RESET; this.save(); }
+    this.tubeReset = d.tubeReset || 0;
+    if (this.tubeReset < TUBE_RESET) { this.tubeNote = this.clearBests(null, (k) => !IMPORTED_KEY.test(k)); this.tubeReset = TUBE_RESET; this.save(); }
     // Streckenart (n22): flach / Hochstraße (n19, „3D“) / Gelände (Standard ab n22). Bisher nur der Schalter „flach“:
     // wer flach gewählt hatte, behält flach; alle anderen bekommen das neue Gelände
     if (!this.settings.trackMode) this.settings.trackMode = this.settings.flat ? 'flat' : 'gel';
@@ -94,7 +100,7 @@ export class Store {
     try { localStorage.setItem(KEY + '.verified', JSON.stringify(this.verified)); } catch { /* voll */ }
   }
   save() {
-    try { localStorage.setItem(KEY, JSON.stringify({ settings: this.settings, best: this.best, ghostIndex: this.ghostIndex, times: this.times, timesMig: this.timesMig, reset: this.reset, medReset: this.medReset, stuntReset: this.stuntReset })); } catch { /* voll */ }
+    try { localStorage.setItem(KEY, JSON.stringify({ settings: this.settings, best: this.best, ghostIndex: this.ghostIndex, times: this.times, timesMig: this.timesMig, reset: this.reset, medReset: this.medReset, stuntReset: this.stuntReset, tubeReset: this.tubeReset })); } catch { /* voll */ }
   }
   // Leicht: letzte Zeiten dieser Strecke (neueste zuerst, nicht nach Zeit sortiert)
   timesFor(key) { return this.times[key] || []; }

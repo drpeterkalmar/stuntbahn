@@ -5,6 +5,7 @@
 import * as THREE from 'three';
 
 export const DECK_MARK = { lip: 1.6, land: 1.2, lift: 0.02, stripe: 0.5 };
+export const HUMP_MARK = [0.24, 0.76];   // Anteil Fuß → Scheitel des Buckels (sin²: 6 cm … 0,36 m hoch bei 0,45 m)
 let texCache = null;
 function stripeTexture() {
   if (texCache) return texCache;
@@ -35,13 +36,13 @@ function lineAt(L, i0, s) {
   return { p: [m(L.px), m(L.py), m(L.pz)], n: [m(L.nx), m(L.ny), m(L.nz)], b: [m(L.bx), m(L.by), m(L.bz)], hw: m(L.hw) };
 }
 
-// Streifen von s0 bis s1 (Bogenlänge) über die ganze Fahrbahnbreite
-function strip(L, i0, s0, s1, out) {
+// Streifen von s0 bis s1 (Bogenlänge) über die ganze Fahrbahnbreite (hw0: andere halbe Breite, z. B. Röhren-Buckel)
+function strip(L, i0, s0, s1, out, hw0 = 0) {
   const n = 6, D = DECK_MARK;
   const base = out.pos.length / 3;
   for (let k = 0; k <= n; k++) {
     const s = s0 + (s1 - s0) * k / n, q = lineAt(L, i0, s);
-    const bl = Math.hypot(...q.b) || 1, nl = Math.hypot(...q.n) || 1, hw = q.hw;
+    const bl = Math.hypot(...q.b) || 1, nl = Math.hypot(...q.n) || 1, hw = hw0 || q.hw;
     for (const sg of [-1, 1]) {
       out.pos.push(q.p[0] + q.b[0] / bl * sg * hw + q.n[0] / nl * D.lift, q.p[1] + q.b[1] / bl * sg * hw + q.n[1] / nl * D.lift, q.p[2] + q.b[2] / bl * sg * hw + q.n[2] / nl * D.lift);
       out.nrm.push(q.n[0] / nl, q.n[1] / nl, q.n[2] / nl);
@@ -51,7 +52,7 @@ function strip(L, i0, s0, s1, out) {
   for (let k = 0; k < n; k++) { const a = base + k * 2; out.idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
 }
 
-// Gruppe mit allen Markierungen einer Strecke (oder null ohne Schanzen)
+// Gruppe mit allen Markierungen einer Strecke (oder null ohne Schanzen und Röhren-Buckel)
 export function buildJumpMarks(track) {
   const L = track.line, out = { pos: [], nrm: [], uv: [], idx: [] };
   for (const j of track.jumps || []) {
@@ -59,6 +60,13 @@ export function buildJumpMarks(track) {
     const sl = L.s[j.lipIdx];
     strip(L, j.lipIdx, sl - DECK_MARK.lip, sl - 0.05, out);
     if (j.landLen && j.landIdx != null) { const sa = L.s[j.landIdx]; strip(L, j.landIdx, sa + 0.1, sa + DECK_MARK.land, out); }
+  }
+  // Buckel im Röhrenboden (n29): Warnstreifen auf der steilen Vorderseite (HUMP_MARK der Strecke vom Fuß bis zum Scheitel,
+  // dort ist die Fläche dem anfahrenden Auto zugewandt) – in der dunklen Röhre von Weitem zu sehen, auch aus dem Cockpit
+  for (const h of track.humps || []) {
+    if (h.idx0 == null || h.idxC == null) continue;
+    const a = L.s[h.idx0], c = L.s[h.idxC];
+    strip(L, h.idx0, a + HUMP_MARK[0] * (c - a), a + HUMP_MARK[1] * (c - a), out, Math.max(1, h.hw - 0.15));
   }
   if (!out.idx.length) return null;
   const g = new THREE.BufferGeometry();

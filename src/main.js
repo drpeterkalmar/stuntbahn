@@ -41,10 +41,10 @@ import { kulisseTick } from './gfx/kulisse.js';
 import { daySeed } from './core/util.js';
 import { showKmhMs } from './core/showspeed.js';
 import { GMeter, G_ON } from './core/gforce.js';
-import { WORLD_TAG, WORLD_SCALE, STUNT_TAG } from './track/defs.js';
+import { WORLD_TAG, WORLD_SCALE, STUNT_TAG, TUBE_TAG } from './track/defs.js';
 // Geprüfte Strecken (Autopilot, Entschärfungen) je Weltmaßstab getrennt: ?welt=1 prüft neu statt die Teile der
 // anderen Welt zu übernehmen
-const VBUILD = BUILD + WORLD_TAG + STUNT_TAG;   // n26: ?stunt=1 prüft und speichert getrennt
+const VBUILD = BUILD + WORLD_TAG + STUNT_TAG + TUBE_TAG + '@r29';   // n26: ?stunt=1 prüft und speichert getrennt; n29: ?roehre=glatt auch, Röhre mit Buckel prüft neu
 
 const DT = 1 / 120;
 const params = new URLSearchParams(location.search);

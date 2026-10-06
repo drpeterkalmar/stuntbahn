@@ -2,7 +2,7 @@
 // Lokale Koordinaten je Element: f = vorwärts ab Einfahrtskante, r = rechts, y = hoch (Meter).
 // Jedes Element beschreibt: belegte Felder (a vorwärts, b rechts), Ausfahrt, Höhenwechsel und
 // baut Fahrlinie + Geometrie über den Piece-Builder (pb, siehe build.js).
-import { TILE, LEVEL_H, ROAD_HW, MAT, WORLD_SCALE, STUNT_SCALE, stuntK } from './defs.js';
+import { TILE, LEVEL_H, ROAD_HW, MAT, WORLD_SCALE, STUNT_SCALE, stuntK, TUBE_OBST } from './defs.js';
 import { smoothstep, smootherstep, clamp } from '../core/util.js';
 import { AIR, flightPath, pathAt } from '../physics/air.js';
 import { CAR_DEF } from '../physics/car.js';
@@ -53,6 +53,25 @@ export const LOOP = loopGeom(STUNT_SCALE);
 // n26: × Stunt-Maßstab (1,6 → Boden 7 m, 11,2 m hoch, 18 m breit); Spielraum der Linie ±lim (bis n25 1,2 m)
 export function tubeGeom(k = STUNT_SCALE) {
   return { b: 2.2 * k, R: 3.5 * k, th: 0.45 * stuntK(k, 0.5), lim: 1.2 * k };
+}
+// ---------- Röhre mit Hindernis: Buckel quer über den Boden (sin²-Profil, Länge len, Höhe h, Mitte bei c) ----------
+// .TRK „Röhre mit Hindernis“ (pobst, pieces_trk.js buildPipe): 12 m lang, 0,95 m hoch, mittig im Feld – bleibt so
+// (Sammlung/.TRK behalten ihre Zeiten). n29: generierte Röhre (PIECES.tube) mit eigenem Buckel in der Mitte (f = T),
+// Form aus derselben Funktion. Höhe/Länge nach Fahrgefühl (tools/roehre_mess.mjs), nicht mit dem Stunt-Maßstab: der
+// Hüpfer hängt am Auto (Steigung h·π/len → Abwurf v·Steigung), nicht an der Röhre. Der .TRK-Buckel (Steigung 0,25) warf das
+// Auto schon mit 80 km/h 3 m hoch, mit 150 km/h 7,7 m an die Decke (Crash); 0,45 m auf 16 m (Steigung 0,09): 80 / 150 /
+// 220 km/h → 0,4 / 1,0 / 1,7 m Luft, Decke ≥ 8 m entfernt (ROEHRE_BERICHT.md)
+export const TUBE_HUMP_TRK = { h: 0.95, len: 12 };
+export const TUBE_HUMP = { on: TUBE_OBST, h: 0.45, len: 16 };
+// Für Tests/Messungen (Node): Buckel an/aus bzw. Form ändern
+export function setTubeHump(o) { Object.assign(TUBE_HUMP, o); }
+{
+  const e = globalThis.process && globalThis.process.env && globalThis.process.env.STUNT_BUCKEL;   // Node: "h,len"
+  if (e) { const [h, len] = e.split(',').map(Number); if (h > 0 && len > 0) setTubeHump({ h, len }); }
+}
+export function humpY(f, c, H = TUBE_HUMP) {
+  const b0 = c - H.len / 2;   // (Rechenweg wie bis n28 in buildPipe: .TRK-Röhren bleiben bitgleich)
+  return f > b0 && f < b0 + H.len ? H.h * Math.sin(PI * (f - b0) / H.len) ** 2 : 0;
 }
 
 // ---------- Sprung: Schanze, Lücke mit Hindernissen, Landerampe (3 Felder) ----------
@@ -388,8 +407,28 @@ export const PIECES = {
     name: 'Röhre', cells: [[0, 0], [1, 0]], next: [2, 0], turn: 0, dl: 0, stunt: 1,
     build(pb) {
       const lim = tubeGeom(pb.ss).lim;   // n26: Spielraum wächst mit dem Querschnitt (bis n25 ±1,2 m)
-      const s = lin(0, 2 * T, nS(20)).map((f) => ({ f, y: 0, r: 0, tube: f > 3 && f < 2 * T - 3 ? 1 : 0, lo: -lim, hi: lim }));
-      pb.path(s, { profile: 'tube', kind: 'tube' });
+      const tube = (f) => (f > 3 && f < 2 * T - 3 ? 1 : 0);
+      if (!TUBE_HUMP.on) {
+        const s = lin(0, 2 * T, nS(20)).map((f) => ({ f, y: 0, r: 0, tube: tube(f), lo: -lim, hi: lim }));
+        pb.path(s, { profile: 'tube', kind: 'tube' });
+      } else {
+        // n29: Buckel mittig (f = T). Außerhalb dieselben Stützpunkte wie die glatte Röhre, auf dem Buckel dichter;
+        // die Linie läuft darüber (Profil tubeHump, Fahrbahn folgt der Steigung), der Rohrmantel bleibt waagrecht
+        // (tubeShell ohne Boden, genau über dem Buckel – kein doppelter Boden, keine Stufe)
+        // Übergang Röhre ↔ Buckel-Lauf 0,8 m vor/hinter dem Buckel, wo die Linie noch eben ist (beide Nachbarn auf dem
+        // Boden): dort steht der Querschnitt senkrecht wie der Mantel darüber – am Buckel-Fuß selbst war er um die Steigung
+        // zum nächsten Punkt verkantet (feine Naht an der Decke)
+        const H = TUBE_HUMP, h0 = T - H.len / 2, h1 = T + H.len / 2, e0 = h0 - 0.8, e1 = h1 + 0.8;
+        const fs = lin(0, 2 * T, nS(20)).filter((f) => f < e0 - 0.5 || f > e1 + 0.5).concat(lin(e0, e1, Math.max(26, Math.round((e1 - e0) / 0.4)))).sort((a, b) => a - b);
+        const s = fs.map((f) => {
+          // wave 4: Tempo-Profil ohne Kuppen-/Lastgrenze (profile.js), auch 3 m davor/dahinter (Krümmungsfenster ±2,5 m)
+          const y = humpY(f, T);
+          return { f, y, hy: y, r: 0, tube: tube(f), lo: -lim, hi: lim, ...(f >= e0 - 1e-9 && f < e1 - 1e-9 ? { prof: 'tubeHump' } : {}), ...(f > h0 - 3 && f < h1 + 3 ? { wave: 4 } : {}) };
+        });
+        pb.path(s, { profile: 'tube', kind: 'tube' });
+        pb.ribbon(lin(e0, e1, 4).map((f) => ({ f, y: 0, r: 0 })), { profile: 'tubeShell' });
+        pb.hump({ f0: h0, f1: h1, c: T, h: H.h, len: H.len, hw: tubeGeom(pb.ss).b });
+      }
       pb.portal(4); pb.portal(2 * T - 4);
     },
   },

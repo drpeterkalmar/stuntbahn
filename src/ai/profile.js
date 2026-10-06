@@ -154,7 +154,9 @@ export function computeProfile(L, opts = {}) {
   const dl = (k) => D.lim[k] || (D.lim[k] = new Float32Array(n).fill(Infinity));
   for (let i = 0; i < n; i++) {
     if (L.air[i]) continue;
-    const A = kA[i], C = kC[i], gB = G * L.by[i], gN = G * L.ny[i], mu = muAt(i) * (pre[i] ? PROF.resPre / PROF.res : 1);
+    // Buckel im Röhrenboden (n29, L.wave = 4): Höhen-Krümmung zählt nicht (der Hüpfer ist gewollt, siehe unten) – auch
+    // nicht in der Haftungsrechnung der Kurvengrenze (sonst drückte die Kuppe das Ziel-Tempo über μ·(C + Abtrieb))
+    const A = kA[i], C = L.wave && L.wave[i] === 4 ? 0 : kC[i], gB = G * L.by[i], gN = G * L.ny[i], mu = muAt(i) * (pre[i] ? PROF.resPre / PROF.res : 1);
     let lo = 0, hi = vTop * vTop;
     const cons = (c, r, k) => { // c*x <= r
       if (Math.abs(c) < 1e-7) { return; }
@@ -175,9 +177,13 @@ export function computeProfile(L, opts = {}) {
     // Luft-Schwerkraft (0,7 g) das Auto langsamer herunter, als der Hang dahinter abfällt
     const nK = gN - (wv === 1 ? (opts.waveN ?? WAVE.nmin * G) : wv === 2 ? WALL.nmin * G : wv === 3 ? KUPPE_N * G : Nmin);
     const aH = !wv && PROF.haft > 0 && def.haftA > 0 ? PROF.haft * def.haftA * G : 0;
-    if (aH > 0 && -Cn > 1e-7 && (nK + aH) / -Cn >= def.haftV[1] ** 2) cons(-Cn, nK + aH, 'kuppe');
+    // Buckel im Röhrenboden (n29, L.wave = 4): der Hüpfer ist gewollt, die kurze Senke davor/dahinter federt das Auto
+    // weg – weder Kuppen- noch Lastgrenze (sonst bremste der Autopilot vor dem Buckel auf ~30 km/h). Mit C = 0 (oben)
+    // greifen beide ohnehin nicht; ausdrücklich, falls PROF.crestAero den Abtrieb einrechnet
+    if (wv === 4) { /* frei */ }
+    else if (aH > 0 && -Cn > 1e-7 && (nK + aH) / -Cn >= def.haftV[1] ** 2) cons(-Cn, nK + aH, 'kuppe');
     else cons(-Cn, nK, 'kuppe');           // x*Cn + gN >= Nmin
-    cons(Cn, Nmax - gN, 'last');            // x*Cn + gN <= Nmax
+    if (wv !== 4) cons(Cn, Nmax - gN, 'last');            // x*Cn + gN <= Nmax
     vmax[i] = Math.sqrt(Math.max(0, hi));
     if (D && pre[i]) {
       // Kurvengrenze mit der normalen Reserve: so lässt sich der Anteil der Stunt-Anfahrt getrennt ausweisen
@@ -227,8 +233,55 @@ export function computeProfile(L, opts = {}) {
   // Tempo-Deckel von außen (opts.vcap, m/s je Punkt): Leicht „Brachial“ fährt Drift-Kurven etwas langsamer (ai/drift.js)
   if (opts.vcap) for (let i = 0; i < n; i++) if (opts.vcap[i] > 0 && !L.air[i]) vmax[i] = Math.max(vmin[i], Math.min(vmax[i], opts.vcap[i]));
   const aBrake = opts.abrake ?? PROF.brake * def.mu;   // Grundwert wächst mit der Reifenhaftung (alt: mu 1 → 8)
-  const { vt, vf, infeasible } = speedPasses(L, vmax, vmin, { kA, kC, def, dAero, aBrake, startIdx: opts.startIdx ?? 0, v0: opts.v0 ?? 0, brakeCircle: PROF.brakeCircle });
+  const ctx = { kA, kC, def, dAero, aBrake, startIdx: opts.startIdx ?? 0, v0: opts.v0 ?? 0, brakeCircle: PROF.brakeCircle };
+  let { vt, vf, infeasible } = speedPasses(L, vmax, vmin, ctx);
+  // Buckel im Röhrenboden (n29): in der Luft bremst niemand – kommt hinter der Röhre bald eine Kurve, darf das Auto nur so
+  // schnell abheben, dass es nach dem Hüpfer (Flugweite wächst mit v²) noch rechtzeitig bremsen kann
+  if (L.wave) {
+    const caps = humpCaps(L, vt, vmax);
+    if (caps.length) {
+      for (const c of caps) for (let i = c.i0; i <= c.i1; i++) { vmax[i] = Math.max(vmin[i], Math.min(vmax[i], c.v)); if (D) dl('buckel')[i] = c.v; }
+      ({ vt, vf, infeasible } = speedPasses(L, vmax, vmin, ctx));
+    }
+  }
   return { vmax, vmin, vt, vf, kA, kC, jump: jw, windows, infeasible, ...(D ? { diag: { ...D, vTop, aBrake, dAero, def } } : {}) };
+}
+
+// Flug über einen Röhren-Buckel (n29): Abwurf vy ≈ HUMP_AIR.k · v · Steigung (gemessen 0,94–0,98 bei 80 … 220 km/h,
+// tools/roehre_mess.mjs fest), Flugzeit 2·vy/g, Weite v · Flugzeit (+ Reserve) und settle s zum Einfedern nach dem
+// Aufsetzen (erst dann voll bremsen – sonst kam der Autopilot mit 200 km/h quer versetzt aus der Landung, 3D 25386-3).
+// Je Buckel (zusammenhängende Punkte mit L.wave = 4) das höchste Abhebe-Tempo, mit dem das Auto auf der Flugstrecke unter
+// den Grenzen bleibt (vmax) und danach das Brems-Tempo (vt) nicht übersteigt. Liefert [{ i0, i1, v }] (Abhebe-Stelle bis
+// Aufsetzen: dort gilt v als Deckel – in der Luft ändert sich das Tempo ohnehin nicht) nur für Buckel, an denen das nötig ist.
+// over: Fahrer über dem Plan-Tempo (Original-Bot gibt bis 8 % darüber Gas, Spieler mit Vollgas ebenso) – Flug und Aufsetzen
+// mit over·v gerechnet (ohne: Original-Bot über 130 km/h am Buckel 7 statt 2 Crashs in der Kurve nach der Röhre)
+export const HUMP_AIR = { k: 1.0, reserve: 1.15, settle: 0.35, extra: 4, over: 1.1 };
+export function humpCaps(L, vt, vmax) {
+  const n = L.n, out = [];
+  let vTop = 0; for (let i = 0; i < n; i++) vTop = Math.max(vTop, vmax[i]);   // über das Höchsttempo kommt niemand
+  const nxt = (i) => (i + 1 < n ? i + 1 : L.closed ? 1 : -1);
+  for (let a = 0; a < n; a++) {
+    if (L.wave[a] !== 4 || (a > 0 && L.wave[a - 1] === 4)) continue;
+    let b = a; while (b + 1 < n && L.wave[b + 1] === 4) b++;
+    let c = a; for (let i = a; i <= b; i++) if (L.py[i] > L.py[c]) c = i;
+    if (L.py[c] - L.py[a] < 0.05) continue;
+    let k = a; for (let i = a; i <= c; i++) if (L.ty[i] > L.ty[k]) k = i;
+    const ty = Math.min(0.9, L.ty[k]), sl = ty / Math.sqrt(1 - ty * ty);
+    let v = vt[k], j = k;
+    for (; v > 5; v -= 0.25) {
+      const u = Math.min(v * HUMP_AIR.over, vTop), d = u * (2 * HUMP_AIR.k * u * sl / G) * HUMP_AIR.reserve + u * HUMP_AIR.settle + HUMP_AIR.extra;
+      let s = 0, ok = true;
+      j = k;
+      for (let q = 0; q < n && s < d; q++) {
+        const j2 = nxt(j); if (j2 < 0) break;
+        const ds = L.s[j2] - L.s[j]; s += ds > 0 ? ds : 0; j = j2;
+        if (u > vmax[j] + 0.3) { ok = false; break; }
+      }
+      if (ok && u <= vt[j] + 0.3) break;
+    }
+    if (v < vt[k] - 0.2) out.push({ i0: Math.max(a, k - 3), i1: j >= k ? j : n - 1, v });
+  }
+  return out;
 }
 
 // Rückwärts- und Vorwärtslauf auf vmax (eine Rechnung für Spiel und Analyse-Werkzeug, tools/fahr_analyse.mjs).

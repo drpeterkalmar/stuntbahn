@@ -315,8 +315,10 @@ export class Race {
         this.calmLag = Math.abs(s2 - steer) > 1e-6;
         steer = s2;
       } else this.calmLag = false;
-      if (zone) this.hud = { kind: 'stunt', text: `${zone.name}${zone.inside ? '' : ' voraus'} – Autopilot lenkt` };
-      if (lane && lane.zone) this.hud = { kind: 'lane', text: `${lane.zone.name}${lane.zone.inside ? '' : ' voraus'} – Spurhilfe${lane.k > 0 || !lane.zone.inside ? '' : ' aus'}` };
+      // n29: in der Röhre kurz vor dem Buckel „Röhre – Buckel!“ statt „Röhre“
+      const zn = (z) => (z.inside && this.humpAhead(idx) ? `${z.name} – Buckel!` : `${z.name}${z.inside ? '' : ' voraus'}`);
+      if (zone) this.hud = { kind: 'stunt', text: `${zn(zone)} – Autopilot lenkt` };
+      if (lane && lane.zone) this.hud = { kind: 'lane', text: `${zn(lane.zone)} – Spurhilfe${lane.k > 0 || !lane.zone.inside ? '' : ' aus'}` };
       // Leicht: außerhalb der toten Zone Tempo raus (wirkt im nächsten Regler-Schritt); sonst unverändert
       // (nicht vor und in Stunts: dort muss das Profil-Tempo stimmen, z. B. das Absprung-Tempo der Schanze)
       this.ap.assistScale = A.free && LEICHT.lk > 0 && !this.manual && (!this.back || brachial) && !stunt && !zone ? 1 - LEICHT.slow * (this.cw || 0) : 1;
@@ -564,6 +566,15 @@ export class Race {
     }
     for (const z of out) z.name = STUNT_NAMES[z.kinds.includes('loop') ? 'loop' : z.kinds.includes('cork') ? 'cork' : z.kinds.includes('tube') ? 'tube' : 'jump'];
     return out;
+  }
+
+  // Buckel im Röhrenboden (n29) voraus: höchstens 1,6 s bzw. 30 m vor dem Buckel bis zu seinem Scheitel
+  humpAhead(idx) {
+    const T = this.env.track, L = T.line;
+    if (!T.humps || !T.humps.length || !L.tube[idx]) return false;
+    const reach = Math.max(30, Math.abs(this.car.fwdSpeed()) * 1.6);
+    for (const h of T.humps) { const d = L.s[h.idx0] - L.s[idx]; if (idx <= h.idxC && d < reach && d > -h.len) return true; }
+    return false;
   }
 
   // Nächste Stunt-Zone, in der das Auto ist oder die innerhalb von dist Metern beginnt

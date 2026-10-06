@@ -4,7 +4,7 @@
 // pillars/solid/span/truss), deco (tunnel/slalom), kick/land (Sprungschanze/Landung an offener Rampe),
 // side/b0/b1 (Überhöhung), into (Röhre/Autobahn hinein/hinaus), sub (abgesenkte Deko-Spur), start, cp.
 import { TILE, ROAD_HW, ROAD_HW_ALT, MAT, WORLD_SCALE, stuntK } from './defs.js';
-import { PIECES, LOOP, tubeGeom } from './pieces.js';
+import { PIECES, LOOP, tubeGeom, humpY, TUBE_HUMP_TRK } from './pieces.js';
 
 const T = TILE, PI = Math.PI, HW = ROAD_HW, WS = WORLD_SCALE;
 const lin = (a, b, n) => Array.from({ length: n + 1 }, (_, i) => a + (b - a) * i / n);
@@ -216,11 +216,12 @@ function buildPipe(pb) {
   const pc = pb.pc, TG = tubeGeom(pb.ss), lim = TG.lim;   // n26: Querschnitt im Stunt-Maßstab (build.js PROFILES.tube)
   const S = lin(0, T, nS(10)).map((f) => ({ f, y: 0, r: 0, tube: 1, lo: -lim, hi: lim }));
   if (pc.obst) {
-    // Buckel (12 m, Auto-Maßstab) mittig: Linie darüber, Röhre bleibt gerade (Rohrmantel als eigener Lauf ohne Linie)
-    const b0 = T / 2 - 6;
-    const bump = (f) => (f > b0 && f < b0 + 12 ? 0.95 * Math.sin(PI * (f - b0) / 12) ** 2 : 0);
+    // Buckel (12 m, Auto-Maßstab) mittig: Linie darüber, Röhre bleibt gerade (Rohrmantel als eigener Lauf ohne Linie).
+    // Form gemeinsam mit der generierten Röhre (pieces.js humpY, n29), Maße wie bisher (TUBE_HUMP_TRK)
+    const H = TUBE_HUMP_TRK, bump = (f) => humpY(f, T / 2, H);
     pb.ribbon(lin(0, T, nS(10)).map((f) => ({ f, y: 0, r: 0 })), { profile: 'tube' });
     pb.path(lin(0, T, nS(30)).map((f) => ({ f, y: bump(f) + 0.02, r: 0, tube: 1, lo: -lim, hi: lim, hw: TG.b - 0.05 })), { profile: 'hump', kind: 'tube' });
+    pb.hump({ f0: T / 2 - H.len / 2, f1: T / 2 + H.len / 2, c: T / 2, h: H.h, len: H.len, hw: TG.b - 0.05 });
   } else pb.path(S, { profile: 'tube', kind: 'tube' });
   const pipeK = (k) => k === 'pipe' || k === 'pobst' || k === 'pipeT';
   if (!pipeK(pc.pk) && !pc.sub) pb.portal(0.2, -1);

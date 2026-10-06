@@ -55,6 +55,19 @@ export const STUNT_TAG = STUNT_SCALE === STUNT_SCALE_DEFAULT ? '' : '@st' + STUN
 // Wachstum je Bauwerk bei Stunt-Maßstab k: voll (Looping, Röhre, Korkenzieher) oder gedämpft um den Anteil a
 // (k = 1,6, a = 0,5 → 1,3). k = 1 → 1 (Bauwerke exakt wie bis n25)
 export const stuntK = (k, a = 1) => 1 + (k - 1) * a;
+// Röhre mit Hindernis (n29, Peter 05.10.2026: „Röhre hat normalerweise ein Hindernis in der Mitte am Boden“): die Röhre
+// der generierten Strecken (flach, 3D, Gelände) bekommt in der Mitte einen Buckel quer über den Boden (pieces.js
+// TUBE_HUMP). URL ?roehre=glatt = glatte Röhre wie bis n28 (A/B, wertet nicht); Node: STUNT_ROEHRE=glatt. ?stunt=1
+// („Bauwerke wie bis n25“, bitgleich) baut ebenfalls die glatte Röhre (mit ?roehre=buckel trotzdem mit Buckel).
+export const TUBE_OBST = (() => {
+  const q = globalThis.location && globalThis.location.search;
+  let v = q ? new URLSearchParams(q).get('roehre') : null;
+  if (v == null && globalThis.process && globalThis.process.env) v = globalThis.process.env.STUNT_ROEHRE ?? null;
+  if (v == null && STUNT_SCALE === 1) return false;
+  return v !== 'glatt';
+})();
+// Zwischenspeicher geprüfter Strecken: glatte Röhre getrennt (main.js VBUILD)
+export const TUBE_TAG = TUBE_OBST ? '' : '@rg';
 export const ROAD_Y = 0.06;      // Fahrbahn liegt knapp über dem Gelände
 export const WORLD_HALF = GRID * TILE / 2;   // halbe Kantenlänge des Rasters (m)
 

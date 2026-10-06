@@ -80,6 +80,7 @@ function arcSegs(cx, cy, rad, a0, a1, n, mat, col, inward) {
   }
   return out;
 }
+const HUMP_SIDE = 1.6;   // Breite der Seiten-Schräge am Röhren-Buckel (n29, PROFILES.tubeHump)
 const PROFILES = {
   road(s, o) {
     const hw = s.hw, segs = [{ a: [-hw, 0], b: [hw, 0], mat: MAT.ROAD, col: 1, road: 1 }];
@@ -182,6 +183,21 @@ const PROFILES = {
       { a: [-hw, -1.3], b: [-hw, 0], mat: MAT.CONCRETE, col: 1 },
     ];
   },
+  // Buckel quer im Boden der generierten Röhre (n29): Fahrbahn über die ganze Bodenbreite ±b, seitlich je eine flache
+  // Schräge (HUMP_SIDE m breit) hinunter auf den Viertelkreis des Mantels – keine Stufe, an der ein Rad am Wandfuß hängen
+  // bleibt; dahinter (im Mantel verborgen) bis unter den Boden. s.hy = Buckel-Höhe dieses Punkts über dem Röhrenboden.
+  // Der Mantel darüber kommt ohne Boden (tubeShell) – kein doppelter Boden
+  tubeHump(s, o, ss = 1) {
+    const { b, R } = tubeGeom(ss), w = HUMP_SIDE, ya = R - Math.sqrt(R * R - w * w) - (s.hy || 0);
+    return [
+      { a: [-b, 0], b: [b, 0], mat: MAT.ROAD, col: 1, road: 1 },
+      { a: [b, 0], b: [b + w, ya], mat: MAT.CONCRETE, col: 1 },
+      { a: [b + w, ya], b: [b + w, -1.3], mat: MAT.CONCRETE, col: 0 },
+      { a: [-b - w, -1.3], b: [-b - w, ya], mat: MAT.CONCRETE, col: 0 },
+      { a: [-b - w, ya], b: [-b, 0], mat: MAT.CONCRETE, col: 1 },
+    ];
+  },
+  tubeShell(s, o, ss = 1) { return PROFILES.tube(s, o, ss).slice(1); },
   ramp(s) {
     const hw = s.hw, bot = -Math.max(0.3, s.hg + 0.3);
     return [
@@ -261,6 +277,7 @@ export function buildTrack(layout, opt = {}) {
   const shapes = [];         // Geländeformen (Grube, Hügel, Teich)
   const decals = [];         // Portale/Banner für die Grafik
   const jumps = [];
+  const humps = [];          // Buckel in Röhren (n29): { piece, f0, f1, c, H, hw, idx0, idx1, idxC }
   const cpMarks = [];        // {pieceIdx, s}
   let startMark = null;
   const occupied = new Uint8Array(GRID * GRID);
@@ -354,7 +371,7 @@ export function buildTrack(layout, opt = {}) {
           p, up: s.up ? norm(Wv(s.up)) : [0, 1, 0], bank: (s.bank || 0) + (tiltAt ? tiltAt(s.f) : 0), hw: s.hw ?? o.hw ?? ROAD_HW,
           surf: s.surf ?? 1, air: s.air || 0, loop: s.loop || 0, tube: s.tube || 0, wave: s.wave || 0, f: s.f,
           hg: s.y + lvl * LH - (trkTerr || Dat ? gAt(p[0], p[2]) : 0), prof: s.prof || (o.profile === 'loop' ? (s.loop ? 'loopLane' : 'road') : o.profile === 'tube' ? (s.tube ? 'tube' : 'road') : o.profile),
-          lo: s.lo, hi: s.hi, bankH: s.bankH, ex: s.ex, wf: s.wf,
+          lo: s.lo, hi: s.hi, bankH: s.bankH, ex: s.ex, wf: s.wf, hy: s.hy,
         };
       });
       // Randtangenten exakt waagrecht in Ein-/Ausfahrtsrichtung (glatte Übergänge) – außer das Stück
@@ -589,6 +606,8 @@ export function buildTrack(layout, opt = {}) {
         addBox(fc, top + 0.2, 0, 1.0 * Math.sqrt(k), th, 2 * off + th, MAT.STEEL, {});
       },
       jumpInfo: (j) => { if (!decor) jumps.push({ piece: pidx, ...j, E, F, R, base: Dat ? base + Dat(j.lipF, 0) : base }); },
+      // Buckel im Röhrenboden (n29): Lage für Warnstreifen (gfx/jumpdeck.js), Tests und Messungen
+      hump: (h) => { if (!decor) humps.push({ piece: pidx, ...h }); },
       portal: (f, facingOpt) => {
         // Betonfassade um die Röhrenöffnung (Ring zwischen Innenkontur und Rechteck)
         // n26: Öffnung = Röhren-Querschnitt des Stunt-Maßstabs (bis n25 b 2,2 / R 3,5 m), Fassade mindestens so breit
@@ -700,6 +719,7 @@ export function buildTrack(layout, opt = {}) {
     // bis n19 fest 12 Punkte hinter der Landung)
     if (j.landLen) j.endIdx = idxAt(j.piece, j.landF + j.landLen + 10);
   }
+  for (const h of humps) { h.idx0 = idxAt(h.piece, h.f0); h.idx1 = idxAt(h.piece, h.f1); h.idxC = idxAt(h.piece, h.c); }
 
   // ----- Gelände -----
   const terrain = trkTerr || (gel ? buildGelTerrain({ line: L, layout, plan: gel.plan, land: gel.land, shapes, occupied, pieces: pieceInfo }) : buildTerrain(occupied, shapes, layout.seed || 1));
@@ -734,7 +754,7 @@ export function buildTrack(layout, opt = {}) {
   return {
     layout, line: L, batches: outBatches,
     col: { pos: new Float32Array(colPos), nrm: new Float32Array(colNrm), mat: new Uint8Array(colMat), ...(colPiece ? { piece: Int32Array.from(colPiece) } : {}) },
-    checkpoints, start, jumps, decals, shapes, terrain, trees, pieces: pieceInfo, stuntScale: SS,
+    checkpoints, start, jumps, humps, decals, shapes, terrain, trees, pieces: pieceInfo, stuntScale: SS,
     bounds: { minX, maxX, minZ, maxZ, maxY },
     ...(gel ? { gel } : {}),
   };
