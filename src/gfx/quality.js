@@ -88,7 +88,12 @@ export class Quality {
     this._onChange = onChange;
     if (this.forced) {
       // Nutzerwahl gilt voll: Deko und Auto-Schatten der Stufe wieder an
-      if (!this._apPause) { this._apPause = true; this.decoLite = false; this.carShadowOff = false; this.scale = 1; this.changed(); }
+      if (!this._apPause) {
+        this._apPause = true; this.decoLite = false; this.carShadowOff = false; this.scale = 1;
+        // auch vom Spiel angemeldete Dinge (z. B. Lack-Spiegelung) wieder voll an
+        for (const d of this.ap.dinge) if (d.name !== 'stufe' && d.stufe < d.stufen) { d.stufe = d.stufen; d.setzer(d.stufen, +1); }
+        this.changed();
+      }
       return;
     }
     if (this._apPause) {

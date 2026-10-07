@@ -230,6 +230,16 @@ for (const gpuTimer of [true, false]) {
   ok(q.tier === 2 && !q.decoLite && q.carShadowSize() > 0, `Last weg: wieder Kino, Deko und Auto-Schatten an (Skala ${kino.renderScale}, Log ${q.ap.log.filter((e) => e.richtung > 0).map((e) => e.was).join('→')})`);
   ok(resizes > 0, `Änderungen lösen resize() aus (${resizes})`);
   // feste Nutzerwahl → kein Autopilot
+  // Nutzerwahl mitten im Betrieb: vom Autopiloten Abgeschaltetes (auch Spiel-Dinge wie die Lack-Spiegelung) wieder an
+  {
+    let reflexOff = false;
+    const q4 = new Quality({}, null, { autopilot: true }); q4.post = { active: false, autoOff: true }; q4.kino = kino; kino.setLevel(2);
+    q4.startAutopilot({ skala: 1, extra: [['reflex', 0.06, (s) => { reflexOff = s === 0; }]] });
+    for (let i = 0; i < 30 * 40; i++) { q4.gpu = { ms: 40 }; q4.sample(1 / 25, () => {}, 4); }
+    const vorher = reflexOff && q4.decoLite;
+    q4.forced = '2'; q4.tier = 2; q4.sample(1 / 60, () => {}, 4);
+    ok(vorher && !reflexOff && !q4.decoLite && q4.carShadowSize() > 0, `feste Wahl nach Autopilot-Abschaltungen: Spiegelung, Deko, Auto-Schatten wieder an (vorher aus: ${vorher})`);
+  }
   const q2 = new Quality({}, '1', { autopilot: true }); q2.post = { active: false, autoOff: true }; q2.kino = kino; kino.setLevel(1);
   q2.startAutopilot({ skala: 1 });
   for (let i = 0; i < 25 * 20; i++) { q2.gpu = { ms: 40 }; q2.sample(1 / 25, () => {}, 4); }
