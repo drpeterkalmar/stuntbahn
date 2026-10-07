@@ -30,3 +30,8 @@ trk_local/
 tests/shots/kinoreplay/*
 !tests/shots/kinoreplay/*_burst.jpg
 !tests/shots/kinoreplay/video_bilder.jpg
+# n28 Deko: Vergleichs-Collagen und Messwerte für den Bericht
+!tests/shots/deko/
+tests/shots/deko/*
+!tests/shots/deko/vergleich_*.jpg
+!tests/shots/deko/perf_*.json

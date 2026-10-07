@@ -273,6 +273,10 @@ ol.times li.cur { background: #7dff7a1f; color: #c9ffc7; }
   #menu .left .logo { font-size: 34px; }
   .track .tname { font-size: 17px; }
   .hint { font-size: 12px; min-height: 0; }
+  /* n28: Fahrhilfe-Hinweis auf 3 Zeilen (Tippen = ganz), damit alle Knopfreihen rechts ins Bild passen */
+  #menu .right { gap: 5px; }
+  #menu .right .lbl { margin-top: 1px; font-size: 11px; }
+  #menu .mhint:not(.open) { display: -webkit-box; -webkit-line-clamp: 3; line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; cursor: pointer; }
   .row > button, .seg > button { font-size: 14px; padding: 6px 8px; }
   button.big { min-height: 52px; font-size: 18px; }
   .row > button { white-space: normal; line-height: 1.15; }
@@ -390,3 +394,4 @@ body[data-orient="hoch"] #cine .cskip { top: auto; bottom: max(16px, calc(var(--
 .themegrid .themeopt.on { background: #ff6a2a; border-color: #ff9a6a; color: #fff; }
 #menu .themebtn { white-space: normal; line-height: 1.2; }
 #menu .tthema { opacity: 0.85; }
+#menu .tmeta .nb { white-space: nowrap; }

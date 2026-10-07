@@ -38,6 +38,7 @@ import { Post } from './gfx/post.js';
 import { KinoLook } from './gfx/kinolook.js';
 import { loadDecoAssets, decoUniforms } from './gfx/deco.js';
 import { kulisseTick } from './gfx/kulisse.js';
+import { DEKO, REDUCED, makeBirds } from './gfx/deko.js';
 import { daySeed } from './core/util.js';
 import { showKmhMs } from './core/showspeed.js';
 import { GMeter, G_ON } from './core/gforce.js';
@@ -102,6 +103,7 @@ const store = new Store();
   if (params.get('q') == null && LOOK_FIX == null && /^[012]$/.test(q)) { quality.forced = q; quality.tier = +q; resize(); } }
 const ui = new UI(app, store);
 const rig = new CameraRig(camera);
+if (DEKO && REDUCED) rig.shakeOn = false;   // n28: „Bewegung reduzieren“ → kein Kameraschütteln
 const sound = new Sound(store);
 const trkLib = new TrkLib();
 const sammlung = new Sammlung();      // 250 eigene Strecken, lädt erst beim Aufklappen in der Bibliothek
@@ -135,11 +137,11 @@ async function boot() {
   ui.loading(0.05, 'Himmel und Licht …');
   // Kulissen (n20): Himmel/Licht/Boden kommen mit dem Landschafts-Thema der Strecke (gfx/themes.js). Das Thema der Start-
   // Strecke steht schon vor dem Bau fest (Seed, Stufe, Streckenart) → sein Paket lädt parallel zum Auto.
-  sky = makeSky({ cutV: 0.544, horizon: [0.744, 0.758, 0.799] });
+  const sunDir = sunDirFromUV(0.595, 0.234);
+  sky = makeSky({ cutV: 0.544, horizon: [0.744, 0.758, 0.799] }, null, { clouds: DEKO });
   scene.add(sky);
   scene.fog = new THREE.Fog(0xbdc1cc, FOG[0], FOG[1]);
   sun = new THREE.DirectionalLight(0xfff1dc, +(params.get('sun') || 3.0));
-  const sunDir = sunDirFromUV(0.595, 0.234);
   sun.position.copy(sunDir).multiplyScalar(60);
   sun.castShadow = true;
   sun.shadow.mapSize.set(1024, 1024);
@@ -147,6 +149,7 @@ async function boot() {
   sc.left = -7; sc.right = 7; sc.top = 7; sc.bottom = -7; sc.near = 1; sc.far = 140;
   sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.02;
   sun.userData.dir = sunDir.clone();
+  if (sky.material.uniforms.cSun) sky.material.uniforms.cSun.value = sun.userData.dir;   // n28: Wolken zur Sonne hin hell
   scene.add(sun, sun.target);
   themes = new ThemeManager({ renderer, scene, sky, sun, kino, get M() { return M; }, getCockpit: () => cockpit, params });
   { const q0 = params.get('seed'), bm = q0 ? (params.get('g') === '1' ? 'gel' : params.get('3d') === '1' ? '3d' : 'flat') : modeOf(store.settings.trackMode);
@@ -367,7 +370,9 @@ async function loadTrack(layout, meta = {}, pre = null) {
   env.theme = th.id;
   env.themeRandom = !!randomThemaOf(layout);
   if (worldGroup) { scene.remove(worldGroup); worldGroup.traverse((o) => { if (o.geometry) o.geometry.dispose(); }); worldGroup = null; }
-  worldGroup = buildWorld(track, M, { world, tier: quality.tier, ideal, prof, deco: params.get('deko') !== '0', theme: { id: th.id, def: th.def, veg: th.veg, horizon: th.horizon, seed: layout.seed || layout.meta?.seed || 1 } });
+  worldGroup = buildWorld(track, M, { world, tier: quality.tier, ideal, prof, deco: params.get('deko') !== 'aus', theme: { id: th.id, def: th.def, veg: th.veg, horizon: th.horizon, seed: layout.seed || layout.meta?.seed || 1 } });
+  // Deko (n28): Vogelschwärme über der Landschaft (ein Draw-Call, Bahn im Shader)
+  if (DEKO) { const b = makeBirds(track, th.id, quality.tier, layout.seed || layout.meta?.seed || 1); if (b) worldGroup.add(b); }
   scene.add(worldGroup);
   await placeParkedCars(track);
   bakeStaticShadow(renderer, scene, sun.userData.dir, track.bounds, quality.staticShadowSize());

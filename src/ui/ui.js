@@ -32,6 +32,8 @@ const MODES = [['flat', '▭', 'flach', 'Flache Strecken wie bis n18'], ['3d', '
 const TICON = { loop: ['➰', 'Looping'], corklr: ['🌀', 'Korkenzieher'], corkud: ['🌀', 'Wendel'], gap: ['🛫', 'Sprung'], pipe: ['🕳️', 'Röhre'], bankC: ['↪️', 'Steilkurve'], chicane: ['🔀', 'Schikane'], elev: ['🌉', 'Hochstraße'], tunnel: ['🚇', 'Tunnel'], hwy: ['🛣️', 'Autobahn'], slalom: ['🚧', 'Slalom'] };
 // Höhenunterschied der Fahrbahn einer Gelände-Strecke (m)
 function hDiff(env) { const L = env.track.line; let a = 1e9, b = -1e9; for (let i = 0; i < L.n; i++) if (!L.loop[i] && !L.air[i]) { a = Math.min(a, L.py[i]); b = Math.max(b, L.py[i]); } return b - a; }
+// Menü (n28): Info-Zeile nur vor einem „·“ umbrechen (kein hängender Punkt, „Alpen“ nicht allein in der nächsten Zeile)
+function nbParts(html) { return html.split(' · ').map((p, i) => `<span class="nb">${i ? '· ' : ''}${p}</span>`).join(' '); }
 function stuntSummary(pieces) {
   const c = {};
   for (const p of pieces) { const k = p.kind === 'pobst' ? 'pipe' : p.kind === 'span' || p.kind === 'solid' ? 'elev' : p.kind; if (TICON[k]) c[k] = (c[k] || 0) + 1; }
@@ -233,7 +235,7 @@ export class UI {
         <div class="card track">
           ${!m.imported && !m.sam && env.layout.pieces.length ? '<canvas class="tmap" width="320" height="320" aria-label="Streckenkarte"></canvas>' : ''}
           <div class="tname">${isDay || m.samDay ? '📅 Strecke des Tages<br>' : ''}${m.name || 'Strecke'}</div>
-          <div class="tmeta">${metaLine}${env.theme && THEMES[env.theme] ? ` · <span class="tthema" title="Landschaft${(this.store.settings.theme || 'auto') === 'auto' ? ' (passend)' : ''}">${THEMES[env.theme].icon} ${THEMES[env.theme].name}</span>` : ''}</div>
+          <div class="tmeta">${nbParts(`${metaLine}${env.theme && THEMES[env.theme] ? ` · <span class="tthema" title="Landschaft${(this.store.settings.theme || 'auto') === 'auto' ? ' (passend)' : ''}">${THEMES[env.theme].icon} ${THEMES[env.theme].name}</span>` : ''}`)}</div>
           <div class="stunts">${stuntsHtml || 'ohne Stunts'}</div>
           ${apLine}
           <div class="bests">${bests.now}${S.assist === 'easy' ? bests.lastEasy : ''}<span class="bmode">${S.wreck ? '💥 mit Totalschaden' : '↺ Reset +' + PENALTY + ' s'}${S.extras ? ' · 🦘🔥 mit Extras' : ' · ohne Extras'}</span>${bests.old}</div>
@@ -243,7 +245,7 @@ export class UI {
       <div class="col right">
         <div class="lbl">Fahrhilfe</div>
         <div class="seg" data-g="assist">${Object.entries(ASSISTS).map(([k, A]) => `<button data-a="assist" data-v="${k}" class="${S.assist === k ? 'on' : ''}">${A.icon} ${A.name}</button>`).join('')}</div>
-        <div class="hint">${this.assistHint(S.assist)}</div>
+        <div class="hint mhint" data-a="hintmore">${this.assistHint(S.assist)}</div>
         <div class="lbl">Neue Strecke</div>
         <div class="segrow"><div class="seg" data-g="diff">${[1, 2, 3].map((d) => `<button data-a="diff" data-v="${d}" class="${(S.diff || 2) === d ? 'on' : ''}">${DIFFS[d].name}</button>`).join('')}</div><div class="seg mode" data-g="mode">${MODES.map(([k, ic, nm, tt]) => `<button data-a="mode" data-v="${k}" class="${S.trackMode === k ? 'on' : ''}" aria-pressed="${S.trackMode === k}" aria-label="${nm}" title="${nm}: ${tt}">${ic}</button>`).join('')}</div></div>
         <div class="row">
@@ -303,6 +305,7 @@ export class UI {
     const A = this.a, S = this.store.settings;
     switch (a) {
       case 'start': A.startRace(); break;
+      case 'hintmore': if (arguments[2]) arguments[2].classList.toggle('open'); break;   // n28: Hinweis quer auf 3 Zeilen gekürzt, Tippen klappt auf
       case 'assist': A.setAssist(v); if (this.screen === 'pause') this.showPause(true); break;
       case 'diff': S.diff = +v; this.store.save(); this.refresh(); break;
       case 'random': A.newTrack((Math.random() * 90000 + 1000) | 0, S.diff || 2, undefined, true); break;   // würfelt auch die Landschaft

@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { HDRLoader } from 'three/addons/loaders/HDRLoader.js';
 import { shadowUniforms } from './materials.js';
 import { WORLD_SCALE } from '../track/defs.js';
+import { cloudUniforms, CLOUD_GLSL } from './deko.js';
 
 export async function loadSkyInfo(url = 'assets/sky/sky.json') {
   const r = await fetch(url);
@@ -27,13 +28,17 @@ export function sunDirFromUV(u, v) {
 }
 
 // Himmelskugel; Thema-Wechsel (n20): uniforms sky/cutV/horizon neu setzen (gfx/themes.js)
-export function makeSky(skyInfo, tex = null) {
+// Deko (n28, opts.clouds): Wolken (gfx/deko.js) und Himmel erst NACH der undurchsichtigen Welt zeichnen – dann rechnet der
+// Himmel nur die Pixel, die frei bleiben (Tiefe 1,0 = ganz hinten), statt den ganzen Bildschirm zu übermalen.
+export function makeSky(skyInfo, tex = null, opts = {}) {
   if (!tex) { tex = new THREE.Texture(); }
   const hz = new THREE.Color().setRGB(...skyInfo.horizon, THREE.SRGBColorSpace);
+  const cl = !!opts.clouds;
   const mat = new THREE.ShaderMaterial({
-    uniforms: { sky: { value: tex }, cutV: { value: skyInfo.cutV }, horizon: { value: hz }, exposure: { value: 1.0 } },
+    uniforms: { sky: { value: tex }, cutV: { value: skyInfo.cutV }, horizon: { value: hz }, exposure: { value: 1.0 }, ...(cl ? cloudUniforms(opts.sunDir) : {}) },
     vertexShader: `varying vec3 vDir; void main(){ vDir = position; vec4 p = projectionMatrix * modelViewMatrix * vec4(position, 1.0); gl_Position = p.xyww; }`,
     fragmentShader: `uniform sampler2D sky; uniform float cutV; uniform vec3 horizon; uniform float exposure; varying vec3 vDir;
+      ${cl ? CLOUD_GLSL.pars : ''}
       void main(){
         vec3 d = normalize(vDir);
         float u = atan(d.z, d.x) / 6.2831853 + 0.5;
@@ -41,6 +46,7 @@ export function makeSky(skyInfo, tex = null) {
         vec3 c;
         if (v < cutV - 0.002) c = texture2D(sky, vec2(u, 1.0 - v / cutV)).rgb;
         else c = horizon;
+        ${cl ? CLOUD_GLSL.main : ''}
         gl_FragColor = vec4(c * exposure, 1.0);
         #include <colorspace_fragment>
       }`,
@@ -48,7 +54,7 @@ export function makeSky(skyInfo, tex = null) {
   });
   const m = new THREE.Mesh(new THREE.SphereGeometry(5000, 48, 24), mat);
   m.frustumCulled = false;
-  m.renderOrder = -1;
+  m.renderOrder = cl ? 1e6 : -1;
   m.name = 'sky';
   return m;
 }

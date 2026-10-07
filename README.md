@@ -67,7 +67,19 @@ spielbar am Handy (quer oder hochkant), mit Gamepad oder Tastatur. Als App insta
   Gras/Blumen/Büsche nahe der Strecke (blenden ab ~40–55 m aus, wiegen sich im Wind), Laubbäume, Felsen, Felder mit Hecken
   und Bauernhöfe in der Ferne, Wald am Bergkranz, wandernde Wolkenschatten, Wasser mit Wellen. Keine Kollision, immer mit
   Abstand zu jeder Fahrbahn (auch Hochstraßen/Rampen), nie im Wasser. Dosiert nach Grafikstufe; ruckelt es, blendet die
-  Automatik (nach der Unschärfe) zuerst Gras/Büsche/Wolkenschatten aus. `?deko=0` / `?wolken=0` zum Vergleich.
+  Automatik (nach der Unschärfe) zuerst Gras/Büsche/Wolkenschatten aus. `?deko=aus` (bis n29 `?deko=0`) / `?wolken=0` zum Vergleich.
+
+## ✨ Mehr Details und Leben, ohne langsamer zu werden (seit 07.10.2026, n28 „Deko“)
+- Peter: „Jedes Spiel mit Opus max ressourcenschonend verschönern … also mehr Details und Eye Candy.“ Reine Optik –
+  Physik, Fahrhilfen, Strecken und Bestzeiten unverändert.
+- **Wolken am Himmel** der Landschaften mit leerem Himmelsbild (Alpen, Wüste, Küste, Stadt, Herbst): im Spiel erzeugt,
+  ziehen langsam, zur Sonne hin silbern, zum Horizont eine Wolkenbank. Der Himmel wird jetzt erst nach der Landschaft
+  gezeichnet (rechnet nur die freien Pixel). **Vogelschwärme** kreisen neben der Strecke (ein Draw-Call, Flügelschlag mit
+  Gleitphasen, an der Küste Möwen).
+- Menü quer: alle Knopfreihen passen ins Bild (Fahrhilfe-Hinweis auf 3 Zeilen, Tippen zeigt ihn ganz); die Info-Zeile
+  bricht nur noch vor einem „·“ um. „Bewegung reduzieren“ des Systems schaltet das Kameraschütteln ab.
+- **`?deko=0`** = Aussehen wie bis n29 (A/B), `?deko=aus` = ohne Streckenrand-Deko (hieß bis n29 `?deko=0`).
+  Code: `src/gfx/deko.js`. Messung/Fotos: `tests/deko_shots.py`, `tests/perf_deko.py`, `tests/deko_himmel.py`.
 
 ## 🕳️ Röhre mit Hindernis (seit 06.10.2026, n29)
 - Peter: „Röhre hat normalerweise ein Hindernis in der Mitte am Boden.“ Die Röhre der Zufallsstrecken (flach, 3D,

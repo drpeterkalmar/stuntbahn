@@ -8,6 +8,7 @@ import { THEMES } from '../track/themes.js';
 import { loadSkyInfo, loadSkyTexture, makeEnvironment, sunDirFromUV } from './env.js';
 import { loadKtx2, setGround, themeUniforms } from './materials.js';
 import { WORLD_SCALE } from '../track/defs.js';
+import { applyClouds } from './deko.js';
 
 const T = 'assets/themes/';
 const FOG = [260 * WORLD_SCALE, 1500 * WORLD_SCALE];
@@ -78,6 +79,7 @@ export class ThemeManager {
     U.sky.value = pack.sky; U.cutV.value = info.cutV;
     const hz = new THREE.Color().setRGB(...info.horizon, THREE.SRGBColorSpace);
     U.horizon.value.copy(hz);
+    applyClouds(U, pack.id, info);   // n28: Wolken je Thema (nur mit Deko)
     // Umgebungslicht
     scene.environment = pack.env;
     scene.environmentIntensity = +(params.get('env') || L.envI);
