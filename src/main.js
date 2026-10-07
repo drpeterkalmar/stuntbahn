@@ -70,7 +70,7 @@ camera.layers.enable(STATIC_LAYER);
 const LOOK = params.get('look');
 const LOOK_FIX = LOOK != null && /^[012]$/.test(LOOK) ? +LOOK : null;
 // n30: Qualitäts-Autopilot aus dem Grafik-Kern (Arbeitszeit, GPU-Zeit, auch aufwärts); ?autopilot=0 = alte Automatik
-const quality = new Quality(renderer, params.get('q') ?? (LOOK_FIX != null ? String(LOOK_FIX) : null), { autopilot: params.get('autopilot') !== '0' });
+const quality = new Quality(renderer, params.get('q') ?? (LOOK_FIX != null ? String(LOOK_FIX) : null), { autopilot: params.get('autopilot') !== '0', tightShadow: params.get('schattenkam') !== '0' });
 const kino = LOOK === 'alt' ? null : new KinoLook(renderer, { level: LOOK_FIX ?? quality.tier, stages: params.get('kl') || '' });
 // Bewegungsunschärfe: im Kino-Look Teil derselben Pipeline (ein Szenen-Durchlauf); ?look=alt: bisheriges post.js
 const post = kino || new Post(renderer);

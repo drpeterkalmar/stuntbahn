@@ -243,5 +243,21 @@ for (const gpuTimer of [true, false]) {
   ok(!q3.ap, 'ohne Option (?autopilot=0): alte Automatik');
 }
 
+// 13. Enge Schattenkamera fürs Auto (E1): 1024 auf Kino, ±3,6 m, Versatz in Metern wie bisher; ?schattenkam=0 = alt
+{
+  const mk = (o) => {
+    const q = new Quality({}, null, o);
+    const cam = { left: -7, right: 7, top: 7, bottom: -7, near: 1, far: 140, updateProjectionMatrix() {} };
+    const sun = { castShadow: true, shadow: { mapSize: { x: 1024, set(a) { this.x = a; } }, camera: cam, bias: -0.0004 } };
+    q.apply(sun);
+    return { size: q.carShadowSize(), r: cam.right, tiefe: cam.far - cam.near, biasM: -sun.shadow.bias * (cam.far - cam.near), texel: (2 * cam.right) / q.carShadowSize() };
+  };
+  const e = mk({}), a = mk({ tightShadow: false });
+  ok(e.size === 1024 && a.size === 2048, `Kino: Auto-Schattenkarte 1024 statt 2048 (alt ${a.size})`);
+  ok(e.texel <= a.texel * 1.06, `Texel ${(e.texel * 1000).toFixed(1)} mm (bisher ${(a.texel * 1000).toFixed(1)} mm) – nicht gröber`);
+  ok(Math.abs(e.biasM - a.biasM) < 0.002, `Schatten-Versatz in Metern gleich (${(e.biasM * 100).toFixed(1)} cm / ${(a.biasM * 100).toFixed(1)} cm)`);
+  ok(e.r >= 3.4, `Box ±${e.r} m deckt die Auto-Silhouette (halbe Diagonale ~2,6 m) mit Rand`);
+}
+
 console.log(bad ? `${bad} FEHLER` : 'alle Autopilot-Prüfungen OK');
 process.exit(bad ? 1 : 0);
