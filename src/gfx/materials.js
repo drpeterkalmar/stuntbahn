@@ -240,6 +240,8 @@ export const themeUniforms = {
   tSlope: { value: new THREE.Vector4(0.93, 0.86, 0.83, 0.72) }, tStrata: { value: 0 }, tStrataCol: { value: v3([0.3, 0.12, 0.06]) },
   tSnowH: { value: 1e5 }, tBeach: { value: -1e5 }, tCity: { value: 0 }, tRockTex: { value: 0 }, tRockMap: { value: null }, tSnowAll: { value: 0 },
   tTreeSnow: { value: 0 }, tTreeTint: { value: v3([1, 1, 1]) },
+  // Deko (n28): Wiesenblumen (Anteil 0 … 1 je Thema, 0 = aus) und großflächige Farbwechsel der Wiese (0/1)
+  tFlowers: { value: 0 }, tMeadow: { value: 0 },
 };
 export function setGround(g) {
   const U = themeUniforms;
@@ -269,7 +271,7 @@ function patchGrass(mat) {
       varying float vGy;
       uniform float sbRock;
       uniform vec3 tG0, tG1, tDry, tTint, tForest, tDirt0, tDirt1, tRock0, tRock1, tStrataCol;
-      uniform float tDryK, tTintK, tFields, tForestK, tStrata, tSnowH, tBeach, tCity, tRockTex, tSnowAll;
+      uniform float tDryK, tTintK, tFields, tForestK, tStrata, tSnowH, tBeach, tCity, tRockTex, tSnowAll, tFlowers, tMeadow;
       uniform vec4 tSlope;
       uniform sampler2D tRockMap;
       float gHash( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) * 43758.5453 ); }
@@ -286,6 +288,26 @@ function patchGrass(mat) {
         vec3 dry = tDry * clamp( lum * 2.0, 0.3, 1.2 );
         green = mix( green, dry, smoothstep( 0.55, 0.95, n ) * tDryK );
         diffuseColor.rgb = mix( green, base * tTint, tTintK ) * mix( 0.85, 1.12, n );
+        // Deko (n28): Wiese lebendiger – große satte/sonnige Flecken (≈ 150 m) und Wiesenblumen in Inseln, nur nah
+        // (Tupfer ab ~70 m ausgeblendet, kantenweich über fwidth → kein Flimmern)
+        if ( tMeadow > 0.5 ) {
+          float mm = gNoise( vGw * 0.0065 + 3.1 );
+          diffuseColor.rgb *= mix( vec3( 0.86, 0.95, 0.8 ), vec3( 1.1, 1.06, 0.9 ), mm );
+          if ( tFlowers > 0.0 ) {
+            float vd = length( vViewPosition );
+            float isl = smoothstep( 0.42, 0.62, gNoise( vGw * 0.045 + 11.0 ) ) * tFlowers * ( 1.0 - smoothstep( 28.0, 55.0, vd ) );
+            if ( isl > 0.01 ) {
+              vec2 q = vGw * 2.6, ci = floor( q ), fq = fract( q ) - 0.5;
+              float h1 = gHash( ci ), h2 = gHash( ci + 17.3 );
+              vec2 o = vec2( h1, h2 ) * 0.5 - 0.25;
+              vec2 fw = fwidth( q );
+              float r = length( fq - o ), aa = max( fw.x, fw.y ) * 0.7 + 0.02;
+              float dot1 = ( 1.0 - smoothstep( 0.1 - aa, 0.1 + aa, r ) ) * step( 1.0 - 0.55 * isl, gHash( ci + 5.7 ) ) * ( 1.0 - smoothstep( 0.12, 0.3, aa ) );
+              vec3 fc = h1 < 0.4 ? vec3( 0.95, 0.93, 0.85 ) : h1 < 0.7 ? vec3( 0.98, 0.78, 0.12 ) : h1 < 0.86 ? vec3( 0.62, 0.38, 0.85 ) : vec3( 0.9, 0.22, 0.2 );
+              diffuseColor.rgb = mix( diffuseColor.rgb, fc * 0.62, dot1 * min( 1.0, isl * 1.6 ) );
+            }
+          }
+        }
         // Optik (28.09.2026): außerhalb des Streckenrasters Felder mit Hecken (Getreide, Acker, Raps, Wiese),
         // an den Hängen des Bergkranzes Wald – die Ferne wirkt bewirtschaftet statt einheitlich grün
         float farD = max( abs( vGw.x ), abs( vGw.y ) ) - ${(WORLD_HALF + 70 * WORLD_SCALE).toFixed(1)};

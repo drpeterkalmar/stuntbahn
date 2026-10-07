@@ -1,5 +1,6 @@
 // Effekte: Bremsspuren (Ringpuffer-Band), Rauch/Staub/Funken als instanzierte Partikel.
 import * as THREE from 'three';
+import { DEKO } from './deko.js';
 
 // Rauch-/Staubwolke (n17): weicher Rand + Wolken-Rauschen (statt glatter Scheibe), Alpha in der Textur, kein Bild nötig
 function smokeTexture() {
@@ -34,7 +35,20 @@ export class SkidMarks {
     const idx = new Uint32Array(max * 6);
     for (let i = 0; i < max; i++) { const a = i * 4; idx.set([a, a + 1, a + 2, a + 1, a + 3, a + 2], i * 6); }
     g.setIndex(new THREE.BufferAttribute(idx, 1));
-    const m = new THREE.ShaderMaterial({
+    // Deko (n28): weiche Ränder (Gummi-Abrieb statt Klebeband) und Verblassen nach ~20–35 s (Alter je Ecke, Uhr im Shader)
+    this.now = 0;
+    if (DEKO) {
+      this.aT = new Float32Array(max * 4); this.aE = new Float32Array(max * 4);
+      for (let i = 0; i < max; i++) this.aE.set([0, 1, 0, 1], i * 4);
+      g.setAttribute('aT', new THREE.BufferAttribute(this.aT, 1).setUsage(THREE.DynamicDrawUsage));
+      g.setAttribute('aE', new THREE.BufferAttribute(this.aE, 1));
+    }
+    this.uNow = { value: 0 };
+    const m = DEKO ? new THREE.ShaderMaterial({
+      transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -6, uniforms: { uNow: this.uNow },
+      vertexShader: 'attribute float alpha, aT, aE; uniform float uNow; varying float vA, vE; void main(){ vA = alpha * ( 1.0 - smoothstep( 20.0, 35.0, uNow - aT ) ); vE = aE; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
+      fragmentShader: 'varying float vA, vE; void main(){ float e = smoothstep( 0.0, 0.32, min( vE, 1.0 - vE ) ); gl_FragColor = vec4(0.025,0.022,0.02, vA * 0.6 * ( 0.35 + 0.65 * e )); }',
+    }) : new THREE.ShaderMaterial({
       transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -6,
       vertexShader: 'attribute float alpha; varying float vA; void main(){ vA = alpha; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
       fragmentShader: 'varying float vA; void main(){ gl_FragColor = vec4(0.02,0.02,0.02, vA * 0.55); }',
@@ -62,7 +76,9 @@ export class SkidMarks {
       q[v].addScaledVector(n, lift);
       this.pos.set([q[v].x, q[v].y, q[v].z], (i * 4 + v) * 3);
       this.alpha[i * 4 + v] = Math.min(1, strength);
+      if (this.aT) this.aT[i * 4 + v] = this.now;
     }
+    if (this.aT) this.mesh.geometry.attributes.aT.needsUpdate = true;
     this.head = (this.head + 1) % this.max;
     this.n = Math.min(this.max, this.n + 1);
     const g = this.mesh.geometry;
@@ -301,6 +317,7 @@ export class CarFX {
   }
   // pro Frame: Partikel bewegen
   update(dt, camera) {
+    this.skids.now += dt; this.skids.uNow.value = this.skids.now;
     this.parts.update(dt, camera);
     this.sparks.update(dt, camera);
   }

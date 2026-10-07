@@ -76,6 +76,11 @@ spielbar am Handy (quer oder hochkant), mit Gamepad oder Tastatur. Als App insta
   ziehen langsam, zur Sonne hin silbern, zum Horizont eine Wolkenbank. Der Himmel wird jetzt erst nach der Landschaft
   gezeichnet (rechnet nur die freien Pixel). **Vogelschwärme** kreisen neben der Strecke (ein Draw-Call, Flügelschlag mit
   Gleitphasen, an der Küste Möwen).
+- **Wiese lebendiger:** große satte/sonnige Flecken, **Wiesenblumen** in Inseln (weiß, gelb, lila, rot; nah, kantenweich),
+  Grasbüschel heller statt schwarzer Krümel. **In der Luft:** Herbst Blätter, die taumelnd fallen, Winter Schneefall,
+  Land/Alpen/Küste Pollen, die im Gegenlicht glitzern, Wüste treibender Sand, Stadt Staub – alles in einem Kasten um die
+  Kamera, Bewegung im Shader, nach Grafikstufe dosiert (Einfach 40 %, Standard 70 %), die Automatik „Deko sparsam“ nimmt
+  sie mit weg. **Reifenspuren** mit weichem Rand, verblassen nach 20–35 s.
 - Menü quer: alle Knopfreihen passen ins Bild (Fahrhilfe-Hinweis auf 3 Zeilen, Tippen zeigt ihn ganz); die Info-Zeile
   bricht nur noch vor einem „·“ um. „Bewegung reduzieren“ des Systems schaltet das Kameraschütteln ab.
 - **`?deko=0`** = Aussehen wie bis n29 (A/B), `?deko=aus` = ohne Streckenrand-Deko (hieß bis n29 `?deko=0`).

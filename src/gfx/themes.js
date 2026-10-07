@@ -8,7 +8,7 @@ import { THEMES } from '../track/themes.js';
 import { loadSkyInfo, loadSkyTexture, makeEnvironment, sunDirFromUV } from './env.js';
 import { loadKtx2, setGround, themeUniforms } from './materials.js';
 import { WORLD_SCALE } from '../track/defs.js';
-import { applyClouds } from './deko.js';
+import { applyClouds, DEKO, FLOWERS } from './deko.js';
 
 const T = 'assets/themes/';
 const FOG = [260 * WORLD_SCALE, 1500 * WORLD_SCALE];
@@ -114,6 +114,8 @@ export class ThemeManager {
     themeUniforms.tRockMap.value = pack.rock || this.rockDummy;
     setGround({ ...def.ground, rockTex: pack.rock ? def.ground.rockTex : 0 });
     themeUniforms.tTreeSnow.value = def.trees.snow ? 1 : 0;
+    themeUniforms.tMeadow.value = DEKO && pack.id !== 'wueste' && pack.id !== 'winter' ? 1 : 0;   // n28: Wiese mit Farbflecken und Blumen
+    themeUniforms.tFlowers.value = DEKO ? (FLOWERS[pack.id] ?? 0) : 0;
     themeUniforms.tTreeTint.value.set(...(def.trees.tint || [1, 1, 1]));
     this.cur = { id: pack.id, def, veg: pack.vegTex ? { tex: pack.vegTex, meta: pack.vegMeta } : null, horizon: hz, info };
   }

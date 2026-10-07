@@ -38,7 +38,7 @@ import { Post } from './gfx/post.js';
 import { KinoLook } from './gfx/kinolook.js';
 import { loadDecoAssets, decoUniforms } from './gfx/deco.js';
 import { kulisseTick } from './gfx/kulisse.js';
-import { DEKO, REDUCED, makeBirds } from './gfx/deko.js';
+import { DEKO, REDUCED, makeBirds, AirMotes } from './gfx/deko.js';
 import { daySeed } from './core/util.js';
 import { showKmhMs } from './core/showspeed.js';
 import { GMeter, G_ON } from './core/gforce.js';
@@ -73,7 +73,7 @@ const kino = LOOK === 'alt' ? null : new KinoLook(renderer, { level: LOOK_FIX ??
 // Bewegungsunschärfe: im Kino-Look Teil derselben Pipeline (ein Szenen-Durchlauf); ?look=alt: bisheriges post.js
 const post = kino || new Post(renderer);
 quality.post = post; quality.kino = kino;
-let sun, M, carVis, ghostVis, sky, cockpit, themes;
+let sun, M, carVis, ghostVis, sky, cockpit, themes, air = null;
 
 let sizeW = 0, sizeH = 0, portrait = null;
 function resize() {
@@ -176,6 +176,7 @@ async function boot() {
   lineViz = new LineViz(scene);
   fx = new CarFX(scene);
   pyro = new PyroFX(scene);
+  if (DEKO) air = new AirMotes(scene);   // n28: Schnee, Blätter, Pollen, Sand je Landschaft
   ui.loading(0.8, 'Strecke bauen …');
   const q = params.get('seed');
   if (params.has('demo')) await loadTrack(demoLayout(), { name: 'Teststrecke' });
@@ -773,6 +774,11 @@ function render(rdt) {
   if (worldGroup && worldGroup.userData.lite !== !!quality.decoLite) {
     worldGroup.userData.lite = !!quality.decoLite;
     for (const m of worldGroup.children) if (m.name === 'deco-grass' || m.name === 'deco-bushes') m.visible = !quality.decoLite;
+  }
+  // n28: Luft-Teilchen passend zu Thema und Grafikstufe; Automatik „Deko sparsam“ nimmt sie mit weg
+  if (air && env) {
+    if (air.theme !== env.theme || air.tier !== quality.tier) air.set(env.theme, quality.tier, sun.userData.dir);
+    air.mesh.visible = !quality.decoLite && air.mesh.geometry.instanceCount > 0;
   }
   renderer.info.reset();
   let boost = 0;

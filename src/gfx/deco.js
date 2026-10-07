@@ -5,6 +5,7 @@
 //  Felsen (Poly Haven, vereinfacht), entfernte Bauernhöfe. Keine Kollision.
 //  Karten blenden mit der Entfernung aus (Gras/Blumen ab ~55 m), Gras wiegt sich leicht im Wind.
 import * as THREE from 'three';
+import { DEKO } from './deko.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { patchStaticShadow } from './materials.js';
@@ -493,6 +494,8 @@ export function buildDeco(track, M, surfaceY, add, opts = {}) {
   // Kulissen (n20): Gras färbt das Thema (trocken, verschneit), Blumen/Büsche/Laubbäume kommen aus dem Thema-Atlas, wenn es
   // eigene Zellen hat (Sukkulenten, Rooibos, Palmen, Köcherbäume, Jungtannen …), sonst aus dem Land-Atlas
   const gTint = V.tint && V.tint.grass ? lin(...V.tint.grass) : V.snow ? lin(2.6, 2.7, 2.8) : V.autumn ? lin(2.3, 2.0, 0.9) : lin(1.9, 2.5, 1.35);
+  // Deko (n28): Grasbüschel heller (die Atlas-Karten sind sehr dunkel → wirkten von Weitem wie schwarze Krümel)
+  if (DEKO && !V.snow) gTint.multiplyScalar(1.75);
   const useT = (cells) => cells && TV && cells.every((c) => TV.meta[Array.isArray(c) ? c[0] : c]);
   if (tier > 0 && ((P.grass && P.grass.length) || (P.flower && P.flower.length))) {
     const list = [];

@@ -22,6 +22,9 @@ export const CLOUDS = {
   herbst: { k: 0.48, soft: 0.18, sc: 0.95, sp: 1.1 },
 };
 
+// Wiesenblumen je Thema (Boden-Shader, gfx/materials.js tFlowers): Anteil 0 … 1
+export const FLOWERS = { land: 1, alpen: 1, kueste: 0.6, stadt: 0.45, herbst: 0.35, wueste: 0, winter: 0 };
+
 // Kachelbares Wolken-Rauschen (fbm aus periodischem Wertrauschen), einmal beim Start gerechnet: 256² × 1 Byte
 let cloudTex = null;
 export function cloudTexture() {
@@ -175,4 +178,90 @@ export function makeBirds(track, id, tier, seed = 1) {
   mesh.name = 'deko-voegel';
   mesh.userData.count = n;
   return mesh;
+}
+
+// ---------- Luft: Schnee, Herbstblätter, Pollen im Gegenlicht, Sand/Staub ----------
+// Teilchen in einem Kasten um die Kamera (Lage = Zufall + Drift/Wind aus der Zeit, modulo Kasten → kein Nachschub,
+// keine CPU-Arbeit je Bild, kein Speicher-Müll). Nah an der Kamera und am Kastenrand ausgeblendet. Ein Draw-Call.
+// kind: 0 Schnee, 1 Blatt (taumelt), 2 Pollen/Glitzer (additiv), 3 Staub/Sand (vom Wind getrieben)
+export const AIR = {
+  land: { kind: 2, n: 220, size: 0.08, fall: -0.04, sway: 0.7, wind: 0.35, spin: 0, box: 26, h: 12, c0: [1.0, 0.92, 0.7], c1: [1.0, 1.0, 0.92], a: 0.75 },
+  alpen: { kind: 2, n: 200, size: 0.08, fall: -0.03, sway: 0.8, wind: 0.5, spin: 0, box: 26, h: 12, c0: [1.0, 0.95, 0.8], c1: [0.95, 1.0, 1.0], a: 0.7 },
+  kueste: { kind: 2, n: 160, size: 0.07, fall: -0.02, sway: 0.9, wind: 1.2, spin: 0, box: 26, h: 12, c0: [1.0, 0.97, 0.88], c1: [0.9, 0.97, 1.0], a: 0.6 },
+  stadt: { kind: 3, n: 200, size: 0.05, fall: 0.03, sway: 0.5, wind: 1.1, spin: 0, box: 24, h: 10, c0: [0.75, 0.72, 0.66], c1: [0.9, 0.88, 0.82], a: 0.45 },
+  herbst: { kind: 1, n: 300, size: 0.2, fall: 0.85, sway: 1.3, wind: 0.9, spin: 1, box: 26, h: 13, c0: [0.85, 0.36, 0.06], c1: [0.62, 0.14, 0.05], a: 0.95 },
+  winter: { kind: 0, n: 1100, size: 0.1, fall: 1.15, sway: 0.45, wind: 0.6, spin: 0, box: 22, h: 12, c0: [0.95, 0.97, 1.0], c1: [1.0, 1.0, 1.0], a: 0.9 },
+  wueste: { kind: 3, n: 300, size: 0.05, fall: 0.06, sway: 0.4, wind: 3.4, spin: 0, box: 24, h: 7, c0: [0.85, 0.66, 0.42], c1: [0.95, 0.82, 0.6], a: 0.55 },
+};
+const AIR_MAX = 1100;
+export class AirMotes {
+  constructor(scene) {
+    const g = new THREE.InstancedBufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute([-0.5, -0.5, 0, 0.5, -0.5, 0, 0.5, 0.5, 0, -0.5, 0.5, 0], 3));
+    g.setIndex([0, 1, 2, 0, 2, 3]);
+    let s = 2024; const R = () => (s = (s * 16807) % 2147483647) / 2147483647;
+    const a = new Float32Array(AIR_MAX * 4); for (let i = 0; i < a.length; i++) a[i] = R();
+    g.setAttribute('aS', new THREE.InstancedBufferAttribute(a, 4));
+    g.instanceCount = 0;
+    const U = this.u = { uTime: decoUniforms.uTime, uKind: { value: 2 }, uSize: { value: 0.05 }, uFall: { value: 0 }, uSway: { value: 0.5 }, uWind: { value: 0.3 },
+      uSpin: { value: 0 }, uBox: { value: 34 }, uH: { value: 14 }, uA: { value: 0.7 }, uC0: { value: new THREE.Color() }, uC1: { value: new THREE.Color() }, uSun: { value: new THREE.Vector3(0, 1, 0) } };
+    this.mat = new THREE.ShaderMaterial({
+      uniforms: U, transparent: true, depthWrite: false,
+      vertexShader: `attribute vec4 aS; uniform float uTime, uKind, uSize, uFall, uSway, uWind, uSpin, uBox, uH, uA; uniform vec3 uC0, uC1, uSun;
+        varying vec2 vUv; varying float vA; varying vec3 vC;
+        void main() {
+          vec3 box = vec3( uBox, uH, uBox );
+          float ph = aS.w * 6.2832, sp = 0.75 + 0.5 * aS.y;
+          vec3 p0 = aS.xyz * box + vec3( uWind * uTime * sp, -uFall * uTime * sp, uWind * 0.37 * uTime * sp )
+            + vec3( sin( uTime * 0.9 * sp + ph ), sin( uTime * 1.3 + ph * 2.0 ) * 0.3, cos( uTime * 0.7 * sp + ph * 1.3 ) ) * uSway;
+          vec3 rel = mod( p0 - cameraPosition + box * 0.5, box ) - box * 0.5;
+          vec3 wp = cameraPosition + rel;
+          float d = length( rel );
+          vA = uA * smoothstep( 0.7, 2.2, d ) * ( 1.0 - smoothstep( uBox * 0.3, uBox * 0.47, d ) ) * ( 1.0 - smoothstep( uH * 0.32, uH * 0.5, abs( rel.y ) ) );
+          vec4 mv = viewMatrix * vec4( wp, 1.0 );
+          vec2 c = position.xy;
+          float flip = 1.0;
+          if ( uSpin > 0.0 ) { flip = cos( uTime * ( 2.0 + 3.0 * aS.y ) + ph ); c.x *= 0.2 + 0.8 * abs( flip ); }
+          float rot = ph * 3.0 + uTime * uSpin * ( aS.x - 0.5 ) * 3.0;
+          c = mat2( cos( rot ), sin( rot ), -sin( rot ), cos( rot ) ) * c;
+          float sz = uSize * ( 0.6 + 0.8 * aS.y );
+          // Staub/Sand: in Windrichtung gestreckt (Bewegung), Pollen: Gegenlicht glitzert
+          if ( uKind > 2.5 ) c.x *= 2.6;
+          mv.xy += c * sz;
+          vUv = position.xy + 0.5;
+          vC = mix( uC0, uC1, aS.z ) * ( uSpin > 0.0 ? 0.6 + 0.4 * abs( flip ) : 1.0 );
+          if ( uKind > 1.5 && uKind < 2.5 ) { vec3 vd = normalize( rel ); vC *= 0.55 + 1.6 * pow( max( dot( -vd, -uSun ), 0.0 ), 4.0 ) + 0.5 * pow( 0.5 + 0.5 * sin( uTime * 5.0 + ph * 9.0 ), 8.0 ); }
+          gl_Position = projectionMatrix * mv;
+        }`,
+      fragmentShader: `uniform float uKind; varying vec2 vUv; varying float vA; varying vec3 vC;
+        void main() {
+          vec2 q = vUv - 0.5; float a;
+          if ( uKind > 0.5 && uKind < 1.5 ) { vec2 e = vec2( q.x * 2.0, q.y * 1.15 ); a = 1.0 - smoothstep( 0.36, 0.46, length( e ) + abs( q.y ) * 0.35 ); }
+          else a = pow( max( 0.0, 1.0 - length( q ) * 2.0 ), uKind > 1.5 && uKind < 2.5 ? 1.5 : 1.1 );
+          a *= vA;
+          if ( a < 0.01 ) discard;
+          gl_FragColor = vec4( vC, a );
+          #include <tonemapping_fragment>
+          #include <colorspace_fragment>
+        }`,
+    });
+    this.mesh = new THREE.Mesh(g, this.mat);
+    this.mesh.frustumCulled = false; this.mesh.renderOrder = 2; this.mesh.name = 'deko-luft';
+    this.mesh.visible = false;
+    scene.add(this.mesh);
+    this.theme = null; this.tier = 2;
+  }
+  // Thema/Grafikstufe: Art und Menge (Einfach 40 %, Standard 70 %; „Bewegung reduzieren“ 30 %)
+  set(id, tier, sunDir) {
+    this.theme = id; this.tier = tier;
+    const A = AIR[id], U = this.u;
+    if (!A) { this.mesh.visible = false; return; }
+    U.uKind.value = A.kind; U.uSize.value = A.size; U.uFall.value = A.fall; U.uSway.value = A.sway; U.uWind.value = A.wind; U.uSpin.value = A.spin;
+    U.uBox.value = A.box; U.uH.value = A.h; U.uA.value = A.a; U.uC0.value.setRGB(...A.c0); U.uC1.value.setRGB(...A.c1);
+    if (sunDir) U.uSun.value = sunDir;
+    this.mat.blending = A.kind === 2 ? THREE.AdditiveBlending : THREE.NormalBlending;
+    const k = [0.4, 0.7, 1][tier] * (REDUCED ? 0.3 : 1);
+    this.mesh.geometry.instanceCount = Math.min(AIR_MAX, Math.round(A.n * k));
+    this.mesh.visible = this.mesh.geometry.instanceCount > 0;
+  }
 }

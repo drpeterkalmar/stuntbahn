@@ -25,6 +25,12 @@ MEASURE = """(sec) => new Promise((res) => { const t = [], c = [], tr = []; let 
         calls: Math.round(c.reduce((a, b) => a + b, 0) / c.length), tris: Math.round(tr.reduce((a, b) => a + b, 0) / tr.length), tex: __game.renderer.info.memory.textures }); } };
   requestAnimationFrame(f); })"""
 
+# robust (n28): dasselbe Bild N-mal zeichnen und auf die GPU warten (gl.finish) → Zeichenzeit je Bild ohne Physik-Aufholjagd
+DRAW = """(n) => { const g = __game, gl = g.renderer.getContext(), t = []; g.freeze(true);
+  for (let i = 0; i < n + 3; i++) { const a = performance.now(); g.drawOnce({ run: false }); gl.finish(); if (i >= 3) t.push(performance.now() - a); }
+  g.freeze(false); const s = [...t].sort((a, b) => a - b), q = (p) => s[Math.min(s.length - 1, Math.floor(p * s.length))];
+  return { p50: +q(0.5).toFixed(2), p95: +q(0.95).toFixed(2), calls: g.renderer.info.render.calls, tris: g.renderer.info.render.triangles }; }"""
+
 def run(pw, root, extra):
     out = {}
     with Server(root) as srv:
@@ -37,17 +43,21 @@ def run(pw, root, extra):
                 time.sleep(1.0)
                 cdp.send('Emulation.setCPUThrottlingRate', {'rate': DROSSEL}); time.sleep(1.0)
                 out['menu'] = s.ev(f"({MEASURE})({SEK})")
+                out['menu']['draw'] = s.ev(f"({DRAW})(40)")
                 cdp.send('Emulation.setCPUThrottlingRate', {'rate': 1})
             s.ev("__game.setAssist('easy')"); s.ev("__game.start({ autopilot: true })"); s.ev("__game.cam('chase')"); s.frames(3)
             s.ev("__game.sim(3.3)"); time.sleep(0.5)
             cdp.send('Emulation.setCPUThrottlingRate', {'rate': DROSSEL}); time.sleep(1.0)
-            out['rennen' if q == 2 else 'rennen_einfach'] = s.ev(f"({MEASURE})({SEK})")
+            key = 'rennen' if q == 2 else 'rennen_einfach'
+            out[key] = s.ev(f"({MEASURE})({SEK})")
+            out[key]['draw'] = s.ev(f"({DRAW})(40)")
             if q == 2:
                 cdp.send('Emulation.setCPUThrottlingRate', {'rate': 1})
                 for k in range(150):
                     if s.ev("__game.sim(2.0)")['state'] == 'finished': break
                 cdp.send('Emulation.setCPUThrottlingRate', {'rate': DROSSEL})
                 out['ziel_film'] = s.ev(f"({MEASURE})({SEK})")   # Zielshow mit Feuerwerk, danach Highlight-Film
+                out['ziel_film']['draw'] = s.ev(f"({DRAW})(40)")
             cdp.send('Emulation.setCPUThrottlingRate', {'rate': 1})
             out.setdefault('fehler', []).extend(s.errors[:3])
             s.close()
@@ -68,6 +78,7 @@ for k in ('menu', 'rennen', 'ziel_film', 'rennen_einfach'):
         xs = [x[k] for x in res[v] if k in x]
         if xs: row[v] = {f: round(statistics.median([a[f] for a in xs]), 2) for f in ('p50', 'p95', 'fps', 'calls', 'tris', 'tex')}
         if xs: row[v]['mittel_ms'] = round(1000 / statistics.median([a['fps'] for a in xs]), 1)
+        if xs and all('draw' in a for a in xs): row[v]['draw_p50'] = round(statistics.median([a['draw']['p50'] for a in xs]), 2); row[v]['draw_p95'] = round(statistics.median([a['draw']['p95'] for a in xs]), 2)
     summ[k] = row
 res['median'] = summ
 os.makedirs(os.path.join(ROOT, 'tests', 'shots', 'deko'), exist_ok=True)
