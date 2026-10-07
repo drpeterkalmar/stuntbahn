@@ -241,7 +241,7 @@ export const themeUniforms = {
   tSnowH: { value: 1e5 }, tBeach: { value: -1e5 }, tCity: { value: 0 }, tRockTex: { value: 0 }, tRockMap: { value: null }, tSnowAll: { value: 0 },
   tTreeSnow: { value: 0 }, tTreeTint: { value: v3([1, 1, 1]) },
   // Deko (n28): Wiesenblumen (Anteil 0 … 1 je Thema, 0 = aus) und großflächige Farbwechsel der Wiese (0/1)
-  tFlowers: { value: 0 }, tMeadow: { value: 0 },
+  tFlowers: { value: 0 }, tMeadow: { value: 0 }, tDekoK: { value: 1 },
 };
 export function setGround(g) {
   const U = themeUniforms;
@@ -271,7 +271,7 @@ function patchGrass(mat) {
       varying float vGy;
       uniform float sbRock;
       uniform vec3 tG0, tG1, tDry, tTint, tForest, tDirt0, tDirt1, tRock0, tRock1, tStrataCol;
-      uniform float tDryK, tTintK, tFields, tForestK, tStrata, tSnowH, tBeach, tCity, tRockTex, tSnowAll, tFlowers, tMeadow;
+      uniform float tDryK, tTintK, tFields, tForestK, tStrata, tSnowH, tBeach, tCity, tRockTex, tSnowAll, tFlowers, tMeadow, tDekoK;
       uniform vec4 tSlope;
       uniform sampler2D tRockMap;
       float gHash( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) * 43758.5453 ); }
@@ -290,7 +290,7 @@ function patchGrass(mat) {
         diffuseColor.rgb = mix( green, base * tTint, tTintK ) * mix( 0.85, 1.12, n );
         // Deko (n28): Wiese lebendiger – große satte/sonnige Flecken (≈ 150 m) und Wiesenblumen in Inseln, nur nah
         // (Tupfer ab ~70 m ausgeblendet, kantenweich über fwidth → kein Flimmern)
-        if ( tMeadow > 0.5 ) {
+        if ( tMeadow * tDekoK > 0.5 ) {   // tDekoK = 0: Grafik „Einfach“ bzw. Automatik „Deko sparsam“
           float mm = gNoise( vGw * 0.0065 + 3.1 );
           diffuseColor.rgb *= mix( vec3( 0.86, 0.95, 0.8 ), vec3( 1.1, 1.06, 0.9 ), mm );
           if ( tFlowers > 0.0 ) {

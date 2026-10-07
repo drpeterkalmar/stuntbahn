@@ -79,15 +79,17 @@ spielbar am Handy (quer oder hochkant), mit Gamepad oder Tastatur. Als App insta
 - **Wiese lebendiger:** große satte/sonnige Flecken, **Wiesenblumen** in Inseln (weiß, gelb, lila, rot; nah, kantenweich),
   Grasbüschel heller statt schwarzer Krümel. **In der Luft:** Herbst Blätter, die taumelnd fallen, Winter Schneefall,
   Land/Alpen/Küste Pollen, die im Gegenlicht glitzern, Wüste treibender Sand, Stadt Staub – alles in einem Kasten um die
-  Kamera, Bewegung im Shader, nach Grafikstufe dosiert (Einfach 40 %, Standard 70 %), die Automatik „Deko sparsam“ nimmt
-  sie mit weg. **Reifenspuren** mit weichem Rand, verblassen nach 20–35 s.
+  Kamera, Bewegung im Shader, nach Grafikstufe dosiert (Standard 70 %; auf „Einfach“ wie Wiesenblumen ganz aus), die
+  Automatik „Deko sparsam“ nimmt beides mit weg. **Reifenspuren** mit weichem Rand, verblassen nach 20–35 s.
 - **Bremslichter** leuchten beim Bremsen rot auf (auch beim Autopiloten, im Replay und Film – aus der Verzögerung),
   sonst glimmen sie leicht. **Ergebnis-Karte:** die Zeit springt herein, ein Glanz läuft einmal darüber, Bestzeit golden
   mit kurzem Leuchten (einmalige CSS-Animation; bei „Bewegung reduzieren“ ohne).
 - Menü quer: alle Knopfreihen passen ins Bild (Fahrhilfe-Hinweis auf 3 Zeilen, Tippen zeigt ihn ganz); die Info-Zeile
   bricht nur noch vor einem „·“ um. „Bewegung reduzieren“ des Systems schaltet das Kameraschütteln ab.
+- Unter Tunnel, Röhre und Brücken blenden die Luft-Teilchen aus. **Kosten:** +0,01 MB (alles im Spiel erzeugt),
+  +3 Draw-Calls, Bildzeit im An/Aus-Vergleich gleich (Messung, Fotos, Grenzen: `DEKO_BERICHT.md`).
 - **`?deko=0`** = Aussehen wie bis n29 (A/B), `?deko=aus` = ohne Streckenrand-Deko (hieß bis n29 `?deko=0`).
-  Code: `src/gfx/deko.js`. Messung/Fotos: `tests/deko_shots.py`, `tests/perf_deko.py`, `tests/deko_himmel.py`.
+  Code: `src/gfx/deko.js`. Handy: App einmal ganz schließen und neu öffnen.
 
 ## 🕳️ Röhre mit Hindernis (seit 06.10.2026, n29)
 - Peter: „Röhre hat normalerweise ein Hindernis in der Mitte am Boden.“ Die Röhre der Zufallsstrecken (flach, 3D,
@@ -401,6 +403,11 @@ node tools/gkraft_mess.mjs                # n24: G je Situation (Kurve, Looping,
 python3 tests/gkraft_shots.py quer        # n24: Fotos Cockpit Kurve/Landung, HUD, Replay, Kino-Replay mit G (quer|hoch|desktop)
 python3 tests/perf_gkraft.py <vorher>     # n24: Bildrate vorher/nachher (Cockpit, Verfolger, Replay)
 node tests/node/test_zielshow.mjs         # n27: Auslauf aufgezeichnet (Zeit/Geist/bitgleich), Jubel-Dreher auf der Fahrbahn, Pyro-Budget je Stufe, deterministisch, Zielbogen-Kamera
+python3 tests/deko_shots.py <Wurzel> <Name> hoch,quer [Code] [&thema=…]   # n28: Rundgang (Menü, Start, Fahrt, Cockpit, Überblick, Zielshow, Ergebnis) → tests/shots/deko/
+python3 tests/perf_deko.py <Wurzel vorher> 2 hoch   # n28: Bildzeit p50/p95 vorher/nachher, CPU 4× gedrosselt, Draw-Calls/Dreiecke/Texturen
+python3 tests/perf_deko_ab.py hoch 2 6    # n28: Deko an/aus im Wechsel in derselben Seite (STRESS=3 = Grafikchip-Last; THEMA=winter)
+python3 tests/deko_himmel.py alpen,wueste quer   # n28: Himmel/Wolken je Landschaft; tests/deko_ergebnis.py: Ergebnis-Karte
+python3 tools/ladegroesse.py [Wurzel]     # n28: Erstladung und Themen-Pakete in MB (roh/gzip); tools/deko_collage.py: Vergleichs-Collagen
 node tests/node/test_roehre_buckel.mjs    # n29: Buckel mittig (Höhe/Länge, Decke), Profil, 80/150/220 km/h ohne Crash, Autopilot, ?roehre=glatt = n28 bitgleich, .TRK bitgleich, Bestzeiten, HUD
 node tools/roehre_mess.mjs fest           # n29: Buckel mit festem Tempo (Flughöhe/-weite, Decke, Lage); STUNT_BUCKEL=h,len zum Ausprobieren
 node tools/roehre_mess.mjs fahrer --mehr=90 --json=x.json [--root=<alter Stand>]   # n29: Leicht/Mittel/Original-Bots über 66 Strecken mit Röhre; --sum=vorher.json,nachher.json
@@ -465,6 +472,7 @@ Nützliche URL-Parameter: `?seed=4711&d=3`, `?demo`, `?gallery` (alle Bausteine)
 (Beispielstrecke im .TRK-Format), `?speed=1` (Originaltempo statt 1,25×), `?q=0|1|2` (Grafikstufe), `?nosw`,
 `?air=1` (volle Schwerkraft im Flug, Standard 0.7), `?lip=15` (alte Schanze; mit `?air=1` exakt der alte Sprung).
 `?blur=off|light|strong` (Bewegungsunschärfe übersteuern).
+Deko (n28): `?deko=0` (Aussehen bis n29), `?deko=aus` (ohne Streckenrand-Deko).
 Röhre (n29): `?roehre=glatt` (glatte Röhre wie bis n28, A/B, wertet nicht; Node `STUNT_ROEHRE=glatt`).
 Zielshow/Cockpit (n27): `?show=0` (nach dem Ziel ohne Show), `?kopf=0|2` (Kopfnicken im Cockpit aus/doppelt).
 Cockpit: `?eye=0.45` (Augenhöhe in m über dem Auto-Ursprung), `?hz=0.32` (Horizont, Anteil der Bildhöhe von oben),

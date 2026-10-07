@@ -2,7 +2,7 @@
 // Debug-API window.__game für Headless-Tests.
 import * as THREE from 'three';
 import { BUILD } from './build.js';
-import { makeMaterials, shadowUniforms, preloadKtx2 } from './gfx/materials.js';
+import { makeMaterials, shadowUniforms, preloadKtx2, themeUniforms } from './gfx/materials.js';
 import { makeSky, sunDirFromUV, bakeStaticShadow } from './gfx/env.js';
 import { ThemeManager } from './gfx/themes.js';
 import { themeFor, THEMES, THEME_IDS } from './track/themes.js';
@@ -776,10 +776,17 @@ function render(rdt) {
     worldGroup.userData.lite = !!quality.decoLite;
     for (const m of worldGroup.children) if (m.name === 'deco-grass' || m.name === 'deco-bushes') m.visible = !quality.decoLite;
   }
+  // n28: Wiesenblumen/-flecken nicht auf „Einfach“ und nicht bei „Deko sparsam“ (Budget der niedrigsten Stufe)
+  themeUniforms.tDekoK.value = quality.tier === 0 || quality.decoLite ? 0 : 1;
   // n28: Luft-Teilchen passend zu Thema und Grafikstufe; Automatik „Deko sparsam“ nimmt sie mit weg
   if (air && env) {
     if (air.theme !== env.theme || air.tier !== quality.tier) air.set(env.theme, quality.tier, sun.userData.dir);
     air.mesh.visible = !quality.decoLite && air.mesh.geometry.instanceCount > 0;
+    if (air.mesh.visible) {
+      const cp = camera.position;
+      if (app.frames % 8 === 0 || air.covered == null) air.covered = !!env.world.rayTrack(cp.x, cp.y + 0.5, cp.z, 0, 1, 0, 40, false);
+      air.shelter(air.covered, Math.min(0.1, rdt || 0.016));
+    }
   }
   renderer.info.reset();
   let boost = 0;

@@ -249,18 +249,23 @@ export class AirMotes {
     this.mesh.frustumCulled = false; this.mesh.renderOrder = 2; this.mesh.name = 'deko-luft';
     this.mesh.visible = false;
     scene.add(this.mesh);
-    this.theme = null; this.tier = 2;
+    this.theme = null; this.tier = 2; this.baseA = 0.7; this.cover = 1;
   }
-  // Thema/Grafikstufe: Art und Menge (Einfach 40 %, Standard 70 %; „Bewegung reduzieren“ 30 %)
+  // unter Tunnel/Röhre/Brücke (Strahl nach oben trifft Fahrbahn): Teilchen weich ausblenden, k = 0 … 1
+  shelter(covered, dt) {
+    this.cover += ((covered ? 0 : 1) - this.cover) * Math.min(1, dt * 4);
+    this.u.uA.value = this.baseA * this.cover;
+  }
+  // Thema/Grafikstufe: Art und Menge (Einfach keine, Standard 70 %; „Bewegung reduzieren“ 30 %)
   set(id, tier, sunDir) {
     this.theme = id; this.tier = tier;
     const A = AIR[id], U = this.u;
     if (!A) { this.mesh.visible = false; return; }
     U.uKind.value = A.kind; U.uSize.value = A.size; U.uFall.value = A.fall; U.uSway.value = A.sway; U.uWind.value = A.wind; U.uSpin.value = A.spin;
-    U.uBox.value = A.box; U.uH.value = A.h; U.uA.value = A.a; U.uC0.value.setRGB(...A.c0); U.uC1.value.setRGB(...A.c1);
+    U.uBox.value = A.box; U.uH.value = A.h; U.uA.value = A.a * (this.cover ?? 1); this.baseA = A.a; U.uC0.value.setRGB(...A.c0); U.uC1.value.setRGB(...A.c1);
     if (sunDir) U.uSun.value = sunDir;
     this.mat.blending = A.kind === 2 ? THREE.AdditiveBlending : THREE.NormalBlending;
-    const k = [0.4, 0.7, 1][tier] * (REDUCED ? 0.3 : 1);
+    const k = [0, 0.7, 1][tier] * (REDUCED ? 0.3 : 1);   // Einfach: keine (Budget der niedrigsten Stufe)
     this.mesh.geometry.instanceCount = Math.min(AIR_MAX, Math.round(A.n * k));
     this.mesh.visible = this.mesh.geometry.instanceCount > 0;
   }
@@ -281,21 +286,29 @@ function glowTexture() {
   return (glowTex = t);
 }
 export function makeBrakeLights(root) {
-  const mat = new THREE.SpriteMaterial({ map: glowTexture(), color: 0xff2010, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, toneMapped: false, fog: false });
-  const grp = new THREE.Group(); grp.name = 'deko-bremslicht';
-  for (const [x, y, z, sx, sy] of [[-0.7, 0.24, 2.24, 0.85, 0.3], [0.7, 0.24, 2.24, 0.85, 0.3], [-0.28, 0.15, 2.27, 0.3, 0.24], [0.28, 0.15, 2.27, 0.3, 0.24]]) {
-    const s = new THREE.Sprite(mat); s.position.set(x, y, z); s.scale.set(sx, sy, 1); s.userData.fx = true; s.renderOrder = 5; grp.add(s);
-  }
-  root.add(grp);
+  // 4 zur Kamera gedrehte Rechtecke in EINEM Mesh (Mitte = Lage am Auto, Ecke = Versatz in Bildebene) → 1 Draw-Call
+  const L = [[-0.7, 0.24, 2.24, 0.85, 0.3], [0.7, 0.24, 2.24, 0.85, 0.3], [-0.28, 0.15, 2.27, 0.3, 0.24], [0.28, 0.15, 2.27, 0.3, 0.24]];
+  const P = [], C = [], I = [];
+  L.forEach(([x, y, z, sx, sy], k) => { for (const [u, v] of [[-0.5, -0.5], [0.5, -0.5], [0.5, 0.5], [-0.5, 0.5]]) { P.push(x, y, z); C.push(u * sx, v * sy); } I.push(k * 4, k * 4 + 1, k * 4 + 2, k * 4, k * 4 + 2, k * 4 + 3); });
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.setAttribute('aC', new THREE.Float32BufferAttribute(C, 2)); g.setIndex(I);
+  const U = { map: { value: glowTexture() }, uCol: { value: new THREE.Color(0.25, 0.02, 0.01) }, uA: { value: 0.55 } };
+  const mat = new THREE.ShaderMaterial({ uniforms: U, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+    vertexShader: `attribute vec2 aC; varying vec2 vUv; void main() { vUv = aC; vec4 mv = modelViewMatrix * vec4( position, 1.0 ); mv.xy += aC; gl_Position = projectionMatrix * mv; vUv = vec2( step( 0.0, aC.x ), step( 0.0, aC.y ) ); }`,
+    fragmentShader: `uniform sampler2D map; uniform vec3 uCol; uniform float uA; varying vec2 vUv; void main() { gl_FragColor = vec4( uCol * texture2D( map, vUv ).a * uA, 1.0 );
+      #include <colorspace_fragment>
+    }`,
+  });
+  const mesh = new THREE.Mesh(g, mat); mesh.name = 'deko-bremslicht'; mesh.frustumCulled = false; mesh.renderOrder = 5; mesh.userData.fx = true;
+  root.add(mesh);
   let k = 0;
   return {
-    grp,
+    grp: mesh,
     // b = Bremsen 0 … 1 (aus Pedal bzw. Verzögerung), dt für weiches An-/Ausgehen
     set(b, dt) {
       k += (b - k) * Math.min(1, dt * (b > k ? 22 : 8));
-      mat.color.setRGB(1.0, 0.07, 0.03).multiplyScalar(0.25 + 4.2 * k);
-      mat.opacity = 0.55 + 0.45 * k;
-      grp.visible = root.visible;
+      U.uCol.value.setRGB(1.0, 0.07, 0.03).multiplyScalar(0.25 + 3.3 * k);
+      U.uA.value = 0.55 + 0.45 * k;
     },
   };
 }
