@@ -56,6 +56,16 @@ export const shadowUniforms = {
   sbKino: { value: 0 },
 };
 
+// n30 Fahrbahn-Mikrodetail: fein kachelnde Detail-Normalmap (Asphaltkorn, tools/build_detail_nor.mjs) nahe der Kamera
+// (blendet 4–20 m aus), dazu glatter gefahrene Spurrinnen (Rauigkeit). Nur Standard/Kino (sbKino ≥ 1). ?detail=0 = aus.
+// sbDetailOn: Regler; sbDetailK: Stärke, erst 1, wenn die Textur geladen ist.
+export const DETAIL_ON = typeof location === 'undefined' || new URLSearchParams(location.search).get('detail') !== '0';
+export const detailUniforms = {
+  sbDetailNor: { value: null }, sbDetailK: { value: 0 }, sbDetailOn: { value: DETAIL_ON ? 1 : 0 },
+  // TODO n30-Heavy: am Bild abstimmen (Startwerte): Kachel 0,55 m, Normalen-Stärke 0,55, Spurrinnen −0,14 Rauigkeit / −5 % Helligkeit
+  sbDetailTile: { value: 1 / 0.55 }, sbDetailStr: { value: 0.55 }, sbRut: { value: new THREE.Vector2(0.14, 0.05) },
+};
+
 // Kachelbares Wertrauschen (fbm, 256²) für die Wolkenschatten – einmal erzeugt, keine Datei
 function cloudTexture() {
   const N = 256, out = new Uint8Array(N * N * 4);
@@ -164,6 +174,7 @@ export function patchStaticShadow(mat) {
 function patchRoad(mat, detail = true) {
   const fn = (sh) => {
     sh.uniforms.sbKino = shadowUniforms.sbKino;
+    if (detail) Object.assign(sh.uniforms, detailUniforms);
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', '#include <common>\nattribute vec4 aRoad;\nvarying vec4 vRoad;')
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nvRoad = aRoad;');
@@ -171,10 +182,20 @@ function patchRoad(mat, detail = true) {
       .replace('#include <common>', `#include <common>
       varying vec4 vRoad;
       float rRough = 0.0;   // sbKino: Uniform aus patchStaticShadow
+      ${detail ? 'uniform sampler2D sbDetailNor; uniform float sbDetailK, sbDetailOn, sbDetailTile, sbDetailStr; uniform vec2 sbRut;' : ''}
       float rHash( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) * 43758.5453 ); }
       float rNoise( vec2 p ) { vec2 i = floor( p ), f = fract( p ); f = f * f * ( 3.0 - 2.0 * f );
         return mix( mix( rHash( i ), rHash( i + vec2( 1, 0 ) ), f.x ), mix( rHash( i + vec2( 0, 1 ) ), rHash( i + vec2( 1, 1 ) ), f.x ), f.y ); }`)
       .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = clamp( roughnessFactor + rRough, 0.04, 1.0 );')
+      .replace('#include <normal_fragment_maps>', detail ? `#include <normal_fragment_maps>
+      #ifdef USE_NORMALMAP_TANGENTSPACE
+      // n30: Asphaltkorn nahe der Kamera (gleichförmige Bedingung → Mipmaps gültig; Ausblenden über fade)
+      if ( sbKino > 0.5 && sbDetailK > 0.0 ) {
+        vec3 dN = texture2D( sbDetailNor, vec2( vRoad.x, vRoad.z ) * sbDetailTile ).xyz * 2.0 - 1.0;
+        float fade = sbDetailK * ( 1.0 - smoothstep( 4.0, 20.0, length( vViewPosition ) ) );
+        normal = normalize( normal + tbn * vec3( dN.xy * sbDetailStr * fade, 0.0 ) );
+      }
+      #endif` : '#include <normal_fragment_maps>')
       .replace('#include <map_fragment>', `#include <map_fragment>
       ${detail ? `
       // Kino (n17): Asphalt wie auf echten Strecken – Flicken (frischer, dunkler, eigene Kante), mit Bitumen versiegelte
@@ -204,6 +225,13 @@ function patchRoad(mat, detail = true) {
         float crack = ( 1.0 - smoothstep( 0.025, 0.025 + fw * 1.5, abs( s - sc ) ) ) * step( hc, 0.5 ) * span;
         diffuseColor.rgb *= 1.0 - 0.5 * crack;
         rRough -= 0.35 * crack;
+        // n30: Spurrinnen – zwei glatt gefahrene, leicht dunklere Bänder (~0,6 m) bei ±34 % der halben Breite
+        if ( sbDetailOn > 0.5 ) {
+          float bx = abs( abs( x ) - hw * 0.34 );
+          float rut = exp( - bx * bx / 0.09 ) * ( 0.75 + 0.25 * rNoise( vec2( x * 2.0, s * 0.3 ) ) );
+          rRough -= sbRut.x * rut;
+          diffuseColor.rgb *= 1.0 - sbRut.y * rut;
+        }
       }` : ''}
       {
         float x = vRoad.x, typ = floor( vRoad.y / 100.0 + 0.001 ), hw = vRoad.y - typ * 100.0;
@@ -477,6 +505,11 @@ export function makeMaterials(renderer, q = {}) {
   const M = {};
   M[MAT.ROAD] = new THREE.MeshStandardMaterial({ ...set('asphalt', 1 / 5), roughness: 1, metalness: 0, color: 0xb4b4b4, normalScale: new THREE.Vector2(0.8, 0.8), aoMapIntensity: 0.6 });
   patchRoad(M[MAT.ROAD]);
+  if (DETAIL_ON && !detailUniforms.sbDetailNor.value) {
+    detailUniforms.sbDetailNor.value = new THREE.TextureLoader().load('assets/tex/asphalt_detail_nor.webp', (t) => { detailUniforms.sbDetailK.value = 1; }, undefined, () => console.warn('Detail-Normalmap fehlt'));
+    const t = detailUniforms.sbDetailNor.value;
+    t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.NoColorSpace; t.anisotropy = aniso;
+  }
   const kt = kerbTexture();
   M[MAT.KERB] = new THREE.MeshStandardMaterial({ map: kt, normalMap: tex('assets/tex/concrete_nor.webp', false, 1 / 3, aniso), roughness: 0.62, metalness: 0 });
   // Albedo-Faktoren: Poly-Haven-Beton hat ~10 % Albedo → auf realistische ~28 % (Beton) anheben
