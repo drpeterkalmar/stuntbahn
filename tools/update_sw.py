@@ -12,6 +12,8 @@ for d in ['src', 'lib', 'icons', 'assets']:
             twin = f.endswith('.webp') and os.path.exists(os.path.join(dp, f[:-5] + '.ktx2'))
             # n20: Landschafts-Themen (assets/themes/) laden nur bei Bedarf – der Service-Worker legt sie beim ersten Abruf ab
             if rel.startswith(os.path.join('assets', 'themes') + os.sep): continue
+            # n30 HDR-Diät: das alte 1k-Land-HDR bleibt nur für ?hdr=1k (A/B) liegen – nicht vorab cachen
+            if rel == os.path.join('assets', 'hdr', 'sky_1k.hdr'): continue
             if f.endswith(('.js', '.png', '.css', '.webp', '.jpg', '.json', '.glb', '.hdr', '.bin', '.m4a', '.ktx2', '.wasm')) and not f.startswith('.') and not twin and rel != os.path.join('assets', 'sammlung_stil.json'):
                 files.append(rel)
 files = sorted(set(files))
