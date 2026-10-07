@@ -5,7 +5,8 @@
 // Alles ohne Kollision, instanziert bzw. zusammengefasst; Positionen plant track/kulisse.js (Node-testbar).
 import * as THREE from 'three';
 import { GB, cellMaterial, cardGeometry, instanced, decoAssets, decoUniforms, canvasTex, lumTint } from './deco.js';
-import { patchStaticShadow } from './materials.js';
+import { patchStaticShadow, themeUniforms } from './materials.js';
+import { impostorMesh } from './kern/impostor.js';
 import { MAT, WORLD_SCALE } from '../track/defs.js';
 import { THEMES, seaDir, SEA_Y } from '../track/themes.js';
 import { makeNoise2 } from '../core/util.js';
@@ -25,6 +26,16 @@ const lin = (r, g, b) => new THREE.Color().setRGB(r, g, b, THREE.LinearSRGBColor
 // Herbstfarben (Instanzfarbe auf Laub-Karten): gelb, orange, rot, braun, noch grün
 const AUTUMN = [[2.2, 1.45, 0.35], [2.4, 1.0, 0.25], [2.1, 0.55, 0.18], [1.5, 0.9, 0.4], [1.3, 1.5, 0.6]];
 
+// n30: Oktaeder-Impostors statt Karten (Standard/Kino), wenn der Atlas der Art geladen ist (gfx/kern/impostor.js,
+// gebacken mit tools/build_impostor.py). Welche Arten braucht ein Thema? (main.js lädt sie vor dem Streckenbau vor)
+export function impostorArten(def) {
+  const Tt = def.trees;
+  if (Tt.kind === 'fir') return ['tanne0', 'tanne1', ...(Tt.autumn ? ['laub1', 'laub2'] : [])];
+  return (Tt.cells || []).map((c) => c[0]);
+}
+const impArt = (opts, name) => (opts.impostor && opts.tier >= 1 ? opts.impostor.art(name) : null);
+const impOpts = (color, emissive) => ({ color, emissive, tint: themeUniforms.tTreeTint, snow: themeUniforms.tTreeSnow, patch: patchStaticShadow });
+
 // ---------- Bäume (track.trees aus build.js: Positionen bleiben, das Thema bestimmt die Art) ----------
 export function buildTrees(track, M, opts, surfaceY, add, treeGeometry) {
   const th = opts.theme ? opts.theme.def : THEMES.land, Tt = th.trees;
@@ -41,6 +52,15 @@ export function buildTrees(track, M, opts, surfaceY, add, treeGeometry) {
     for (const v of [0, 1]) {
       const list = all.filter((t) => t.v === v && !autumnSet.has(t) && (t.keep || keepK >= 1 || hashI(t.x * 7 + t.z, 1) < keepK));
       if (!list.length) continue;
+      const art = impArt(opts, 'tanne' + v);
+      if (art) {
+        // Höhe wie die Karte (treeGeometry: 13 m bei Maßstab 1), gleiche Streuung der Höhe
+        const L = list.map((t, i) => ({ x: t.x, y: surfaceY(t.x, t.z) - 0.3, z: t.z, rot: t.rot, s: 13 * t.s, sy: 0.9 + 0.2 * ((i * 37) % 10) / 10 }));
+        const im = impostorMesh(art, L, 'trees' + v, impOpts(M.tree[v].color, M.tree[v].emissive));
+        add(im, true);
+        tris += 2 * L.length;
+        continue;
+      }
       const g = treeGeometry();
       const im = new THREE.InstancedMesh(g, M.tree[v], list.length);
       const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), p = new THREE.Vector3();
@@ -59,9 +79,21 @@ export function buildTrees(track, M, opts, surfaceY, add, treeGeometry) {
     if (autumn.length) {
       const Mt = A.meta, LB = ['laub1', 'laub2'], H = { laub1: 11.5, laub2: 10 };
       const list = autumn.map((t, i) => { const n = LB[i % 2], k = H[n] / Mt[n].h * t.s * 1.1; const c = AUTUMN[Math.floor(hashI(i, 9) * AUTUMN.length)]; return { x: t.x, y: surfaceY(t.x, t.z) - 0.25, z: t.z, rot: t.rot, sx: Mt[n].w * k, sy: Mt[n].h * k, cell: Mt[n].uv, color: lin(c[0] / 2.2, c[1] / 2.2, c[2] / 2.2) }; });
-      const m = atlasMaterial(A.veg, 'herbst', { color: lin(1.25, 1.25, 1.25) }); if (!m.userData.lum) { lumTint(m); m.userData.lum = 1; }
-      const im = instanced(cardGeometry(opts.tier >= 2 ? 3 : 2, 0.5), m, list, 'trees-herbst', true, true);
-      add(im, true); tris += list.length * 6;
+      const imp = LB.map((n) => impArt(opts, n));
+      if (imp[0] && imp[1]) {
+        // Impostors je Laubart, Herbstfarbe als Instanzfarbe (three.js multipliziert sie nach der Atlas-Farbe)
+        LB.forEach((n, k) => {
+          const L = []; autumn.forEach((t, i) => { if (i % 2 === k) L.push({ x: t.x, y: surfaceY(t.x, t.z) - 0.25, z: t.z, rot: t.rot, s: H[n] * t.s * 1.1, color: list[i].color }); });
+          if (!L.length) return;
+          const im = impostorMesh(imp[k], L, 'trees-herbst-' + n, impOpts(lin(1.25, 1.25, 1.25)));
+          L.forEach((it, i) => im.setColorAt(i, it.color));
+          add(im, true); tris += 2 * L.length;
+        });
+      } else {
+        const m = atlasMaterial(A.veg, 'herbst', { color: lin(1.25, 1.25, 1.25) }); if (!m.userData.lum) { lumTint(m); m.userData.lum = 1; }
+        const im = instanced(cardGeometry(opts.tier >= 2 ? 3 : 2, 0.5), m, list, 'trees-herbst', true, true);
+        add(im, true); tris += list.length * 6;
+      }
     }
     return tris;
   }
@@ -75,8 +107,17 @@ export function buildTrees(track, M, opts, surfaceY, add, treeGeometry) {
     let x = hashI(i, 2) * wsum, c = cells[0];
     for (const cc of cells) { if ((x -= cc[2]) < 0) { c = cc; break; } }
     const mt = veg.meta[c[0]], k = c[1] / mt.h * t.s;
-    list.push({ x: t.x, y: surfaceY(t.x, t.z) - 0.2, z: t.z, rot: t.rot, sx: mt.w * k, sy: mt.h * k, cell: mt.uv });
+    list.push({ x: t.x, y: surfaceY(t.x, t.z) - 0.2, z: t.z, rot: t.rot, sx: mt.w * k, sy: mt.h * k, cell: mt.uv, art: c[0], s: c[1] * t.s });
   });
+  if (!list.length) return tris;
+  // n30: Arten mit Impostor-Atlas herausnehmen (je Art ein Draw-Call), der Rest (z. B. Palmen ohne Modell) bleibt Karte
+  const nachArt = new Map();
+  for (const it of list) if (impArt(opts, it.art)) { if (!nachArt.has(it.art)) nachArt.set(it.art, []); nachArt.get(it.art).push(it); }
+  for (const [n, L] of nachArt) {
+    const im = impostorMesh(impArt(opts, n), L, 'trees-thema-' + n, impOpts(lin(1.5, 1.5, 1.4), 0x0a0c06));
+    add(im, true); tris += 2 * L.length;
+  }
+  if (nachArt.size) { const rest = list.filter((it) => !nachArt.has(it.art)); list.length = 0; list.push(...rest); }
   if (!list.length) return tris;
   const m = atlasMaterial(veg.tex, 'baum', { color: lin(1.5, 1.5, 1.4), emissive: 0x0a0c06 });
   const im = instanced(cardGeometry(opts.tier >= 2 ? 3 : 2, 0.5), m, list, 'trees-thema', true);

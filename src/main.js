@@ -31,6 +31,8 @@ import { ClipRecorder, clipMime } from './ui/cliprec.js';
 import { Quality } from './gfx/quality.js';
 import { geraeteSchluessel, ladeGeraet, merkeGeraet, messeBilder, skalaAusProbe } from './gfx/kern/startprobe.js';
 import { DynReflex } from './gfx/kern/reflex.js';
+import { ImpostorBibliothek } from './gfx/kern/impostor.js';
+import { impostorArten } from './gfx/kulisse.js';
 import { LineViz, LINE_LEVELS } from './gfx/lineviz.js';
 import { Sound } from './audio/sound.js';
 import { CarFX } from './gfx/fx.js';
@@ -81,6 +83,8 @@ let sun, M, carVis, ghostVis, sky, cockpit, themes, air = null, brakeLights = nu
 // der Autopilot darf sie als „teure Deko“ abschalten (reflexOff)
 const REFLEX_MIN = params.get('reflex') === '0' ? 9 : params.get('reflex') === '2' ? 2 : 1;
 let reflex = null, reflexOff = false;
+// n30: Bäume als Oktaeder-Impostors (Standard/Kino), sobald assets/tex/imp/impostor.json da ist; ?impostor=0 = Karten
+const IMP = params.get('impostor') === '0' ? null : new ImpostorBibliothek('assets/tex/imp/impostor.json', renderer);
 
 let sizeW = 0, sizeH = 0, portrait = null;
 function resize() {
@@ -417,8 +421,9 @@ async function loadTrack(layout, meta = {}, pre = null) {
   const th = await themes.use(themeOf(layout));
   env.theme = th.id;
   env.themeRandom = !!randomThemaOf(layout);
+  if (IMP && quality.tier >= 1) await IMP.vorladen(impostorArten(th.def));   // n30: fehlt der Atlas, bleiben es Karten
   if (worldGroup) { scene.remove(worldGroup); worldGroup.traverse((o) => { if (o.geometry) o.geometry.dispose(); }); worldGroup = null; }
-  worldGroup = buildWorld(track, M, { world, tier: quality.tier, ideal, prof, deco: params.get('deko') !== 'aus', theme: { id: th.id, def: th.def, veg: th.veg, horizon: th.horizon, seed: layout.seed || layout.meta?.seed || 1 } });
+  worldGroup = buildWorld(track, M, { world, tier: quality.tier, ideal, prof, deco: params.get('deko') !== 'aus', impostor: IMP, theme: { id: th.id, def: th.def, veg: th.veg, horizon: th.horizon, seed: layout.seed || layout.meta?.seed || 1 } });
   // Deko (n28): Vogelschwärme über der Landschaft (ein Draw-Call, Bahn im Shader)
   if (DEKO) { const b = makeBirds(track, th.id, quality.tier, layout.seed || layout.meta?.seed || 1); if (b) worldGroup.add(b); }
   scene.add(worldGroup);
@@ -1045,6 +1050,7 @@ window.__game = {
   loadImported: (id) => playImported(id),
   info() { const i = renderer.info; return { calls: i.render.calls, tris: i.render.triangles, geometries: i.memory.geometries, textures: i.memory.textures, programs: i.programs ? i.programs.length : 0, pixelRatio: renderer.getPixelRatio(), tier: quality.tier, fps: quality.fps,
     ap: quality.ap ? quality.ap.zustand() : null, carLod: carVis ? carVis.lod : null, ghostLod: ghostVis ? ghostVis.lod : null,
+    impostor: IMP ? { atlas: !!(IMP.meta && IMP.meta.arten), arten: [...IMP.arten.keys()], fehler: IMP.fehler } : null,
     reflex: reflex ? { an: reflex.enabled, bereit: reflex.bereit, ...reflex.stats } : null,
     vao: vaoJob ? { fertig: vaoJob.done, anteil: +vaoJob.anteil.toFixed(3), ...(vaoJob.stats || {}) } : null, apLog: quality.ap ? quality.ap.log.slice(-12) : null, startProbe: app.startProbe || null, gpuZeit: quality.gpu ? quality.gpu.ok : null }; },
   state() {

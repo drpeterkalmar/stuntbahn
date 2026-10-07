@@ -14,6 +14,8 @@ for d in ['src', 'lib', 'icons', 'assets']:
             if rel.startswith(os.path.join('assets', 'themes') + os.sep): continue
             # n30 HDR-Diät: das alte 1k-Land-HDR bleibt nur für ?hdr=1k (A/B) liegen – nicht vorab cachen
             if rel == os.path.join('assets', 'hdr', 'sky_1k.hdr'): continue
+            # n30 Impostors: nur die Tannen (Land, Standard-Landschaft) vorab; die Themen-Bäume beim ersten Abruf
+            if rel.startswith(os.path.join('assets', 'tex', 'imp') + os.sep) and not (f == 'impostor.json' or f.startswith('tanne')): continue
             if f.endswith(('.js', '.png', '.css', '.webp', '.jpg', '.json', '.glb', '.hdr', '.bin', '.m4a', '.ktx2', '.wasm')) and not f.startswith('.') and not twin and rel != os.path.join('assets', 'sammlung_stil.json'):
                 files.append(rel)
 files = sorted(set(files))
