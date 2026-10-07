@@ -966,14 +966,6 @@ function render(rdt) {
   const cfx = cine ? cineFx(rdt) : null;
   const shutter = cine ? Math.min(2.5, 1 / Math.pow(Math.max(0.2, cine.player.speed), 0.6)) : 1;
   const flash = pyroTick(rdt, pose);
-  // n30: Auto-LOD nach Entfernung/Bildwinkel (Geist mindestens Mittel: durchscheinend, Feinheiten sieht man nicht)
-  carVis.updateLod(camera, app.lodForce != null ? { force: app.lodForce } : undefined);
-  if (ghostVis.root.visible) ghostVis.updateLod(camera, { min: 1 });
-  // n30: Lack-Spiegelung – eine Würfelseite je Bild; ausgelassen, wenn das Auto nicht zu sehen oder weit weg ist (Fern-LOD)
-  if (reflex) {
-    reflex.setEnabled(quality.tier >= REFLEX_MIN && !reflexOff);
-    reflex.update(carVis.root, { hide: [carVis.root, ghostVis.root], skip: !carVis.root.visible || carVis.lod >= 2 });
-  }
   drawFrame({ run: running, speed: spd, boost, dt: rdt, cut: blurCut, cockpit: inCockpit, heat: !inCockpit && pose && mode !== 'menu' ? heatOf(spd, boost) : null, dof: cdof, shutter, flash, white: cfx ? cfx.white : 0, whip: cfx ? cfx.whip : null, flareK: cine ? 1.5 : 1 });
   // Video-Aufnahme: Bild direkt nach dem Zeichnen kopieren (Balken wie im CSS: 2,39:1, mindestens 8,5 %)
   if (cine && cine.rec) { const W = innerWidth, H = innerHeight; cine.rec.frame(H > W ? 0 : Math.max(0.085, (H - W / 2.39) / 2 / H), ui.capState()); }
@@ -1011,6 +1003,15 @@ function cineCamera(rdt, pose) {
 
 // Bild zeichnen: Kino-Look (eine Pipeline: Szene, Unschärfe, Licht/Farbe, Cockpit darüber) bzw. ?look=alt wie bis n22
 function drawFrame(o) {
+  // n30: Auto-LOD nach Entfernung/Bildwinkel (Geist mindestens Mittel: durchscheinend, Feinheiten sieht man nicht)
+  carVis.updateLod(camera, app.lodForce != null ? { force: app.lodForce } : undefined);
+  if (ghostVis.root.visible) ghostVis.updateLod(camera, { min: 1 });
+  // n30: Lack-Spiegelung – eine Würfelseite je Bild; ausgelassen, wenn das Auto nicht zu sehen oder weit weg ist (Fern-LOD)
+  // (hier statt in render(), damit auch drawOnce der Mess-Skripte sie mitzählt)
+  if (reflex) {
+    reflex.setEnabled(quality.tier >= REFLEX_MIN && !reflexOff);
+    reflex.update(carVis.root, { hide: [carVis.root, ghostVis.root], skip: !carVis.root.visible || carVis.lod >= 2 });
+  }
   post.setting = params.get('blur') || store.settings.blur || 'light';
   post.tier = quality.tier;
   const overlay = o.cockpit ? (r) => cockpit.render(r) : null;
