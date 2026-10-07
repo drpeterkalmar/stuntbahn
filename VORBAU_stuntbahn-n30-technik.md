@@ -1,6 +1,6 @@
 # Vorbau n30 Technik (Leicht-Spur) → Übergabe an den Heavy-Job `stuntbahn-n30-technik`
 
-Stand: Branch `vorbau/stuntbahn-n30-technik` (9 Commits auf `origin/main` 7ab9f75), 07.10.2026. **main ist unberührt.**
+Stand: Branch `vorbau/stuntbahn-n30-technik` (13 Commits auf `origin/main` 7ab9f75), 07.10.2026. **main ist unberührt.**
 Gebaut wurde ohne Browser, ohne Server, ohne Bundler. Alles Neue lässt sich per URL-Regler abschalten. Geprüft ist es nur
 mit Node-Tests und einer statischen Import-Prüfung. **Nichts davon lief schon im Browser.** Shader-Code, Bild und Messung
 muss der Heavy-Job abnehmen.
