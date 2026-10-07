@@ -29,6 +29,7 @@ import { buildFilm, FilmPlayer, HL } from './game/highlights.js';
 import { CineCam } from './game/cinecam.js';
 import { ClipRecorder, clipMime } from './ui/cliprec.js';
 import { Quality } from './gfx/quality.js';
+import { geraeteSchluessel, ladeGeraet, merkeGeraet, messeBilder, skalaAusProbe } from './gfx/kern/startprobe.js';
 import { LineViz, LINE_LEVELS } from './gfx/lineviz.js';
 import { Sound } from './audio/sound.js';
 import { CarFX } from './gfx/fx.js';
@@ -68,7 +69,8 @@ camera.layers.enable(STATIC_LAYER);
 // ?kl=-bloom,+ssao schaltet einzelne Stufen. Ohne ?look folgt der Look der Grafik-Stufe (Einstellung bzw. Automatik).
 const LOOK = params.get('look');
 const LOOK_FIX = LOOK != null && /^[012]$/.test(LOOK) ? +LOOK : null;
-const quality = new Quality(renderer, params.get('q') ?? (LOOK_FIX != null ? String(LOOK_FIX) : null));
+// n30: Qualitäts-Autopilot aus dem Grafik-Kern (Arbeitszeit, GPU-Zeit, auch aufwärts); ?autopilot=0 = alte Automatik
+const quality = new Quality(renderer, params.get('q') ?? (LOOK_FIX != null ? String(LOOK_FIX) : null), { autopilot: params.get('autopilot') !== '0' });
 const kino = LOOK === 'alt' ? null : new KinoLook(renderer, { level: LOOK_FIX ?? quality.tier, stages: params.get('kl') || '' });
 // Bewegungsunschärfe: im Kino-Look Teil derselben Pipeline (ein Szenen-Durchlauf); ?look=alt: bisheriges post.js
 const post = kino || new Post(renderer);
@@ -186,6 +188,7 @@ async function boot() {
   // ?seed=…&d=… wie bisher flach (alte Codes, Tests); &3d=1 = Hochstraße (n19), &g=1 = Gelände (n22). Ohne Seed: Strecke
   // des Tages in der gewählten Streckenart (ab n22 Standard „Gelände“; Schalter im Menü)
   else await loadGenerated(q ? +q : daySeed(), +(params.get('d') || 2), q ? (params.get('g') === '1' ? 'gel' : params.get('3d') === '1' ? '3d' : 'flat') : store.settings.trackMode);
+  await startAutopilot();
   ui.loading(1, 'Fertig');
   app.ready = true;
   ui.bind({ startRace, newTrack, setAssist, toMenu, retry, startReplay, cycleCam, rewind: () => race && race.requestRewind(), pause: togglePause,
@@ -197,6 +200,28 @@ async function boot() {
   mode = params.has('race') ? 'race' : 'menu';
   if (mode === 'race') startRace();
   requestAnimationFrame(frame);
+}
+
+// n30: Qualitäts-Autopilot starten. Startwert der Renderskala: je Gerät gespeichert (localStorage, 21 Tage), sonst
+// Kurzmessung im Ladebildschirm (4 + 20 Bilder der fertigen Szene, je Bild auf die GPU gewartet). Kino bleibt Startstufe.
+// ?startprobe=0 überspringt die Messung (Start mit dem Preset-Wert).
+async function startAutopilot() {
+  if (!quality.useAP) return;
+  const gl = renderer.getContext();
+  const key = geraeteSchluessel(gl, { w: screen.width, h: screen.height, dpr: devicePixelRatio });
+  const [lo, hi, st] = quality.scaleRangeOf(quality.tier);
+  let start = quality.forced ? null : ladeGeraet(localStorage, key);
+  if (start) { if ((start.stufe ?? 2) < quality.tier) start.skala = lo; app.startProbe = { gespeichert: true, skala: start.skala }; }
+  else if (!quality.forced && params.get('startprobe') !== '0') {
+    ui.loading(0.95, 'Grafik einstellen …');
+    const s0 = kino && quality.kinoOn() ? kino.renderScale : 1;
+    const r = await messeBilder(() => render(1 / 60), gl, { bilder: 20, vorlauf: 4 });
+    start = { skala: skalaAusProbe(r.median, { min: lo, max: hi, aktuell: s0 }) };
+    app.startProbe = { ...r, skala: start.skala };
+  }
+  quality.startAutopilot({ skala: start ? start.skala : st, gl,
+    onAenderung: () => merkeGeraet(localStorage, key, { skala: quality.ap.skala, stufe: quality.tier }) });
+  if (start && quality.ap) merkeGeraet(localStorage, key, { skala: quality.ap.skala, stufe: quality.tier });
 }
 
 // Generierte Strecke: aus Cache (bereits geprüft) oder Autopilot-Prüfung mit Fortschrittsanzeige.
@@ -382,6 +407,7 @@ async function loadTrack(layout, meta = {}, pre = null) {
   lineViz.build(ideal, prof, track);
   env.buildMs = performance.now() - t0;
   try { if (renderer.compileAsync) await renderer.compileAsync(scene, camera); } catch { /* optional */ }
+  if (quality.ap) quality.ap.schonen(1.5);   // n30: Shader/Texturen der neuen Strecke – erste Bilder zählen nicht
   // Vorschau: Auto an den Start
   quitShow();
   race = new Race(env, { assist: store.settings.assist, countdown: 1e9 });
@@ -620,13 +646,15 @@ function rotated(p) {
 function togglePause() { if (mode !== 'race') return; frozen = !frozen; ui.showPause(frozen); if (frozen) sound.stop(); else sound.start(); }
 
 // ---------- Schleife ----------
+let cpuLast = null;   // n30: CPU-Arbeitszeit des letzten Bildes (Qualitäts-Autopilot)
 function frame(now) {
   requestAnimationFrame(frame);
+  const tA = performance.now();
   const rdt = Math.min(0.1, (now - last) / 1000);
   last = now;
   app.frames++;
   if (innerWidth !== sizeW || innerHeight !== sizeH) resize();   // Drehen ohne (rechtzeitiges) resize-Ereignis
-  quality.sample(rdt, () => resize());
+  quality.sample(rdt, () => resize(), cpuLast);
   // Mittel (n23): Touch-Pfeile mit tempoabhängiger Rampe (input.js rampSteer)
   input.touchRamp = !!(race && race.assist && race.assist.touchRamp); input.speedHint = race ? Math.abs(race.car.fwdSpeed()) : 0;
   const inp = input.update(rdt);
@@ -663,7 +691,10 @@ function frame(now) {
     replay.advance(rdt * timeScale);
     if (replay.jumped) { replay.jumped = false; rig.init = false; blurCut = true; ui.gmeterCut(); } // Schnitt: Kamera neu ansetzen statt schwenken
   }
+  if (quality.gpu) quality.gpu.anfang();
   render(rdt);
+  if (quality.gpu) quality.gpu.ende();
+  cpuLast = performance.now() - tA;
 }
 
 function handleEvents() {
@@ -974,7 +1005,8 @@ window.__game = {
   // Import (Tests): Bytes als Array → Ergebnisliste; Strecke laden
   importBytes: (arr, name) => importFiles([new File([new Uint8Array(arr)], name || 'test.trk')]),
   loadImported: (id) => playImported(id),
-  info() { const i = renderer.info; return { calls: i.render.calls, tris: i.render.triangles, geometries: i.memory.geometries, textures: i.memory.textures, programs: i.programs ? i.programs.length : 0, pixelRatio: renderer.getPixelRatio(), tier: quality.tier, fps: quality.fps }; },
+  info() { const i = renderer.info; return { calls: i.render.calls, tris: i.render.triangles, geometries: i.memory.geometries, textures: i.memory.textures, programs: i.programs ? i.programs.length : 0, pixelRatio: renderer.getPixelRatio(), tier: quality.tier, fps: quality.fps,
+    ap: quality.ap ? quality.ap.zustand() : null, apLog: quality.ap ? quality.ap.log.slice(-12) : null, startProbe: app.startProbe || null, gpuZeit: quality.gpu ? quality.gpu.ok : null }; },
   state() {
     const c = race && race.car;
     return { mode, state: race && race.state, time: race && race.time, speed: c && c.speed(), pos: c && [c.pos.x, c.pos.y, c.pos.z], up: c && c.frame.u.y, cp: race && race.cpNext, cps: race && race.cps.length, lap: race && race.tracker.lap, idx: race && race.tracker.idx, n: env && env.track.line.n, crashes: race && race.crashes, rewinds: race && race.rewinds, penalties: race && race.penalties, wreck: race && race.wreckOn, crash: c && c.crash, assist: store.settings.assist, seed: env && env.meta.seed, diff: env && env.meta.diff, key: env && env.meta.key, frames: app.frames,
