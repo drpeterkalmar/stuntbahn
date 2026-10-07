@@ -71,6 +71,7 @@ export class Quality {
       return { skala: [a, b, r < 0 ? c : a] };   // runter: Start der Stufe; rauf: vorsichtig am Minimum
     }, { stufen: 2, start: this.tier, raufBeiSkalaMax: true });
     if (o.gl) this.gpu = new GpuZeit(o.gl);
+    this.ap.setzeSkala(this.ap.skala, true);   // Startwert (Kurzmessung/gespeichert) sofort an Kino-Look bzw. Auflösung geben
     return this.ap;
   }
   // Renderskalen-Bereich [min, max, start] je Stufe: Kino-Look-Preset, sonst Bildschirm-Auflösung 0,6–1

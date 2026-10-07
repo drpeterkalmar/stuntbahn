@@ -230,6 +230,14 @@ for (const gpuTimer of [true, false]) {
   ok(q.tier === 2 && !q.decoLite && q.carShadowSize() > 0, `Last weg: wieder Kino, Deko und Auto-Schatten an (Skala ${kino.renderScale}, Log ${q.ap.log.filter((e) => e.richtung > 0).map((e) => e.was).join('→')})`);
   ok(resizes > 0, `Änderungen lösen resize() aus (${resizes})`);
   // feste Nutzerwahl → kein Autopilot
+  // Startwert der Kurzmessung kommt sofort beim Kino-Look an
+  {
+    const q5 = new Quality({}, null, { autopilot: true }); q5.post = { active: false, autoOff: true }; q5.kino = kino; kino.setLevel(2); kino.renderScale = 1;
+    q5.startAutopilot({ skala: 0.8 });
+    ok(Math.abs(kino.renderScale - 0.8) < 1e-9 && q5.ap.skala === 0.8, `Start-Skala 0,8 aus der Kurzmessung → Kino-Look rendert mit ${kino.renderScale}`);
+    q5.startAutopilot({ skala: 0.3 });
+    ok(kino.renderScale === 0.7, `Start-Skala unter dem Minimum der Stufe → geklemmt (${kino.renderScale})`);
+  }
   // Nutzerwahl mitten im Betrieb: vom Autopiloten Abgeschaltetes (auch Spiel-Dinge wie die Lack-Spiegelung) wieder an
   {
     let reflexOff = false;
