@@ -5,8 +5,9 @@ Reine Optik: Physik, Fahrhilfen, Strecken, Bestzeiten, Steuerung und HUD sind un
 darunter die Bitgleichheits-Prüfungen von Drift, Stunt-Größe, Zielshow und Röhre).
 
 ## Kurz
-- **Live:** https://drpeterkalmar.github.io/stuntbahn/ – Build siehe unten „Abschluss“, live geprüft (HTTP 200, Rennen,
-  offline, 0 Fehler).
+- **Live:** https://drpeterkalmar.github.io/stuntbahn/ – Build **19b10a8a0e** (Version 0.2.0), live geprüft: HTTP 200,
+  Build live = lokal, Rennen bis ins Ziel, offline startbar, 0 Fehler; zusätzlich live `?deko=0` (keine Wolken/Teilchen)
+  und `?thema=winter` (1100 Schneeflocken), je 0 Fehler.
 - **Neu am Himmel:** Wolken bei Alpen, Wüste, Küste, Stadt und Herbst (vorher war dort ein leerer blauer Verlauf –
   hochkant das ganze obere Bilddrittel), dazu kreisende Vögel neben der Strecke.
 - **Neu am Boden und in der Luft:** Wiesenblumen und große Farbflecken in der Wiese, grüne statt schwarzer Grasbüschel,
