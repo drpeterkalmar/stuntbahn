@@ -743,7 +743,9 @@ export class UI {
     // Leicht (n15): keine Bestzeit-Wertung – „Deine Zeit“ und die letzten Zeiten auf dieser Strecke
     // A/B-Vergleich per URL (n21): keine Wertung
     const best = res.easy ? this.timesHtml(res.list, true) : res.ab ? '<div class="prev">A/B-Vergleich (Link-Zusatz) – keine Bestzeit</div>' : res.isBest ? '<div class="rec">🏆 Neue Bestzeit!</div>' : (res.prev ? `<div class="prev">Bestzeit ${fmtTime(res.prev)} (${(res.time - res.prev >= 0 ? '+' : '') + (res.time - res.prev).toFixed(2).replace('.', ',')} s)</div>` : '');
-    $('#result').innerHTML = `<div class="card"><h2>🏁 Ziel!</h2>${res.easy ? '<div class="ryour">Deine Zeit</div>' : ''}
+    // n28 Deko: Zeit springt herein, Glanz läuft einmal darüber (Bestzeit golden); ?deko=0 und „Bewegung reduzieren“ ohne
+    const dk = new URLSearchParams(location.search).get('deko') !== '0' ? ` deko${res.isBest && !res.ab && !res.easy ? ' gold' : ''}` : '';
+    $('#result').innerHTML = `<div class="card${dk}"><h2>🏁 Ziel!</h2>${res.easy ? '<div class="ryour">Deine Zeit</div>' : ''}
       <div class="rtime">${fmtTime(res.time)}</div>${pen}${best}
       <div class="rmeta">${A.icon} ${A.name} · ${race.wreckOn ? '💥 Totalschaden an' : 'Totalschaden aus'} · ${race.extrasOn ? `Extras: 🦘 ${race.used.hop ? '✓' : '–'} 🔥 ${race.used.nitro ? '✓' : '–'}` : 'ohne Extras'} · ${env.meta.name} (${env.meta.key}) · Crashs ${race.crashes}${race.rewinds ? ' · Rückspulen ' + race.rewinds : ''}</div>
       <div class="row"><button class="big go" data-a="retry">🔁 Nochmal</button><button data-a="replay">📼 Replay</button>${race.film ? '<button data-a="cine">🎬 Highlights</button>' : ''}</div>

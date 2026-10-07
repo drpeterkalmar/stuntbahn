@@ -81,6 +81,9 @@ spielbar am Handy (quer oder hochkant), mit Gamepad oder Tastatur. Als App insta
   Land/Alpen/Küste Pollen, die im Gegenlicht glitzern, Wüste treibender Sand, Stadt Staub – alles in einem Kasten um die
   Kamera, Bewegung im Shader, nach Grafikstufe dosiert (Einfach 40 %, Standard 70 %), die Automatik „Deko sparsam“ nimmt
   sie mit weg. **Reifenspuren** mit weichem Rand, verblassen nach 20–35 s.
+- **Bremslichter** leuchten beim Bremsen rot auf (auch beim Autopiloten, im Replay und Film – aus der Verzögerung),
+  sonst glimmen sie leicht. **Ergebnis-Karte:** die Zeit springt herein, ein Glanz läuft einmal darüber, Bestzeit golden
+  mit kurzem Leuchten (einmalige CSS-Animation; bei „Bewegung reduzieren“ ohne).
 - Menü quer: alle Knopfreihen passen ins Bild (Fahrhilfe-Hinweis auf 3 Zeilen, Tippen zeigt ihn ganz); die Info-Zeile
   bricht nur noch vor einem „·“ um. „Bewegung reduzieren“ des Systems schaltet das Kameraschütteln ab.
 - **`?deko=0`** = Aussehen wie bis n29 (A/B), `?deko=aus` = ohne Streckenrand-Deko (hieß bis n29 `?deko=0`).

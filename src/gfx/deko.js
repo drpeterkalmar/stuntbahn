@@ -265,3 +265,37 @@ export class AirMotes {
     this.mesh.visible = this.mesh.geometry.instanceCount > 0;
   }
 }
+
+// ---------- Bremslichter ----------
+// Rote Leuchten an den Rückleuchten (dunkle Gläser außen, runde Lampen neben dem Kennzeichen): glimmen immer leicht,
+// leuchten beim Bremsen hell auf (Bloom des Kino-Looks lässt sie strahlen). 4 Sprites, additiv, Textur einmal gerechnet.
+let glowTex = null;
+function glowTexture() {
+  if (glowTex) return glowTex;
+  const N = 64, d = new Uint8Array(N * N * 4);
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    const r = Math.hypot(x + 0.5 - N / 2, y + 0.5 - N / 2) / (N / 2), a = Math.max(0, 1 - r) ** 2.2, k = (y * N + x) * 4;
+    d[k] = d[k + 1] = d[k + 2] = 255; d[k + 3] = Math.round(255 * a);
+  }
+  const t = new THREE.DataTexture(d, N, N); t.magFilter = THREE.LinearFilter; t.minFilter = THREE.LinearFilter; t.needsUpdate = true;
+  return (glowTex = t);
+}
+export function makeBrakeLights(root) {
+  const mat = new THREE.SpriteMaterial({ map: glowTexture(), color: 0xff2010, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, toneMapped: false, fog: false });
+  const grp = new THREE.Group(); grp.name = 'deko-bremslicht';
+  for (const [x, y, z, sx, sy] of [[-0.7, 0.24, 2.24, 0.85, 0.3], [0.7, 0.24, 2.24, 0.85, 0.3], [-0.28, 0.15, 2.27, 0.3, 0.24], [0.28, 0.15, 2.27, 0.3, 0.24]]) {
+    const s = new THREE.Sprite(mat); s.position.set(x, y, z); s.scale.set(sx, sy, 1); s.userData.fx = true; s.renderOrder = 5; grp.add(s);
+  }
+  root.add(grp);
+  let k = 0;
+  return {
+    grp,
+    // b = Bremsen 0 … 1 (aus Pedal bzw. Verzögerung), dt für weiches An-/Ausgehen
+    set(b, dt) {
+      k += (b - k) * Math.min(1, dt * (b > k ? 22 : 8));
+      mat.color.setRGB(1.0, 0.07, 0.03).multiplyScalar(0.25 + 4.2 * k);
+      mat.opacity = 0.55 + 0.45 * k;
+      grp.visible = root.visible;
+    },
+  };
+}

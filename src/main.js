@@ -38,7 +38,7 @@ import { Post } from './gfx/post.js';
 import { KinoLook } from './gfx/kinolook.js';
 import { loadDecoAssets, decoUniforms } from './gfx/deco.js';
 import { kulisseTick } from './gfx/kulisse.js';
-import { DEKO, REDUCED, makeBirds, AirMotes } from './gfx/deko.js';
+import { DEKO, REDUCED, makeBirds, AirMotes, makeBrakeLights } from './gfx/deko.js';
 import { daySeed } from './core/util.js';
 import { showKmhMs } from './core/showspeed.js';
 import { GMeter, G_ON } from './core/gforce.js';
@@ -73,7 +73,7 @@ const kino = LOOK === 'alt' ? null : new KinoLook(renderer, { level: LOOK_FIX ??
 // Bewegungsunschärfe: im Kino-Look Teil derselben Pipeline (ein Szenen-Durchlauf); ?look=alt: bisheriges post.js
 const post = kino || new Post(renderer);
 quality.post = post; quality.kino = kino;
-let sun, M, carVis, ghostVis, sky, cockpit, themes, air = null;
+let sun, M, carVis, ghostVis, sky, cockpit, themes, air = null, brakeLights = null, brakeV = null;
 
 let sizeW = 0, sizeH = 0, portrait = null;
 function resize() {
@@ -161,7 +161,8 @@ async function boot() {
   ui.loading(0.6, 'Auto lackieren …');
   carVis = await makeCar({ color: store.settings.paint, contact: !!kino });
   scene.add(carVis.root);
-  rig.carBox = carLocalBox(carVis);   // Stoßstangen-Kamera: vor die Nase
+  rig.carBox = carLocalBox(carVis);
+  if (DEKO) brakeLights = makeBrakeLights(carVis.root);   // n28 (nach der Auto-Box: zählt nicht zur Karosserie)   // Stoßstangen-Kamera: vor die Nase
   post.setCarBox(rig.carBox);
   ghostVis = await makeCar({ color: 0xffffff, contact: false });
   ghostVis.root.traverse((o) => {
@@ -806,6 +807,15 @@ function render(rdt) {
     carVis.sync(c, 1, pose);
   }
   updateCheer(pose, rdt);
+  // n28: Bremslichter – Pedal (Rennen) bzw. Verzögerung aus dem Tempo (Autopilot, Replay, Film)
+  if (brakeLights) {
+    let b = 0;
+    const v = mode === 'replay' && replay ? Math.abs(replay.speed()) : race ? race.car.speed() : 0;
+    if (mode === 'race' && race && race.car.input) b = race.car.input.brake > 0.2 && v > 1 ? 1 : 0;
+    if (brakeV != null && rdt > 0 && mode !== 'menu') { const dec = (brakeV - v) / rdt; if (dec > 5 && v > 2) b = Math.max(b, Math.min(1, (dec - 5) / 8)); }
+    brakeV = frozen || (replay && replay.paused) ? brakeV : v;
+    brakeLights.set(b, frozen ? 0 : rdt);
+  }
   kulisseTick(decoUniforms.uTime.value);
   if (pose && mode === 'menu' && !app.freezeCam) {
     // Menü: langsame Kamerafahrt um das Auto am Start
@@ -994,6 +1004,7 @@ window.__game = {
   get timeScale() { return timeScale; },
   cam(m) { rig.mode = m; rig.init = false; },
   get cockpit() { return cockpit; },
+  get brakeLights() { return brakeLights; }, get air() { return air; },
   get fx() { return fx; },
   get carVis() { return carVis; }, get ghostVis() { return ghostVis; }, get ghost() { return ghost; },
   // Physik ohne Rendering vorspulen (Headless: schneller als Echtzeit)
