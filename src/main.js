@@ -7,7 +7,7 @@ import { makeSky, sunDirFromUV, bakeStaticShadow } from './gfx/env.js';
 import { ThemeManager } from './gfx/themes.js';
 import { themeFor, THEMES, THEME_IDS } from './track/themes.js';
 import { buildWorld, STATIC_LAYER } from './gfx/world.js';
-import { makeCar, loadCarModel, parkedCarGeometry, EXHAUST } from './gfx/carmesh.js';
+import { makeCar, loadCarModel, loadCarLods, parkedCarGeometry, EXHAUST } from './gfx/carmesh.js';
 import { CameraRig, CAM_MODES, CAM_NAMES, cockpitDash, clearLens } from './gfx/camera.js';
 import { Cockpit } from './gfx/cockpit.js';
 import { displayGear } from './gfx/gauges.js';
@@ -135,6 +135,16 @@ let acc = 0, last = performance.now(), frozen = false, timeScale = GAME_SPEED;
 let prevPose = null;
 let blurCut = true;      // nächstes Bild ohne Bewegungsunschärfe (Kameraschnitt)
 
+// Geist: durchscheinend hellblau, ohne Schatten (n30: auch für die nachgeladenen LOD-Stufen, nur = 'lod')
+function ghostify(root, nur = null) {
+  root.traverse((o) => {
+    if (o.isMesh && !o.userData.fx && (nur !== 'lod' || o.userData.lod > 0)) {   // Nitro-Flammen des Geists bleiben Flammen
+      o.castShadow = false; o.receiveShadow = false;
+      o.material = new THREE.MeshBasicMaterial({ color: 0x9fe0ff, transparent: true, opacity: 0.28, depthWrite: false });
+    }
+  });
+}
+
 async function boot() {
   ui.loading(0.05, 'Himmel und Licht …');
   // Kulissen (n20): Himmel/Licht/Boden kommen mit dem Landschafts-Thema der Strecke (gfx/themes.js). Das Thema der Start-
@@ -167,12 +177,7 @@ async function boot() {
   if (DEKO) brakeLights = makeBrakeLights(carVis.root);   // n28 (nach der Auto-Box: zählt nicht zur Karosserie)   // Stoßstangen-Kamera: vor die Nase
   post.setCarBox(rig.carBox);
   ghostVis = await makeCar({ color: 0xffffff, contact: false });
-  ghostVis.root.traverse((o) => {
-    if (o.isMesh && !o.userData.fx) {   // Nitro-Flammen des Geists bleiben Flammen
-      o.castShadow = false; o.receiveShadow = false;
-      o.material = new THREE.MeshBasicMaterial({ color: 0x9fe0ff, transparent: true, opacity: 0.28, depthWrite: false });
-    }
-  });
+  ghostify(ghostVis.root);
   ghostVis.root.visible = false;
   scene.add(ghostVis.root);
   cockpit = new Cockpit(scene.environment, carVis.mats.paint, { tier: quality.tier });
@@ -199,6 +204,12 @@ async function boot() {
   ui.showMenu(env);
   mode = params.has('race') ? 'race' : 'menu';
   if (mode === 'race') startRace();
+  // n30: Heldenauto-LOD (Mittel/Fern) erst nach dem Start nachladen; ?lod=0 = immer volles Modell
+  if (params.get('lod') !== '0') loadCarLods().then(([mid, far]) => {
+    for (const c of [carVis, ghostVis]) { c.addLod(mid, 1); c.addLod(far, 2); }
+    ghostify(ghostVis.root, 'lod');
+    app.carLod = { mid: carVis.lodMeshes[1].length, far: carVis.lodMeshes[2].length };
+  }).catch((e) => console.warn('Auto-LOD nicht geladen', e));
   requestAnimationFrame(frame);
 }
 
@@ -937,6 +948,9 @@ function render(rdt) {
   const cfx = cine ? cineFx(rdt) : null;
   const shutter = cine ? Math.min(2.5, 1 / Math.pow(Math.max(0.2, cine.player.speed), 0.6)) : 1;
   const flash = pyroTick(rdt, pose);
+  // n30: Auto-LOD nach Entfernung/Bildwinkel (Geist mindestens Mittel: durchscheinend, Feinheiten sieht man nicht)
+  carVis.updateLod(camera, app.lodForce != null ? { force: app.lodForce } : undefined);
+  if (ghostVis.root.visible) ghostVis.updateLod(camera, { min: 1 });
   drawFrame({ run: running, speed: spd, boost, dt: rdt, cut: blurCut, cockpit: inCockpit, heat: !inCockpit && pose && mode !== 'menu' ? heatOf(spd, boost) : null, dof: cdof, shutter, flash, white: cfx ? cfx.white : 0, whip: cfx ? cfx.whip : null, flareK: cine ? 1.5 : 1 });
   // Video-Aufnahme: Bild direkt nach dem Zeichnen kopieren (Balken wie im CSS: 2,39:1, mindestens 8,5 %)
   if (cine && cine.rec) { const W = innerWidth, H = innerHeight; cine.rec.frame(H > W ? 0 : Math.max(0.085, (H - W / 2.39) / 2 / H), ui.capState()); }
@@ -1006,7 +1020,7 @@ window.__game = {
   importBytes: (arr, name) => importFiles([new File([new Uint8Array(arr)], name || 'test.trk')]),
   loadImported: (id) => playImported(id),
   info() { const i = renderer.info; return { calls: i.render.calls, tris: i.render.triangles, geometries: i.memory.geometries, textures: i.memory.textures, programs: i.programs ? i.programs.length : 0, pixelRatio: renderer.getPixelRatio(), tier: quality.tier, fps: quality.fps,
-    ap: quality.ap ? quality.ap.zustand() : null, apLog: quality.ap ? quality.ap.log.slice(-12) : null, startProbe: app.startProbe || null, gpuZeit: quality.gpu ? quality.gpu.ok : null }; },
+    ap: quality.ap ? quality.ap.zustand() : null, carLod: carVis ? carVis.lod : null, ghostLod: ghostVis ? ghostVis.lod : null, apLog: quality.ap ? quality.ap.log.slice(-12) : null, startProbe: app.startProbe || null, gpuZeit: quality.gpu ? quality.gpu.ok : null }; },
   state() {
     const c = race && race.car;
     return { mode, state: race && race.state, time: race && race.time, speed: c && c.speed(), pos: c && [c.pos.x, c.pos.y, c.pos.z], up: c && c.frame.u.y, cp: race && race.cpNext, cps: race && race.cps.length, lap: race && race.tracker.lap, idx: race && race.tracker.idx, n: env && env.track.line.n, crashes: race && race.crashes, rewinds: race && race.rewinds, penalties: race && race.penalties, wreck: race && race.wreckOn, crash: c && c.crash, assist: store.settings.assist, seed: env && env.meta.seed, diff: env && env.meta.diff, key: env && env.meta.key, frames: app.frames,

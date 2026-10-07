@@ -10,6 +10,7 @@ Physik, Generator, Ton-Synthese und Icons sind eigene Arbeit (Ton-Aufnahmen: sie
 | `car/goblin.glb` | [Fictional supercar – V12 Goblin](https://sketchfab.com/3d-models/fictional-supercar-v12-goblin-0a20e49ad5774d778567cb5c3f345786) (Sketchfab) | Olli Teittinen ([ollitei](https://sketchfab.com/ollitei)) | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | Spec-Gloss → Metal-Rough, Schattenebene entfernt, Geometrie vereinfacht (86k → 56k Dreiecke), Texturen WebP 1k, Meshopt-Kompression; im Spiel Lack per Maske umgefärbt |
 
 | `car/goblin_lod.glb` | wie oben (abgeleitet) | Olli Teittinen (ollitei) | CC BY 4.0 | stark vereinfacht (86k → 6,5k Dreiecke), ohne Texturen, einfarbige Materialien – nur für geparkte Autos importierter Strecken, wird bei Bedarf geladen |
+| `car/goblin_mid.glb`, `car/goblin_far.glb` | wie oben (abgeleitet) | Olli Teittinen (ollitei) | CC BY 4.0 | n30: Detailstufen (LOD) des Heldenautos, vereinfacht (86k → 15k bzw. 7k Dreiecke), ohne eigene Texturen (nutzen die des Heldenautos), Meshopt-Kompression; `tools/build_assets.mjs --car-mid` |
 
 Fiktives Originaldesign (kein Markenauto). Namensnennung auch im Spiel unter „Credits“.
 

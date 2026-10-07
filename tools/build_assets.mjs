@@ -95,3 +95,31 @@ if (all || args.includes('--car-lod')) {
   await io.write(path.join(OUT, 'car', 'goblin_lod.glb'), doc);
   console.log('Auto (LOD, geparkt): Dreiecke', before, '->', after, 'Datei', (fs.statSync(path.join(OUT, 'car', 'goblin_lod.glb')).size / 1e3).toFixed(0), 'KB');
 }
+
+// n30: Heldenauto in Mittel- und Fern-Stufe (LOD) für Verfolger weit, Replay-Totale und Geist. Gleiche Knoten-Namen und
+// Material-Namen wie das Original (carmesh.js ordnet Räder und Materialien darüber zu), UVs bleiben, Texturen fliegen raus
+// (zur Laufzeit nimmt jede Stufe die Materialien/Texturen des Heldenautos → keine doppelten Texturen im Download).
+//   node tools/build_assets.mjs --car-mid     → assets/car/goblin_mid.glb (~15 k Dreiecke), assets/car/goblin_far.glb (~6,5 k)
+if (all || args.includes('--car-mid')) {
+  await MeshoptEncoder.ready; await MeshoptDecoder.ready; await MeshoptSimplifier.ready;
+  const io = new NodeIO().registerExtensions(ALL_EXTENSIONS)
+    .registerDependencies({ 'meshopt.encoder': MeshoptEncoder, 'meshopt.decoder': MeshoptDecoder });
+  const count = (doc) => { let n = 0; for (const m of doc.getRoot().listMeshes()) for (const p of m.listPrimitives()) n += (p.getIndices()?.getCount() || 0) / 3; return n; };
+  for (const [name, ziel, error] of [['goblin_mid', 15000, 0.012], ['goblin_far', 6500, 0.04]]) {
+    const doc = await io.read(path.join(SRC, 'goblin_src.glb'));
+    for (const n of doc.getRoot().listNodes()) if (n.getName().startsWith('car_shadow')) n.dispose();
+    await doc.transform(metalRough(), dedup(), prune(), weld());
+    const before = count(doc);
+    // Verhältnis aus dem Ziel; kleine Teile (Schrauben, Embleme) lassen sich kaum vereinfachen → etwas tiefer ansetzen
+    await doc.transform(simplify({ simplifier: MeshoptSimplifier, ratio: Math.min(1, (ziel / before) * 0.85), error, lockBorder: false }));
+    for (const mat of doc.getRoot().listMaterials()) {
+      mat.setBaseColorTexture(null).setNormalTexture(null).setMetallicRoughnessTexture(null).setOcclusionTexture(null).setEmissiveTexture(null);
+      for (const ext of mat.listExtensions()) mat.setExtension(ext.extensionName, null);
+    }
+    for (const t of doc.getRoot().listTextures()) t.dispose();
+    await doc.transform(prune({ keepAttributes: true, keepLeaves: false }), meshopt({ encoder: MeshoptEncoder, level: 'medium' }));
+    const after = count(doc);
+    await io.write(path.join(OUT, 'car', name + '.glb'), doc);
+    console.log(`Auto (${name}): Dreiecke`, before, '->', after, 'Datei', (fs.statSync(path.join(OUT, 'car', name + '.glb')).size / 1e3).toFixed(0), 'KB');
+  }
+}
