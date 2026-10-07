@@ -6,6 +6,7 @@ import { buildDeco } from './deco.js';
 import { buildTrees, buildBackdrop, buildSea } from './kulisse.js';
 import { farLift } from '../track/themes.js';
 import { buildJumpMarks } from './jumpdeck.js';
+import { bakeVertexAOSchritte } from '../track/vao.js';
 
 const STATIC_LAYER = 1;
 
@@ -19,6 +20,31 @@ function geo(b) {
   g.setIndex(new THREE.BufferAttribute(b.idx, 1));
   g.computeBoundingSphere();
   return g;
+}
+
+// n30: gebackene Vertex-AO der Strecke (track/vao.js) schrittweise rechnen und als Attribut „aOcc“ anhängen
+// (materials.js patchVertexAO). step(ms) je Bild aufrufen; ohne Attribut sieht die Strecke aus wie bisher (Standardwert 0).
+// sync = alles sofort (Tests/Fotos, ?vao=sync).
+export function vaoAuftrag(root, colWorld, opts = {}) {
+  const list = root.userData.trk || [];
+  const it = bakeVertexAOSchritte(list.map(([b]) => b), colWorld, opts);
+  const job = { done: false, anteil: 0, stats: null };
+  const fertig = (stats) => {
+    for (const [b, mesh] of list) if (b.occ) mesh.geometry.setAttribute('aOcc', new THREE.BufferAttribute(b.occ, 1));
+    job.done = true; job.anteil = 1; job.stats = stats;
+  };
+  job.step = (ms = 6) => {
+    if (job.done) return true;
+    const t0 = performance.now();
+    for (;;) {
+      const r = it.next();
+      if (r.done) { fertig(r.value); return true; }
+      job.anteil = r.value.anteil;
+      if (performance.now() - t0 >= ms) return false;
+    }
+  };
+  if (opts.sync) job.step(1e9);
+  return job;
 }
 
 function bannerTexture(text, bg, fg) {
@@ -50,10 +76,12 @@ export function buildWorld(track, M, opts = {}) {
     return mesh;
   };
   const stats = { tris: 0, meshes: 0 };
+  root.userData.trk = [];   // n30: [Batch, Mesh] für die gebackene Vertex-AO (vaoAuftrag)
   // Strecke
   for (const b of track.batches) {
     const m = M[b.mat] || M[MAT.CONCRETE];
     const mesh = new THREE.Mesh(geo(b), m);
+    root.userData.trk.push([b, mesh]);
     mesh.name = 'trk' + b.mat + '@' + b.chunk;
     add(mesh, b.mat !== MAT.ROAD && b.mat !== MAT.KERB);
     stats.tris += b.idx.length / 3; stats.meshes++;

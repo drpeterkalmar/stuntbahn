@@ -550,5 +550,33 @@ export function makeMaterials(renderer, q = {}) {
     const m = M[k];
     if (Array.isArray(m)) m.forEach(patchStaticShadow); else patchStaticShadow(m);
   }
+  for (const v of Object.values(MAT)) if (M[v] && !Array.isArray(M[v])) patchVertexAO(M[v]);   // n30: Strecken-Materialien
   return M;
+}
+
+// n30: gebackene Vertex-AO der Strecke (track/vao.js, Attribut „aOcc“ 0 = frei … 1 = verdeckt). Dämpft das Umgebungslicht
+// (Himmel/IBL) und ein wenig die Sonne in engen Ecken. Meshes ohne Attribut: Standardwert 0 (defaultAttributeValues) →
+// unverändert. vaoUniforms.sbVaoOn = 0 schaltet es zur Laufzeit ab (A/B).
+// TODO n30-Heavy: Stärke am Bild gegen SAO abstimmen (sbVao: x = Umgebungslicht, y = Sonne)
+export const vaoUniforms = { sbVaoOn: { value: 1 }, sbVao: { value: new THREE.Vector2(1.0, 0.25) } };
+export function patchVertexAO(mat) {
+  mat.defaultAttributeValues = { ...(mat.defaultAttributeValues || {}), aOcc: [0] };
+  const fn = (sh) => {
+    Object.assign(sh.uniforms, vaoUniforms);
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', '#include <common>\nattribute float aOcc;\nvarying float vSbOcc;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvSbOcc = aOcc;');
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', '#include <common>\nvarying float vSbOcc;\nuniform float sbVaoOn;\nuniform vec2 sbVao;')
+      .replace('#include <aomap_fragment>', `#include <aomap_fragment>
+      {
+        float sbOcc = clamp( vSbOcc, 0.0, 1.0 ) * sbVaoOn;
+        reflectedLight.indirectDiffuse *= 1.0 - sbOcc * sbVao.x;
+        reflectedLight.indirectSpecular *= 1.0 - sbOcc * sbVao.x * 0.8;
+        reflectedLight.directDiffuse *= 1.0 - sbOcc * sbVao.y;
+      }`);
+  };
+  fn.tag = 'vao';
+  addPatch(mat, fn);
+  return mat;
 }

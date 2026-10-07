@@ -2,11 +2,11 @@
 // Debug-API window.__game für Headless-Tests.
 import * as THREE from 'three';
 import { BUILD } from './build.js';
-import { makeMaterials, shadowUniforms, preloadKtx2, themeUniforms } from './gfx/materials.js';
+import { makeMaterials, shadowUniforms, preloadKtx2, themeUniforms, vaoUniforms } from './gfx/materials.js';
 import { makeSky, sunDirFromUV, bakeStaticShadow } from './gfx/env.js';
 import { ThemeManager } from './gfx/themes.js';
 import { themeFor, THEMES, THEME_IDS } from './track/themes.js';
-import { buildWorld, STATIC_LAYER } from './gfx/world.js';
+import { buildWorld, STATIC_LAYER, vaoAuftrag } from './gfx/world.js';
 import { makeCar, loadCarModel, loadCarLods, parkedCarGeometry, EXHAUST } from './gfx/carmesh.js';
 import { CameraRig, CAM_MODES, CAM_NAMES, cockpitDash, clearLens } from './gfx/camera.js';
 import { Cockpit } from './gfx/cockpit.js';
@@ -414,6 +414,9 @@ async function loadTrack(layout, meta = {}, pre = null) {
   scene.add(worldGroup);
   await placeParkedCars(track);
   bakeStaticShadow(renderer, scene, sun.userData.dir, track.bounds, quality.staticShadowSize());
+  // n30: gebackene Vertex-AO der Strecke – schrittweise in den ersten Bildern (frame), ?vao=0 = aus, ?vao=sync = sofort
+  vaoJob = params.get('vao') === '0' ? null : vaoAuftrag(worldGroup, world, { sync: params.get('vao') === 'sync' });
+  vaoUniforms.sbVaoOn.value = vaoJob && vaoJob.done ? 1 : 0;   // fertig → in frame() weich einblenden statt „Plopp“
   rig.setTrackCams(track);
   lineViz.build(ideal, prof, track);
   env.buildMs = performance.now() - t0;
@@ -658,6 +661,7 @@ function togglePause() { if (mode !== 'race') return; frozen = !frozen; ui.showP
 
 // ---------- Schleife ----------
 let cpuLast = null;   // n30: CPU-Arbeitszeit des letzten Bildes (Qualitäts-Autopilot)
+let vaoJob = null;    // n30: Vertex-AO der aktuellen Strecke (gfx/world.js vaoAuftrag), rechnet je Bild ein Stück
 function frame(now) {
   requestAnimationFrame(frame);
   const tA = performance.now();
@@ -706,6 +710,10 @@ function frame(now) {
   render(rdt);
   if (quality.gpu) quality.gpu.ende();
   cpuLast = performance.now() - tA;
+  // n30: Vertex-AO nach dem Zeichnen und außerhalb der Autopilot-Messung, nur mit Luft im Bild (Menü bis 8 ms, sonst bis
+  // 3 ms); fertig → über 1,5 s einblenden
+  if (vaoJob && !vaoJob.done && vaoJob.step(mode === 'menu' ? Math.max(1, Math.min(8, 14 - cpuLast)) : Math.max(0.5, Math.min(3, 12 - cpuLast)))) app.vao = vaoJob.stats;
+  if (vaoJob && vaoJob.done && vaoUniforms.sbVaoOn.value < 1) vaoUniforms.sbVaoOn.value = Math.min(1, vaoUniforms.sbVaoOn.value + rdt / 1.5);
 }
 
 function handleEvents() {
@@ -1020,7 +1028,8 @@ window.__game = {
   importBytes: (arr, name) => importFiles([new File([new Uint8Array(arr)], name || 'test.trk')]),
   loadImported: (id) => playImported(id),
   info() { const i = renderer.info; return { calls: i.render.calls, tris: i.render.triangles, geometries: i.memory.geometries, textures: i.memory.textures, programs: i.programs ? i.programs.length : 0, pixelRatio: renderer.getPixelRatio(), tier: quality.tier, fps: quality.fps,
-    ap: quality.ap ? quality.ap.zustand() : null, carLod: carVis ? carVis.lod : null, ghostLod: ghostVis ? ghostVis.lod : null, apLog: quality.ap ? quality.ap.log.slice(-12) : null, startProbe: app.startProbe || null, gpuZeit: quality.gpu ? quality.gpu.ok : null }; },
+    ap: quality.ap ? quality.ap.zustand() : null, carLod: carVis ? carVis.lod : null, ghostLod: ghostVis ? ghostVis.lod : null,
+    vao: vaoJob ? { fertig: vaoJob.done, anteil: +vaoJob.anteil.toFixed(3), ...(vaoJob.stats || {}) } : null, apLog: quality.ap ? quality.ap.log.slice(-12) : null, startProbe: app.startProbe || null, gpuZeit: quality.gpu ? quality.gpu.ok : null }; },
   state() {
     const c = race && race.car;
     return { mode, state: race && race.state, time: race && race.time, speed: c && c.speed(), pos: c && [c.pos.x, c.pos.y, c.pos.z], up: c && c.frame.u.y, cp: race && race.cpNext, cps: race && race.cps.length, lap: race && race.tracker.lap, idx: race && race.tracker.idx, n: env && env.track.line.n, crashes: race && race.crashes, rewinds: race && race.rewinds, penalties: race && race.penalties, wreck: race && race.wreckOn, crash: c && c.crash, assist: store.settings.assist, seed: env && env.meta.seed, diff: env && env.meta.diff, key: env && env.meta.key, frames: app.frames,
