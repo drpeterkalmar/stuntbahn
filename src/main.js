@@ -30,6 +30,7 @@ import { CineCam } from './game/cinecam.js';
 import { ClipRecorder, clipMime } from './ui/cliprec.js';
 import { Quality } from './gfx/quality.js';
 import { geraeteSchluessel, ladeGeraet, merkeGeraet, messeBilder, skalaAusProbe } from './gfx/kern/startprobe.js';
+import { DynReflex } from './gfx/kern/reflex.js';
 import { LineViz, LINE_LEVELS } from './gfx/lineviz.js';
 import { Sound } from './audio/sound.js';
 import { CarFX } from './gfx/fx.js';
@@ -76,6 +77,10 @@ const kino = LOOK === 'alt' ? null : new KinoLook(renderer, { level: LOOK_FIX ??
 const post = kino || new Post(renderer);
 quality.post = post; quality.kino = kino;
 let sun, M, carVis, ghostVis, sky, cockpit, themes, air = null, brakeLights = null, brakeV = null;
+// n30: dynamische Lack-Spiegelung (gfx/kern/reflex.js) ab Grafikstufe REFLEX_MIN (?reflex=0 aus, ?reflex=2 nur Kino);
+// der Autopilot darf sie als „teure Deko“ abschalten (reflexOff)
+const REFLEX_MIN = params.get('reflex') === '0' ? 9 : params.get('reflex') === '2' ? 2 : 1;
+let reflex = null, reflexOff = false;
 
 let sizeW = 0, sizeH = 0, portrait = null;
 function resize() {
@@ -178,6 +183,10 @@ async function boot() {
   post.setCarBox(rig.carBox);
   ghostVis = await makeCar({ color: 0xffffff, contact: false });
   ghostify(ghostVis.root);
+  if (REFLEX_MIN <= 2) {
+    reflex = new DynReflex(renderer, scene, { size: 128, far: 320 });   // 128 = gleiche PMREM-Größe wie die 512er-Umgebung → keine neue Shader-Variante
+    carVis.root.traverse((o) => { if (o.isMesh && !o.userData.fx) for (const m of [].concat(o.material)) if (m.isMeshStandardMaterial) reflex.attach(m); });
+  }
   ghostVis.root.visible = false;
   scene.add(ghostVis.root);
   cockpit = new Cockpit(scene.environment, carVis.mats.paint, { tier: quality.tier });
@@ -231,6 +240,7 @@ async function startAutopilot() {
     app.startProbe = { ...r, skala: start.skala };
   }
   quality.startAutopilot({ skala: start ? start.skala : st, gl,
+    extra: reflex ? [['reflex', 0.06, (s) => { reflexOff = s === 0; }]] : [],
     onAenderung: () => merkeGeraet(localStorage, key, { skala: quality.ap.skala, stufe: quality.tier }) });
   if (start && quality.ap) merkeGeraet(localStorage, key, { skala: quality.ap.skala, stufe: quality.tier });
 }
@@ -959,6 +969,11 @@ function render(rdt) {
   // n30: Auto-LOD nach Entfernung/Bildwinkel (Geist mindestens Mittel: durchscheinend, Feinheiten sieht man nicht)
   carVis.updateLod(camera, app.lodForce != null ? { force: app.lodForce } : undefined);
   if (ghostVis.root.visible) ghostVis.updateLod(camera, { min: 1 });
+  // n30: Lack-Spiegelung – eine Würfelseite je Bild; ausgelassen, wenn das Auto nicht zu sehen oder weit weg ist (Fern-LOD)
+  if (reflex) {
+    reflex.setEnabled(quality.tier >= REFLEX_MIN && !reflexOff);
+    reflex.update(carVis.root, { hide: [carVis.root, ghostVis.root], skip: !carVis.root.visible || carVis.lod >= 2 });
+  }
   drawFrame({ run: running, speed: spd, boost, dt: rdt, cut: blurCut, cockpit: inCockpit, heat: !inCockpit && pose && mode !== 'menu' ? heatOf(spd, boost) : null, dof: cdof, shutter, flash, white: cfx ? cfx.white : 0, whip: cfx ? cfx.whip : null, flareK: cine ? 1.5 : 1 });
   // Video-Aufnahme: Bild direkt nach dem Zeichnen kopieren (Balken wie im CSS: 2,39:1, mindestens 8,5 %)
   if (cine && cine.rec) { const W = innerWidth, H = innerHeight; cine.rec.frame(H > W ? 0 : Math.max(0.085, (H - W / 2.39) / 2 / H), ui.capState()); }
@@ -1029,6 +1044,7 @@ window.__game = {
   loadImported: (id) => playImported(id),
   info() { const i = renderer.info; return { calls: i.render.calls, tris: i.render.triangles, geometries: i.memory.geometries, textures: i.memory.textures, programs: i.programs ? i.programs.length : 0, pixelRatio: renderer.getPixelRatio(), tier: quality.tier, fps: quality.fps,
     ap: quality.ap ? quality.ap.zustand() : null, carLod: carVis ? carVis.lod : null, ghostLod: ghostVis ? ghostVis.lod : null,
+    reflex: reflex ? { an: reflex.enabled, bereit: reflex.bereit, ...reflex.stats } : null,
     vao: vaoJob ? { fertig: vaoJob.done, anteil: +vaoJob.anteil.toFixed(3), ...(vaoJob.stats || {}) } : null, apLog: quality.ap ? quality.ap.log.slice(-12) : null, startProbe: app.startProbe || null, gpuZeit: quality.gpu ? quality.gpu.ok : null }; },
   state() {
     const c = race && race.car;

@@ -60,6 +60,8 @@ export class Quality {
     // Abschalt-Reihenfolge nach der Renderskala: Gras/Büsche/Wolkenschatten → Auto-Echtzeitschatten (Kontaktschatten
     // bleibt) → Grafikstufe. Kosten = geschätzter Anteil an der Bildzeit (TODO n30-Heavy: mit perf_gate nachmessen)
     this.ap.register('deko', 0.08, (s) => { this.decoLite = s === 0; });
+    // weitere abschaltbare Dinge des Spiels (z. B. Lack-Spiegelung): o.extra = [[name, kosten, setzer], …], nach der Deko
+    for (const [n, k, f] of o.extra || []) this.ap.register(n, k, f);
     this.ap.register('autoschatten', 0.06, (s) => { this.carShadowOff = s === 0; this.changed(); });
     this.ap.register('stufe', 0.3, (s, r) => {
       this.tier = s; this.scale = 1;
