@@ -8,10 +8,20 @@
 // Kosten: Strahlen = Eckpunkte × strahlen. Budget maxStrahlen; darüber werden Eckpunkte an gleicher Stelle (Nähte,
 // Querschnitt-Ringe) nur einmal gerechnet und notfalls weniger Strahlen genommen (strahlenMin).
 
+import { MAT, ROAD_MATS } from './defs.js';
+
 export const VAO = {
   strahlen: 6, strahlenMin: 3,
   laenge: 4.5,          // m (Auto-Maßstab: Ecke Wand/Fahrbahn, Tunnel, Brücke darüber)
   versatz: 0.06,        // m entlang der Normale (nicht die eigene Fläche treffen)
+  // nur Vorderseiten zählen: liegt die sichtbare Fläche knapp unter einer Kollisionsfläche (Brückendeck, Looping), träfe der
+  // Strahl sonst deren Rückseite von innen → ganz verdeckt (n30-Abnahme: Brückenfahrbahn fast schwarz). Tunneldecken,
+  // Wände und Röhren zeigen mit der Vorderseite zur Fahrbahn und zählen weiter.
+  nurVorderseite: true,
+  // Fahrbahn/Randstein bekommen keine Vertex-AO: quer gibt es nur Eckpunkte am Rand – die Verdeckung durch Bande, Brückenbogen
+  // oder Looping verschmierte über die ganze Spur (n30-Abnahme: Brückenfahrbahn dunkelgrau, auch nur mit steilen Strahlen).
+  // Dort bleibt SSAO (Kino) bzw. nichts (Standard). Wände, Röhre, Tunnel, Pfeiler, Looping-Unterseite bekommen sie.
+  ohneFahrbahn: true,
   staerke: 0.75,        // größte Verdeckung (Ecke/Tunnel); TODO n30-Heavy: am Bild abstimmen, mit SAO an/aus vergleichen
   maxStrahlen: 900000,  // TODO n30-Heavy: Bauzeit am Handy messen (env.buildMs), ggf. senken
 };
@@ -40,13 +50,13 @@ function basis(nx, ny, nz) {
 }
 
 // Verdeckung eines Punkts (0…1) aus `dirs` Strahlen der Länge L
-export function verdeckung(world, x, y, z, nx, ny, nz, dirs, L, versatz) {
+export function verdeckung(world, x, y, z, nx, ny, nz, dirs, L, versatz, nurVorderseite = true) {
   const [tx, ty, tz, bx, by, bz] = basis(nx, ny, nz);
   const ox = x + nx * versatz, oy = y + ny * versatz, oz = z + nz * versatz;
   let occ = 0;
   for (const [a, b, c] of dirs) {
     const dx = tx * a + bx * b + nx * c, dy = ty * a + by * b + ny * c, dz = tz * a + bz * b + nz * c;
-    const h = world.rayTrack(ox, oy, oz, dx, dy, dz, L, false);
+    const h = world.rayTrack(ox, oy, oz, dx, dy, dz, L, nurVorderseite);
     if (h) occ += 1 - Math.sqrt(h.t / L) * 0.6;   // nahe Treffer zählen voll, ferne weniger
   }
   return occ / dirs.length;
@@ -70,16 +80,18 @@ export function* bakeVertexAOSchritte(batches, world, opts = {}) {
   }
   const n = Math.max(o.strahlenMin, Math.min(o.strahlen, Math.floor(o.maxStrahlen / Math.max(1, einzig))));
   const dirs = halbkugel(n), je = o.je || 64;   // 64 Eckpunkte ≈ 0,8 ms (Mac) bzw. ~4 ms (Handy)
+  const fahrbahn = (m) => ROAD_MATS.has(m) || m === MAT.KERB;
   let strahlen = 0, gerechnet = 0, fertigEcken = 0, seit = 0;
   for (const b of batches) {
     const P = b.pos, N = b.nrm, nv = P.length / 3;
     const occ = new Float32Array(nv);
+    if (o.ohneFahrbahn && fahrbahn(b.mat)) { b.occ = occ; fertigEcken += nv; continue; }   // bleibt 0
     for (let v = 0; v < nv; v++) {
       const i = v * 3;
       const k = key(P, N, i);
       let a = cache.get(k);
-      if (a < 0) {
-        a = verdeckung(world, P[i], P[i + 1], P[i + 2], N[i], N[i + 1], N[i + 2], dirs, o.laenge, o.versatz);
+      if (a === undefined || a < 0) {
+        a = verdeckung(world, P[i], P[i + 1], P[i + 2], N[i], N[i + 1], N[i + 2], dirs, o.laenge, o.versatz, o.nurVorderseite);
         cache.set(k, a); strahlen += n; gerechnet++;
         if (++seit >= je) { seit = 0; yield { fertig: false, anteil: (fertigEcken + v) / ecken }; }
       }

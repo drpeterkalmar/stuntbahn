@@ -1,0 +1,152 @@
+{
+ "datum": "2026-10-08T09:18:31",
+ "stand": "ab_reflex2",
+ "modus": "ab",
+ "runden": 3,
+ "varianten": [
+  {
+   "name": "basis",
+   "wurzel": "/Users/wohnzimmer/dev/stuntbahn",
+   "zusatz": ""
+  },
+  {
+   "name": "ohne_reflex",
+   "wurzel": "/Users/wohnzimmer/dev/stuntbahn",
+   "zusatz": "&reflex=0"
+  }
+ ],
+ "profil": {
+  "drossel": 4,
+  "dpr": 2.6,
+  "sek": 10,
+  "start": "open",
+  "vsync": false
+ },
+ "szenen": {
+  "looping_kino": {
+   "hoch": {
+    "basis": {
+     "p50": 6.5,
+     "p95": 7.7,
+     "fps": 152.4,
+     "calls": 95,
+     "tris": 386456,
+     "runden_p95": [
+      7.7,
+      9.1,
+      7.6
+     ],
+     "fehler": [
+      "CONSOLE Failed to load resource: net::ERR_NETWORK_CHANGED",
+      "CONSOLE Failed to load resource: net::ERR_NETWORK_CHANGED",
+      "CONSOLE Failed to load resource: net::ERR_NETWORK_CHANGED",
+      "CONSOLE Failed to load resource: net::ERR_NETWORK_CHANGED"
+     ]
+    },
+    "ohne_reflex": {
+     "p50": 6.2,
+     "p95": 7.7,
+     "fps": 161.3,
+     "calls": 82,
+     "tris": 297951,
+     "runden_p95": [
+      7.5,
+      8,
+      7.7
+     ],
+     "fehler": []
+    }
+   }
+  },
+  "looping_standard": {
+   "hoch": {
+    "basis": {
+     "p50": 5.7,
+     "p95": 6.5,
+     "fps": 175.5,
+     "calls": 92,
+     "tris": 362164,
+     "runden_p95": [
+      6.5,
+      6.8,
+      6.4
+     ],
+     "fehler": []
+    },
+    "ohne_reflex": {
+     "p50": 3.8,
+     "p95": 4.5,
+     "fps": 260.4,
+     "calls": 79,
+     "tris": 273660,
+     "runden_p95": [
+      4.5,
+      4.5,
+      4.5
+     ],
+     "fehler": []
+    }
+   }
+  },
+  "rennen_kino": {
+   "hoch": {
+    "basis": {
+     "p50": 7.4,
+     "p95": 10.4,
+     "fps": 123.1,
+     "calls": 96,
+     "tris": 366872,
+     "runden_p95": [
+      10.4,
+      10.3,
+      10.4
+     ],
+     "fehler": []
+    },
+    "ohne_reflex": {
+     "p50": 7.3,
+     "p95": 10.1,
+     "fps": 127.7,
+     "calls": 84,
+     "tris": 296958,
+     "runden_p95": [
+      10.1,
+      10.3,
+      10
+     ],
+     "fehler": []
+    }
+   }
+  },
+  "rennen_standard": {
+   "hoch": {
+    "basis": {
+     "p50": 5.8,
+     "p95": 7.3,
+     "fps": 171.1,
+     "calls": 93,
+     "tris": 319961,
+     "runden_p95": [
+      7.4,
+      7.3,
+      7.3
+     ],
+     "fehler": []
+    },
+    "ohne_reflex": {
+     "p50": 3.9,
+     "p95": 5.4,
+     "fps": 250.1,
+     "calls": 82,
+     "tris": 250315,
+     "runden_p95": [
+      5.1,
+      5.4,
+      5.7
+     ],
+     "fehler": []
+    }
+   }
+  }
+ }
+}

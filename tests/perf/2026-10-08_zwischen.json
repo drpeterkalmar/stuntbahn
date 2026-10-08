@@ -1,0 +1,1569 @@
+{
+ "datum": "2026-10-08T08:35:30",
+ "stand": "zwischen",
+ "wurzel": "/Users/wohnzimmer/dev/stuntbahn",
+ "git": "78f38d7",
+ "profil": {
+  "drossel": 4,
+  "dpr": 2.6,
+  "sek": 10,
+  "geraete": "hoch,quer",
+  "gpu": "ANGLE/Metal headless",
+  "start": "open",
+  "vsync": false
+ },
+ "szenen": {
+  "menu_kino": {
+   "hoch": {
+    "n": 1353,
+    "p50": 6.5,
+    "p95": 13.3,
+    "p99": 14.5,
+    "fps": 135.1,
+    "calls": 106,
+    "callsMax": 118,
+    "tris": 363039,
+    "tex": 64,
+    "zusatz": {
+     "calls": 105,
+     "tris": 365144,
+     "geometries": 108,
+     "textures": 64,
+     "programs": 76,
+     "pixelRatio": 2,
+     "tier": 2,
+     "fps": 134.48735019973384,
+     "ap": {
+      "skala": 1,
+      "bereich": [
+       0.7,
+       1
+      ],
+      "stufen": {
+       "deko": 1,
+       "reflex": 1,
+       "autoschatten": 1,
+       "stufe": 2
+      },
+      "fps": 60,
+      "arbeit": null,
+      "cpu": null,
+      "gpu": null,
+      "engpass": null,
+      "gesperrtBis": 0,
+      "aenderungen": 0,
+      "t": 0
+     },
+     "carLod": 0,
+     "ghostLod": 0,
+     "impostor": {
+      "atlas": true,
+      "arten": [],
+      "fehler": null
+     },
+     "reflex": {
+      "an": true,
+      "bereit": true,
+      "seiten": 1879,
+      "pmrem": 313
+     },
+     "vao": {
+      "fertig": true,
+      "anteil": 1,
+      "ecken": 36994,
+      "gerechnet": 29559,
+      "strahlen": 177354,
+      "strahlenJe": 6,
+      "ms": 445
+     },
+     "apLog": [],
+     "startProbe": null,
+     "gpuZeit": true
+    },
+    "boot_s": 8.8,
+    "fehler": []
+   },
+   "quer": {
+    "n": 1319,
+    "p50": 6.8,
+    "p95": 13.1,
+    "p99": 14.1,
+    "fps": 131.7,
+    "calls": 109,
+    "callsMax": 122,
+    "tris": 365584,
+    "tex": 64,
+    "zusatz": {
+     "calls": 104,
+     "tris": 365278,
+     "geometries": 109,
+     "textures": 64,
+     "programs": 76,
+     "pixelRatio": 2,
+     "tier": 2,
+     "fps": 132.7668613913968,
+     "ap": {
+      "skala": 1,
+      "bereich": [
+       0.7,
+       1
+      ],
+      "stufen": {
+       "deko": 1,
+       "reflex": 1,
+       "autoschatten": 1,
+       "stufe": 2
+      },
+      "fps": 60,
+      "arbeit": null,
+      "cpu": null,
+      "gpu": null,
+      "engpass": null,
+      "gesperrtBis": 0,
+      "aenderungen": 0,
+      "t": 0
+     },
+     "carLod": 0,
+     "ghostLod": 0,
+     "impostor": {
+      "atlas": true,
+      "arten": [],
+      "fehler": null
+     },
+     "reflex": {
+      "an": true,
+      "bereit": true,
+      "seiten": 1838,
+      "pmrem": 306
+     },
+     "vao": {
+      "fertig": true,
+      "anteil": 1,
+      "ecken": 36994,
+      "gerechnet": 29559,
+      "strahlen": 177354,
+      "strahlenJe": 6,
+      "ms": 451
+     },
+     "apLog": [],
+     "startProbe": null,
+     "gpuZeit": true
+    },
+    "boot_s": 1.8,
+    "fehler": []
+   }
+  },
+  "start_kino": {
+   "hoch": {
+    "n": 1285,
+    "p50": 6.6,
+    "p95": 14.5,
+    "p99": 19.5,
+    "fps": 128.2,
+    "calls": 107,
+    "callsMax": 122,
+    "tris": 362877,
+    "tex": 64,
+    "zusatz": {
+     "calls": 104,
+     "tris": 362408,
+     "geometries": 108,
+     "textures": 64,
+     "programs": 76,
+     "pixelRatio": 2,
+     "tier": 2,
+     "fps": 132.11179711876795,
+     "ap": {
+      "skala": 1,
+      "bereich": [
+       0.7,
+       1
+      ],
+      "stufen": {
+       "deko": 1,
+       "reflex": 1,
+       "autoschatten": 1,
+       "stufe": 2
+      },
+      "fps": 60,
+      "arbeit": null,
+      "cpu": null,
+      "gpu": null,
+      "engpass": null,
+      "gesperrtBis": 0,
+      "aenderungen": 0,
+      "t": 0
+     },
+     "carLod": 0,
+     "ghostLod": 0,
+     "impostor": {
+      "atlas": true,
+      "arten": [],
+      "fehler": null
+     },
+     "reflex": {
+      "an": true,
+      "bereit": true,
+      "seiten": 1370,
+      "pmrem": 228
+     },
+     "vao": {
+      "fertig": true,
+      "anteil": 1,
+      "ecken": 36994,
+      "gerechnet": 29559,
+      "strahlen": 177354,
+      "strahlenJe": 6,
+      "ms": 2201
+     },
+     "apLog": [],
+     "startProbe": null,
+     "gpuZeit": true
+    },
+    "boot_s": 1.8,
+    "fehler": []
+   },
+   "quer": {
+    "n": 1273,
+    "p50": 6.8,
+    "p95": 14.2,
+    "p99": 18.7,
+    "fps": 127.1,
+    "calls": 111,
+    "callsMax": 122,
+    "tris": 367120,
+    "tex": 64,
+    "zusatz": {
+     "calls": 104,
+     "tris": 362408,
+     "geometries": 109,
+     "textures": 64,
+     "programs": 76,
+     "pixelRatio": 2,
+     "tier": 2,
+     "fps": 131.11480865224624,
+     "ap": {
+      "skala": 1,
+      "bereich": [
+       0.7,
+       1
+      ],
+      "stufen": {
+       "deko": 1,
+       "reflex": 1,
+       "autoschatten": 1,
+       "stufe": 2
+      },
+      "fps": 60,
+      "arbeit": null,
+      "cpu": null,
+      "gpu": null,
+      "engpass": null,
+      "gesperrtBis": 0,
+      "aenderungen": 0,
+      "t": 0
+     },
+     "carLod": 0,
+     "ghostLod": 0,
+     "impostor": {
+      "atlas": true,
+      "arten": [],
+      "fehler": null
+     },
+     "reflex": {
+      "an": true,
+      "bereit": true,
+      "seiten": 1358,
+      "pmrem": 226
+     },
+     "vao": {
+      "fertig": true,
+      "anteil": 1,
+      "ecken": 36994,
+      "gerechnet": 29559,
+      "strahlen": 177354,
+      "strahlenJe": 6,
+      "ms": 2306
+     },
+     "apLog": [],
+     "startProbe": null,
+     "gpuZeit": true
+    },
+    "boot_s": 1.8,
+    "fehler": []
+   }
+  },
+  "looping_kino": {
+   "hoch": {
+    "n": 1420,
+    "p50": 6.7,
+    "p95": 10.4,
+    "p99": 11.6,
+    "fps": 141.8,
+    "calls": 105,
+    "callsMax": 117,
+    "tris": 393327,
+    "tex": 62,
+    "zusatz": {
+     "calls": 98,
+     "tris": 389521,
+     "geometries": 143,
+     "textures": 62,
+     "programs": 77,
+     "pixelRatio": 2,
+     "tier": 2,
+     "fps": 138.48202396804265,
+     "ap": {
+      "skala": 1,
+      "bereich": [
+       0.7,
+       1
+      ],
+      "stufen": {
+       "deko": 1,
+       "reflex": 1,
+       "autoschatten": 1,
+       "stufe": 2
+      },
+      "fps": 60,
+      "arbeit": null,
+      "cpu": null,
+      "gpu": null,
+      "engpass": null,
+      "gesperrtBis": 0,
+      "aenderungen": 0,
+      "t": 0
+     },
+     "carLod": 0,
+     "ghostLod": 0,
+     "impostor": {
+      "atlas": true,
+      "arten": [],
+      "fehler": null
+     },
+     "reflex": {
+      "an": true,
+      "bereit": true,
+      "seiten": 1695,
+      "pmrem": 282
+     },
+     "vao": {
+      "fertig": true,
+      "anteil": 1,
+      "ecken": 73844,
+      "gerechnet": 61721,
+      "strahlen": 370326,
+      "strahlenJe": 6,
+      "ms": 934
+     },
+     "apLog": [],
+     "startProbe": null,
+     "gpuZeit": true
+    },
+    "boot_s": 1.6,
+    "fehler": []
+   },
+   "quer": {
+    "n": 1444,
+    "p50": 6.9,
+    "p95": 8,
+    "p99": 8.7,
+    "fps": 144.2,
+    "calls": 106,
+    "callsMax": 117,
+    "tris": 393336,
+    "tex": 63,
+    "zusatz": {
+     "calls": 117,
+     "tris": 389749,
+     "geometries": 154,
+     "textures": 63,
+     "programs": 77,
+     "pixelRatio": 2,
+     "tier": 2,
+     "fps": 147.82261286456253,
+     "ap": {
+      "skala": 1,
+      "bereich": [
+       0.7,
+       1
+      ],
+      "stufen": {
+       "deko": 1,
+       "reflex": 1,
+       "autoschatten": 1,
+       "stufe": 2
+      },
+      "fps": 60,
+      "arbeit": null,
+      "cpu": null,
+      "gpu": null,
+      "engpass": null,
+      "gesperrtBis": 0,
+      "aenderungen": 0,
+      "t": 0
+     },
+     "carLod": 0,
+     "ghostLod": 0,
+     "impostor": {
+      "atlas": true,
+      "arten": [],
+      "fehler": null
+     },
+     "reflex": {
+      "an": true,
+      "bereit": true,
+      "seiten": 1716,
+      "pmrem": 286
+     },
+     "vao": {
+      "fertig": true,
+      "anteil": 1,
+      "ecken": 73844,
+      "gerechnet": 61721,
+      "strahlen": 370326,
+      "strahlenJe": 6,
+      "ms": 917
+     },
+     "apLog": [],
+     "startProbe": null,
+     "gpuZeit": true
+    },
+    "boot_s": 1.3,
+    "fehler": []
+   }
+  },
+  "looping_standard": {
+   "hoch": {
+    "n": 1639,
+    "p50": 6.1,
+    "p95": 7,
+    "p99": 7.5,
+    "fps": 163.7,
+    "calls": 103,
+    "callsMax": 114,
+    "tris": 369045,
+    "tex": 60,
+    "zusatz": {
+     "calls": 99,
+     "tris": 372882,
+     "geometries": 143,
+     "textures": 60,
+     "programs": 75,
+     "pixelRatio": 1.5,
+     "tier": 1,
+     "fps": 166.33399866932814,
+     "ap": {
+      "skala": 0.84,
+      "bereich": [
+       0.62,
+       0.92
+      ],
+      "stufen": {
+       "deko": 1,
+       "reflex": 1,
+       "autoschatten": 1,
+       "stufe": 1
+      },
+      "fps": 60,
+      "arbeit": null,
+      "cpu": null,
+      "gpu": null,
+      "engpass": null,
+      "gesperrtBis": 0,
+      "aenderungen": 0,
+      "t": 0
+     },
+     "carLod": 0,
+     "ghostLod": 0,
+     "impostor": {
+      "atlas": true,
+      "arten": [],
+      "fehler": null
+     },
+     "reflex": {
+      "an": true,
+      "bereit": true,
+      "seiten": 1925,
+      "pmrem": 320
+     },
+     "vao": {
+      "fertig": true,
+      "anteil": 1,
+      "ecken": 73844,
+      "gerechnet": 61721,
+      "strahlen": 370326,
+      "strahlenJe": 6,
+      "ms": 909
+     },
+     "apLog": [],
+     "startProbe": null,
+     "gpuZeit": true
+    },
+    "boot_s": 2.3,
+    "fehler": []
+   },
+   "quer": {
+    "n": 1638,
+    "p50": 6.1,
+    "p95": 7,
+    "p99": 7.5,
+    "fps": 163.6,
+    "calls": 100,
+    "callsMax": 112,
+    "tris": 367844,
+    "tex": 61,
+    "zusatz": {
+     "calls": 110,
+     "tris": 376462,
+     "geometries": 155,
+     "textures": 61,
+     "programs": 75,
+     "pixelRatio": 1.5,
+     "tier": 1,
+     "fps": 166.98822433637147,
+     "ap": {
+      "skala": 0.84,
+      "bereich": [
+       0.62,
+       0.92
+      ],
+      "stufen": {
+       "deko": 1,
+       "reflex": 1,
+       "autoschatten": 1,
+       "stufe": 1
+      },
+      "fps": 60,
+      "arbeit": null,
+      "cpu": null,
+      "gpu": null,
+      "engpass": null,
+      "gesperrtBis": 0,
+      "aenderungen": 0,
+      "t": 0
+     },
+     "carLod": 0,
+     "ghostLod": 0,
+     "impostor": {
+      "atlas": true,
+      "arten": [],
+      "fehler": null
+     },
+     "reflex": {
+      "an": true,
+      "bereit": true,
+      "seiten": 1921,
+      "pmrem": 320
+     },
+     "vao": {
+      "fertig": true,
+      "anteil": 1,
+      "ecken": 73844,
+      "gerechnet": 61721,
+      "strahlen": 370326,
+      "strahlenJe": 6,
+      "ms": 915
+     },
+     "apLog": [],
+     "startProbe": null,
+     "gpuZeit": true
+    },
+    "boot_s": 1.4,
+    "fehler": []
+   }
+  },
+  "rennen_kino": {
+   "hoch": {
+    "n": 1138,
+    "p50": 7.4,
+    "p95": 14.2,
+    "p99": 16.3,
+    "fps": 113.7,
+    "calls": 105,
+    "callsMax": 131,
+    "tris": 369285,
+    "tex": 65,
+    "zusatz": {
+     "calls": 95,
+     "tris": 366702,
+     "geometries": 122,
+     "textures": 65,
+     "programs": 79,
+     "pixelRatio": 2,
+     "tier": 2,
+     "fps": 116.83483802442903,
+     "ap": {
+      "skala": 1,
+      "bereich": [
+       0.7,
+       1
+      ],
+      "stufen": {
+       "deko": 1,
+       "reflex": 1,
+       "autoschatten": 1,
+       "stufe": 2
+      },
+      "fps": 60,
+      "arbeit": null,
+      "cpu": null,
+      "gpu": null,
+      "engpass": null,
+      "gesperrtBis": 0,
+      "aenderungen": 0,
+      "t": 0
+     },
+     "carLod": 0,
+     "ghostLod": 0,
+     "impostor": {
+      "atlas": true,
+      "arten": [],
+      "fehler": null
+     },
+     "reflex": {
+      "an": true,
+      "bereit": true,
+      "seiten": 1801,
+      "pmrem": 300
+     },
+     "vao": {
+      "fertig": true,
+      "anteil": 1,
+      "ecken": 36994,
+      "gerechnet": 29559,
+      "strahlen": 177354,
+      "strahlenJe": 6,
+      "ms": 454
+     },
+     "apLog": [],
+     "startProbe": null,
+     "gpuZeit": true
+    },
+    "boot_s": 1.8,
+    "fehler": []
+   },
+   "quer": {
+    "n": 1095,
+    "p50": 8.1,
+    "p95": 14.6,
+    "p99": 16.7,
+    "fps": 109.3,
+    "calls": 120,
+    "callsMax": 151,
+    "tris": 376760,
+    "tex": 65,
+    "zusatz": {
+     "calls": 109,
+     "tris": 371882,
+     "geometries": 126,
+     "textures": 65,
+     "programs": 79,
+     "pixelRatio": 2,
+     "tier": 2,
+     "fps": 113.96766498807327,
+     "ap": {
+      "skala": 1,
+      "bereich": [
+       0.7,
+       1
+      ],
+      "stufen": {
+       "deko": 1,
+       "reflex": 1,
+       "autoschatten": 1,
+       "stufe": 2
+      },
+      "fps": 60,
+      "arbeit": null,
+      "cpu": null,
+      "gpu": null,
+      "engpass": null,
+      "gesperrtBis": 0,
+      "aenderungen": 0,
+      "t": 0
+     },
+     "carLod": 0,
+     "ghostLod": 0,
+     "impostor": {
+      "atlas": true,
+      "arten": [],
+      "fehler": null
+     },
+     "reflex": {
+      "an": true,
+      "bereit": true,
+      "seiten": 1720,
+      "pmrem": 286
+     },
+     "vao": {
+      "fertig": true,
+      "anteil": 1,
+      "ecken": 36994,
+      "gerechnet": 29559,
+      "strahlen": 177354,
+      "strahlenJe": 6,
+      "ms": 459
+     },
+     "apLog": [],
+     "startProbe": null,
+     "gpuZeit": true
+    },
+    "boot_s": 1.9,
+    "fehler": []
+   }
+  },
+  "rennen_standard": {
+   "hoch": {
+    "n": 1617,
+    "p50": 6.2,
+    "p95": 7.7,
+    "p99": 8.8,
+    "fps": 161.5,
+    "calls": 103,
+    "callsMax": 129,
+    "tris": 322435,
+    "tex": 64,
+    "zusatz": {
+     "calls": 97,
+     "tris": 320738,
+     "geometries": 122,
+     "textures": 64,
+     "programs": 77,
+     "pixelRatio": 1.5,
+     "tier": 1,
+     "fps": 161.07561235356764,
+     "ap": {
+      "skala": 0.84,
+      "bereich": [
+       0.62,
+       0.92
+      ],
+      "stufen": {
+       "deko": 1,
+       "reflex": 1,
+       "autoschatten": 1,
+       "stufe": 1
+      },
+      "fps": 60,
+      "arbeit": null,
+      "cpu": null,
+      "gpu": null,
+      "engpass": null,
+      "gesperrtBis": 0,
+      "aenderungen": 0,
+      "t": 0
+     },
+     "carLod": 0,
+     "ghostLod": 0,
+     "impostor": {
+      "atlas": true,
+      "arten": [],
+      "fehler": null
+     },
+     "reflex": {
+      "an": true,
+      "bereit": true,
+      "seiten": 2781,
+      "pmrem": 463
+     },
+     "vao": {
+      "fertig": true,
+      "anteil": 1,
+      "ecken": 36994,
+      "gerechnet": 29559,
+      "strahlen": 177354,
+      "strahlenJe": 6,
+      "ms": 431
+     },
+     "apLog": [],
+     "startProbe": null,
+     "gpuZeit": true
+    },
+    "boot_s": 1.8,
+    "fehler": []
+   },
+   "quer": {
+    "n": 1479,
+    "p50": 6.7,
+    "p95": 8.7,
+    "p99": 9.6,
+    "fps": 147.7,
+    "calls": 117,
+    "callsMax": 149,
+    "tris": 329379,
+    "tex": 64,
+    "zusatz": {
+     "calls": 107,
+     "tris": 324564,
+     "geometries": 126,
+     "textures": 64,
+     "programs": 77,
+     "pixelRatio": 1.5,
+     "tier": 1,
+     "fps": 146.3252411040905,
+     "ap": {
+      "skala": 0.84,
+      "bereich": [
+       0.62,
+       0.92
+      ],
+      "stufen": {
+       "deko": 1,
+       "reflex": 1,
+       "autoschatten": 1,
+       "stufe": 1
+      },
+      "fps": 60,
+      "arbeit": null,
+      "cpu": null,
+      "gpu": null,
+      "engpass": null,
+      "gesperrtBis": 0,
+      "aenderungen": 0,
+      "t": 0
+     },
+     "carLod": 0,
+     "ghostLod": 0,
+     "impostor": {
+      "atlas": true,
+      "arten": [],
+      "fehler": null
+     },
+     "reflex": {
+      "an": true,
+      "bereit": true,
+      "seiten": 2583,
+      "pmrem": 430
+     },
+     "vao": {
+      "fertig": true,
+      "anteil": 1,
+      "ecken": 36994,
+      "gerechnet": 29559,
+      "strahlen": 177354,
+      "strahlenJe": 6,
+      "ms": 439
+     },
+     "apLog": [],
+     "startProbe": null,
+     "gpuZeit": true
+    },
+    "boot_s": 1.8,
+    "fehler": []
+   }
+  },
+  "rennen_einfach": {
+   "hoch": {
+    "n": 4018,
+    "p50": 2.4,
+    "p95": 3.7,
+    "p99": 4.5,
+    "fps": 401.7,
+    "calls": 54,
+    "callsMax": 67,
+    "tris": 141816,
+    "tex": 48,
+    "zusatz": {
+     "calls": 60,
+     "tris": 144799,
+     "geometries": 98,
+     "textures": 48,
+     "programs": 51,
+     "pixelRatio": 1,
+     "tier": 0,
+     "fps": 391.60839160839333,
+     "ap": {
+      "skala": 1,
+      "bereich": [
+       0.6,
+       1
+      ],
+      "stufen": {
+       "deko": 1,
+       "reflex": 1,
+       "autoschatten": 1,
+       "stufe": 0
+      },
+      "fps": 60,
+      "arbeit": null,
+      "cpu": null,
+      "gpu": null,
+      "engpass": null,
+      "gesperrtBis": 0,
+      "aenderungen": 0,
+      "t": 0
+     },
+     "carLod": 0,
+     "ghostLod": 0,
+     "impostor": {
+      "atlas": false,
+      "arten": [],
+      "fehler": null
+     },
+     "reflex": {
+      "an": false,
+      "bereit": false,
+      "seiten": 0,
+      "pmrem": 0
+     },
+     "vao": {
+      "fertig": true,
+      "anteil": 1,
+      "ecken": 36994,
+      "gerechnet": 29559,
+      "strahlen": 177354,
+      "strahlenJe": 6,
+      "ms": 398
+     },
+     "apLog": [],
+     "startProbe": null,
+     "gpuZeit": true
+    },
+    "boot_s": 3.5,
+    "fehler": []
+   },
+   "quer": {
+    "n": 3513,
+    "p50": 2.8,
+    "p95": 4.2,
+    "p99": 5.1,
+    "fps": 351.1,
+    "calls": 66,
+    "callsMax": 83,
+    "tris": 148353,
+    "tex": 49,
+    "zusatz": {
+     "calls": 66,
+     "tris": 147823,
+     "geometries": 107,
+     "textures": 49,
+     "programs": 51,
+     "pixelRatio": 1,
+     "tier": 0,
+     "fps": 353.0744120977954,
+     "ap": {
+      "skala": 1,
+      "bereich": [
+       0.6,
+       1
+      ],
+      "stufen": {
+       "deko": 1,
+       "reflex": 1,
+       "autoschatten": 1,
+       "stufe": 0
+      },
+      "fps": 60,
+      "arbeit": null,
+      "cpu": null,
+      "gpu": null,
+      "engpass": null,
+      "gesperrtBis": 0,
+      "aenderungen": 0,
+      "t": 0
+     },
+     "carLod": 0,
+     "ghostLod": 0,
+     "impostor": {
+      "atlas": false,
+      "arten": [],
+      "fehler": null
+     },
+     "reflex": {
+      "an": false,
+      "bereit": false,
+      "seiten": 0,
+      "pmrem": 0
+     },
+     "vao": {
+      "fertig": true,
+      "anteil": 1,
+      "ecken": 36994,
+      "gerechnet": 29559,
+      "strahlen": 177354,
+      "strahlenJe": 6,
+      "ms": 393
+     },
+     "apLog": [],
+     "startProbe": null,
+     "gpuZeit": true
+    },
+    "boot_s": 1.6,
+    "fehler": []
+   }
+  },
+  "cockpit_kino": {
+   "hoch": {
+    "n": 1094,
+    "p50": 8.3,
+    "p95": 13,
+    "p99": 25.6,
+    "fps": 109.2,
+    "calls": 74,
+    "callsMax": 105,
+    "tris": 220471,
+    "tex": 79,
+    "zusatz": {
+     "calls": 79,
+     "tris": 208896,
+     "geometries": 136,
+     "textures": 79,
+     "programs": 90,
+     "pixelRatio": 2,
+     "tier": 2,
+     "fps": 133.21787783920607,
+     "ap": {
+      "skala": 1,
+      "bereich": [
+       0.7,
+       1
+      ],
+      "stufen": {
+       "deko": 1,
+       "reflex": 1,
+       "autoschatten": 1,
+       "stufe": 2
+      },
+      "fps": 60,
+      "arbeit": null,
+      "cpu": null,
+      "gpu": null,
+      "engpass": null,
+      "gesperrtBis": 0,
+      "aenderungen": 0,
+      "t": 0
+     },
+     "carLod": 0,
+     "ghostLod": 0,
+     "impostor": {
+      "atlas": true,
+      "arten": [],
+      "fehler": null
+     },
+     "reflex": {
+      "an": true,
+      "bereit": true,
+      "seiten": 51,
+      "pmrem": 8
+     },
+     "vao": {
+      "fertig": true,
+      "anteil": 1,
+      "ecken": 36994,
+      "gerechnet": 29559,
+      "strahlen": 177354,
+      "strahlenJe": 6,
+      "ms": 442
+     },
+     "apLog": [],
+     "startProbe": null,
+     "gpuZeit": true
+    },
+    "boot_s": 2.0,
+    "fehler": []
+   },
+   "quer": {
+    "n": 1015,
+    "p50": 9.7,
+    "p95": 15.3,
+    "p99": 26.8,
+    "fps": 101.4,
+    "calls": 81,
+    "callsMax": 111,
+    "tris": 224136,
+    "tex": 79,
+    "zusatz": {
+     "calls": 81,
+     "tris": 212378,
+     "geometries": 142,
+     "textures": 79,
+     "programs": 90,
+     "pixelRatio": 2,
+     "tier": 2,
+     "fps": 107.68316046772806,
+     "ap": {
+      "skala": 1,
+      "bereich": [
+       0.7,
+       1
+      ],
+      "stufen": {
+       "deko": 1,
+       "reflex": 1,
+       "autoschatten": 1,
+       "stufe": 2
+      },
+      "fps": 60,
+      "arbeit": null,
+      "cpu": null,
+      "gpu": null,
+      "engpass": null,
+      "gesperrtBis": 0,
+      "aenderungen": 0,
+      "t": 0
+     },
+     "carLod": 0,
+     "ghostLod": 0,
+     "impostor": {
+      "atlas": true,
+      "arten": [],
+      "fehler": null
+     },
+     "reflex": {
+      "an": true,
+      "bereit": true,
+      "seiten": 51,
+      "pmrem": 8
+     },
+     "vao": {
+      "fertig": true,
+      "anteil": 1,
+      "ecken": 36994,
+      "gerechnet": 29559,
+      "strahlen": 177354,
+      "strahlenJe": 6,
+      "ms": 451
+     },
+     "apLog": [],
+     "startProbe": null,
+     "gpuZeit": true
+    },
+    "boot_s": 1.8,
+    "fehler": []
+   }
+  },
+  "replay_kino": {
+   "hoch": {
+    "n": 1106,
+    "p50": 8.3,
+    "p95": 14.6,
+    "p99": 16.4,
+    "fps": 110.5,
+    "calls": 104,
+    "callsMax": 130,
+    "tris": 365419,
+    "tex": 65,
+    "zusatz": {
+     "calls": 99,
+     "tris": 363542,
+     "geometries": 157,
+     "textures": 65,
+     "programs": 79,
+     "pixelRatio": 2,
+     "tier": 2,
+     "fps": 111.45017911635935,
+     "ap": {
+      "skala": 1,
+      "bereich": [
+       0.7,
+       1
+      ],
+      "stufen": {
+       "deko": 1,
+       "reflex": 1,
+       "autoschatten": 1,
+       "stufe": 2
+      },
+      "fps": 60,
+      "arbeit": null,
+      "cpu": null,
+      "gpu": null,
+      "engpass": null,
+      "gesperrtBis": 0,
+      "aenderungen": 0,
+      "t": 0
+     },
+     "carLod": 0,
+     "ghostLod": 0,
+     "impostor": {
+      "atlas": true,
+      "arten": [],
+      "fehler": null
+     },
+     "reflex": {
+      "an": true,
+      "bereit": true,
+      "seiten": 1569,
+      "pmrem": 261
+     },
+     "vao": {
+      "fertig": true,
+      "anteil": 1,
+      "ecken": 36994,
+      "gerechnet": 29559,
+      "strahlen": 177354,
+      "strahlenJe": 6,
+      "ms": 455
+     },
+     "apLog": [],
+     "startProbe": null,
+     "gpuZeit": true
+    },
+    "boot_s": 1.7,
+    "fehler": []
+   },
+   "quer": {
+    "n": 1076,
+    "p50": 8.7,
+    "p95": 14.6,
+    "p99": 16.2,
+    "fps": 107.5,
+    "calls": 118,
+    "callsMax": 150,
+    "tris": 372253,
+    "tex": 65,
+    "zusatz": {
+     "calls": 109,
+     "tris": 367690,
+     "geometries": 157,
+     "textures": 65,
+     "programs": 79,
+     "pixelRatio": 2,
+     "tier": 2,
+     "fps": 105.04620703410674,
+     "ap": {
+      "skala": 1,
+      "bereich": [
+       0.7,
+       1
+      ],
+      "stufen": {
+       "deko": 1,
+       "reflex": 1,
+       "autoschatten": 1,
+       "stufe": 2
+      },
+      "fps": 60,
+      "arbeit": null,
+      "cpu": null,
+      "gpu": null,
+      "engpass": null,
+      "gesperrtBis": 0,
+      "aenderungen": 0,
+      "t": 0
+     },
+     "carLod": 0,
+     "ghostLod": 0,
+     "impostor": {
+      "atlas": true,
+      "arten": [],
+      "fehler": null
+     },
+     "reflex": {
+      "an": true,
+      "bereit": true,
+      "seiten": 1503,
+      "pmrem": 250
+     },
+     "vao": {
+      "fertig": true,
+      "anteil": 1,
+      "ecken": 36994,
+      "gerechnet": 29559,
+      "strahlen": 177354,
+      "strahlenJe": 6,
+      "ms": 449
+     },
+     "apLog": [],
+     "startProbe": null,
+     "gpuZeit": true
+    },
+    "boot_s": 1.8,
+    "fehler": []
+   }
+  },
+  "rennen_autopilot": {
+   "hoch": {
+    "n": 2778,
+    "p50": 7.1,
+    "p95": 9.2,
+    "p99": 10.2,
+    "fps": 138.8,
+    "calls": 106,
+    "callsMax": 154,
+    "tris": 373230,
+    "tex": 65,
+    "zusatz": {
+     "calls": 131,
+     "tris": 394668,
+     "geometries": 127,
+     "textures": 65,
+     "programs": 78,
+     "pixelRatio": 2,
+     "tier": 2,
+     "fps": 135.23416161481572,
+     "ap": {
+      "skala": 0.94,
+      "bereich": [
+       0.7,
+       1
+      ],
+      "stufen": {
+       "deko": 1,
+       "reflex": 1,
+       "autoschatten": 1,
+       "stufe": 2
+      },
+      "fps": 130.2,
+      "arbeit": 8.92,
+      "cpu": 6.91,
+      "gpu": 8.92,
+      "engpass": "gpu",
+      "gesperrtBis": 0,
+      "aenderungen": 5,
+      "t": 24.5
+     },
+     "carLod": 0,
+     "ghostLod": 0,
+     "impostor": {
+      "atlas": true,
+      "arten": [],
+      "fehler": null
+     },
+     "reflex": {
+      "an": true,
+      "bereit": true,
+      "seiten": 3451,
+      "pmrem": 575
+     },
+     "vao": {
+      "fertig": true,
+      "anteil": 1,
+      "ecken": 36994,
+      "gerechnet": 29559,
+      "strahlen": 177354,
+      "strahlenJe": 6,
+      "ms": 554
+     },
+     "apLog": [
+      {
+       "t": 2.5,
+       "was": "skala",
+       "richtung": -1,
+       "skala": 0.88,
+       "fps": 161.4,
+       "arbeit": 18.07
+      },
+      {
+       "t": 4.03,
+       "was": "vorab",
+       "richtung": -1,
+       "skala": 0.88,
+       "fps": 140.5,
+       "arbeit": 18
+      },
+      {
+       "t": 7.56,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.94,
+       "fps": 143,
+       "arbeit": 8.3
+      },
+      {
+       "t": 11.09,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 1,
+       "fps": 138.1,
+       "arbeit": 10.53
+      },
+      {
+       "t": 14.11,
+       "was": "skala",
+       "richtung": -1,
+       "skala": 0.94,
+       "fps": 166.7,
+       "arbeit": 17.68
+      }
+     ],
+     "startProbe": {
+      "n": 20,
+      "median": 9.900000005960464,
+      "p90": 15.200000002980232,
+      "min": 9.5,
+      "max": 15.900000005960464,
+      "skala": 1
+     },
+     "gpuZeit": true
+    },
+    "boot_s": 2.1,
+    "fehler": []
+   },
+   "quer": {
+    "n": 2653,
+    "p50": 7.5,
+    "p95": 9.6,
+    "p99": 11,
+    "fps": 132.6,
+    "calls": 119,
+    "callsMax": 172,
+    "tris": 379948,
+    "tex": 65,
+    "zusatz": {
+     "calls": 130,
+     "tris": 393388,
+     "geometries": 127,
+     "textures": 65,
+     "programs": 78,
+     "pixelRatio": 2,
+     "tier": 2,
+     "fps": 129.5681063122925,
+     "ap": {
+      "skala": 0.9,
+      "bereich": [
+       0.7,
+       1
+      ],
+      "stufen": {
+       "deko": 1,
+       "reflex": 1,
+       "autoschatten": 1,
+       "stufe": 2
+      },
+      "fps": 126.7,
+      "arbeit": 9.86,
+      "cpu": 7.07,
+      "gpu": 9.86,
+      "engpass": "gpu",
+      "gesperrtBis": 13.7,
+      "aenderungen": 6,
+      "t": 24.5
+     },
+     "carLod": 0,
+     "ghostLod": 0,
+     "impostor": {
+      "atlas": true,
+      "arten": [],
+      "fehler": null
+     },
+     "reflex": {
+      "an": true,
+      "bereit": true,
+      "seiten": 3281,
+      "pmrem": 546
+     },
+     "vao": {
+      "fertig": true,
+      "anteil": 1,
+      "ecken": 36994,
+      "gerechnet": 29559,
+      "strahlen": 177354,
+      "strahlenJe": 6,
+      "ms": 579
+     },
+     "apLog": [
+      {
+       "t": 2.5,
+       "was": "skala",
+       "richtung": -1,
+       "skala": 0.9,
+       "fps": 163.1,
+       "arbeit": 16.86
+      },
+      {
+       "t": 4.02,
+       "was": "vorab",
+       "richtung": -1,
+       "skala": 0.9,
+       "fps": 130.5,
+       "arbeit": 16.81
+      },
+      {
+       "t": 7.55,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.96,
+       "fps": 135.8,
+       "arbeit": 9.34
+      },
+      {
+       "t": 9.06,
+       "was": "skala",
+       "richtung": -1,
+       "skala": 0.9,
+       "fps": 152.3,
+       "arbeit": 18.34
+      },
+      {
+       "t": 19.17,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.96,
+       "fps": 130.5,
+       "arbeit": 10.3
+      },
+      {
+       "t": 22.19,
+       "was": "skala",
+       "richtung": -1,
+       "skala": 0.9,
+       "fps": 155.2,
+       "arbeit": 18.67
+      }
+     ],
+     "startProbe": {
+      "n": 20,
+      "median": 10.200000002980232,
+      "p90": 15.600000001490116,
+      "min": 9.600000001490116,
+      "max": 16.899999998509884,
+      "skala": 1
+     },
+     "gpuZeit": true
+    },
+    "boot_s": 2.1,
+    "fehler": []
+   }
+  }
+ },
+ "ladegroesse": {
+  "dateien": 121,
+  "roh_mb": 6.89,
+  "gzip_mb": 4.86,
+  "extern": [],
+  "groesste_gzip_kb": [
+   [
+    "assets/car/goblin.glb",
+    714
+   ],
+   [
+    "assets/tex/veg_atlas.webp",
+    326
+   ],
+   [
+    "assets/tex/grass_nor.ktx2",
+    282
+   ],
+   [
+    "assets/snd/sfx.m4a",
+    271
+   ],
+   [
+    "assets/tex/grass_diff.ktx2",
+    234
+   ],
+   [
+    "assets/tex/pad_diff.ktx2",
+    203
+   ],
+   [
+    "assets/themes/tex/Grass004_arm.ktx2",
+    200
+   ],
+   [
+    "assets/themes/alpen/env_512.hdr",
+    192
+   ],
+   [
+    "assets/car/goblin_mid.glb",
+    191
+   ],
+   [
+    "assets/tex/fir_card_0.webp",
+    190
+   ]
+  ]
+ }
+}

@@ -95,6 +95,8 @@ export class Quality {
         for (const d of this.ap.dinge) if (d.name !== 'stufe' && d.stufe < d.stufen) { d.stufe = d.stufen; d.setzer(d.stufen, +1); }
         this.changed();
       }
+      // Bildrate trotzdem mitführen (info().fps, Tests), wie die alte Automatik bei fester Stufe
+      if (dt > 0 && dt <= 0.5) { this.acc += dt; this.n++; if (this.acc >= 1.5) { this.fps = this.n / this.acc; this.acc = 0; this.n = 0; } }
       return;
     }
     if (this._apPause) {

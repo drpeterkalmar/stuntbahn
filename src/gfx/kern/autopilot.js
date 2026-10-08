@@ -8,7 +8,7 @@
 //   • regelt in festen Schritten: Renderskala stufenlos (gerastert auf 0,02) → registrierte Dinge der Reihe nach
 //     (z. B. teure Deko → Auto-Schatten → Stufe), und mit Hysterese auch wieder AUFWÄRTS (rückwärts, zuletzt Abgeschaltetes
 //     zuerst wieder an).
-//   • pendelt nicht: Runter erst nach 2 schlechten Fenstern in Folge (≈ 1 s), rauf erst nach 6 guten (≈ 3 s). Scheitert ein
+//   • pendelt nicht: Runter erst nach 2 schlechten Fenstern in Folge (≈ 1 s), rauf erst nach 5 guten (≈ 2,5 s). Scheitert ein
 //     Schritt nach oben (innerhalb von 4 s wieder runter), wird „rauf“ gesperrt – 8 s, dann 16, 32 … bis 120 s.
 //   • CPU-gebunden (GPU-Zeit bekannt und klein)? Dann bringt die Renderskala nichts – er überspringt sie und nimmt gleich
 //     das nächste registrierte Ding.
@@ -31,12 +31,13 @@ export const AP_STANDARD = {
   zielFps: 60,
   fenster: 0.5,        // s je Messfenster
   runterNach: 2,       // schlechte Fenster in Folge bis „runter“
-  raufNach: 6,         // gute Fenster in Folge bis „rauf“
+  raufNach: 5,         // gute Fenster in Folge bis „rauf“ (2,5 s; n30-Browsertest: Reaktion ≤ 3 s inkl. Messfenster)
   ruhe: 1,             // Fenster nach jeder Änderung, die nicht zählen (Render-Target neu, Wirkung abwarten)
   arbeitRunter: 0.92,  // Arbeitszeit > 92 % des Bildtakts → zu langsam (mit GPU-Zeit)
   arbeitLuft: 0.68,    // Arbeitszeit < 68 % → Luft nach oben (mit GPU-Zeit)
   arbeitZiel: 0.82,    // Ziel beim Nachführen der Renderskala nach unten
-  arbeitRauf: 0.88,    // nach oben nur, wenn die Vorhersage darunter bleibt (Abstand zu „runter“ = Hysterese)
+  arbeitRauf: 0.88,
+  arbeitDeckel: 0.5,   // Arbeit < 50 % des Takts trotz niedriger Bildrate = Bildrate von außen gedeckelt (nur mit GPU-Zeit)    // nach oben nur, wenn die Vorhersage darunter bleibt (Abstand zu „runter“ = Hysterese)
   fpsRunter: 52,       // Bildrate darunter → zu langsam (immer, auch ohne GPU-Zeit; wie die alte Automatik)
   fpsLuft: 58.5,       // Bildrate darüber → ohne GPU-Zeit „vielleicht Luft“ (Probe)
   fpsStufe: 45,        // ohne GPU-Zeit: Stufe erst unter dieser Bildrate opfern (wie bisher)
@@ -142,7 +143,10 @@ export class GrafikAutopilot {
     if (this.ruheRest > 0) { this.ruheRest--; return false; }
     const A = this.arbeit;
     if (A != null) this.lerne(A);
-    const zuLangsam = this.fps < o.fpsRunter || (A != null && A > takt * o.arbeitRunter);
+    // Bildrate niedrig, aber gemessene Arbeit (CPU und GPU) weit unter dem Takt → von außen gedeckelt (Energiesparmodus 30 Hz,
+    // gedrosselter Hintergrund-Tab, Bildschirm mit 30/50 Hz): weniger Grafik brächte nichts → nicht runter
+    this.gedeckelt = A != null && this.fps < o.fpsRunter && A < takt * o.arbeitDeckel;
+    const zuLangsam = !this.gedeckelt && (this.fps < o.fpsRunter || (A != null && A > takt * o.arbeitRunter));
     // Luft: mit GPU-Zeit echt gemessen (der nächste Schritt passt laut Vorhersage); ohne nur „Bildrate voll“ → Probe
     // (die Sperre fängt Fehlversuche)
     const luft = !zuLangsam && this.fps >= o.fpsLuft && (A == null || A < takt * o.arbeitLuft || this.raufPasst());
@@ -291,7 +295,7 @@ export class GrafikAutopilot {
     for (const d of this.dinge) st[d.name] = d.stufe;
     return { skala: this.skala, bereich: [this.skalaMin, this.skalaMax], stufen: st, fps: +this.fps.toFixed(1), arbeit: this.arbeit != null ? +this.arbeit.toFixed(2) : null,
       cpu: this.cpu != null ? +this.cpu.toFixed(2) : null, gpu: this.gpu != null ? +this.gpu.toFixed(2) : null, engpass: this.engpass,
-      gesperrtBis: this.sperreBis > this.t ? +(this.sperreBis - this.t).toFixed(1) : 0, aenderungen: this.aenderungen, t: +this.t.toFixed(1) };
+      gedeckelt: !!this.gedeckelt, gesperrtBis: this.sperreBis > this.t ? +(this.sperreBis - this.t).toFixed(1) : 0, aenderungen: this.aenderungen, t: +this.t.toFixed(1) };
   }
 }
 

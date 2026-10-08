@@ -1,0 +1,161 @@
+{
+ "datum": "2026-10-08T09:06:31",
+ "stand": "ab_reflex",
+ "modus": "ab",
+ "runden": 3,
+ "varianten": [
+  {
+   "name": "basis",
+   "wurzel": "/Users/wohnzimmer/dev/stuntbahn",
+   "zusatz": ""
+  },
+  {
+   "name": "ohne_ssao",
+   "wurzel": "/Users/wohnzimmer/dev/stuntbahn",
+   "zusatz": "&kl=-ssao"
+  },
+  {
+   "name": "ohne_reflex",
+   "wurzel": "/Users/wohnzimmer/dev/stuntbahn",
+   "zusatz": "&reflex=0"
+  }
+ ],
+ "profil": {
+  "drossel": 4,
+  "dpr": 2.6,
+  "sek": 10,
+  "start": "open",
+  "vsync": false
+ },
+ "szenen": {
+  "looping_kino": {
+   "hoch": {
+    "basis": {
+     "p50": 10.5,
+     "p95": 27.7,
+     "fps": 84.6,
+     "calls": 98,
+     "tris": 386493,
+     "runden_p95": [
+      27.8,
+      27.7,
+      27.6
+     ],
+     "fehler": []
+    },
+    "ohne_ssao": {
+     "p50": 9.7,
+     "p95": 24,
+     "fps": 93.2,
+     "calls": 97,
+     "tris": 386494,
+     "runden_p95": [
+      25.4,
+      24,
+      18.7
+     ],
+     "fehler": []
+    },
+    "ohne_reflex": {
+     "p50": 10.4,
+     "p95": 13.9,
+     "fps": 95.7,
+     "calls": 82,
+     "tris": 297951,
+     "runden_p95": [
+      13.9,
+      14,
+      12.9
+     ],
+     "fehler": []
+    }
+   }
+  },
+  "looping_standard": {
+   "hoch": {
+    "basis": {
+     "p50": 5.9,
+     "p95": 7,
+     "fps": 167.5,
+     "calls": 95,
+     "tris": 362202,
+     "runden_p95": [
+      7.9,
+      7,
+      6.8
+     ],
+     "fehler": []
+    },
+    "ohne_ssao": {
+     "p50": 6,
+     "p95": 7.1,
+     "fps": 166.2,
+     "calls": 95,
+     "tris": 362202,
+     "runden_p95": [
+      7.5,
+      7.1,
+      6.7
+     ],
+     "fehler": []
+    },
+    "ohne_reflex": {
+     "p50": 4,
+     "p95": 5.1,
+     "fps": 243.7,
+     "calls": 79,
+     "tris": 273660,
+     "runden_p95": [
+      5.6,
+      4.7,
+      5.1
+     ],
+     "fehler": []
+    }
+   }
+  },
+  "rennen_kino": {
+   "hoch": {
+    "basis": {
+     "p50": 7.3,
+     "p95": 14.2,
+     "fps": 114.4,
+     "calls": 99,
+     "tris": 366860,
+     "runden_p95": [
+      14.2,
+      14,
+      14.5
+     ],
+     "fehler": []
+    },
+    "ohne_ssao": {
+     "p50": 7.1,
+     "p95": 13.8,
+     "fps": 118.7,
+     "calls": 98,
+     "tris": 366871,
+     "runden_p95": [
+      13.7,
+      13.9,
+      13.8
+     ],
+     "fehler": []
+    },
+    "ohne_reflex": {
+     "p50": 7.2,
+     "p95": 10.1,
+     "fps": 127.4,
+     "calls": 84,
+     "tris": 296953,
+     "runden_p95": [
+      10.1,
+      10.1,
+      10.4
+     ],
+     "fehler": []
+    }
+   }
+  }
+ }
+}

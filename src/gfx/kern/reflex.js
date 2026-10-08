@@ -1,49 +1,73 @@
-// Grafik-Kern (n30): dynamische Spiegelung am Hauptobjekt (Auto) – kleine Würfel-Umgebung, je Bild EINE Seite reihum
-// gerendert, nach jeder vollen Runde (6 Bilder) einmal vorgefiltert (three.js PMREM über needsPMREMUpdate). Damit spiegelt
-// sich die Strecke im Lack (der wichtigste „Forza“-Eindruck in der Verfolgerkamera), statt nur der Himmel.
-// Kosten je Bild: eine Würfelseite (Szene ohne das Auto, Bildwinkel 90°, Sichtweite `far`), alle 6 Bilder ein PMREM-Lauf.
+// Grafik-Kern (n30): dynamische Spiegelung im Klarlack des Hauptobjekts (Auto) – kleine Würfel-Umgebung, je Bild EINE Seite
+// reihum gerendert. Damit spiegelt sich die Strecke im Lack (der wichtigste „Forza“-Eindruck in der Verfolgerkamera), statt
+// nur der Himmel. Das Grund-Umgebungslicht (Himmel-HDR, vorgefiltert) bleibt; nur die Klarlack-Schicht liest den Würfel.
+// Kein Vorfiltern (PMREM): der Würfel bekommt Mipmaps (eine Seite → gl.generateMipmap, billig) und der Klarlack liest die
+// Mip-Stufe nach seiner Rauigkeit. Erste Fassung mit PMREM nach jeder Runde kostete am Handy-Profil jedes 6. Bild eine
+// Spitze von ~25 Durchgängen (p95 +30–50 %, n30-Messung) – so bleibt es bei einer Würfelseite je Bild.
+// An/aus schaltet nur ein Uniform (keine neue Shader-Übersetzung, kein Hänger).
 //
 // Anschluss:
-//   const rx = new DynReflex(renderer, scene, { size: 128 });   // Größe wie die PMREM-Würfelgröße der Umgebung (512er-Equirect → 128), sonst eigene Shader-Variante
-//   for (const m of autoMaterialien) rx.attach(m);            // envMap = Würfel (statt scene.environment)
-//   je Bild vor dem Zeichnen: rx.update(autoRoot, { hide: [autoRoot], hoehe: 0.9 });
-//   aus/an: rx.setEnabled(false)  → Materialien bekommen wieder ihr altes envMap (null = scene.environment)
+//   const rx = new DynReflex(renderer, scene, { size: 128, far: 150, layer: 2 });
+//   for (const m of autoMaterialien) rx.attach(m);   // nur Materialien mit Klarlack (MeshPhysicalMaterial, clearcoat > 0)
+//   optional { layer: 2 }: nur Objekte mit obj.layers.enable(2) kommen in die Spiegelung (jede Seite kostet Draw-Calls)
+//   je Bild vor dem Zeichnen: rx.update(autoRoot, { hide: [autoRoot], hoehe: 0.9, vor, nach });
+//   aus/an: rx.setEnabled(false)
+//   Wichtig: erst updaten, wenn die Schattenkarten existieren (sonst bindet three.js eine leere Textur an den
+//   Schatten-Sampler → GL_INVALID_OPERATION „Mismatch between texture format and sampler type“) – siehe o.skip
 import * as THREE from 'three';
 
 export class DynReflex {
   constructor(renderer, scene, o = {}) {
     this.r = renderer; this.scene = scene;
     this.size = o.size || 128;
-    this.rt = new THREE.WebGLCubeRenderTarget(this.size, { type: THREE.HalfFloatType, generateMipmaps: false, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, depthBuffer: true });
-    this.cam = new THREE.CubeCamera(o.near ?? 0.3, o.far ?? 320, this.rt);
-    this.face = 0; this.runden = 0; this.enabled = true; this.mats = new Map();
-    this.bereit = false;   // erst nach der ersten vollen Runde an die Materialien hängen (sonst schwarz/halb)
-    this.stats = { seiten: 0, pmrem: 0 };
+    this.rt = new THREE.WebGLCubeRenderTarget(this.size, { type: THREE.HalfFloatType, generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter, magFilter: THREE.LinearFilter, depthBuffer: true });
+    this.cam = new THREE.CubeCamera(o.near ?? 0.3, o.far ?? 150, this.rt);
+    // o.layer: nur Objekte auf dieser Ebene spiegeln (Himmel, Strecke, Gelände, Kulisse, Bäume) – Gras, Teilchen, Kleinkram
+    // kosten Draw-Calls und sieht man im Lack nicht
+    if (o.layer != null) for (const c of this.cam.children) c.layers.set(o.layer);
+    // Kosten-Regler: takt = nur jedes takt-te Bild eine Seite (1 = jedes Bild)
+    this.takt = Math.max(1, o.takt || 1); this.zaehler = 0;
+    this.face = 0; this.runden = 0; this.enabled = true; this.mats = new Set();
+    this.bereit = false;   // erst nach der ersten vollen Runde einblenden (sonst schwarze Seiten)
+    // gemeinsame Uniforms aller angehängten Materialien: K = Anteil der Würfel-Spiegelung (0 = aus), Mip = höchste Stufe
+    this.U = { sbDynCube: { value: this.rt.texture }, sbDynK: { value: 0 }, sbDynMip: { value: Math.log2(this.size) } };
+    this.stats = { seiten: 0, calls: 0 };
   }
-  attach(mat, intensity = null) {
+  attach(mat) {
     if (this.mats.has(mat)) return;
-    this.mats.set(mat, { envMap: mat.envMap, intensity: mat.envMapIntensity });
-    if (intensity != null) this.mats.get(mat).ziel = intensity;
-    if (this.bereit && this.enabled) this.anwenden(mat);
-  }
-  anwenden(mat) {
-    const a = this.mats.get(mat);
-    mat.envMap = this.rt.texture;
-    if (a.ziel != null) mat.envMapIntensity = a.ziel;
+    this.mats.add(mat);
+    const U = this.U, prev = mat.onBeforeCompile;
+    mat.onBeforeCompile = (sh, r) => {
+      if (prev) prev(sh, r);
+      Object.assign(sh.uniforms, U);
+      sh.fragmentShader = sh.fragmentShader
+        .replace('#include <common>', '#include <common>\nuniform samplerCube sbDynCube; uniform float sbDynK, sbDynMip;')
+        .replace('#include <lights_fragment_maps>', `#include <lights_fragment_maps>
+        #if defined( RE_IndirectSpecular ) && defined( USE_CLEARCOAT )
+        if ( sbDynK > 0.0 ) {
+          vec3 sbR = normalize( inverseTransformDirection( reflect( - geometryViewDir, geometryClearcoatNormal ), viewMatrix ) );
+          vec3 sbDyn = textureLod( sbDynCube, sbR, sbDynMip * clamp( pow( material.clearcoatRoughness, 0.7 ), 0.0, 1.0 ) ).rgb;
+          #ifdef USE_ENVMAP
+            sbDyn *= envMapIntensity;
+          #endif
+          clearcoatRadiance = mix( clearcoatRadiance, sbDyn, sbDynK );
+        }
+        #endif`);
+    };
+    const pk = mat.customProgramCacheKey ? mat.customProgramCacheKey.bind(mat) : () => '';
+    mat.customProgramCacheKey = () => pk() + '|dynrefl';
     mat.needsUpdate = true;
   }
   setEnabled(on) {
-    if (on === this.enabled) return;
     this.enabled = on;
-    for (const [m, a] of this.mats) {
-      if (on && this.bereit) this.anwenden(m);
-      else { m.envMap = a.envMap; m.envMapIntensity = a.intensity; m.needsUpdate = true; }
-    }
+    this.U.sbDynK.value = on && this.bereit ? 1 : 0;
   }
   // Eine Würfelseite um `ziel` (Object3D, z. B. Auto) rendern. o.hide: Objekte, die nicht in die eigene Spiegelung gehören.
   // o.skip = true: diese Runde nichts tun (Auto nicht sichtbar, weit weg, Cockpit) – kostet dann nichts.
+  // o.vor/o.nach: um das Zeichnen der Seite (z. B. Himmel heller, weil ein 8-bit-Himmelsbild die HDR-Umgebung ersetzt)
   update(ziel, o = {}) {
     if (!this.enabled || o.skip) return false;
+    if (this.bereit && (this.zaehler++ % this.takt) !== 0) return false;
     const r = this.r, cam = this.cam;
     if (cam.coordinateSystem !== r.coordinateSystem) { cam.coordinateSystem = r.coordinateSystem; cam.updateCoordinateSystem(); }   // wie CubeCamera.update
     ziel.getWorldPosition(cam.position);
@@ -56,8 +80,12 @@ export class DynReflex {
     r.shadowMap.autoUpdate = false;   // Schattenkarte vom letzten Bild weiterverwenden (das Auto ist hier ohnehin aus)
     r.xr.enabled = false;
     const c = cam.children[this.face];
+    if (o.vor) o.vor();
     r.setRenderTarget(this.rt, this.face);
-    r.render(this.scene, c);
+    const c0 = r.info.render.calls;
+    r.render(this.scene, c);   // three.js erzeugt danach die Mipmaps des Würfels (generateMipmaps)
+    this.stats.calls = r.info.render.calls - c0;   // Draw-Calls dieser Seite (bei info.autoReset = false)
+    if (o.nach) o.nach();
     r.setRenderTarget(prevRT, prevAF, prevML);
     r.shadowMap.autoUpdate = prevSh; r.xr.enabled = prevXr;
     for (const h of hidden) h.visible = true;
@@ -65,9 +93,7 @@ export class DynReflex {
     this.face = (this.face + 1) % 6;
     if (this.face === 0) {
       this.runden++;
-      this.rt.texture.needsPMREMUpdate = true;   // three.js filtert beim nächsten Gebrauch vor (Rauigkeit → Mip-Stufen)
-      this.stats.pmrem++;
-      if (!this.bereit) { this.bereit = true; for (const m of this.mats.keys()) this.anwenden(m); }
+      if (!this.bereit) { this.bereit = true; this.setEnabled(this.enabled); }
     }
     return true;
   }

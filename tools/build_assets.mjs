@@ -6,7 +6,7 @@ import path from 'node:path';
 import sharp from 'sharp';
 import { NodeIO } from '@gltf-transform/core';
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
-import { metalRough, dedup, prune, weld, simplify, textureCompress, meshopt } from '@gltf-transform/functions';
+import { metalRough, dedup, prune, weld, simplify, textureCompress, meshopt, dequantize, compactPrimitive } from '@gltf-transform/functions';
 import { MeshoptEncoder, MeshoptDecoder, MeshoptSimplifier } from 'meshoptimizer';
 
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
@@ -96,6 +96,31 @@ if (all || args.includes('--car-lod')) {
   console.log('Auto (LOD, geparkt): Dreiecke', before, '->', after, 'Datei', (fs.statSync(path.join(OUT, 'car', 'goblin_lod.glb')).size / 1e3).toFixed(0), 'KB');
 }
 
+// n30: Vereinfachen je Primitive mit Normalen (Gewicht 0,6) und UVs (Gewicht 1) im Fehlermaß; Nähte bleiben (meshopt
+// erkennt Ecken gleicher Lage mit verschiedenen Attributen), danach unbenutzte Ecken entfernen
+function simplifyMitAttributen(doc, ratio, error) {
+  for (const mesh of doc.getRoot().listMeshes()) for (const prim of mesh.listPrimitives()) {
+    const idx = prim.getIndices(), pos = prim.getAttribute('POSITION');
+    if (!idx || !pos || prim.getMode() !== 4) continue;
+    const n = pos.getCount(), N = prim.getAttribute('NORMAL'), UV = prim.getAttribute('TEXCOORD_0');
+    const P = new Float32Array(n * 3), v = [];
+    for (let i = 0; i < n; i++) P.set(pos.getElement(i, v), i * 3);
+    const st = (N ? 3 : 0) + (UV ? 2 : 0), A = new Float32Array(n * st), w = [];
+    if (N) w.push(0.6, 0.6, 0.6);
+    if (UV) w.push(1, 1);
+    for (let i = 0; i < n; i++) {
+      let o = i * st;
+      if (N) { A.set(N.getElement(i, v), o); o += 3; }
+      if (UV) A.set(UV.getElement(i, v).slice(0, 2), o);
+    }
+    const ib = new Uint32Array(idx.getArray());
+    const target = Math.max(3, Math.floor((ib.length * ratio) / 3) * 3);
+    const [out] = MeshoptSimplifier.simplifyWithAttributes(ib, P, 3, A, st, w, null, target, error);
+    idx.setArray(n > 65535 ? out : new Uint16Array(out));
+    compactPrimitive(prim);
+  }
+}
+
 // n30: Heldenauto in Mittel- und Fern-Stufe (LOD) für Verfolger weit, Replay-Totale und Geist. Gleiche Knoten-Namen und
 // Material-Namen wie das Original (carmesh.js ordnet Räder und Materialien darüber zu), UVs bleiben, Texturen fliegen raus
 // (zur Laufzeit nimmt jede Stufe die Materialien/Texturen des Heldenautos → keine doppelten Texturen im Download).
@@ -105,13 +130,16 @@ if (all || args.includes('--car-mid')) {
   const io = new NodeIO().registerExtensions(ALL_EXTENSIONS)
     .registerDependencies({ 'meshopt.encoder': MeshoptEncoder, 'meshopt.decoder': MeshoptDecoder });
   const count = (doc) => { let n = 0; for (const m of doc.getRoot().listMeshes()) for (const p of m.listPrimitives()) n += (p.getIndices()?.getCount() || 0) / 3; return n; };
-  for (const [name, ziel, error] of [['goblin_mid', 15000, 0.012], ['goblin_far', 6500, 0.04]]) {
+  for (const [name, ziel, error] of [['goblin_mid', 15000, 0.025], ['goblin_far', 6500, 0.08]]) {
     const doc = await io.read(path.join(SRC, 'goblin_src.glb'));
     for (const n of doc.getRoot().listNodes()) if (n.getName().startsWith('car_shadow')) n.dispose();
     await doc.transform(metalRough(), dedup(), prune(), weld());
     const before = count(doc);
-    // Verhältnis aus dem Ziel; kleine Teile (Schrauben, Embleme) lassen sich kaum vereinfachen → etwas tiefer ansetzen
-    await doc.transform(simplify({ simplifier: MeshoptSimplifier, ratio: Math.min(1, (ziel / before) * 0.85), error, lockBorder: false }));
+    // Verhältnis aus dem Ziel; kleine Teile (Schrauben, Embleme) lassen sich kaum vereinfachen → etwas tiefer ansetzen.
+    // Mit Normalen und UVs als Gewicht (simplifyWithAttributes): gltf-transform simplify() schaut nur auf die Lage – dann
+    // behalten zusammengelegte Ecken ihre alten Normalen und der Klarlack spiegelt fleckig (silberne Flächen, n30-Abnahme)
+    await doc.transform(dequantize());
+    simplifyMitAttributen(doc, Math.min(1, (ziel / before) * 0.85), error);
     for (const mat of doc.getRoot().listMaterials()) {
       mat.setBaseColorTexture(null).setNormalTexture(null).setMetallicRoughnessTexture(null).setOcclusionTexture(null).setEmissiveTexture(null);
       for (const ext of mat.listExtensions()) mat.setExtension(ext.extensionName, null);

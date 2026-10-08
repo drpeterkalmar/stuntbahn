@@ -277,5 +277,16 @@ for (const gpuTimer of [true, false]) {
   ok(e.r >= 3.4, `Box ±${e.r} m deckt die Auto-Silhouette (halbe Diagonale ~2,6 m) mit Rand`);
 }
 
+// n30-Heavy: Bildrate von außen auf 30 Hz gedeckelt (Energiesparmodus), Arbeit nur 5 ms → nicht herunterregeln;
+// ohne GPU-Zeit bleibt die alte Regel (Bildrate)
+{
+  const ap = new GrafikAutopilot({ skala: { min: 0.7, max: 1, start: 1 } });
+  ap.register('deko', 0.08, () => {});
+  for (let k = 0; k < 30 * 20; k++) ap.bild(1 / 30, 3, 5);
+  ok(ap.aenderungen === 0 && ap.zustand().gedeckelt, `30 Hz gedeckelt, Arbeit 5 ms: 20 s ohne Änderung (${ap.aenderungen}), gedeckelt erkannt`);
+  const ap2 = new GrafikAutopilot({ skala: { min: 0.7, max: 1, start: 1 } });
+  for (let k = 0; k < 30 * 5; k++) ap2.bild(1 / 30, 3, 31);
+  ok(ap2.aenderungen > 0, `30 Hz, Arbeit 31 ms (echt zu langsam): regelt herunter (${ap2.aenderungen})`);
+}
 console.log(bad ? `${bad} FEHLER` : 'alle Autopilot-Prüfungen OK');
 process.exit(bad ? 1 : 0);

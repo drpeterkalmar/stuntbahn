@@ -74,15 +74,19 @@ const LOOK = params.get('look');
 const LOOK_FIX = LOOK != null && /^[012]$/.test(LOOK) ? +LOOK : null;
 // n30: Qualitäts-Autopilot aus dem Grafik-Kern (Arbeitszeit, GPU-Zeit, auch aufwärts); ?autopilot=0 = alte Automatik
 const quality = new Quality(renderer, params.get('q') ?? (LOOK_FIX != null ? String(LOOK_FIX) : null), { autopilot: params.get('autopilot') !== '0', tightShadow: params.get('schattenkam') !== '0' });
-const kino = LOOK === 'alt' ? null : new KinoLook(renderer, { level: LOOK_FIX ?? quality.tier, stages: params.get('kl') || '' });
+// n30: Kino ohne SSAO, solange die gebackene Vertex-AO an ist (Wände, Röhre, Looping; ?vao=0 = SSAO wie bisher);
+// ?kl=+ssao schaltet sie trotzdem zu (spätere Angabe gewinnt)
+const kino = LOOK === 'alt' ? null : new KinoLook(renderer, { level: LOOK_FIX ?? quality.tier, stages: [params.get('vao') === '0' ? '' : '-ssao', params.get('kl') || ''].filter(Boolean).join(',') });
 // Bewegungsunschärfe: im Kino-Look Teil derselben Pipeline (ein Szenen-Durchlauf); ?look=alt: bisheriges post.js
 const post = kino || new Post(renderer);
 quality.post = post; quality.kino = kino;
 let sun, M, carVis, ghostVis, sky, cockpit, themes, air = null, brakeLights = null, brakeV = null;
-// n30: dynamische Lack-Spiegelung (gfx/kern/reflex.js) ab Grafikstufe REFLEX_MIN (?reflex=0 aus, ?reflex=2 nur Kino);
-// der Autopilot darf sie als „teure Deko“ abschalten (reflexOff)
-const REFLEX_MIN = params.get('reflex') === '0' ? 9 : params.get('reflex') === '2' ? 2 : 1;
+// n30: dynamische Lack-Spiegelung (gfx/kern/reflex.js) nur auf Kino: dort kostet sie im Handy-Profil 0–3 % p95, auf
+// Standard +26–31 % (Draw-Calls der Würfelseite, CPU) – Regel des Auftrags „> +8 % → nur Kino“. ?reflex=0 aus,
+// ?reflex=1 auch auf Standard. Der Autopilot darf sie als „teure Deko“ abschalten (reflexOff)
+const REFLEX_MIN = params.get('reflex') === '0' ? 9 : params.get('reflex') === '1' ? 1 : 2;
 let reflex = null, reflexOff = false;
+const REFLEX_LAYER = 2, REFLEX_OBJ = /^(trk|terrain|kulisse-(meer|horizont|nah|fern)|trees)/;   // nur große Flächen: jeder Draw-Call der Spiegel-Seite kostet am Handy CPU
 // n30: Bäume als Oktaeder-Impostors (Standard/Kino), sobald assets/tex/imp/impostor.json da ist; ?impostor=0 = Karten
 const IMP = params.get('impostor') === '0' ? null : new ImpostorBibliothek('assets/tex/imp/impostor.json', renderer);
 
@@ -188,8 +192,9 @@ async function boot() {
   ghostVis = await makeCar({ color: 0xffffff, contact: false });
   ghostify(ghostVis.root);
   if (REFLEX_MIN <= 2) {
-    reflex = new DynReflex(renderer, scene, { size: 128, far: 320 });   // 128 = gleiche PMREM-Größe wie die 512er-Umgebung → keine neue Shader-Variante
-    carVis.root.traverse((o) => { if (o.isMesh && !o.userData.fx) for (const m of [].concat(o.material)) if (m.isMeshStandardMaterial) reflex.attach(m); });
+    reflex = new DynReflex(renderer, scene, { size: +(params.get('reflexgr') || 128), far: +(params.get('reflexweit') || 150), layer: REFLEX_LAYER, takt: +(params.get('reflextakt') || 1) });   // 128 px, Sichtweite 150 m
+    sky.layers.enable(REFLEX_LAYER);
+    carVis.root.traverse((o) => { if (o.isMesh && !o.userData.fx) for (const m of [].concat(o.material)) if (m.isMeshPhysicalMaterial && m.clearcoat > 0) reflex.attach(m); });   // Lack, Karosserie, Glas
   }
   ghostVis.root.visible = false;
   scene.add(ghostVis.root);
@@ -206,6 +211,7 @@ async function boot() {
   // ?seed=…&d=… wie bisher flach (alte Codes, Tests); &3d=1 = Hochstraße (n19), &g=1 = Gelände (n22). Ohne Seed: Strecke
   // des Tages in der gewählten Streckenart (ab n22 Standard „Gelände“; Schalter im Menü)
   else await loadGenerated(q ? +q : daySeed(), +(params.get('d') || 2), q ? (params.get('g') === '1' ? 'gel' : params.get('3d') === '1' ? '3d' : 'flat') : store.settings.trackMode);
+  reflexVorwaermen();
   await startAutopilot();
   ui.loading(1, 'Fertig');
   app.ready = true;
@@ -426,6 +432,8 @@ async function loadTrack(layout, meta = {}, pre = null) {
   worldGroup = buildWorld(track, M, { world, tier: quality.tier, ideal, prof, deco: params.get('deko') !== 'aus', impostor: IMP, theme: { id: th.id, def: th.def, veg: th.veg, horizon: th.horizon, seed: layout.seed || layout.meta?.seed || 1 } });
   // Deko (n28): Vogelschwärme über der Landschaft (ein Draw-Call, Bahn im Shader)
   if (DEKO) { const b = makeBirds(track, th.id, quality.tier, layout.seed || layout.meta?.seed || 1); if (b) worldGroup.add(b); }
+  // n30: Lack-Spiegelung zeigt nur die großen Flächen (Strecke, Gelände, Wasser, Kulisse, Bäume, Tribünen, Zäune, Banner)
+  if (reflex) worldGroup.traverse((o) => { if ((o.isMesh || o.isInstancedMesh) && REFLEX_OBJ.test(o.name)) o.layers.enable(REFLEX_LAYER); });
   scene.add(worldGroup);
   await placeParkedCars(track);
   bakeStaticShadow(renderer, scene, sun.userData.dir, track.bounds, quality.staticShadowSize());
@@ -721,6 +729,8 @@ function frame(now) {
     replay.advance(rdt * timeScale);
     if (replay.jumped) { replay.jumped = false; rig.init = false; blurCut = true; ui.gmeterCut(); } // Schnitt: Kamera neu ansetzen statt schwenken
   }
+  // Test-Haken (tests/test_autopilot.py): künstliche Arbeit je Bild in ms – zählt in die CPU-Zeit wie echte Spiellast
+  if (app.testLast > 0) { const tE = performance.now() + app.testLast; while (performance.now() < tE); }
   if (quality.gpu) quality.gpu.anfang();
   render(rdt);
   if (quality.gpu) quality.gpu.ende();
@@ -1006,6 +1016,25 @@ function cineCamera(rdt, pose) {
   rig.view = 'cine';
 }
 
+// n30 Lack-Spiegelung: Auto und Geist nicht in die eigene Spiegelung; aussetzen, wenn das Auto nicht zu sehen oder weit weg
+// ist (Fern-LOD) – und solange die Schattenkarte des Autos fehlt (erstes Bild, nach Stufen-/Größenwechsel neu angelegt),
+// sonst bindet three.js eine leere Textur an den Schatten-Sampler (GL_INVALID_OPERATION)
+// Himmel in der Spiegelung REFLEX_SKY-fach heller: das Himmelsbild (8 bit, ≤ 1) ersetzt im Lack die HDR-Umgebung (bis 4),
+// sonst wirkt das Auto mit Spiegelung dunkler als ohne (n30-Abnahme); ?reflexhimmel= zum Abstimmen
+const REFLEX_SKY = +(params.get('reflexhimmel') || 3);
+const skyHell = () => { sky.material.uniforms.exposure.value = REFLEX_SKY; }, skyNormal = () => { sky.material.uniforms.exposure.value = 1; };
+function reflexOpts() {
+  return { hide: [carVis.root, ghostVis.root], skip: !carVis.root.visible || carVis.lod >= 2 || (sun.castShadow && !sun.shadow.map), vor: skyHell, nach: skyNormal };
+}
+// Vorwärmen im Ladebildschirm: ein Bild (legt die Schattenkarte an), eine volle Würfelrunde, noch ein Bild (Vorfiltern) –
+// so werden die Shader der Spiegel-Ansicht beim Laden übersetzt statt als Hänger im ersten Menübild
+function reflexVorwaermen() {
+  if (!reflex || quality.tier < REFLEX_MIN) return;
+  render(1 / 60);
+  for (let i = 0; i < 6; i++) reflex.update(carVis.root, reflexOpts());
+  render(1 / 60);
+}
+
 // Bild zeichnen: Kino-Look (eine Pipeline: Szene, Unschärfe, Licht/Farbe, Cockpit darüber) bzw. ?look=alt wie bis n22
 function drawFrame(o) {
   // n30: Auto-LOD nach Entfernung/Bildwinkel (Geist mindestens Mittel: durchscheinend, Feinheiten sieht man nicht)
@@ -1015,7 +1044,7 @@ function drawFrame(o) {
   // (hier statt in render(), damit auch drawOnce der Mess-Skripte sie mitzählt)
   if (reflex) {
     reflex.setEnabled(quality.tier >= REFLEX_MIN && !reflexOff);
-    reflex.update(carVis.root, { hide: [carVis.root, ghostVis.root], skip: !carVis.root.visible || carVis.lod >= 2 });
+    reflex.update(carVis.root, reflexOpts());
   }
   post.setting = params.get('blur') || store.settings.blur || 'light';
   post.tier = quality.tier;

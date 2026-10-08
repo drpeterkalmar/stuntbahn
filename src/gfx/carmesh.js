@@ -47,7 +47,7 @@ export async function parkedCarGeometry() {
   return out;
 }
 
-// n30: Heldenauto in Mittel- (~15 k) und Fern-Stufe (~7 k Dreiecke), gebaut mit tools/build_assets.mjs --car-mid aus
+// n30: Heldenauto in Mittel- (~15,8 k) und Fern-Stufe (~8,7 k Dreiecke), gebaut mit tools/build_assets.mjs --car-mid aus
 // demselben Original (Lizenz unverändert, CC-BY 4.0). Ohne Texturen: jede Stufe nutzt die Materialien des Heldenautos.
 // Lädt erst nach dem Start (nicht im Ladebildschirm); ?lod=0 = immer volles Modell.
 let lodsPromise = null;
