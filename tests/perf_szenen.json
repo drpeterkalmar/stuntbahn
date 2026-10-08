@@ -1,5 +1,5 @@
 {
- "_kommentar": "Stuntbahn-Szenen für tests/perf_gate.py (n30). Grafikstufe fest per ?q= (Autopilot pausiert), außer rennen_autopilot. ?startprobe=0: keine Kurzmessung beim Laden (auf main ohne Wirkung). Looping: Galerie-Strecke, Auto kopfüber im ersten Looping, Spiel angehalten (Bild wird weiter jedes Mal gezeichnet).",
+ "_kommentar": "Stuntbahn-Szenen für tests/perf_gate.py (n30). Grafikstufe fest per ?q= (Autopilot pausiert), außer rennen_autopilot. ?startprobe=0: keine Kurzmessung beim Laden (auf main ohne Wirkung). Looping: Galerie-Strecke, Auto kopfüber im ersten Looping, Spiel angehalten (Bild wird weiter jedes Mal gezeichnet). Vor jeder Szene (außer start_kino/rennen_autopilot) wird gewartet, bis die gebackene Vertex-AO fertig ist (n30; auf main ohne Wirkung) – start_kino misst die ersten 10 s nach dem Laden mit allem, was dort anfällt.",
  "bereit": "window.__app && window.__app.ready && window.__app.frames > 3",
  "init": "window.__noKino = true; window.__noShow = true",
  "info": "() => { const i = __game.renderer.info; return { calls: i.render.calls, tris: i.render.triangles, tex: i.memory.textures }; }",
@@ -12,14 +12,27 @@
    "query": "?nosw&q=2&startprobe=0&seed=4711&d=3&g=1",
    "schritte": [
     {
+     "bis": "(() => { const v = __game.info().vao; return !v || v.fertig; })()",
+     "max": 120
+    },
+    {
      "warte": 2
     }
    ]
   },
   {
+   "name": "start_kino",
+   "query": "?nosw&q=2&startprobe=0&seed=4711&d=3&g=1",
+   "schritte": []
+  },
+  {
    "name": "looping_kino",
    "query": "?nosw&q=2&startprobe=0&gallery&blur=off",
    "schritte": [
+    {
+     "bis": "(() => { const v = __game.info().vao; return !v || v.fertig; })()",
+     "max": 120
+    },
     "__game.setAssist('easy'); __game.store.settings.fahrstil = 'sauber'",
     "__game.start({ autopilot: true })",
     "__game.cam('chase')",
@@ -40,6 +53,10 @@
    "name": "looping_standard",
    "query": "?nosw&q=1&startprobe=0&gallery&blur=off",
    "schritte": [
+    {
+     "bis": "(() => { const v = __game.info().vao; return !v || v.fertig; })()",
+     "max": 120
+    },
     "__game.setAssist('easy'); __game.store.settings.fahrstil = 'sauber'",
     "__game.start({ autopilot: true })",
     "__game.cam('chase')",
@@ -60,6 +77,42 @@
    "name": "rennen_kino",
    "query": "?nosw&q=2&startprobe=0&seed=4711&d=3&g=1",
    "schritte": [
+    {
+     "bis": "(() => { const v = __game.info().vao; return !v || v.fertig; })()",
+     "max": 120
+    },
+    "__game.setAssist('easy'); __game.store.settings.fahrstil = 'sauber'",
+    "__game.start({ autopilot: true })",
+    "__game.cam('chase')",
+    {
+     "warte": 3
+    }
+   ]
+  },
+  {
+   "name": "rennen_standard",
+   "query": "?nosw&q=1&startprobe=0&seed=4711&d=3&g=1",
+   "schritte": [
+    {
+     "bis": "(() => { const v = __game.info().vao; return !v || v.fertig; })()",
+     "max": 120
+    },
+    "__game.setAssist('easy'); __game.store.settings.fahrstil = 'sauber'",
+    "__game.start({ autopilot: true })",
+    "__game.cam('chase')",
+    {
+     "warte": 3
+    }
+   ]
+  },
+  {
+   "name": "rennen_einfach",
+   "query": "?nosw&q=0&startprobe=0&seed=4711&d=3&g=1",
+   "schritte": [
+    {
+     "bis": "(() => { const v = __game.info().vao; return !v || v.fertig; })()",
+     "max": 120
+    },
     "__game.setAssist('easy'); __game.store.settings.fahrstil = 'sauber'",
     "__game.start({ autopilot: true })",
     "__game.cam('chase')",
@@ -72,6 +125,10 @@
    "name": "cockpit_kino",
    "query": "?nosw&q=2&startprobe=0&seed=4711&d=3&g=1",
    "schritte": [
+    {
+     "bis": "(() => { const v = __game.info().vao; return !v || v.fertig; })()",
+     "max": 120
+    },
     "__game.setAssist('easy'); __game.store.settings.fahrstil = 'sauber'",
     "__game.start({ autopilot: true })",
     "__game.cam('chase')",
@@ -85,6 +142,10 @@
    "name": "replay_kino",
    "query": "?nosw&q=2&startprobe=0&seed=4711&d=3&g=1",
    "schritte": [
+    {
+     "bis": "(() => { const v = __game.info().vao; return !v || v.fertig; })()",
+     "max": 120
+    },
     "__game.setAssist('easy'); __game.store.settings.fahrstil = 'sauber'",
     "__game.start({ autopilot: true })",
     "__game.cam('chase')",

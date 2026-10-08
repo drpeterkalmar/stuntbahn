@@ -1,0 +1,412 @@
+{
+ "datum": "2026-10-08T07:08:08",
+ "stand": "vorher",
+ "wurzel": "/Users/wohnzimmer/dev/stuntbahn_vorher",
+ "git": "7ab9f75",
+ "profil": {
+  "drossel": 4,
+  "dpr": 2.6,
+  "sek": 10,
+  "geraete": "hoch,quer",
+  "gpu": "ANGLE/Metal headless"
+ },
+ "szenen": {
+  "menu_kino": {
+   "hoch": {
+    "n": 156,
+    "p50": 50.1,
+    "p95": 133.3,
+    "p99": 133.4,
+    "fps": 15.5,
+    "calls": 81,
+    "callsMax": 84,
+    "tris": 289576,
+    "tex": 58,
+    "zusatz": {
+     "calls": 81,
+     "tris": 290718,
+     "geometries": 90,
+     "textures": 58,
+     "programs": 59,
+     "pixelRatio": 2,
+     "tier": 2,
+     "fps": 16.483154216390837
+    },
+    "boot_s": 8.6,
+    "fehler": []
+   },
+   "quer": {
+    "n": 200,
+    "p50": 50,
+    "p95": 116.6,
+    "p99": 133.3,
+    "fps": 20,
+    "calls": 84,
+    "callsMax": 88,
+    "tris": 292107,
+    "tex": 58,
+    "zusatz": {
+     "calls": 81,
+     "tris": 290718,
+     "geometries": 92,
+     "textures": 58,
+     "programs": 59,
+     "pixelRatio": 2,
+     "tier": 2,
+     "fps": 19.120458891013367
+    },
+    "boot_s": 2.3,
+    "fehler": []
+   }
+  },
+  "looping_kino": {
+   "hoch": {
+    "n": 207,
+    "p50": 50,
+    "p95": 50.1,
+    "p99": 116.6,
+    "fps": 20.7,
+    "calls": 82,
+    "callsMax": 82,
+    "tris": 297951,
+    "tex": 58,
+    "zusatz": {
+     "calls": 82,
+     "tris": 297951,
+     "geometries": 115,
+     "textures": 58,
+     "programs": 61,
+     "pixelRatio": 2,
+     "tier": 2,
+     "fps": 24.665022331844536
+    },
+    "boot_s": 1.4,
+    "fehler": []
+   },
+   "quer": {
+    "n": 182,
+    "p50": 50,
+    "p95": 116.7,
+    "p99": 133.3,
+    "fps": 18.1,
+    "calls": 80,
+    "callsMax": 80,
+    "tris": 296751,
+    "tex": 59,
+    "zusatz": {
+     "calls": 80,
+     "tris": 296751,
+     "geometries": 120,
+     "textures": 59,
+     "programs": 61,
+     "pixelRatio": 2,
+     "tier": 2,
+     "fps": 17.87310098302057
+    },
+    "boot_s": 1.2,
+    "fehler": []
+   }
+  },
+  "looping_standard": {
+   "hoch": {
+    "n": 215,
+    "p50": 33.3,
+    "p95": 133.3,
+    "p99": 133.4,
+    "fps": 21.4,
+    "calls": 79,
+    "callsMax": 79,
+    "tris": 273660,
+    "tex": 56,
+    "zusatz": {
+     "calls": 79,
+     "tris": 273660,
+     "geometries": 114,
+     "textures": 56,
+     "programs": 59,
+     "pixelRatio": 1.5,
+     "tier": 1,
+     "fps": 23.73417721518984
+    },
+    "boot_s": 2.3,
+    "fehler": []
+   },
+   "quer": {
+    "n": 286,
+    "p50": 33.3,
+    "p95": 33.4,
+    "p99": 116.6,
+    "fps": 28.6,
+    "calls": 77,
+    "callsMax": 77,
+    "tris": 272460,
+    "tex": 57,
+    "zusatz": {
+     "calls": 77,
+     "tris": 272460,
+     "geometries": 119,
+     "textures": 57,
+     "programs": 59,
+     "pixelRatio": 1.5,
+     "tier": 1,
+     "fps": 30.002608922515027
+    },
+    "boot_s": 1.4,
+    "fehler": []
+   }
+  },
+  "rennen_kino": {
+   "hoch": {
+    "n": 168,
+    "p50": 33.4,
+    "p95": 133.3,
+    "p99": 166.6,
+    "fps": 16.7,
+    "calls": 83,
+    "callsMax": 97,
+    "tris": 296572,
+    "tex": 60,
+    "zusatz": {
+     "calls": 89,
+     "tris": 299980,
+     "geometries": 104,
+     "textures": 60,
+     "programs": 62,
+     "pixelRatio": 2,
+     "tier": 2,
+     "fps": 10.666666666666664
+    },
+    "boot_s": 1.8,
+    "fehler": []
+   },
+   "quer": {
+    "n": 170,
+    "p50": 33.4,
+    "p95": 133.3,
+    "p99": 133.4,
+    "fps": 17,
+    "calls": 100,
+    "callsMax": 116,
+    "tris": 305124,
+    "tex": 61,
+    "zusatz": {
+     "calls": 103,
+     "tris": 309370,
+     "geometries": 114,
+     "textures": 61,
+     "programs": 62,
+     "pixelRatio": 2,
+     "tier": 2,
+     "fps": 24.130959368681992
+    },
+    "boot_s": 2.2,
+    "fehler": []
+   }
+  },
+  "cockpit_kino": {
+   "hoch": {
+    "n": 294,
+    "p50": 16.7,
+    "p95": 133.3,
+    "p99": 150,
+    "fps": 29.4,
+    "calls": 72,
+    "callsMax": 101,
+    "tris": 219848,
+    "tex": 74,
+    "zusatz": {
+     "calls": 87,
+     "tris": 211770,
+     "geometries": 123,
+     "textures": 74,
+     "programs": 72,
+     "pixelRatio": 2,
+     "tier": 2,
+     "fps": 23.333333333333325
+    },
+    "boot_s": 2.0,
+    "fehler": []
+   },
+   "quer": {
+    "n": 174,
+    "p50": 50,
+    "p95": 133.3,
+    "p99": 133.4,
+    "fps": 17.5,
+    "calls": 79,
+    "callsMax": 109,
+    "tris": 223416,
+    "tex": 75,
+    "zusatz": {
+     "calls": 83,
+     "tris": 212468,
+     "geometries": 130,
+     "textures": 75,
+     "programs": 72,
+     "pixelRatio": 2,
+     "tier": 2,
+     "fps": 17.875383043922366
+    },
+    "boot_s": 2.3,
+    "fehler": []
+   }
+  },
+  "replay_kino": {
+   "hoch": {
+    "n": 114,
+    "p50": 100,
+    "p95": 150,
+    "p99": 150,
+    "fps": 11.3,
+    "calls": 82,
+    "callsMax": 96,
+    "tris": 292327,
+    "tex": 61,
+    "zusatz": {
+     "calls": 87,
+     "tris": 295860,
+     "geometries": 117,
+     "textures": 61,
+     "programs": 62,
+     "pixelRatio": 2,
+     "tier": 2,
+     "fps": 10.549914281946442
+    },
+    "boot_s": 1.9,
+    "fehler": []
+   },
+   "quer": {
+    "n": 85,
+    "p50": 133.3,
+    "p95": 133.4,
+    "p99": 150,
+    "fps": 8.5,
+    "calls": 97,
+    "callsMax": 114,
+    "tris": 299573,
+    "tex": 61,
+    "zusatz": {
+     "calls": 107,
+     "tris": 309042,
+     "geometries": 117,
+     "textures": 61,
+     "programs": 62,
+     "pixelRatio": 2,
+     "tier": 2,
+     "fps": 10.73774633653362
+    },
+    "boot_s": 2.0,
+    "fehler": []
+   }
+  },
+  "rennen_autopilot": {
+   "hoch": {
+    "n": 179,
+    "p50": 133.3,
+    "p95": 133.4,
+    "p99": 133.4,
+    "fps": 8.9,
+    "calls": 85,
+    "callsMax": 101,
+    "tris": 298115,
+    "tex": 61,
+    "zusatz": {
+     "calls": 101,
+     "tris": 313570,
+     "geometries": 116,
+     "textures": 61,
+     "programs": 62,
+     "pixelRatio": 2,
+     "tier": 2,
+     "fps": 10.1048376910446
+    },
+    "boot_s": 1.9,
+    "fehler": []
+   },
+   "quer": {
+    "n": 191,
+    "p50": 116.6,
+    "p95": 133.4,
+    "p99": 133.4,
+    "fps": 9.5,
+    "calls": 99,
+    "callsMax": 117,
+    "tris": 301558,
+    "tex": 61,
+    "zusatz": {
+     "calls": 115,
+     "tris": 292916,
+     "geometries": 117,
+     "textures": 61,
+     "programs": 62,
+     "pixelRatio": 2,
+     "tier": 2,
+     "fps": 11.487650775416414
+    },
+    "boot_s": 2.3,
+    "fehler": []
+   }
+  }
+ },
+ "ladegroesse": {
+  "dateien": 121,
+  "roh_mb": 9.73,
+  "gzip_mb": 7.15,
+  "extern": [
+   "blob:http://127.0.0.1:59516/32d441db-2f26-4bfe-8ba4-3d8352331e6d",
+   "blob:http://127.0.0.1:59516/5ba37bd0-a9fa-41c1-8ed3-63bf98fe396b",
+   "blob:http://127.0.0.1:59516/6ad49785-6222-497a-850f-da63ec6cb666",
+   "blob:http://127.0.0.1:59516/6c2d183b-ff69-4974-bfd6-ad1ddf8613a2",
+   "blob:http://127.0.0.1:59516/82f970c4-6aac-4254-a373-38d5be41f3e6",
+   "blob:http://127.0.0.1:59516/99e7d9ac-6a0e-42b0-9b33-5984c4658ebd",
+   "blob:http://127.0.0.1:59516/9cfdfe37-bd12-4fae-ad2d-604900b28a99",
+   "blob:http://127.0.0.1:59516/d25f20f2-ae52-42ec-9488-2c532b17b73d",
+   "blob:http://127.0.0.1:59516/ebbb2b51-159c-42cf-8953-e5dc243d8bf6",
+   "blob:http://127.0.0.1:59516/ec638c7f-ef4e-4aac-8d53-f60eb31b5e30",
+   "blob:http://127.0.0.1:59516/ed47dff4-58de-4434-a23b-7e409b59ca2a",
+   "blob:http://127.0.0.1:59516/ee24f53c-7031-4b4d-b8c0-5f6b92704e1d"
+  ],
+  "groesste_gzip_kb": [
+   [
+    "assets/car/goblin.glb",
+    714
+   ],
+   [
+    "assets/themes/alpen/env.hdr",
+    667
+   ],
+   [
+    "assets/tex/veg_atlas.webp",
+    326
+   ],
+   [
+    "assets/tex/grass_nor.ktx2",
+    282
+   ],
+   [
+    "assets/snd/sfx.m4a",
+    271
+   ],
+   [
+    "assets/themes/tex/Grass004_nor.ktx2",
+    268
+   ],
+   [
+    "lib/addons/libs/basis/basis_transcoder.wasm",
+    245
+   ],
+   [
+    "assets/tex/grass_diff.ktx2",
+    234
+   ],
+   [
+    "assets/themes/tex/Grass004_diff.ktx2",
+    234
+   ],
+   [
+    "assets/tex/asphalt_arm.ktx2",
+    210
+   ]
+  ]
+ }
+}

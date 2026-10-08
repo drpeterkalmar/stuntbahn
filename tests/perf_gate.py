@@ -59,8 +59,46 @@ MESSEN = """async ([sek, info]) => { const f = info ? eval('(' + info + ')') : n
     fps: +(1000 * t.length / t.reduce((a, b) => a + b, 0)).toFixed(1), calls: mittel(c), callsMax: c.length ? Math.max(...c) : null,
     tris: mittel(tr), tex: tx.length ? tx[tx.length - 1] : null }; }"""
 
+# macOS: Prozesse, die von einem Hintergrund-Dienst abstammen (z. B. eine Job-Queue per launchd), erben eine starke
+# Zeitgeber-Drosselung – ein mit Playwright gestarteter Browser kam am 08.10.2026 auf 15 Bilder/s selbst bei leerer Seite
+# (time.sleep(0.05) dauerte 143 ms). Abhilfe: Browser per `open` (LaunchServices, eigene Prozessgruppe) starten und über CDP
+# verbinden → 60 Bilder/s. Standard auf macOS; --start direkt = wie bisher pw.chromium.launch().
+class OffenerBrowser:
+    def __init__(self, pw, args):
+        import tempfile
+        exe = pw.chromium.executable_path
+        app = exe[:exe.find('.app/') + 4]
+        s = socket.socket(); s.bind(('127.0.0.1', 0)); self.port = s.getsockname()[1]; s.close()
+        self.prof = tempfile.mkdtemp(prefix='perfgate_')
+        subprocess.run(['open', '-na', app, '--args', '--headless=new', f'--remote-debugging-port={self.port}', f'--user-data-dir={self.prof}',
+                        '--no-first-run', '--no-default-browser-check', *args, 'about:blank'], check=True, timeout=30)
+        import urllib.request
+        t0 = time.time()
+        while True:
+            try: urllib.request.urlopen(f'http://127.0.0.1:{self.port}/json/version', timeout=2).read(); break
+            except Exception:
+                if time.time() - t0 > 30: self.close(); raise RuntimeError('Browser per open nicht erreichbar')
+                time.sleep(0.2)
+        self.b = pw.chromium.connect_over_cdp(f'http://127.0.0.1:{self.port}')
+    def new_context(self, **kw): return self.b.new_context(**kw)
+    def close(self):
+        import shutil
+        try: self.b.new_browser_cdp_session().send('Browser.close')
+        except Exception: pass
+        t0 = time.time()
+        while time.time() - t0 < 10 and subprocess.run(['pgrep', '-f', self.prof], capture_output=True).stdout.strip(): time.sleep(0.3)
+        if subprocess.run(['pgrep', '-f', self.prof], capture_output=True).stdout.strip():
+            subprocess.run(['pkill', '-f', self.prof])   # nur genau dieser Browser (eindeutiger Profil-Ordner)
+        shutil.rmtree(self.prof, ignore_errors=True)
+
+START = 'open' if sys.platform == 'darwin' else 'direkt'
+# Ohne 60-Hz-Deckel (Standard): die Bildzeit ist dann die echte Arbeit je Bild statt eines Vielfachen von 16,7 ms – sonst
+# sättigt p95 bei 16,7 ms (alles flüssig) bzw. springt in Bildtakt-Stufen und zeigt keine Unterschiede. --mit-vsync = Deckel.
+UNGEDECKELT = ['--disable-gpu-vsync', '--disable-frame-rate-limit']
+VSYNC = False
 def _browser(pw, geraet, dpr):
-    b = pw.chromium.launch(args=GPU_ARGS)
+    args = GPU_ARGS + ([] if VSYNC else UNGEDECKELT)
+    b = OffenerBrowser(pw, args) if START == 'open' else pw.chromium.launch(args=args)
     ctx = b.new_context(**profil(geraet, dpr))
     return b, ctx
 
@@ -78,13 +116,15 @@ def _schritte(pg, schritte):
         elif 'warte' in s: time.sleep(float(s['warte']))
         elif 'bilder' in s: pg.evaluate("(n) => new Promise((r) => { let k = 0; const f = () => (++k >= n ? r() : requestAnimationFrame(f)); requestAnimationFrame(f); })", int(s['bilder']))
         elif 'bis' in s:
-            t0 = time.time()
-            while not pg.evaluate(s['bis']):
-                if time.time() - t0 > float(s.get('max', 60)): raise RuntimeError('Bedingung nicht erreicht: ' + s['bis'])
-                if s.get('schritt'): pg.evaluate(s['schritt'])
-                else: time.sleep(0.05)
+            # Schleife im Browser (ein Aufruf statt tausender Hin-und-Her; der Treiber kann gedrosselt sein): Bedingung prüfen,
+            # sonst Schritt ausführen bzw. ein Bild warten; alle 20 Schritte ein Bild Luft für die Seite
+            ok = pg.evaluate("""async ([bis, schritt, max]) => { const t0 = performance.now(); let k = 0;
+              const B = () => eval(bis), S = schritt ? () => eval(schritt) : null, bild = () => new Promise((r) => requestAnimationFrame(r));
+              while (!B()) { if (performance.now() - t0 > max * 1000) return false; if (S) { S(); if (++k % 20 === 0) await bild(); } else await bild(); }
+              return true; }""", [s['bis'], s.get('schritt'), float(s.get('max', 60))])
+            if not ok: raise RuntimeError('Bedingung nicht erreicht: ' + s['bis'])
 
-def messe_szene(pw, base, cfg, sz, geraet, a):
+def messe_szene(pw, base, cfg, sz, geraet, a, zusatz=None):
     b, ctx = _browser(pw, geraet, a.dpr)
     try:
         if sz.get('init'): ctx.add_init_script(sz['init'])
@@ -93,7 +133,7 @@ def messe_szene(pw, base, cfg, sz, geraet, a):
         fehler = []
         pg.on('pageerror', lambda e: fehler.append('PAGEERROR ' + str(e)))
         pg.on('console', lambda m: fehler.append('CONSOLE ' + m.text) if m.type == 'error' else None)
-        pg.goto(base + 'index.html' + sz['query'])
+        pg.goto(base + 'index.html' + sz['query'] + (a.zusatz if zusatz is None else zusatz))
         boot = _warte_bereit(pg, sz.get('bereit') or cfg.get('bereit', 'window.__app && window.__app.ready'))
         _schritte(pg, sz.get('schritte'))
         cdp = ctx.new_cdp_session(pg)
@@ -121,6 +161,7 @@ def ladegroesse(pw, base, wurzel, cfg, a):
         roh = gz = 0; extern = []; dateien = []
         for u in sorted(urls):
             p = urllib.parse.urlparse(u)
+            if u.startswith(('blob:', 'data:')): continue
             if not u.startswith(base): extern.append(u); continue
             f = os.path.join(wurzel, urllib.parse.unquote(p.path.lstrip('/')) or 'index.html')
             if os.path.isdir(f): f = os.path.join(f, 'index.html')
@@ -156,6 +197,7 @@ def vergleich(fa, fb):
         print(f"\nLadegröße gzip: {A['ladegroesse']['gzip_mb']} → {B['ladegroesse']['gzip_mb']} MB")
 
 def main():
+    global START, VSYNC
     ap = argparse.ArgumentParser(description='Mess-Gate Mittelklasse-Android (Grafik-Kern)')
     ap.add_argument('--szenen', default=os.path.join(HIER, 'perf_szenen.json'))
     ap.add_argument('--stand', default='stand'); ap.add_argument('--wurzel', default=REPO)
@@ -163,16 +205,24 @@ def main():
     ap.add_argument('--drossel', type=float, default=4); ap.add_argument('--dpr', type=float, default=2.6)
     ap.add_argument('--nur', default=''); ap.add_argument('--runden', type=int, default=1)
     ap.add_argument('--ohne-ladegroesse', action='store_true'); ap.add_argument('--vergleich', nargs=2)
+    ap.add_argument('--ab', action='append', default=[], metavar='NAME=[WURZEL::]ZUSATZ',
+                    help='A/B-Modus: Varianten im Wechsel messen (Reihenfolge je Runde gedreht), Median je Variante; '
+                         'z. B. --ab vorher=../spiel_alt:: --ab nachher= --ab ohne_x=&x=0')
+    ap.add_argument('--zusatz', default='', help='an jede Szenen-URL anhängen (A/B einzelner Regler, z. B. "&reflex=0")')
+    ap.add_argument('--mit-vsync', action='store_true', help='Bildrate auf den Bildschirmtakt deckeln (Standard: ungedeckelt)')
+    ap.add_argument('--start', choices=['open', 'direkt'], default=START, help='Browserstart (macOS: open = ohne geerbte Zeitgeber-Drosselung)')
     a = ap.parse_args()
+    START = a.start; VSYNC = a.mit_vsync
     if a.vergleich: return vergleich(*a.vergleich)
     from playwright.sync_api import sync_playwright
     cfg = json.load(open(a.szenen))
+    if a.ab: return ab_modus(a, cfg, sync_playwright)
     wurzel = os.path.abspath(a.wurzel)
     try: rev = subprocess.run(['git', '-C', wurzel, 'rev-parse', '--short', 'HEAD'], capture_output=True, text=True, timeout=10).stdout.strip()
     except Exception: rev = None
     nur = set(x for x in a.nur.split(',') if x)
     res = {'datum': datetime.datetime.now().isoformat(timespec='seconds'), 'stand': a.stand, 'wurzel': wurzel, 'git': rev,
-           'profil': {'drossel': a.drossel, 'dpr': a.dpr, 'sek': a.sek, 'geraete': a.geraete, 'gpu': 'ANGLE/Metal headless'}, 'szenen': {}}
+           'profil': {'drossel': a.drossel, 'dpr': a.dpr, 'sek': a.sek, 'geraete': a.geraete, 'gpu': 'ANGLE/Metal headless', 'start': a.start, 'vsync': a.mit_vsync, 'zusatz': a.zusatz}, 'szenen': {}}
     with Server(wurzel) as srv, sync_playwright() as pw:
         for sz in cfg['szenen']:
             if nur and sz['name'] not in nur: continue
@@ -194,6 +244,46 @@ def main():
     out = os.path.join(REPO, 'tests', 'perf', f"{datetime.date.today().isoformat()}_{a.stand}.json")
     json.dump(res, open(out, 'w'), ensure_ascii=False, indent=1)
     print(tabelle(res)); print('→', os.path.relpath(out, REPO))
+
+# A/B im Wechsel: Hintergrundlast trifft alle Varianten gleich (auf einem geteilten Rechner schwankt dieselbe Variante
+# zwischen zwei Läufen sonst leicht um ±30 %). Je Szene/Gerät: Runde für Runde jede Variante einmal, Reihenfolge gedreht.
+def ab_modus(a, cfg, sync_playwright):
+    import statistics
+    var = []
+    for x in a.ab:
+        name, rest = x.split('=', 1)
+        w, z = rest.split('::', 1) if '::' in rest else (REPO, rest)
+        var.append((name, os.path.abspath(w), z))
+    nur = set(x for x in a.nur.split(',') if x)
+    runden = max(a.runden, 3)
+    res = {'datum': datetime.datetime.now().isoformat(timespec='seconds'), 'stand': a.stand, 'modus': 'ab', 'runden': runden,
+           'varianten': [{'name': n, 'wurzel': w, 'zusatz': z} for n, w, z in var],
+           'profil': {'drossel': a.drossel, 'dpr': a.dpr, 'sek': a.sek, 'start': START, 'vsync': VSYNC}, 'szenen': {}}
+    from contextlib import ExitStack
+    with ExitStack() as st, sync_playwright() as pw:
+        srv = {w: st.enter_context(Server(w)) for w in set(v[1] for v in var)}
+        for sz in cfg['szenen']:
+            if nur and sz['name'] not in nur: continue
+            res['szenen'][sz['name']] = {}
+            for g in a.geraete.split(','):
+                je = {n: [] for n, _, _ in var}
+                for k in range(runden):
+                    for n, w, z in var[k % len(var):] + var[:k % len(var)]:
+                        try: je[n].append(messe_szene(pw, srv[w].base, cfg, sz, g, a, zusatz=z))
+                        except Exception as e: je[n].append({'fehler': [str(e)[:300]]})
+                out = {}
+                for n, L in je.items():
+                    ok = [l for l in L if 'p95' in l]
+                    med = lambda f: round(statistics.median([l[f] for l in ok]), 2) if ok else None
+                    out[n] = {'p50': med('p50'), 'p95': med('p95'), 'fps': med('fps'), 'calls': med('calls'), 'tris': med('tris'),
+                              'runden_p95': [l.get('p95') for l in L], 'fehler': sum(((l.get('fehler') or []) for l in L), [])[:5]}
+                res['szenen'][sz['name']][g] = out
+                b = out[var[0][0]]
+                print(sz['name'], g, ' | '.join(f"{n}: p50 {o['p50']} p95 {o['p95']}" + (f" ({(o['p95'] - b['p95']) / b['p95'] * 100:+.0f} %)" if o['p95'] and b['p95'] and n != var[0][0] else '') + f" calls {o['calls']}" for n, o in out.items()), flush=True)
+    out = os.path.join(REPO, 'tests', 'perf', f"{datetime.date.today().isoformat()}_{a.stand}.json")
+    os.makedirs(os.path.dirname(out), exist_ok=True)
+    json.dump(res, open(out, 'w'), ensure_ascii=False, indent=1)
+    print('→', os.path.relpath(out, REPO))
 
 if __name__ == '__main__':
     main()

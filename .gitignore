@@ -35,3 +35,7 @@ tests/shots/kinoreplay/*
 tests/shots/deko/*
 !tests/shots/deko/vergleich_*.jpg
 !tests/shots/deko/perf_*.json
+# n30 Technik: nur die Vergleichs-Collagen (jpg) für den Bericht, Einzelbilder bleiben lokal
+!tests/shots/technik/
+tests/shots/technik/*
+!tests/shots/technik/*.jpg

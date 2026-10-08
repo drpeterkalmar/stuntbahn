@@ -42,9 +42,16 @@ class Server:
         self.httpd.shutdown(); self.httpd.server_close()
 
 class Session:
-    def __init__(self, pw, base, device=PIXEL7_LAND, dpr=None, storage=None, kino=False):
+    def __init__(self, pw, base, device=PIXEL7_LAND, dpr=None, storage=None, kino=False, offen=False):
         self.base = base
-        self.b = pw.chromium.launch(args=ARGS)
+        # offen=True (n30): Browser per `open` statt als Kindprozess starten – nötig für echte Bildraten/Zeitmessung, wenn
+        # das Skript aus einer Hintergrund-Queue läuft (macOS drosselt sonst die Zeitgeber des ganzen Prozessbaums,
+        # siehe tests/perf_gate.py OffenerBrowser). Auch per Umgebung: BROWSER=open
+        if offen or os.environ.get('BROWSER') == 'open':
+            from perf_gate import OffenerBrowser
+            self.b = OffenerBrowser(pw, ARGS)
+        else:
+            self.b = pw.chromium.launch(args=ARGS)
         opts = dict(device)
         if dpr: opts['device_scale_factor'] = dpr
         if storage: opts['storage_state'] = storage
