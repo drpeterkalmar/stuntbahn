@@ -2,12 +2,12 @@
 // Debug-API window.__game für Headless-Tests.
 import * as THREE from 'three';
 import { BUILD } from './build.js';
-import { makeMaterials, shadowUniforms, preloadKtx2, themeUniforms } from './gfx/materials.js';
+import { makeMaterials, shadowUniforms, preloadKtx2, themeUniforms, vaoUniforms } from './gfx/materials.js';
 import { makeSky, sunDirFromUV, bakeStaticShadow } from './gfx/env.js';
 import { ThemeManager } from './gfx/themes.js';
 import { themeFor, THEMES, THEME_IDS } from './track/themes.js';
-import { buildWorld, STATIC_LAYER } from './gfx/world.js';
-import { makeCar, loadCarModel, parkedCarGeometry, EXHAUST } from './gfx/carmesh.js';
+import { buildWorld, STATIC_LAYER, vaoAuftrag } from './gfx/world.js';
+import { makeCar, loadCarModel, loadCarLods, parkedCarGeometry, EXHAUST } from './gfx/carmesh.js';
 import { CameraRig, CAM_MODES, CAM_NAMES, cockpitDash, clearLens } from './gfx/camera.js';
 import { Cockpit } from './gfx/cockpit.js';
 import { displayGear } from './gfx/gauges.js';
@@ -29,6 +29,10 @@ import { buildFilm, FilmPlayer, HL } from './game/highlights.js';
 import { CineCam } from './game/cinecam.js';
 import { ClipRecorder, clipMime } from './ui/cliprec.js';
 import { Quality } from './gfx/quality.js';
+import { geraeteSchluessel, ladeGeraet, merkeGeraet, messeBilder, skalaAusProbe } from './gfx/kern/startprobe.js';
+import { DynReflex } from './gfx/kern/reflex.js';
+import { ImpostorBibliothek } from './gfx/kern/impostor.js';
+import { impostorArten } from './gfx/kulisse.js';
 import { LineViz, LINE_LEVELS } from './gfx/lineviz.js';
 import { Sound } from './audio/sound.js';
 import { CarFX } from './gfx/fx.js';
@@ -68,12 +72,19 @@ camera.layers.enable(STATIC_LAYER);
 // ?kl=-bloom,+ssao schaltet einzelne Stufen. Ohne ?look folgt der Look der Grafik-Stufe (Einstellung bzw. Automatik).
 const LOOK = params.get('look');
 const LOOK_FIX = LOOK != null && /^[012]$/.test(LOOK) ? +LOOK : null;
-const quality = new Quality(renderer, params.get('q') ?? (LOOK_FIX != null ? String(LOOK_FIX) : null));
+// n30: Qualitäts-Autopilot aus dem Grafik-Kern (Arbeitszeit, GPU-Zeit, auch aufwärts); ?autopilot=0 = alte Automatik
+const quality = new Quality(renderer, params.get('q') ?? (LOOK_FIX != null ? String(LOOK_FIX) : null), { autopilot: params.get('autopilot') !== '0', tightShadow: params.get('schattenkam') !== '0' });
 const kino = LOOK === 'alt' ? null : new KinoLook(renderer, { level: LOOK_FIX ?? quality.tier, stages: params.get('kl') || '' });
 // Bewegungsunschärfe: im Kino-Look Teil derselben Pipeline (ein Szenen-Durchlauf); ?look=alt: bisheriges post.js
 const post = kino || new Post(renderer);
 quality.post = post; quality.kino = kino;
 let sun, M, carVis, ghostVis, sky, cockpit, themes, air = null, brakeLights = null, brakeV = null;
+// n30: dynamische Lack-Spiegelung (gfx/kern/reflex.js) ab Grafikstufe REFLEX_MIN (?reflex=0 aus, ?reflex=2 nur Kino);
+// der Autopilot darf sie als „teure Deko“ abschalten (reflexOff)
+const REFLEX_MIN = params.get('reflex') === '0' ? 9 : params.get('reflex') === '2' ? 2 : 1;
+let reflex = null, reflexOff = false;
+// n30: Bäume als Oktaeder-Impostors (Standard/Kino), sobald assets/tex/imp/impostor.json da ist; ?impostor=0 = Karten
+const IMP = params.get('impostor') === '0' ? null : new ImpostorBibliothek('assets/tex/imp/impostor.json', renderer);
 
 let sizeW = 0, sizeH = 0, portrait = null;
 function resize() {
@@ -133,6 +144,16 @@ let acc = 0, last = performance.now(), frozen = false, timeScale = GAME_SPEED;
 let prevPose = null;
 let blurCut = true;      // nächstes Bild ohne Bewegungsunschärfe (Kameraschnitt)
 
+// Geist: durchscheinend hellblau, ohne Schatten (n30: auch für die nachgeladenen LOD-Stufen, nur = 'lod')
+function ghostify(root, nur = null) {
+  root.traverse((o) => {
+    if (o.isMesh && !o.userData.fx && (nur !== 'lod' || o.userData.lod > 0)) {   // Nitro-Flammen des Geists bleiben Flammen
+      o.castShadow = false; o.receiveShadow = false;
+      o.material = new THREE.MeshBasicMaterial({ color: 0x9fe0ff, transparent: true, opacity: 0.28, depthWrite: false });
+    }
+  });
+}
+
 async function boot() {
   ui.loading(0.05, 'Himmel und Licht …');
   // Kulissen (n20): Himmel/Licht/Boden kommen mit dem Landschafts-Thema der Strecke (gfx/themes.js). Das Thema der Start-
@@ -165,12 +186,11 @@ async function boot() {
   if (DEKO) brakeLights = makeBrakeLights(carVis.root);   // n28 (nach der Auto-Box: zählt nicht zur Karosserie)   // Stoßstangen-Kamera: vor die Nase
   post.setCarBox(rig.carBox);
   ghostVis = await makeCar({ color: 0xffffff, contact: false });
-  ghostVis.root.traverse((o) => {
-    if (o.isMesh && !o.userData.fx) {   // Nitro-Flammen des Geists bleiben Flammen
-      o.castShadow = false; o.receiveShadow = false;
-      o.material = new THREE.MeshBasicMaterial({ color: 0x9fe0ff, transparent: true, opacity: 0.28, depthWrite: false });
-    }
-  });
+  ghostify(ghostVis.root);
+  if (REFLEX_MIN <= 2) {
+    reflex = new DynReflex(renderer, scene, { size: 128, far: 320 });   // 128 = gleiche PMREM-Größe wie die 512er-Umgebung → keine neue Shader-Variante
+    carVis.root.traverse((o) => { if (o.isMesh && !o.userData.fx) for (const m of [].concat(o.material)) if (m.isMeshStandardMaterial) reflex.attach(m); });
+  }
   ghostVis.root.visible = false;
   scene.add(ghostVis.root);
   cockpit = new Cockpit(scene.environment, carVis.mats.paint, { tier: quality.tier });
@@ -186,6 +206,7 @@ async function boot() {
   // ?seed=…&d=… wie bisher flach (alte Codes, Tests); &3d=1 = Hochstraße (n19), &g=1 = Gelände (n22). Ohne Seed: Strecke
   // des Tages in der gewählten Streckenart (ab n22 Standard „Gelände“; Schalter im Menü)
   else await loadGenerated(q ? +q : daySeed(), +(params.get('d') || 2), q ? (params.get('g') === '1' ? 'gel' : params.get('3d') === '1' ? '3d' : 'flat') : store.settings.trackMode);
+  await startAutopilot();
   ui.loading(1, 'Fertig');
   app.ready = true;
   ui.bind({ startRace, newTrack, setAssist, toMenu, retry, startReplay, cycleCam, rewind: () => race && race.requestRewind(), pause: togglePause,
@@ -196,7 +217,36 @@ async function boot() {
   ui.showMenu(env);
   mode = params.has('race') ? 'race' : 'menu';
   if (mode === 'race') startRace();
+  // n30: Heldenauto-LOD (Mittel/Fern) erst nach dem Start nachladen; ?lod=0 = immer volles Modell
+  if (params.get('lod') !== '0') loadCarLods().then(([mid, far]) => {
+    for (const c of [carVis, ghostVis]) { c.addLod(mid, 1); c.addLod(far, 2); }
+    ghostify(ghostVis.root, 'lod');
+    app.carLod = { mid: carVis.lodMeshes[1].length, far: carVis.lodMeshes[2].length };
+  }).catch((e) => console.warn('Auto-LOD nicht geladen', e));
   requestAnimationFrame(frame);
+}
+
+// n30: Qualitäts-Autopilot starten. Startwert der Renderskala: je Gerät gespeichert (localStorage, 21 Tage), sonst
+// Kurzmessung im Ladebildschirm (4 + 20 Bilder der fertigen Szene, je Bild auf die GPU gewartet). Kino bleibt Startstufe.
+// ?startprobe=0 überspringt die Messung (Start mit dem Preset-Wert).
+async function startAutopilot() {
+  if (!quality.useAP) return;
+  const gl = renderer.getContext();
+  const key = geraeteSchluessel(gl, { w: screen.width, h: screen.height, dpr: devicePixelRatio });
+  const [lo, hi, st] = quality.scaleRangeOf(quality.tier);
+  let start = quality.forced ? null : ladeGeraet(localStorage, key);
+  if (start) { if ((start.stufe ?? 2) < quality.tier) start.skala = lo; app.startProbe = { gespeichert: true, skala: start.skala }; }
+  else if (!quality.forced && params.get('startprobe') !== '0') {
+    ui.loading(0.95, 'Grafik einstellen …');
+    const s0 = kino && quality.kinoOn() ? kino.renderScale : 1;
+    const r = await messeBilder(() => render(1 / 60), gl, { bilder: 20, vorlauf: 4 });
+    start = { skala: skalaAusProbe(r.median, { min: lo, max: hi, aktuell: s0 }) };
+    app.startProbe = { ...r, skala: start.skala };
+  }
+  quality.startAutopilot({ skala: start ? start.skala : st, gl,
+    extra: reflex ? [['reflex', 0.06, (s) => { reflexOff = s === 0; }]] : [],
+    onAenderung: () => merkeGeraet(localStorage, key, { skala: quality.ap.skala, stufe: quality.tier }) });
+  if (start && quality.ap) merkeGeraet(localStorage, key, { skala: quality.ap.skala, stufe: quality.tier });
 }
 
 // Generierte Strecke: aus Cache (bereits geprüft) oder Autopilot-Prüfung mit Fortschrittsanzeige.
@@ -371,17 +421,22 @@ async function loadTrack(layout, meta = {}, pre = null) {
   const th = await themes.use(themeOf(layout));
   env.theme = th.id;
   env.themeRandom = !!randomThemaOf(layout);
+  if (IMP && quality.tier >= 1) await IMP.vorladen(impostorArten(th.def));   // n30: fehlt der Atlas, bleiben es Karten
   if (worldGroup) { scene.remove(worldGroup); worldGroup.traverse((o) => { if (o.geometry) o.geometry.dispose(); }); worldGroup = null; }
-  worldGroup = buildWorld(track, M, { world, tier: quality.tier, ideal, prof, deco: params.get('deko') !== 'aus', theme: { id: th.id, def: th.def, veg: th.veg, horizon: th.horizon, seed: layout.seed || layout.meta?.seed || 1 } });
+  worldGroup = buildWorld(track, M, { world, tier: quality.tier, ideal, prof, deco: params.get('deko') !== 'aus', impostor: IMP, theme: { id: th.id, def: th.def, veg: th.veg, horizon: th.horizon, seed: layout.seed || layout.meta?.seed || 1 } });
   // Deko (n28): Vogelschwärme über der Landschaft (ein Draw-Call, Bahn im Shader)
   if (DEKO) { const b = makeBirds(track, th.id, quality.tier, layout.seed || layout.meta?.seed || 1); if (b) worldGroup.add(b); }
   scene.add(worldGroup);
   await placeParkedCars(track);
   bakeStaticShadow(renderer, scene, sun.userData.dir, track.bounds, quality.staticShadowSize());
+  // n30: gebackene Vertex-AO der Strecke – schrittweise in den ersten Bildern (frame), ?vao=0 = aus, ?vao=sync = sofort
+  vaoJob = params.get('vao') === '0' ? null : vaoAuftrag(worldGroup, world, { sync: params.get('vao') === 'sync' });
+  vaoUniforms.sbVaoOn.value = vaoJob && vaoJob.done ? 1 : 0;   // fertig → in frame() weich einblenden statt „Plopp“
   rig.setTrackCams(track);
   lineViz.build(ideal, prof, track);
   env.buildMs = performance.now() - t0;
   try { if (renderer.compileAsync) await renderer.compileAsync(scene, camera); } catch { /* optional */ }
+  if (quality.ap) quality.ap.schonen(1.5);   // n30: Shader/Texturen der neuen Strecke – erste Bilder zählen nicht
   // Vorschau: Auto an den Start
   quitShow();
   race = new Race(env, { assist: store.settings.assist, countdown: 1e9 });
@@ -620,13 +675,16 @@ function rotated(p) {
 function togglePause() { if (mode !== 'race') return; frozen = !frozen; ui.showPause(frozen); if (frozen) sound.stop(); else sound.start(); }
 
 // ---------- Schleife ----------
+let cpuLast = null;   // n30: CPU-Arbeitszeit des letzten Bildes (Qualitäts-Autopilot)
+let vaoJob = null;    // n30: Vertex-AO der aktuellen Strecke (gfx/world.js vaoAuftrag), rechnet je Bild ein Stück
 function frame(now) {
   requestAnimationFrame(frame);
+  const tA = performance.now();
   const rdt = Math.min(0.1, (now - last) / 1000);
   last = now;
   app.frames++;
   if (innerWidth !== sizeW || innerHeight !== sizeH) resize();   // Drehen ohne (rechtzeitiges) resize-Ereignis
-  quality.sample(rdt, () => resize());
+  quality.sample(rdt, () => resize(), cpuLast);
   // Mittel (n23): Touch-Pfeile mit tempoabhängiger Rampe (input.js rampSteer)
   input.touchRamp = !!(race && race.assist && race.assist.touchRamp); input.speedHint = race ? Math.abs(race.car.fwdSpeed()) : 0;
   const inp = input.update(rdt);
@@ -663,7 +721,14 @@ function frame(now) {
     replay.advance(rdt * timeScale);
     if (replay.jumped) { replay.jumped = false; rig.init = false; blurCut = true; ui.gmeterCut(); } // Schnitt: Kamera neu ansetzen statt schwenken
   }
+  if (quality.gpu) quality.gpu.anfang();
   render(rdt);
+  if (quality.gpu) quality.gpu.ende();
+  cpuLast = performance.now() - tA;
+  // n30: Vertex-AO nach dem Zeichnen und außerhalb der Autopilot-Messung, nur mit Luft im Bild (Menü bis 8 ms, sonst bis
+  // 3 ms); fertig → über 1,5 s einblenden
+  if (vaoJob && !vaoJob.done && vaoJob.step(mode === 'menu' ? Math.max(1, Math.min(8, 14 - cpuLast)) : Math.max(0.5, Math.min(3, 12 - cpuLast)))) app.vao = vaoJob.stats;
+  if (vaoJob && vaoJob.done && vaoUniforms.sbVaoOn.value < 1) vaoUniforms.sbVaoOn.value = Math.min(1, vaoUniforms.sbVaoOn.value + rdt / 1.5);
 }
 
 function handleEvents() {
@@ -943,6 +1008,15 @@ function cineCamera(rdt, pose) {
 
 // Bild zeichnen: Kino-Look (eine Pipeline: Szene, Unschärfe, Licht/Farbe, Cockpit darüber) bzw. ?look=alt wie bis n22
 function drawFrame(o) {
+  // n30: Auto-LOD nach Entfernung/Bildwinkel (Geist mindestens Mittel: durchscheinend, Feinheiten sieht man nicht)
+  carVis.updateLod(camera, app.lodForce != null ? { force: app.lodForce } : undefined);
+  if (ghostVis.root.visible) ghostVis.updateLod(camera, { min: 1 });
+  // n30: Lack-Spiegelung – eine Würfelseite je Bild; ausgelassen, wenn das Auto nicht zu sehen oder weit weg ist (Fern-LOD)
+  // (hier statt in render(), damit auch drawOnce der Mess-Skripte sie mitzählt)
+  if (reflex) {
+    reflex.setEnabled(quality.tier >= REFLEX_MIN && !reflexOff);
+    reflex.update(carVis.root, { hide: [carVis.root, ghostVis.root], skip: !carVis.root.visible || carVis.lod >= 2 });
+  }
   post.setting = params.get('blur') || store.settings.blur || 'light';
   post.tier = quality.tier;
   const overlay = o.cockpit ? (r) => cockpit.render(r) : null;
@@ -974,7 +1048,11 @@ window.__game = {
   // Import (Tests): Bytes als Array → Ergebnisliste; Strecke laden
   importBytes: (arr, name) => importFiles([new File([new Uint8Array(arr)], name || 'test.trk')]),
   loadImported: (id) => playImported(id),
-  info() { const i = renderer.info; return { calls: i.render.calls, tris: i.render.triangles, geometries: i.memory.geometries, textures: i.memory.textures, programs: i.programs ? i.programs.length : 0, pixelRatio: renderer.getPixelRatio(), tier: quality.tier, fps: quality.fps }; },
+  info() { const i = renderer.info; return { calls: i.render.calls, tris: i.render.triangles, geometries: i.memory.geometries, textures: i.memory.textures, programs: i.programs ? i.programs.length : 0, pixelRatio: renderer.getPixelRatio(), tier: quality.tier, fps: quality.fps,
+    ap: quality.ap ? quality.ap.zustand() : null, carLod: carVis ? carVis.lod : null, ghostLod: ghostVis ? ghostVis.lod : null,
+    impostor: IMP ? { atlas: !!(IMP.meta && IMP.meta.arten), arten: [...IMP.arten.keys()], fehler: IMP.fehler } : null,
+    reflex: reflex ? { an: reflex.enabled, bereit: reflex.bereit, ...reflex.stats } : null,
+    vao: vaoJob ? { fertig: vaoJob.done, anteil: +vaoJob.anteil.toFixed(3), ...(vaoJob.stats || {}) } : null, apLog: quality.ap ? quality.ap.log.slice(-12) : null, startProbe: app.startProbe || null, gpuZeit: quality.gpu ? quality.gpu.ok : null }; },
   state() {
     const c = race && race.car;
     return { mode, state: race && race.state, time: race && race.time, speed: c && c.speed(), pos: c && [c.pos.x, c.pos.y, c.pos.z], up: c && c.frame.u.y, cp: race && race.cpNext, cps: race && race.cps.length, lap: race && race.tracker.lap, idx: race && race.tracker.idx, n: env && env.track.line.n, crashes: race && race.crashes, rewinds: race && race.rewinds, penalties: race && race.penalties, wreck: race && race.wreckOn, crash: c && c.crash, assist: store.settings.assist, seed: env && env.meta.seed, diff: env && env.meta.diff, key: env && env.meta.key, frames: app.frames,

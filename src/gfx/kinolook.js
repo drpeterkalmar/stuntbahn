@@ -490,6 +490,8 @@ export class KinoLook {
     else if (fps > 58.5) this.renderScale = Math.min(hi, this.renderScale + 0.04);
     return this.renderScale !== s0;
   }
+  // Renderskala [Start, Min, Max] einer Stufe (n30: Qualitäts-Autopilot setzt die Skala selbst)
+  scaleRangeOf(level) { return (PRESETS[level] && PRESETS[level].scale) || [1, 1, 1]; }
   describe() {
     return { level: this.level, name: this.preset.name, pipeline: this.pipeline, scale: +this.renderScale.toFixed(3), msaa: this.msaa(), stages: Object.keys(this.stages).filter((k) => this.stages[k]), grade: this.grade,
       size: this.rt ? [this.rt.width, this.rt.height] : null };

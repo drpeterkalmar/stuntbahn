@@ -59,16 +59,33 @@ export function makeSky(skyInfo, tex = null, opts = {}) {
   return m;
 }
 
+// n30 HDR-Diät: Umgebungs-HDRs als 512×256 (tools/hdr_diaet.mjs, Sonne schon gekappt, −6 MB), Halbfloat statt Float
+// (halber Speicher, schnellere PMREM-Erzeugung beim Themenwechsel). ?hdr=1k = die bisherigen 1024×512-Dateien mit Float.
+export const HDR_KLEIN = typeof location === 'undefined' || new URLSearchParams(location.search).get('hdr') !== '1k';
+export function envUrl(url) {
+  if (!HDR_KLEIN) return url;
+  return url.replace(/\/env\.hdr$/, '/env_512.hdr').replace(/\/sky_1k\.hdr$/, '/sky_512.hdr');
+}
 export async function makeEnvironment(renderer, url = 'assets/hdr/sky_1k.hdr') {
   const loader = new HDRLoader();
-  loader.setDataType(THREE.FloatType);
-  const hdr = await loader.loadAsync(url);
+  loader.setDataType(HDR_KLEIN ? THREE.HalfFloatType : THREE.FloatType);
+  const hdr = await loader.loadAsync(envUrl(url));
   // Sonnenscheibe kappen: Sonnenlicht kommt von der DirectionalLight (mit Schatten),
-  // sonst steckt fast die ganze Sonne im unbeschattbaren Umgebungslicht.
+  // sonst steckt fast die ganze Sonne im unbeschattbaren Umgebungslicht. (Die kleinen Dateien sind schon gekappt – die
+  // Schleife ändert dann nichts, bleibt aber für ?hdr=1k und andere Himmel.)
   const d = hdr.image.data, ch = d.length / (hdr.image.width * hdr.image.height);
-  for (let i = 0; i < d.length; i += ch) {
-    const l = 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
-    if (l > 4) { const k = 4 / l; d[i] *= k; d[i + 1] *= k; d[i + 2] *= k; }
+  if (d instanceof Uint16Array) {
+    const H = THREE.DataUtils;
+    for (let i = 0; i < d.length; i += ch) {
+      const r = H.fromHalfFloat(d[i]), g = H.fromHalfFloat(d[i + 1]), b = H.fromHalfFloat(d[i + 2]);
+      const l = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+      if (l > 4) { const k = 4 / l; d[i] = H.toHalfFloat(r * k); d[i + 1] = H.toHalfFloat(g * k); d[i + 2] = H.toHalfFloat(b * k); }
+    }
+  } else {
+    for (let i = 0; i < d.length; i += ch) {
+      const l = 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
+      if (l > 4) { const k = 4 / l; d[i] *= k; d[i + 1] *= k; d[i + 2] *= k; }
+    }
   }
   hdr.needsUpdate = true;
   hdr.mapping = THREE.EquirectangularReflectionMapping;

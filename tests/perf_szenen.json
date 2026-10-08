@@ -1,0 +1,115 @@
+{
+ "_kommentar": "Stuntbahn-Szenen für tests/perf_gate.py (n30). Grafikstufe fest per ?q= (Autopilot pausiert), außer rennen_autopilot. ?startprobe=0: keine Kurzmessung beim Laden (auf main ohne Wirkung). Looping: Galerie-Strecke, Auto kopfüber im ersten Looping, Spiel angehalten (Bild wird weiter jedes Mal gezeichnet).",
+ "bereit": "window.__app && window.__app.ready && window.__app.frames > 3",
+ "init": "window.__noKino = true; window.__noShow = true",
+ "info": "() => { const i = __game.renderer.info; return { calls: i.render.calls, tris: i.render.triangles, tex: i.memory.textures }; }",
+ "zusatz": "() => __game.info()",
+ "ladeQuery": "?nosw&seed=4711&d=3&g=1",
+ "ladeNachlauf": 4,
+ "szenen": [
+  {
+   "name": "menu_kino",
+   "query": "?nosw&q=2&startprobe=0&seed=4711&d=3&g=1",
+   "schritte": [
+    {
+     "warte": 2
+    }
+   ]
+  },
+  {
+   "name": "looping_kino",
+   "query": "?nosw&q=2&startprobe=0&gallery&blur=off",
+   "schritte": [
+    "__game.setAssist('easy'); __game.store.settings.fahrstil = 'sauber'",
+    "__game.start({ autopilot: true })",
+    "__game.cam('chase')",
+    "__game.sim(3.6)",
+    "(() => { const T = __game.env.track, L = T.line, k = T.pieces.findIndex((p) => p.type === 'loop'); if (k < 0) throw new Error('kein Looping'); const P = T.pieces[k]; let j = P.lineStart, acc = 0; while (acc < 60) { const q = j - 1; acc += Math.hypot(L.px[j] - L.px[q], L.pz[j] - L.pz[q]); j = q; } window.__pgLoop = k; __game.teleport(j, __game.env.prof.vt[j]); __game.race.stuckProg = -1e9; })()",
+    {
+     "bis": "(() => { const g = __game, r = g.race, c = r.car, i = r.tracker.idx, P = g.env.track.pieces[window.__pgLoop]; return i >= P.lineStart && i <= P.lineEnd && !!g.env.track.line.loop[i] && c.frame.u.y < -0.5; })()",
+     "schritt": "__game.sim(1/60)",
+     "max": 90
+    },
+    "__game.freeze(true)",
+    {
+     "bilder": 10
+    }
+   ]
+  },
+  {
+   "name": "looping_standard",
+   "query": "?nosw&q=1&startprobe=0&gallery&blur=off",
+   "schritte": [
+    "__game.setAssist('easy'); __game.store.settings.fahrstil = 'sauber'",
+    "__game.start({ autopilot: true })",
+    "__game.cam('chase')",
+    "__game.sim(3.6)",
+    "(() => { const T = __game.env.track, L = T.line, k = T.pieces.findIndex((p) => p.type === 'loop'); if (k < 0) throw new Error('kein Looping'); const P = T.pieces[k]; let j = P.lineStart, acc = 0; while (acc < 60) { const q = j - 1; acc += Math.hypot(L.px[j] - L.px[q], L.pz[j] - L.pz[q]); j = q; } window.__pgLoop = k; __game.teleport(j, __game.env.prof.vt[j]); __game.race.stuckProg = -1e9; })()",
+    {
+     "bis": "(() => { const g = __game, r = g.race, c = r.car, i = r.tracker.idx, P = g.env.track.pieces[window.__pgLoop]; return i >= P.lineStart && i <= P.lineEnd && !!g.env.track.line.loop[i] && c.frame.u.y < -0.5; })()",
+     "schritt": "__game.sim(1/60)",
+     "max": 90
+    },
+    "__game.freeze(true)",
+    {
+     "bilder": 10
+    }
+   ]
+  },
+  {
+   "name": "rennen_kino",
+   "query": "?nosw&q=2&startprobe=0&seed=4711&d=3&g=1",
+   "schritte": [
+    "__game.setAssist('easy'); __game.store.settings.fahrstil = 'sauber'",
+    "__game.start({ autopilot: true })",
+    "__game.cam('chase')",
+    {
+     "warte": 3
+    }
+   ]
+  },
+  {
+   "name": "cockpit_kino",
+   "query": "?nosw&q=2&startprobe=0&seed=4711&d=3&g=1",
+   "schritte": [
+    "__game.setAssist('easy'); __game.store.settings.fahrstil = 'sauber'",
+    "__game.start({ autopilot: true })",
+    "__game.cam('chase')",
+    "__game.cam('cockpit')",
+    {
+     "warte": 3
+    }
+   ]
+  },
+  {
+   "name": "replay_kino",
+   "query": "?nosw&q=2&startprobe=0&seed=4711&d=3&g=1",
+   "schritte": [
+    "__game.setAssist('easy'); __game.store.settings.fahrstil = 'sauber'",
+    "__game.start({ autopilot: true })",
+    "__game.cam('chase')",
+    {
+     "bis": "(__game.sim(2.0) || {}).state === 'finished'",
+     "max": 400
+    },
+    "__game.replay()",
+    {
+     "warte": 1.5
+    }
+   ]
+  },
+  {
+   "name": "rennen_autopilot",
+   "query": "?nosw&seed=4711&d=3&g=1",
+   "sek": 20,
+   "schritte": [
+    "__game.setAssist('easy'); __game.store.settings.fahrstil = 'sauber'",
+    "__game.start({ autopilot: true })",
+    "__game.cam('chase')",
+    {
+     "warte": 3
+    }
+   ]
+  }
+ ]
+}

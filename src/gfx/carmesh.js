@@ -7,6 +7,7 @@ import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { CAR_DEF } from '../physics/car.js';
 import { patchStaticShadow } from './materials.js';
 import { makeContactShadow } from './kinolook.js';
+import { lodFor } from './carlod.js';
 
 let gltfPromise = null;
 
@@ -46,6 +47,18 @@ export async function parkedCarGeometry() {
   return out;
 }
 
+// n30: Heldenauto in Mittel- (~15 k) und Fern-Stufe (~7 k Dreiecke), gebaut mit tools/build_assets.mjs --car-mid aus
+// demselben Original (Lizenz unverändert, CC-BY 4.0). Ohne Texturen: jede Stufe nutzt die Materialien des Heldenautos.
+// Lädt erst nach dem Start (nicht im Ladebildschirm); ?lod=0 = immer volles Modell.
+let lodsPromise = null;
+export function loadCarLods() {
+  if (!lodsPromise) {
+    const l = new GLTFLoader();
+    l.setMeshoptDecoder(MeshoptDecoder);
+    lodsPromise = Promise.all([l.loadAsync('assets/car/goblin_mid.glb'), l.loadAsync('assets/car/goblin_far.glb')]);
+  }
+  return lodsPromise;
+}
 export function loadCarModel() {
   if (!gltfPromise) {
     const l = new GLTFLoader();
@@ -242,6 +255,9 @@ export async function makeCar(opts = {}) {
     bodyMats[key] = bm;
     return bm;
   };
+  // n30: verarbeitete Materialien je Quell-Material (Name + Rad), damit die LOD-Stufen dieselben bekommen
+  const matCache = new Map();
+  const matKey = (m, isWheel) => `${m.name || ''}|${isWheel ? 1 : 0}`;
   const fixMat = (m, isWheel) => {
     const n = (m.name || '').toLowerCase();
     if (n.includes('clearcoat')) return paint;
@@ -262,13 +278,16 @@ export async function makeCar(opts = {}) {
     pivot.add(wheels[k].brake);
   }
   let tris = 0;
+  const lodMeshes = [[], [], []];
   for (const p of parts) {
     const g = p.geo;
     g.applyMatrix4(M);
-    const mat = Array.isArray(p.mesh.material) ? p.mesh.material.map((q) => fixMat(q, !!p.w)) : fixMat(p.mesh.material, !!p.w);
+    const fm = (q) => { const r = fixMat(q, !!p.w); matCache.set(matKey(q, !!p.w), r); return r; };
+    const mat = Array.isArray(p.mesh.material) ? p.mesh.material.map(fm) : fm(p.mesh.material);
     const mesh = new THREE.Mesh(g, mat);
     mesh.castShadow = true;
     mesh.receiveShadow = true;
+    mesh.userData.lod = 0; lodMeshes[0].push(mesh);
     tris += (g.index ? g.index.count : g.attributes.position.count) / 3;
     if (p.w) {
       const W = wheels[p.w.pos];
@@ -293,6 +312,52 @@ export async function makeCar(opts = {}) {
   let contactA = 1;
   const car = {
     root, body, wheels, mats, rVis, tris, flames, contact,
+    lod: 0, lodLevels: 1, lodMeshes,
+    // n30: LOD-Stufe (1 = Mittel, 2 = Fern) aus einem GLB von tools/build_assets.mjs --car-mid anhängen. Gleiche Knoten-
+    // namen → gleiche Rad-Zuordnung und Modell→Auto-Transformation wie das Heldenauto; Materialien über den Namen.
+    addLod(gltf, level) {
+      const s2 = gltf.scene;
+      s2.updateMatrixWorld(true);
+      const list = [];
+      s2.traverse((o) => { if (o.isMesh && !/car_shadow/.test(o.name)) list.push(o); });
+      for (const o of list) {
+        const w = wheelOf(o);
+        const g = toFloat(o.geometry.clone());
+        g.applyMatrix4(o.matrixWorld).applyMatrix4(M);
+        const pick = (q) => matCache.get(matKey(q, !!w)) || fixMat(q, !!w);
+        const mat = Array.isArray(o.material) ? o.material.map(pick) : pick(o.material);
+        for (const q of Array.isArray(mat) ? mat : [mat]) if (!q.userData.sbPatched) { patchStaticShadow(q); q.userData.sbPatched = true; }
+        const mesh = new THREE.Mesh(g, mat);
+        mesh.castShadow = true; mesh.receiveShadow = true;
+        mesh.userData.lod = level; mesh.visible = false;
+        if (w) { const W = wheels[w.pos]; g.translate(-W.base.x, -W.base.y, -W.base.z); (w.kind === 'wheel' ? W.spin : W.brake).add(mesh); }
+        else body.add(mesh);
+        lodMeshes[level].push(mesh);
+      }
+      this.lodLevels = Math.max(this.lodLevels, level + 1);
+      const want = this.lod; this.lod = -1; this.setLod(want);
+      return list.length;
+    },
+    setLod(level) {
+      level = Math.max(0, Math.min(this.lodLevels - 1, level));
+      if (level === this.lod) return;
+      // fehlt eine Zwischenstufe (noch nicht geladen), die nächstfeinere nehmen
+      while (level > 0 && !lodMeshes[level].length) level--;
+      this.lod = level;
+      lodMeshes.forEach((list, i) => { for (const m of list) m.visible = i === level; });
+    },
+    // je Bild: Stufe aus Entfernung und Bildwinkel; opts.min = gröbste Mindeststufe (Geist: 1), opts.force = feste Stufe
+    updateLod(camera, opts = {}) {
+      if (this.lodLevels < 2) return this.lod;
+      let l;
+      if (opts.force != null) l = opts.force;
+      else {
+        const dx = camera.position.x - root.position.x, dy = camera.position.y - root.position.y, dz = camera.position.z - root.position.z;
+        l = Math.max(opts.min || 0, lodFor(Math.hypot(dx, dy, dz), camera.fov || 62, Math.max(0, this.lod)));
+      }
+      this.setLod(l);
+      return this.lod;
+    },
     setPaint(c) { paint.color.set(c); },
     setNitro(level, dt = 1 / 60) { flames.set(level, dt); },
     // aus Physik-Zustand aktualisieren
