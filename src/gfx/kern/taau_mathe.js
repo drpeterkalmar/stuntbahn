@@ -151,13 +151,14 @@ export function disocclusion(zHist, zErw, dis = TAAU_STANDARD.dis) {
 }
 
 // ---------- Einsatz-Entscheidung (Autopilot, Rückfall) ----------
-// Liefert 'taa' (Jitter + Resolve, kein MSAA, kein FXAA), 'fxaa' (Rückfall: FXAA-Art im Endbild, MSAA 0) oder 'aus'
-// (Stufe nicht gewünscht → Preset wie bisher, Kino mit MSAA 4).
+// Liefert 'taa' (Jitter + Resolve, kein MSAA, kein FXAA), 'fxaa' (Rückfall aus Leistungsgründen: FXAA-Art im Endbild,
+// MSAA 0) oder 'aus' (Stufe nicht gewünscht oder Technik fehlt → Preset wie bisher, Kino mit MSAA 4 – auf einem Gerät ohne
+// HalfFloat-Ziel ist der bisherige Weg besser als FXAA).
 //   gewuenscht: ?taa=1 bzw. kl=+taa; technik: WebGL2 + HalfFloat-Ziel möglich; pipeline: Kino-Look-Stufe ≥ 1;
 //   rueckfall: vom Autopilot abgeschaltet; skala: aktuelle Renderskala, min: tiefste Skala für TAAU (Standard 0,6)
 export function taaModus({ gewuenscht, technik = true, pipeline = true, rueckfall = false, skala = 1, min = 0.6 }) {
-  if (!gewuenscht || !pipeline) return 'aus';
-  if (!technik || rueckfall || skala < min - 1e-6) return 'fxaa';
+  if (!gewuenscht || !pipeline || !technik) return 'aus';
+  if (rueckfall || skala < min - 1e-6) return 'fxaa';
   return 'taa';
 }
 

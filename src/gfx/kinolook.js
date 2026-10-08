@@ -25,23 +25,36 @@
 //      Nachschärfen (CAS-Art) – eigener Code –, Hitzeflimmern, Unschärfe, Verdeckung, Luftperspektive (Dunst nach Tiefe
 //      und Höhe, zur Sonne hin warm), Bloom, Sonnen-Blendung/Lens-Flare, Farbkorrektur je Tageszeit, Vignette, Dither.
 //   Danach optional `overlay(renderer)` (z. B. das Cockpit), scharf darüber.
+//
+// n31 – Stufe `taa` (TAAU, „DLSS-Ersatz“, Standard AUS; ?taa=1 bzw. ?kl=+taa): Szene mit Halton-Jitter in Renderskala
+//   0,6–0,7, KEIN MSAA, dann EIN Resolve-Durchgang in Bildschirmauflösung (kern/taau.js: Reprojektion über Tiefe + vorige
+//   Kamera, Auto getrennt über seine Box, Varianz-Clip, Disocclusion) → das Endbild liest die History statt der Renderskala,
+//   nur noch CAS-Nachschärfen (keine FXAA-Art). Rückfall (Autopilot, fehlendes HalfFloat-Ziel, Skala < 0,6): FXAA-Art,
+//   MSAA 0. Schnittstelle für andere Spiele: KINOLOOK.md „TAAU in ein anderes Spiel“.
 import * as THREE from 'three';
+import { TAAU } from './kern/taau.js';
+import { taaModus } from './kern/taau_mathe.js';
 
 // Stufen, die einzeln schaltbar sind (URL ?kl=-bloom,+ssao …)
-export const STAGES = ['scale', 'aa', 'sharpen', 'ssao', 'bloom', 'flare', 'aerial', 'grade', 'vignette', 'blur', 'haze', 'dither', 'contact', 'dof'];
+export const STAGES = ['scale', 'aa', 'sharpen', 'ssao', 'bloom', 'flare', 'aerial', 'grade', 'vignette', 'blur', 'haze', 'dither', 'contact', 'dof', 'taa'];
+// n31: tiefste Renderskala für TAAU (darunter Rückfall auf die FXAA-Art)
+export const TAA_SKALA_MIN = 0.6;
 
 // Presets je Qualitätsstufe. scale = Renderskala (Start/Min/Max) relativ zur Bildschirmauflösung der Stufe.
+// n31: taaScale/taaSharpen gelten, wenn die Stufe `taa` an ist (Startwerte, TODO Heavy-Job: am Bild/mit perf_gate abstimmen)
 export const PRESETS = [
   { name: 'Einfach', pipeline: false, stages: { contact: true } },
   {
     name: 'Standard', pipeline: true, msaa: 0, scale: [0.84, 0.62, 0.92],
     stages: { scale: true, aa: true, sharpen: true, ssao: false, bloom: true, flare: true, aerial: true, grade: true, vignette: true, blur: true, haze: false, dither: true, contact: true, dof: true },
     sharpen: 0.42, ao: { taps: 6, radius: 1.1, strength: 0.55 }, bloom: { levels: 3, strength: 0.3, threshold: 0.9 }, blurHalf: true,
+    taaScale: [0.7, 0.6, 0.85], taaSharpen: 0.5,
   },
   {
     name: 'Kino', pipeline: true, msaa: 4, scale: [1, 0.7, 1],
     stages: { scale: true, aa: false, sharpen: true, ssao: true, bloom: true, flare: true, aerial: true, grade: true, vignette: true, blur: true, haze: true, dither: true, contact: true, dof: true },
     sharpen: 0.25, ao: { taps: 10, radius: 1.2, strength: 0.65 }, bloom: { levels: 4, strength: 0.36, threshold: 0.88 }, blurHalf: false,
+    taaScale: [0.7, 0.6, 1], taaSharpen: 0.4,
   },
 ];
 
@@ -135,16 +148,18 @@ const DOF_FS = `
   ${COMMON}
   ${BLUR_CORE}
   ${DOF_CORE}
+  uniform vec2 uJitUv;   // n31: Jitter dieses Bilds (uv) – Tiefenschärfe liest die unverschobene Stelle, sonst wabert sie
   void main() {
-    float d = texture2D( tDepth, vUv ).x;
+    vec2 uv0 = vUv + uJitUv;
+    float d = texture2D( tDepth, uv0 ).x;
     float c0 = d >= 1.0 ? uDofK : kCoc( kLinZ( d ) ) * ( 1.0 - kCarMask( vUv, d ) );
-    vec3 acc = texture2D( tColor, vUv ).rgb; float ws = 1.0;
+    vec3 acc = texture2D( tColor, uv0 ).rgb; float ws = 1.0;
     if ( c0 > 0.02 ) {
       vec2 R = vec2( uDofR * uRes.y / uRes.x, uDofR ) * c0;
       float ang = kIgn( gl_FragCoord.xy ) * 6.2831853;
       for ( int i = 0; i < 12; i++ ) {
         float a = ( float( i ) + 0.5 ) / 12.0, th = ang + float( i ) * 2.3999632;
-        vec2 q = vUv + vec2( cos( th ), sin( th ) ) * sqrt( a ) * R;
+        vec2 q = uv0 + vec2( cos( th ), sin( th ) ) * sqrt( a ) * R;
         float dq = texture2D( tDepth, q ).x;
         float cq = dq >= 1.0 ? uDofK : kCoc( kLinZ( dq ) );
         float w = clamp( cq / max( c0, 1e-3 ) * 1.5, 0.0, 1.0 );   // scharfe Stellen (Auto im Fokus: cq ≈ 0) bluten nicht
@@ -237,8 +252,8 @@ const SUNVIS_FS = `
 
 // Endbild
 const COMP_FS = `
-  uniform sampler2D tColor, tDepth, tAO, tBloom, tBlur, tSunVis, tDof;
-  uniform vec2 uSrcTexel, uRes, uAOTexel;
+  uniform sampler2D tColor, tDepth, tAO, tBloom, tBlur, tSunVis, tDof, tTaa;
+  uniform vec2 uSrcTexel, uRes, uAOTexel, uTaaTexel, uJitUv;
   uniform float uTime, uSharp, uAOStr, uBloomStr, uVig, uBlurOn, uDither;
   uniform mat4 uInvProj; uniform mat3 uCamRot; uniform vec3 uCamPos;
   uniform vec3 uSunDir, uSunCol, uHazeCol; uniform vec4 uAerial;
@@ -253,12 +268,20 @@ const COMP_FS = `
 
   // kantenbewusstes Hochskalieren: bilinear aus der Renderskala, an Kanten entlang der Kante glätten (FXAA-Art,
   // 4 Diagonalen + 4 Richtungs-Abtastungen), sonst kontrastabhängig nachschärfen (CAS-Art, Halos begrenzt)
+  // n31 TAA: Quelle ist die History in Bildschirmauflösung (schon geglättet + hochskaliert) → nur CAS
+  #ifdef TAA
+   #define K_SRC tTaa
+   #define K_TEXEL uTaaTexel
+  #else
+   #define K_SRC tColor
+   #define K_TEXEL uSrcTexel
+  #endif
   vec3 kinoSR( vec2 uv ) {
-    vec3 c = texture2D( tColor, uv ).rgb;
+    vec3 c = texture2D( K_SRC, uv ).rgb;
   #if defined( AA ) || defined( SHARP )
-    vec2 t = uSrcTexel;
-    vec3 nw = texture2D( tColor, uv + vec2( -t.x, t.y ) * 0.5 ).rgb, ne = texture2D( tColor, uv + vec2( t.x, t.y ) * 0.5 ).rgb;
-    vec3 sw = texture2D( tColor, uv + vec2( -t.x, -t.y ) * 0.5 ).rgb, se = texture2D( tColor, uv + vec2( t.x, -t.y ) * 0.5 ).rgb;
+    vec2 t = K_TEXEL;
+    vec3 nw = texture2D( K_SRC, uv + vec2( -t.x, t.y ) * 0.5 ).rgb, ne = texture2D( K_SRC, uv + vec2( t.x, t.y ) * 0.5 ).rgb;
+    vec3 sw = texture2D( K_SRC, uv + vec2( -t.x, -t.y ) * 0.5 ).rgb, se = texture2D( K_SRC, uv + vec2( t.x, -t.y ) * 0.5 ).rgb;
     float lnw = kLuma( nw ), lne = kLuma( ne ), lsw = kLuma( sw ), lse = kLuma( se ), lc = kLuma( c );
     float lmin = min( lc, min( min( lnw, lne ), min( lsw, lse ) ) ), lmax = max( lc, max( max( lnw, lne ), max( lsw, lse ) ) );
     float range = lmax - lmin;
@@ -337,7 +360,7 @@ const COMP_FS = `
 
   void main() {
     vec2 uv = vUv;
-    float d = texture2D( tDepth, uv ).x;
+    float d = texture2D( tDepth, uv + uJitUv ).x;   // n31: mit TAA die unverschobene Tiefe (Dunst/Masken flimmern sonst an Kanten)
     float car = 0.0;
   #if defined( BLUR_FULL ) || defined( HAZE ) || defined( DOF )
     car = kCarMask( uv, d );
@@ -432,6 +455,9 @@ export class KinoLook {
     this.samples = null;           // MSAA-Abtastungen erzwingen (Tests); sonst Preset
     this.dtS = 1 / 60;
     this.renderScale = 1; this.scaleRange = [1, 1, 1];
+    // n31 TAAU: opts.taa = { gewicht, muster, gamma, dis } (URL ?taaw= ?jit= ?taagamma= ?taadis=); an über Stufe `taa`.
+    // taaRueckfall setzt der Autopilot (true = FXAA-Art statt TAA); taau wird erst angelegt, wenn die Stufe gewünscht ist
+    this.taaOpts = opts.taa || {}; this.taau = null; this.taaRueckfall = false; this.taaLetzt = 'aus';
     this.level = -1;
     this.setLevel(opts.level ?? 1);
     // Vollbild-Dreieck
@@ -445,7 +471,7 @@ export class KinoLook {
     const M4 = () => ({ value: new THREE.Matrix4() });
     // gemeinsame Uniforms aller Durchgänge
     this.u = {
-      tColor: { value: null }, tDepth: { value: null }, tSunVis: { value: null }, tAO: { value: null }, tBloom: { value: null }, tBlur: { value: null }, tSrc: { value: null }, tDof: { value: null },
+      tColor: { value: null }, tDepth: { value: null }, tSunVis: { value: null }, tAO: { value: null }, tBloom: { value: null }, tBlur: { value: null }, tSrc: { value: null }, tDof: { value: null }, tTaa: { value: null }, uTaaTexel: V2(), uJitUv: V2(),
       uDofF: F(10), uDofR: F(0.012), uDofNear: F(0.6), uDofFar: F(1.5), uDofK: F(0),
       uSrcTexel: V2(), uRes: V2(), uAOTexel: V2(), uTexel: V2(), uProj: V2(), uDepthSize: V2(),
       uTime: F(), uSharp: F(0.3), uAOStr: F(0.6), uBloomStr: F(0.4), uVig: F(0.2), uBlurOn: F(0), uDither: F(1),
@@ -476,8 +502,26 @@ export class KinoLook {
     this.preset = PRESETS[level];
     this.stages = {};
     for (const k of STAGES) this.stages[k] = k in this.overrides ? this.overrides[k] : !!(this.preset.stages && this.preset.stages[k]);
-    this.scaleRange = this.preset.scale || [1, 1, 1];
+    this.scaleRange = this.scaleRangeOf(level);
     this.renderScale = this.stages.scale ? this.scaleRange[0] : 1;
+  }
+  // ---------- n31: TAAU ----------
+  // Stufe `taa` für eine Grafikstufe gewünscht? (URL-Überschreibung vor Preset)
+  taaGewuenscht(level = this.level) {
+    const P = PRESETS[level];
+    if (!this.supported || !P || !P.pipeline) return false;
+    return 'taa' in this.overrides ? this.overrides.taa : !!(P.stages && P.stages.taa);
+  }
+  // Technik da? (WebGL2 + HalfFloat-Ziel) – legt TAAU beim ersten Wunsch an
+  taaTechnik() {
+    if (!this.taau && this.supported) this.taau = new TAAU(this.r, this.taaOpts);
+    return !!(this.taau && this.taau.technik);
+  }
+  // 'taa' | 'fxaa' | 'aus' für das aktuelle Bild (reine Entscheidung: kern/taau_mathe.js taaModus)
+  taaModus() {
+    const g = this.pipeline && !!this.stages.taa;
+    return taaModus({ gewuenscht: g, technik: g ? this.taaTechnik() : true, pipeline: this.pipeline, rueckfall: this.taaRueckfall,
+      skala: this.stages.scale ? this.renderScale : 1, min: TAA_SKALA_MIN });
   }
   get pipeline() { return this.supported && !!this.preset.pipeline; }
   // Bewegungsunschärfe wirksam? (Stufe ≥ 1, Einstellung, nicht von der Automatik abgeschaltet)
@@ -491,17 +535,28 @@ export class KinoLook {
     return this.renderScale !== s0;
   }
   // Renderskala [Start, Min, Max] einer Stufe (n30: Qualitäts-Autopilot setzt die Skala selbst)
-  scaleRangeOf(level) { return (PRESETS[level] && PRESETS[level].scale) || [1, 1, 1]; }
+  // n31: mit Stufe `taa` der TAAU-Bereich (z. B. Kino 0,7 / 0,6 / 1 statt 1 / 0,7 / 1 mit MSAA 4)
+  scaleRangeOf(level) {
+    const P = PRESETS[level];
+    if (P && P.taaScale && this.taaGewuenscht(level) && this.taaTechnik()) return P.taaScale;
+    return (P && P.scale) || [1, 1, 1];
+  }
   describe() {
     return { level: this.level, name: this.preset.name, pipeline: this.pipeline, scale: +this.renderScale.toFixed(3), msaa: this.msaa(), stages: Object.keys(this.stages).filter((k) => this.stages[k]), grade: this.grade,
-      size: this.rt ? [this.rt.width, this.rt.height] : null };
+      size: this.rt ? [this.rt.width, this.rt.height] : null,
+      taa: { modus: this.taaModus(), rueckfall: this.taaRueckfall, ...(this.taau ? this.taau.describe() : {}) } };
   }
-  msaa() { return this.samples != null ? this.samples : (this.preset.msaa || 0); }
+  // n31: mit TAA bzw. deren Rückfall kein MSAA (TAA braucht ein einzelnes Abtastmuster je Pixel; Rückfall = FXAA-Art)
+  msaa() { return this.samples != null ? this.samples : this.taaModus() !== 'aus' ? 0 : (this.preset.msaa || 0); }
   setCarBox(box) {
     this.u.uBoxMin.value.copy(box.min).addScalar(-0.04); this.u.uBoxMin.value.y = box.min.y + 0.12;
     this.u.uBoxMax.value.copy(box.max).addScalar(0.06);
+    // n31 TAA: Auto-Box für die eigene Reprojektion – fast bis zum Boden (Reifen unten), Fahrbahn darunter bleibt Welt.
+    // TODO Heavy-Job: Unterkante am Bild prüfen (Schlieren an den Reifen ↔ Fahrbahn unter dem Auto wandert mit)
+    this.taaBox = { min: box.min.clone().addScalar(-0.04), max: box.max.clone().addScalar(0.06) };
+    this.taaBox.min.y = box.min.y + 0.03;
   }
-  reset() { this.prev.ok = false; }
+  reset() { this.prev.ok = false; if (this.taau) this.taau.reset(); }
 
   mat(kind, defines, fs, extra = {}) {
     const key = kind + JSON.stringify(defines);
@@ -569,13 +624,15 @@ export class KinoLook {
     return k;
   }
 
-  // Ein Bild zeichnen. o = { dt, sunDir (Welt, normiert), run, speed (m/s), boost 0…1, car (Object3D), cut (Kameraschnitt),
+  // Ein Bild zeichnen. o = { dt, sunDir (Welt, normiert), run, speed (m/s), boost 0…1, car (Object3D), ghost (Object3D,
+  //   durchsichtig – n31 TAA), cut (Kameraschnitt),
   //   heat: [{ a: Vector3, b: Vector3, r (m), k 0…1 }] (Hitzeflimmern, Strecke a→b in Welt), overlay: (renderer) => void }
   render(scene, camera, o = {}) {
     const r = this.r;
     camera.updateMatrixWorld();
     if (!this.pipeline) {
       this.active = false; this.k = 0;
+      if (this.taau) this.taau.reset();
       r.setRenderTarget(null); r.render(scene, camera);
       if (o.overlay) o.overlay(r);
       this.savePrev(camera);
@@ -586,6 +643,14 @@ export class KinoLook {
     const w = this._sz.x, h = this._sz.y;
     const sc = st.scale ? this.renderScale : 1;
     const sw = Math.max(1, Math.round(w * sc)), sh = Math.max(1, Math.round(h * sc));
+    // n31 TAAU: Modus dieses Bilds; Schnitt (Kamerasprung wie bei der Unschärfe, Wechsel aus/an) → History neu
+    const taa = this.taaModus();
+    let taaSchnitt = false;
+    if (taa === 'taa') {
+      const P0 = this.prev;
+      taaSchnitt = !!o.cut || this.taaLetzt !== 'taa' || !P0.ok || P0.pos.distanceTo(camera.position) > Math.max(6, (o.speed || 0) * 0.25 + 3) || P0.q.angleTo(camera.quaternion) > 0.5;
+    } else if (this.taau) this.taau.reset();
+    this.taaLetzt = taa;
     this.ensureTargets(w, h, sw, sh);
     U.uTime.value = o.time ?? (performance.now() - this.t0) / 1000;
     U.uRes.value.set(w, h); U.uSrcTexel.value.set(1 / sw, 1 / sh);
@@ -600,10 +665,20 @@ export class KinoLook {
     // Tiefenschärfe nur auf Wunsch (Kino-Replay), Ziele erst beim ersten Mal anlegen
     const dof = st.dof && o.dof && o.dof.k > 0.01 ? o.dof : null;
     if (dof && !this.wantDof) { this.wantDof = true; this.ensureTargets(w, h, sw, sh); }
-    // 1. Szene
+    // 1. Szene (mit TAA: Projektion um den Halton-Versatz dieses Bilds verschoben, nur für diesen Durchlauf)
+    if (taa === 'taa') this.taau.jitterAn(camera, sw, sh, sc);
     r.setRenderTarget(this.rt);
     r.render(scene, camera);
+    if (taa === 'taa') this.taau.jitterAus(camera);
     U.tColor.value = this.rt.texture; U.tDepth.value = this.rt.depthTexture;
+    // 1b. TAAU-Resolve (EIN Vollbild-Durchgang in Bildschirmauflösung) – Auto als Körper mit eigener Bewegung, Geist durchsichtig
+    if (taa === 'taa') {
+      const T = this.taau, box = this.taaBox || { min: U.uBoxMin.value, max: U.uBoxMax.value };
+      T.koerper(0, o.car && o.car.visible ? o.car : null, box, 'fest');
+      T.koerper(1, o.ghost && o.ghost.visible ? o.ghost : null, box, 'durchsichtig');
+      U.tTaa.value = T.resolve(r, { farbe: this.rt.texture, tiefe: this.rt.depthTexture, sw, sh, w, h, camera, schnitt: taaSchnitt });
+      U.uTaaTexel.value.set(1 / w, 1 / h); U.uJitUv.value.copy(T.uJit);
+    } else U.uJitUv.value.set(0, 0);
     // 2. Umgebungsverdeckung
     const P = this.preset;
     if (st.ssao) {
@@ -650,7 +725,7 @@ export class KinoLook {
       U.tBlur.value = this.blurRT.texture;
     }
     // 5. Endbild
-    U.uSharp.value = P.sharpen || 0.3;
+    U.uSharp.value = taa === 'taa' ? (P.taaSharpen ?? 0.4) : (P.sharpen || 0.3);
     U.uVig.value = (st.vignette ? 0.2 : 0) + (k > 0 ? 0.22 * Math.min(1, k) : 0);
     const sun = o.sunDir;
     if (sun) U.uSunDir.value.copy(sun);
@@ -677,7 +752,8 @@ export class KinoLook {
     if (o.flash && o.flash.col) U.uFlashCol.value.fromArray(o.flash.col);
     const defs = {};
     if (o.whip && o.whip.len > 0.002) defs.WHIP = 1;
-    if (st.aa && sc < 0.999 || st.aa && this.msaa() === 0) defs.AA = 1;
+    if (taa === 'taa') defs.TAA = 1;                                       // n31: History statt Renderskala, nur CAS
+    else if (taa === 'fxaa' || st.aa && sc < 0.999 || st.aa && this.msaa() === 0) defs.AA = 1;   // Rückfall: FXAA-Art
     if (st.sharpen) defs.SHARP = 1;
     if (st.ssao) defs.AO = 1;
     if (st.bloom) defs.BLOOM = 1;
@@ -733,6 +809,7 @@ export class KinoLook {
   dispose() {
     for (const t of [this.rt, this.aoRT, this.blurRT, this.sunRT, this.dofRT, ...this.bloomRT]) if (t) { if (t.depthTexture) t.depthTexture.dispose(); t.dispose(); }
     this.rt = this.aoRT = this.blurRT = this.dofRT = null; this.bloomRT = [];
+    if (this.taau) { this.taau.dispose(); this.taau = null; }
     for (const m of this.mats.values()) m.dispose();
     this.mats.clear();
   }

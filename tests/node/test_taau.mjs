@@ -88,9 +88,9 @@ const view = (x, y, z, yaw = 0) => { // Kamera an (x,y,z), um y gedreht → View
     'Disocclusion: gleiche Tiefe 0, 4 % 0, 9 % halb, 50 % ganz, Körper↔Welt immer, leere History immer');
   ok(nah(mischAnteil(1, 0), 1 - TAAU_STANDARD.gewicht) && mischAnteil(0, 0) === TAAU_STANDARD.alphaMin && mischAnteil(1, 1) === 1 && mischAnteil(0.1, 0, 0.5) === 0.5,
     'Mischanteil: voller Treffer = 1 − Gewicht, kein Treffer = Minimum, Ablehnung = neues Bild, reaktiv = Mindestanteil');
-  ok(taaModus({ gewuenscht: false }) === 'aus' && taaModus({ gewuenscht: true }) === 'taa' && taaModus({ gewuenscht: true, technik: false }) === 'fxaa'
+  ok(taaModus({ gewuenscht: false }) === 'aus' && taaModus({ gewuenscht: true }) === 'taa' && taaModus({ gewuenscht: true, technik: false }) === 'aus'
     && taaModus({ gewuenscht: true, rueckfall: true }) === 'fxaa' && taaModus({ gewuenscht: true, skala: 0.55 }) === 'fxaa' && taaModus({ gewuenscht: true, pipeline: false }) === 'aus',
-    'Einsatz: aus ohne Wunsch/Pipeline, Rückfall FXAA bei fehlender Technik, Autopilot-Rückfall oder Renderskala < 0,6');
+    'Einsatz: aus ohne Wunsch/Pipeline/Technik (dann bisheriger Weg mit MSAA), Rückfall FXAA bei Autopilot-Rückfall oder Renderskala < 0,6');
 }
 
 // ---------- 5. Simulation statisch: Zaun bei Renderskala 0,65 ----------
