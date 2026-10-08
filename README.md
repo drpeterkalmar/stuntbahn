@@ -69,6 +69,16 @@ spielbar am Handy (quer oder hochkant), mit Gamepad oder Tastatur. Als App insta
   Abstand zu jeder Fahrbahn (auch Hochstraßen/Rampen), nie im Wasser. Dosiert nach Grafikstufe; ruckelt es, blendet die
   Automatik (nach der Unschärfe) zuerst Gras/Büsche/Wolkenschatten aus. `?deko=aus` (bis n29 `?deko=0`) / `?wolken=0` zum Vergleich.
 
+## 🔬 TAAU – „DLSS-Ersatz“ als zuschaltbarer Baustein (seit 08.10.2026, n31)
+- Temporales Hochskalieren mit Kantenglättung, selbst gebaut auf WebGL2: Szene in Renderskala 0,6–0,7 mit wanderndem
+  Abtastpunkt, ein Durchgang sammelt die Bilder über die Zeit in voller Auflösung. **Standard aus** – zum Ausprobieren
+  `?taa=1` (A/B mit `?taa=0`; `?taaskala=0.65` Renderskala, `?taadbg=1` zeigt, wo die History verworfen wird).
+- Abgenommen: **kein Nachziehen am Auto** (Verfolger, Hubschrauber, Cockpit, Kino-Replay), Masten/Leitplanken ruhig, Asphalt
+  im Stand fast wie volle Auflösung. Ehrliches Ergebnis: auf dieser Grafik kostet der Sammel-Durchgang so viel, wie die
+  kleinere Auflösung spart, und MSAA ist auf der GPU fast gratis – Kino mit MSAA 4 bleibt besser pro Millisekunde.
+  Der Baustein ist für Spiele gedacht, in denen MSAA nicht greift (Gras-/Laubkarten) oder das Shading teuer ist.
+- Zahlen, Bilder, Grenzen: `TAAU_BERICHT.md`; Anleitung für andere Spiele: `KINOLOOK.md` „TAAU in ein anderes Spiel“.
+
 ## 🏎️ Forza-Look bei flüssiger Bildrate + Grafik-Kern (seit 08.10.2026, n30 „Technik“)
 - Peter: „Überlege, wie wir Stuntbahn Details bekommen wie Forza … bei flüssiger Webapp-Leistung.“ Reine Technik/Optik –
   Physik, Steuerung, Strecken und Bestzeiten unverändert.

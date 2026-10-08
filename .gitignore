@@ -16,6 +16,9 @@ tests/shots/kinolook/tm_*
 tests/shots/kinolook/iso_*
 tests/shots/kinolook/mat_*
 tests/shots/kinolook/fx*
+# n31 TAAU: nur die Bericht-Collagen (Einzelbilder bleiben lokal)
+!tests/shots/taau/
+tests/shots/taau/*.png
 tests/out/
 __pycache__/
 *.pyc

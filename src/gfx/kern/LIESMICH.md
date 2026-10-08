@@ -9,7 +9,7 @@ werden: Datei(en) nach `src/gfx/kern/` legen, im Spiel ein paar Zeilen Anschluss
 | 2 Start-Kurzmessung | `kern/startprobe.js` | `tests/node/test_autopilot.mjs` (Teil 11) |
 | 3 Qualitäts-Autopilot | `kern/autopilot.js` | `tests/node/test_autopilot.mjs`, im Browser `tests/test_autopilot.py` |
 | 4 Impostor-Bäcker | `kern/oktaeder.js`, `kern/impostor.js`, `tools/build_impostor.{mjs,html,py}` | `tests/node/test_oktaeder.mjs` |
-| 5 TAAU (n31) | `kern/taau.js`, `kern/taau_mathe.js` | `tests/node/test_taau.mjs`, `tests/node/test_taau_kino.mjs`, im Browser `tests/taau_shots.py` |
+| 5 TAAU (n31) | `kern/taau.js`, `kern/taau_mathe.js` | `tests/node/test_taau.mjs`, `tests/node/test_taau_kino.mjs`, im Browser `tests/taau_shots.py`, `tests/taau_folge.py`, `tests/taau_gpu.py` |
 | – Lack-Spiegelung | `kern/reflex.js` | `tests/technik_shots.py reflex`, A/B mit `perf_gate.py --ab` |
 | – Asset-Kette | `tools/hdr_diaet.mjs`, `tools/build_assets.mjs --car-mid`, `tools/build_detail_nor.mjs` | `test_hdr`, `test_lod`, `test_detail` |
 
@@ -51,5 +51,8 @@ mit Ecken nur am Rand) ausnehmen, sonst verschmiert die Verdeckung über die gan
 
 **TAAU** (temporales Hochskalieren mit Kantenglättung, n31): `taau.js` + `taau_mathe.js` kopieren. Mit Kino-Look nur
 `stages: '+taa'`; ohne Kino-Look `jitterAn` → Szene (Farbe + DepthTexture, ohne MSAA) → `jitterAus` → `resolve()`. Bewegte
-Objekte als Körper anmelden. Ausführlich: `KINOLOOK.md` „TAAU in ein anderes Spiel“. Node-Tests laden three.js über
-`tests/node/three_haken.mjs` aus `lib/` (Renderer-Attrappe, kein Browser).
+Objekte als Körper anmelden. **Vor dem ersten Übersetzen** `mipBiasEinbauen(THREE.ShaderChunk, Math.log2(skala))` (negativer
+Mip-Bias, sonst bleibt Texturdetail weg). Lohnt sich nur, wenn die gesparte Szene mehr kostet als der Resolve (Stuntbahn:
+nein, deshalb dort Standard aus – `TAAU_BERICHT.md`). Ausführlich: `KINOLOOK.md` „TAAU in ein anderes Spiel“. Node-Tests
+laden three.js über `tests/node/three_haken.mjs` aus `lib/` (Renderer-Attrappe, kein Browser). Im Browser: `tests/taau_folge.py`
++ `tests/taau_wertung.py` (Bild gegen 16-fach-Bezug), `tests/taau_gpu.py` (GPU-Zeit Szene/Resolve).

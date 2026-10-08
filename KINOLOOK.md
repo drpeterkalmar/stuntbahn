@@ -76,7 +76,15 @@ Temporales Hochskalieren mit Kantenglättung („DLSS-Ersatz“) auf WebGL2, eig
 Renderskala 0,6–0,7, **ohne MSAA**; **ein** Resolve-Durchgang in Bildschirmauflösung sammelt die Abtastungen über die Zeit
 in einer History (HalfFloat, Ping-Pong); danach nur CAS-Nachschärfen. Dateien: `src/gfx/kern/taau.js` (three.js, Shader,
 Klasse `TAAU`) + `src/gfx/kern/taau_mathe.js` (reine Mathematik, CPU-Vorlage des Shaders, Node-Test `tests/node/test_taau.mjs`).
-Status: Stuntbahn n31 – Standard **aus** (`?taa=1` an), Abnahme im Browser siehe `TAAU_BERICHT.md`.
+Status: Stuntbahn n31 – im Browser abgenommen (kein Ghosting am Auto, Kanten ruhig), Standard **aus** (`?taa=1` an), weil
+es hier nichts spart: der Resolve kostet in Ausgabeauflösung so viel, wie die kleinere Renderskala einspart, und MSAA ist
+auf der GPU fast gratis (Zahlen in `TAAU_BERICHT.md`).
+
+**Lohnt sich, wenn** MSAA nicht geht oder nicht wirkt (Alpha-getestetes Laub/Gras, Gitter, Shader-Flimmern, das MSAA nicht
+glättet), oder wenn das Shading je Pixel teuer ist (viele Lichter, Volumen, Wasser) – dann spart die Renderskala 0,6–0,7
+mehr, als der Resolve kostet. Faustregel aus der Stuntbahn (RTX 3070 Laptop, 4K): Resolve ≈ 1,3–2,3 ms je 8,3 Mpx,
+also ≈ 0,15–0,3 ns je Ausgabepixel; die Szene muss bei Skala 1 deutlich mehr als das Doppelte davon kosten. Messen mit
+`tests/taau_gpu.py` (Abschnitte Szene/Resolve) und `tests/taau_folge.py` + `tests/taau_wertung.py` (Bild gegen 16-fach-Bezug).
 
 **Mit Kino-Look** (Bandenkick, Schmetterlingswiese, sobald dort `kinolook.js` läuft): `kinolook.js` + beide Kern-Dateien
 kopieren, dann
@@ -87,8 +95,14 @@ kino.render(scene, camera, { car: spieler, ghost: durchsichtigesObjekt, cut, dt,
 ```
 Der Kino-Look schaltet mit `taa` selbst MSAA ab, nimmt den Renderskalen-Bereich `PRESETS[n].taaScale` und liest im Endbild
 die History. Rückfall auf die FXAA-Art: `kino.taaRueckfall = true` (z. B. als Autopilot-Stufe
-`ap.register('taa', 0.05, (s) => { kino.taaRueckfall = s === 0; })`) oder Renderskala < 0,6. Ohne HalfFloat-Ziel bleibt
-automatisch der bisherige Weg (MSAA).
+`ap.register('taa', 0.4, (s) => { kino.taaRueckfall = s === 0; })` – 0,4 = gemessener Anteil des Resolves an der GPU-Zeit)
+oder Renderskala < 0,6. Ohne HalfFloat-Ziel bleibt automatisch der bisherige Weg (MSAA).
+
+**Pflicht: negativer Mip-Bias** – sonst wählt die GPU die Textur-Mipmaps für die kleine Renderauflösung, und Texturdetail
+(Asphalt, Gras, Fels) kommt auch über die Zeit nicht zurück. WebGL2 hat keinen globalen LOD-Bias; deshalb **vor dem ersten
+Übersetzen eines Materials** `mipBiasEinbauen(THREE.ShaderChunk, Math.log2(startSkala))` aus `kern/taau.js` aufrufen (setzt
+die Konstante `TAA_MIP` in `common` und das Bias-Argument in den Map-Bausteinen; ohne TAA mit 0 aufrufen, damit `TAA_MIP`
+definiert ist). Eigene Shader-Teile hinter `#include <common>` (nur Fragment-Shader): `texture2D( t, uv, TAA_MIP )`.
 
 **Ohne Kino-Look** (eigene Post-Kette): `TAAU` direkt, siehe Kopf von `kern/taau.js`:
 `jitterAn(camera, sw, sh, skala)` → Szene in ein Ziel mit Farbe + `DepthTexture` (ohne MSAA) → `jitterAus(camera)` →
@@ -103,11 +117,16 @@ automatisch der bisherige Weg (MSAA).
 | durchsichtige bewegte Objekte: `koerper(i, obj, box, 'durchsichtig')` (Geist) | History dort schwächer (reaktiv) |
 | Overlays (Cockpit, 3D-HUD) erst NACH dem Endbild | bleiben scharf, ohne Versatz |
 
-**Uniforms des Resolves** (`taau.u`): `uGewicht` (History-Anteil, 0,9), `uGamma` (Varianz-Clip, 1,25), `uDis`
-(Disocclusion, relative Tiefe 0,06), `uSigRek`/`uSigTreffer` (Kerne in Render- bzw. Zielpixeln), `uAlphaMin`, Körper
-`uKInv/uKDelta/uKMin/uKMax/uKArt[2]`. Für andere Durchgänge, die die verschobene Tiefe lesen (Dunst, Tiefenschärfe):
-`taau.uJit` (uv) addieren, sonst flimmern sie an Kanten. **URL-Regler** für A/B: `?taa=0|1`, `?taaw=`, `?jit=auto|8|16|32|0`,
-`?taagamma=`, `?taadis=`, `?taaskala=` (Start-Renderskala, z. B. 0.65).
+**Uniforms des Resolves** (`taau.u`, Startwerte `TAAU_STANDARD` in `taau_mathe.js`): `uGewicht` (History-Anteil, 0,9),
+`uGamma` (Varianz-Clip, 1,25), `uDis` (Disocclusion, 0,06 – Bereichstest: History-Tiefe gegen Min…Max der 3×3-Nachbarschaft),
+`uSigTreffer` (Kern für den History-Beitrag in Zielpixeln, 0,35), `uCub` (History-Kern Keys-Kubik, −0,75), `uMot`
+(Mindestanteil des neuen Bilds bei Bewegung, 0,4), `uAlphaMin`, Körper `uKInv/uKDelta/uKMin/uKMax/uKArt[2]`. Wo die History
+fehlt: Lanczos-2 aus dem aktuellen Bild. Für andere Durchgänge, die die verschobene Tiefe lesen (Dunst, Tiefenschärfe):
+`taau.uJit` (uv) addieren, sonst flimmern sie an Kanten. **Körper-Box:** Unterkante etwas über dem Boden (Stuntbahn 10 cm),
+sonst liegt der Boden unter dem Objekt in der Box und wandert mit. **URL-Regler** für A/B: `?taa=0|1`, `?taaw=`,
+`?jit=auto|8|16|32|0`, `?taagamma=`, `?taadis=`, `?taaskala=` (Start-Renderskala, z. B. 0.65), `?taasharp=` (Nachschärfen),
+`?taamip=` (Mip-Bias, 0 = aus), `?taacub=`, `?taamot=`, `?taasig=`; Debug `?taadbg=1` (rot verworfen, grün Anteil neu, blau
+Clip), `2` (Ursache: Tiefe/Körperwechsel/keine History), `3` (Körper-Koordinaten); `?gpumess=1` GPU-Zeit bei fester Stufe.
 
 **Grenzen:** Partikel, Rauch, Feuerwerk und Shader-animierte Karten haben keine Bewegungsdaten – nur der Nachbarschafts-Clip
 schützt (Randsaum 2–3 px im ersten Bild). Brauchen sie mehr, als eigene Körper anmelden oder nach dem Resolve zeichnen.

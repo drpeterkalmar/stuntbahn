@@ -1,0 +1,159 @@
+{
+ "datum": "2026-10-08T15:48:49",
+ "stand": "ab_taau_standard",
+ "modus": "ab",
+ "runden": 3,
+ "varianten": [
+  {
+   "name": "fxaa",
+   "wurzel": "/home/user/dev/stuntbahn",
+   "zusatz": "&taa=0&gpumess=1"
+  },
+  {
+   "name": "taau07",
+   "wurzel": "/home/user/dev/stuntbahn",
+   "zusatz": "&taa=1&gpumess=1"
+  }
+ ],
+ "profil": {
+  "drossel": 4,
+  "dpr": 2.6,
+  "sek": 8.0,
+  "start": "direkt",
+  "vsync": false
+ },
+ "szenen": {
+  "looping_standard": {
+   "hoch": {
+    "fxaa": {
+     "p50": 3.3,
+     "p95": 4.2,
+     "fps": 295.1,
+     "calls": 79,
+     "tris": 265340,
+     "gpu50": 1.063,
+     "gpu95": 1.103,
+     "runden_p95": [
+      4.2,
+      4.2,
+      4
+     ],
+     "fehler": []
+    },
+    "taau07": {
+     "p50": 3.5,
+     "p95": 4.3,
+     "fps": 282.8,
+     "calls": 80,
+     "tris": 265341,
+     "gpu50": 1.192,
+     "gpu95": 1.281,
+     "runden_p95": [
+      4.3,
+      4.5,
+      4.3
+     ],
+     "fehler": []
+    }
+   },
+   "quer": {
+    "fxaa": {
+     "p50": 3.3,
+     "p95": 4.1,
+     "fps": 300.3,
+     "calls": 77,
+     "tris": 264140,
+     "gpu50": 0.967,
+     "gpu95": 1.048,
+     "runden_p95": [
+      4.1,
+      4,
+      4.1
+     ],
+     "fehler": []
+    },
+    "taau07": {
+     "p50": 3.5,
+     "p95": 4.3,
+     "fps": 284.3,
+     "calls": 78,
+     "tris": 264141,
+     "gpu50": 1.168,
+     "gpu95": 1.265,
+     "runden_p95": [
+      4.3,
+      4.3,
+      4.6
+     ],
+     "fehler": []
+    }
+   }
+  },
+  "rennen_standard": {
+   "hoch": {
+    "fxaa": {
+     "p50": 2.9,
+     "p95": 4.6,
+     "fps": 323,
+     "calls": 81,
+     "tris": 241307,
+     "gpu50": 0.935,
+     "gpu95": 0.976,
+     "runden_p95": [
+      4.6,
+      4.6,
+      4.6
+     ],
+     "fehler": []
+    },
+    "taau07": {
+     "p50": 3,
+     "p95": 4.6,
+     "fps": 312.9,
+     "calls": 82,
+     "tris": 241337,
+     "gpu50": 0.759,
+     "gpu95": 1.276,
+     "runden_p95": [
+      4.6,
+      4.6,
+      4.9
+     ],
+     "fehler": []
+    }
+   },
+   "quer": {
+    "fxaa": {
+     "p50": 3.3,
+     "p95": 5,
+     "fps": 289.4,
+     "calls": 96,
+     "tris": 248340,
+     "gpu50": 1.01,
+     "gpu95": 1.118,
+     "runden_p95": [
+      5.1,
+      5,
+      4.8
+     ],
+     "fehler": []
+    },
+    "taau07": {
+     "p50": 3.3,
+     "p95": 5,
+     "fps": 286,
+     "calls": 97,
+     "tris": 248290,
+     "gpu50": 0.81,
+     "gpu95": 1.391,
+     "runden_p95": [
+      5.1,
+      5,
+      4.8
+     ],
+     "fehler": []
+    }
+   }
+  }
+ }
+}

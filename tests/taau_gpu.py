@@ -27,7 +27,7 @@ with Server(ROOT) as srv, sync_playwright() as pw:
         for seg in SEGS:
             b = pw.chromium.launch(args=GPU_ARGS + pg.UNGEDECKELT); ctx = b.new_context(**dev); p = ctx.new_page()
             try:
-                p.goto(srv.base + 'index.html?nosw&q=2&startprobe=0&seed=4711&d=3&g=1' + zus)
+                p.goto(srv.base + f'index.html?nosw&q={os.environ.get("Q", "2")}&startprobe=0&seed=4711&d=3&g=1' + zus)
                 p.wait_for_function("window.__app && window.__app.ready && window.__app.frames > 3", timeout=300000)
                 p.evaluate("__game.setAssist('easy'); __game.store.settings.fahrstil = 'sauber'; __game.start({ autopilot: true }); __game.cam('chase'); __game.sim(4)")
                 if js: p.evaluate(js)

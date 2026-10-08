@@ -1,0 +1,159 @@
+{
+ "datum": "2026-10-08T15:31:22",
+ "stand": "ab_vorher_nachher_1",
+ "modus": "ab",
+ "runden": 3,
+ "varianten": [
+  {
+   "name": "vorher",
+   "wurzel": "/home/user/dev/jobs/stuntbahn-a825539",
+   "zusatz": ""
+  },
+  {
+   "name": "nachher",
+   "wurzel": "/home/user/dev/stuntbahn",
+   "zusatz": ""
+  }
+ ],
+ "profil": {
+  "drossel": 4,
+  "dpr": 2.6,
+  "sek": 8.0,
+  "start": "direkt",
+  "vsync": false
+ },
+ "szenen": {
+  "menu_kino": {
+   "hoch": {
+    "vorher": {
+     "p50": 5.3,
+     "p95": 7.1,
+     "fps": 185.4,
+     "calls": 93,
+     "tris": 342708,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      5.6,
+      7.7,
+      7.1
+     ],
+     "fehler": []
+    },
+    "nachher": {
+     "p50": 4.6,
+     "p95": 6.5,
+     "fps": 206.9,
+     "calls": 93,
+     "tris": 342779,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      5.5,
+      6.5,
+      7
+     ],
+     "fehler": []
+    }
+   },
+   "quer": {
+    "vorher": {
+     "p50": 4.8,
+     "p95": 5.8,
+     "fps": 207.7,
+     "calls": 98,
+     "tris": 347647,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      7.7,
+      5.8,
+      5.7
+     ],
+     "fehler": []
+    },
+    "nachher": {
+     "p50": 4.6,
+     "p95": 5.7,
+     "fps": 212,
+     "calls": 98,
+     "tris": 347637,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      6.2,
+      5.7,
+      5.5
+     ],
+     "fehler": []
+    }
+   }
+  },
+  "looping_kino": {
+   "hoch": {
+    "vorher": {
+     "p50": 3.3,
+     "p95": 4.1,
+     "fps": 300.1,
+     "calls": 81,
+     "tris": 289630,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      4.1,
+      4.2,
+      4.1
+     ],
+     "fehler": []
+    },
+    "nachher": {
+     "p50": 3.4,
+     "p95": 4.1,
+     "fps": 292.8,
+     "calls": 81,
+     "tris": 289630,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      4.1,
+      4.3,
+      4.1
+     ],
+     "fehler": []
+    }
+   },
+   "quer": {
+    "vorher": {
+     "p50": 3.4,
+     "p95": 4.2,
+     "fps": 291.6,
+     "calls": 79,
+     "tris": 288430,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      4,
+      4.2,
+      4.3
+     ],
+     "fehler": []
+    },
+    "nachher": {
+     "p50": 3.4,
+     "p95": 4.5,
+     "fps": 276.7,
+     "calls": 79,
+     "tris": 288430,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      4.2,
+      4.5,
+      4.6
+     ],
+     "fehler": []
+    }
+   }
+  }
+ }
+}
