@@ -21,7 +21,7 @@ Node-Tests grün, Rennen bis ins Ziel live geprüft). WebGL2 bleibt, kein WebGPU
 - **Bildzeit** (Handy-Profil, vorher/nachher im Wechsel gemessen): **Kino** in allen Szenen gleich oder schneller (bis −32 % im
   Cockpit), **Einfach** gleich, **Standard** 0,1–0,4 ms langsamer (+2 bis +7 %) – knapp über dem Budget, Erklärung in Abschnitt 2.
   Draw-Calls am Looping (Kino) im Mittel 81–79 (vorher 82–80; im Rennen Kino 94–109, Grenze 120).
-- Live: https://drpeterkalmar.github.io/stuntbahn/ – Build siehe Abschnitt 8.
+- Live: https://drpeterkalmar.github.io/stuntbahn/ – Build c5d2e7cc13, Version 0.3.0 (Prüfung in Abschnitt 8).
 
 ## 1. Wie gemessen wurde – und eine wichtige Entdeckung
 **Mess-Gate** `tests/perf_gate.py` (Grafik-Kern, Baustein 1): Playwright, Profil „Mittelklasse-Android“ – CPU ×4
@@ -197,4 +197,7 @@ die Stellschraube dafür schon (Renderskala stufenlos).
 - Das Gutachten aus `burn-stuntbahn-2026-10-05` gibt es nicht: der Job wurde am 06.10. wegen der Burn-Frist abgebrochen,
   bevor er lief (`docs/audit/` existiert nicht). Ich habe ohne gearbeitet.
 - Ladegröße −4,2 MB statt −5 MB (Bäume bringen 1,4 MB mit).
-- Live: <<LIVE>>
+- Live geprüft (`tests/test_live.py`): https://drpeterkalmar.github.io/stuntbahn/ – Build **c5d2e7cc13** (Version 0.3.0),
+  HTTP 200, Build live = lokal, Rennen bis ins Ziel, offline startbar, installierbar, 0 Fehler; zusätzlich live
+  `?thema=winter&q=2` (Tannen-Impostors, Spiegelung an), `?reflex=0&impostor=0` (beides aus), `?q=1&thema=herbst`
+  (Standard: Impostors an, Spiegelung aus) – je 0 Fehler. Branch `vorbau/stuntbahn-n30-technik` gelöscht.
