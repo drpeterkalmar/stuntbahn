@@ -8,6 +8,7 @@ import { mipBiasEinbauen } from './kern/taau.js';
 // Übersetzen (negativer Mip-Bias mit TAAU), sonst 0
 mipBiasEinbauen(THREE.ShaderChunk, 0);
 import { MAT, WORLD_HALF, WORLD_SCALE } from '../track/defs.js';
+import { wetterUniforms, ROAD_WET_GLSL, ROAD_PUDDLE_NORMAL_GLSL, GRASS_WEATHER_GLSL, GRASS_ROUGH_GLSL, patchSnowCover } from './wetter.js';
 
 const loader = new THREE.TextureLoader();
 const cache = new Map();
@@ -179,6 +180,7 @@ function patchRoad(mat, detail = true) {
   const fn = (sh) => {
     sh.uniforms.sbKino = shadowUniforms.sbKino;
     if (detail) Object.assign(sh.uniforms, detailUniforms);
+    Object.assign(sh.uniforms, wetterUniforms);   // n32: Wetter (0 = klar → Zweig übersprungen)
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', '#include <common>\nattribute vec4 aRoad;\nvarying vec4 vRoad;')
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nvRoad = aRoad;');
@@ -186,6 +188,7 @@ function patchRoad(mat, detail = true) {
       .replace('#include <common>', `#include <common>
       varying vec4 vRoad;
       float rRough = 0.0;   // sbKino: Uniform aus patchStaticShadow
+      uniform float wWet, wPud, wSnow, wSlush; float sbPud = 0.0;   // n32: Wetter (gfx/wetter.js)
       ${detail ? 'uniform sampler2D sbDetailNor; uniform float sbDetailK, sbDetailOn, sbDetailTile, sbDetailStr; uniform vec2 sbRut;' : ''}
       float rHash( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) * 43758.5453 ); }
       float rNoise( vec2 p ) { vec2 i = floor( p ), f = fract( p ); f = f * f * ( 3.0 - 2.0 * f );
@@ -199,7 +202,8 @@ function patchRoad(mat, detail = true) {
         float fade = sbDetailK * ( 1.0 - smoothstep( 4.0, 20.0, length( vViewPosition ) ) );
         normal = normalize( normal + tbn * vec3( dN.xy * sbDetailStr * fade, 0.0 ) );
       }
-      #endif` : '#include <normal_fragment_maps>')
+      #endif
+      ${ROAD_PUDDLE_NORMAL_GLSL}` : '#include <normal_fragment_maps>\n' + ROAD_PUDDLE_NORMAL_GLSL)
       .replace('#include <map_fragment>', `#include <map_fragment>
       ${detail ? `
       // Kino (n17): Asphalt wie auf echten Strecken – Flicken (frischer, dunkler, eigene Kante), mit Bitumen versiegelte
@@ -257,7 +261,9 @@ function patchRoad(mat, detail = true) {
         }
         if ( t > 1.5 && abs( md ) < 0.35 ) { paint = vec3( 0.95, 0.72, 0.08 ); amt = 0.95; }
         diffuseColor.rgb = mix( diffuseColor.rgb, paint, amt );
-      }`);
+      }
+      // n32: Wetter – nasse Fahrbahn, Pfützen, Matsch am Rand
+      ${ROAD_WET_GLSL}`);
   };
   fn.tag = detail ? 'road2' : 'road';
   addPatch(mat, fn);
@@ -293,6 +299,7 @@ function patchGrass(mat) {
     sh.uniforms.sbRock = rockUniform;
     sh.uniforms.sbKino = shadowUniforms.sbKino;
     Object.assign(sh.uniforms, themeUniforms);
+    Object.assign(sh.uniforms, wetterUniforms);   // n32: Wetter
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', '#include <common>\nvarying vec2 vGw;\nvarying vec3 vGn;\nvarying float vGy;')
       .replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvGw = ( modelMatrix * vec4( transformed, 1.0 ) ).xz;\nvGy = ( modelMatrix * vec4( transformed, 1.0 ) ).y;\nvGn = normalize( mat3( modelMatrix ) * objectNormal );');
@@ -306,6 +313,7 @@ function patchGrass(mat) {
       uniform float tDryK, tTintK, tFields, tForestK, tStrata, tSnowH, tBeach, tCity, tRockTex, tSnowAll, tFlowers, tMeadow, tDekoK;
       uniform vec4 tSlope;
       uniform sampler2D tRockMap;
+      uniform float wWet, wPud, wSnow, wSlush;   // n32: Wetter
       float gHash( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) * 43758.5453 ); }
       float gNoise( vec2 p ) { vec2 i = floor( p ), f = fract( p ); f = f * f * ( 3.0 - 2.0 * f );
         return mix( mix( gHash( i ), gHash( i + vec2( 1, 0 ) ), f.x ), mix( gHash( i + vec2( 0, 1 ) ), gHash( i + vec2( 1, 1 ) ), f.x ), f.y ); }`)
@@ -415,7 +423,11 @@ function patchGrass(mat) {
           float sb = smoothstep( tBeach, tBeach - 2.5, vGy + ( gNoise( vGw * 0.03 ) - 0.5 ) * 2.0 );
           diffuseColor.rgb = mix( diffuseColor.rgb, vec3( 0.62, 0.53, 0.38 ) * ( 0.85 + 0.25 * gNoise( vGw * 0.4 ) ), sb );
         }
-      }`);
+        // n32: Wetter – nasses Gelände, Schneedecke
+        ${GRASS_WEATHER_GLSL}
+      }`)
+      .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
+      ${GRASS_ROUGH_GLSL}`);
   };
   fn.tag = 'grass2';
   addPatch(mat, fn);
@@ -555,6 +567,7 @@ export function makeMaterials(renderer, q = {}) {
     if (Array.isArray(m)) m.forEach(patchStaticShadow); else patchStaticShadow(m);
   }
   for (const v of Object.values(MAT)) if (M[v] && !Array.isArray(M[v])) patchVertexAO(M[v]);   // n30: Strecken-Materialien
+  patchSnowCover(M[MAT.PAINT]);   // n32 Wetter: Schnee auf Dächern, Tribünen, Hütten, Höfen (Vertexfarben-Bauten)
   return M;
 }
 

@@ -9,6 +9,10 @@ import { loadSkyInfo, loadSkyTexture, makeEnvironment, sunDirFromUV } from './en
 import { loadKtx2, setGround, themeUniforms } from './materials.js';
 import { WORLD_SCALE } from '../track/defs.js';
 import { applyClouds, DEKO, FLOWERS } from './deko.js';
+import { GRADES } from './kinolook.js';
+import { merkeBasis, wendeWetterAn, meldeWetterGrades } from './wetter.js';
+
+meldeWetterGrades(GRADES);   // n32: Farbkorrektur „wetter_regen“ / „wetter_schnee“
 
 const T = 'assets/themes/';
 const FOG = [260 * WORLD_SCALE, 1500 * WORLD_SCALE];
@@ -22,6 +26,14 @@ export class ThemeManager {
     this.packs = new Map();   // id → Promise<pack> (höchstens aktuelles + gerade ladendes)
     this.groundLand = null;   // Gras-Texturen von „Land“ (aus M.grass)
     this.stats = { loads: 0, failed: [] };
+    // n32 Wetter: gilt für das aktuelle Thema; base = Werte des Themas ohne Wetter (gfx/wetter.js merkeBasis)
+    this.wetter = 'klar'; this.tier = 2; this.base = null; this.look = null; this.treeSnow = 0;
+  }
+  // Wetter setzen (main.js: beim Laden der Strecke und bei Wahl im Menü; tier = Grafikstufe). Ohne Neubau der Welt.
+  setWetter(w, tier = this.tier) {
+    this.wetter = w || 'klar'; this.tier = tier;
+    if (this.cur && this.base) this.look = wendeWetterAn({ ...this.c, themeUniforms }, this.base, this.wetter, this.cur.id, this.tier, { treeSnow: this.treeSnow });
+    return this.look;
   }
   // Paket laden (Promise, mehrfach aufrufbar: Vorab-Laden während der Autopilot prüft)
   prefetch(id) {
@@ -118,5 +130,8 @@ export class ThemeManager {
     themeUniforms.tFlowers.value = DEKO ? (FLOWERS[pack.id] ?? 0) : 0;
     themeUniforms.tTreeTint.value.set(...(def.trees.tint || [1, 1, 1]));
     this.cur = { id: pack.id, def, veg: pack.vegTex ? { tex: pack.vegTex, meta: pack.vegMeta } : null, horizon: hz, info };
+    // n32: Werte des Themas merken, dann das Wetter darüber legen (klar = unverändert)
+    this.base = merkeBasis(this.c); this.treeSnow = themeUniforms.tTreeSnow.value;
+    this.setWetter(this.wetter, this.tier);
   }
 }

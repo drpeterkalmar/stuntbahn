@@ -6,6 +6,8 @@ import { makeMaterials, shadowUniforms, preloadKtx2, themeUniforms, vaoUniforms 
 import { makeSky, sunDirFromUV, bakeStaticShadow } from './gfx/env.js';
 import { ThemeManager } from './gfx/themes.js';
 import { themeFor, THEMES, THEME_IDS } from './track/themes.js';
+import { wetterFor, parseWetter, wetterLook } from './track/wetter.js';
+import { Scheibe } from './gfx/scheibe.js';
 import { buildWorld, STATIC_LAYER, vaoAuftrag } from './gfx/world.js';
 import { makeCar, loadCarModel, loadCarLods, parkedCarGeometry, EXHAUST } from './gfx/carmesh.js';
 import { CameraRig, CAM_MODES, CAM_NAMES, cockpitDash, clearLens } from './gfx/camera.js';
@@ -93,7 +95,7 @@ app.mipBias = mipBiasEinbauen(THREE.ShaderChunk, TAA_BOOT ? (params.get('taamip'
 // Bewegungsunschärfe: im Kino-Look Teil derselben Pipeline (ein Szenen-Durchlauf); ?look=alt: bisheriges post.js
 const post = kino || new Post(renderer);
 quality.post = post; quality.kino = kino;
-let sun, M, carVis, ghostVis, sky, cockpit, themes, air = null, brakeLights = null, brakeV = null;
+let sun, M, carVis, ghostVis, sky, cockpit, themes, air = null, brakeLights = null, brakeV = null, scheibe = null;
 // n30: dynamische Lack-Spiegelung (gfx/kern/reflex.js) nur auf Kino: dort kostet sie im Handy-Profil 0–3 % p95, auf
 // Standard +26–31 % (Draw-Calls der Würfelseite, CPU) – Regel des Auftrags „> +8 % → nur Kino“. ?reflex=0 aus,
 // ?reflex=1 auch auf Standard. Der Autopilot darf sie als „teure Deko“ abschalten (reflexOff)
@@ -216,6 +218,7 @@ async function boot() {
   fx = new CarFX(scene);
   pyro = new PyroFX(scene);
   if (DEKO) air = new AirMotes(scene);   // n28: Schnee, Blätter, Pollen, Sand je Landschaft
+  scheibe = new Scheibe();   // n32: Regentropfen auf Scheibe/Linse (nur bei Regen in Cockpit-/Stoßstangen-Kamera)
   ui.loading(0.8, 'Strecke bauen …');
   const q = params.get('seed');
   if (params.has('demo')) await loadTrack(demoLayout(), { name: 'Teststrecke' });
@@ -231,7 +234,7 @@ async function boot() {
   ui.bind({ startRace, newTrack, setAssist, toMenu, retry, startReplay, cycleCam, rewind: () => race && race.requestRewind(), pause: togglePause,
     skipCine: () => endCine(true), skipShow: () => endShow(true), replayCine: () => { if (race && race.film && ui.lastRes) startCine(ui.lastRes); },
     recordCine: () => { if (race && race.film && ui.lastRes) startCine(ui.lastRes, { record: true }); },
-    hop: () => { if (mode === 'race' && race && !frozen) race.requestHop(); }, nitro: () => { if (mode === 'race' && race && !frozen) race.requestNitro(); }, setLine, toggleLine, setPaint, setTheme, sound, input, quality, importFiles, playImported, deleteImported, trkLib, showcase: SHOWCASE, showcaseBytes, store, sammlung });
+    hop: () => { if (mode === 'race' && race && !frozen) race.requestHop(); }, nitro: () => { if (mode === 'race' && race && !frozen) race.requestNitro(); }, setLine, toggleLine, setPaint, setTheme, setWetter, sound, input, quality, importFiles, playImported, deleteImported, trkLib, showcase: SHOWCASE, showcaseBytes, store, sammlung });
   initDrop();
   ui.showMenu(env);
   mode = params.has('race') ? 'race' : 'menu';
@@ -284,6 +287,26 @@ let URL_THEMA = params.get('thema');   // gilt, bis im Menü eine Landschaft gew
 let RANDOM_THEMA = null;   // { key, id }
 const randomThemaOf = (layout) => (RANDOM_THEMA && layout && layout.meta && layout.meta.key === RANDOM_THEMA.key ? RANDOM_THEMA.id : null);
 const themeOf = (layout) => randomThemaOf(layout) || themeFor(layout, store.settings.theme || 'auto', URL_THEMA);
+// n32 Wetter (nur Optik): URL ?wetter= > Einstellung „Wetter“ (localStorage, gilt schon beim Start) > passend zu Strecke
+// und Thema (track/wetter.js). Wertet nicht extra (kein A/B-Zusatz), Physik/Strecke/Bestzeit-Schlüssel unverändert.
+let URL_WETTER = parseWetter(params.get('wetter'));   // gilt, bis im Menü ein Wetter gewählt wird
+const wetterOf = (layout, themeId) => wetterFor(layout, themeId, store.settings.wetter || 'auto', URL_WETTER);
+// Wetter der aktuellen Strecke anwenden: Licht/Nebel/Himmel/Flächen (ThemeManager), Teilchen (render), Gischt/Dampf/
+// Spuren (fx), Regengeräusch (sound). Ohne Neubau der Welt.
+function wendeWetter() {
+  if (!env || !env.theme) return;
+  env.wetter = wetterOf(env.layout, env.theme);
+  env.wetterTier = quality.tier;
+  const L = (themes && themes.setWetter(env.wetter, quality.tier)) || wetterLook(env.wetter, env.theme, quality.tier);
+  env.wetterLook = L;
+  if (fx) Object.assign(fx.wetter, { spray: L.spray, sprayKmh: L.sprayKmh, steam: L.steam, tracks: L.tracks });
+  sound.setRegen(L.rain);
+}
+function setWetter(v) {
+  store.settings.wetter = parseWetter(v) || 'auto'; store.save(); URL_WETTER = null;
+  wendeWetter();
+  if (mode === 'menu') ui.showMenu(env);
+}
 // zufällige Landschaft, möglichst eine andere als die gerade sichtbare
 function pickRandomThema(rnd = Math.random) {
   const ids = THEME_IDS.filter((id) => id !== (env && env.theme));
@@ -445,6 +468,7 @@ async function loadTrack(layout, meta = {}, pre = null) {
   const th = await themes.use(themeOf(layout));
   env.theme = th.id;
   env.themeRandom = !!randomThemaOf(layout);
+  wendeWetter();   // n32
   if (IMP && quality.tier >= 1) await IMP.vorladen(impostorArten(th.def));   // n30: fehlt der Atlas, bleiben es Karten
   if (worldGroup) { scene.remove(worldGroup); worldGroup.traverse((o) => { if (o.geometry) o.geometry.dispose(); }); worldGroup = null; }
   worldGroup = buildWorld(track, M, { world, tier: quality.tier, ideal, prof, deco: params.get('deko') !== 'aus', impostor: IMP, theme: { id: th.id, def: th.def, veg: th.veg, horizon: th.horizon, seed: layout.seed || layout.meta?.seed || 1 } });
@@ -875,10 +899,20 @@ function render(rdt) {
   }
   // n28: Wiesenblumen/-flecken nicht auf „Einfach“ und nicht bei „Deko sparsam“ (Budget der niedrigsten Stufe)
   themeUniforms.tDekoK.value = quality.tier === 0 || quality.decoLite ? 0 : 1;
+  // n32: Wetter-Aussehen hängt an der Grafikstufe (Gischt, Pfützen-Spiegelung, Scheibe ab Standard) → bei Wechsel neu
+  if (env && env.theme && env.wetterTier !== quality.tier) wendeWetter();
   // n28: Luft-Teilchen passend zu Thema und Grafikstufe; Automatik „Deko sparsam“ nimmt sie mit weg
+  // n32: Regen/Schnee-Wetter ersetzt die Luft des Themas; bei „Deko sparsam“ halbiert statt aus (Regen bleibt sichtbar)
   if (air && env) {
-    if (air.theme !== env.theme || air.tier !== quality.tier) air.set(env.theme, quality.tier, sun.userData.dir);
-    air.mesh.visible = !quality.decoLite && air.mesh.geometry.instanceCount > 0;
+    const wA = env.wetter && env.wetter !== 'klar' ? env.wetter : null, lite = !!quality.decoLite;
+    if (air.theme !== env.theme || air.tier !== quality.tier || air.wReq !== wA || (wA && air.lite !== lite)) { air.set(env.theme, quality.tier, sun.userData.dir, wA, lite); air.wReq = wA; }
+    air.mesh.visible = (!quality.decoLite || !!air.wetter) && air.mesh.geometry.instanceCount > 0;
+    if (air.wetter === 'regen') {
+      // Regenstreifen: Kamera-Geschwindigkeit (Strich relativ zur Kamera), bei Kameraschnitten 0
+      const cp = camera.position, V = air.u.uCamVel.value;
+      if (air.lastCam && rdt > 0 && !blurCut) V.subVectors(cp, air.lastCam).divideScalar(Math.max(rdt, 1 / 240)).clampLength(0, 120); else V.set(0, 0, 0);
+      (air.lastCam || (air.lastCam = cp.clone())).copy(cp);
+    }
     if (air.mesh.visible) {
       const cp = camera.position;
       if (app.frames % 8 === 0 || air.covered == null) air.covered = !!env.world.rayTrack(cp.x, cp.y + 0.5, cp.z, 0, 1, 0, 40, false);
@@ -1073,7 +1107,12 @@ function drawFrame(o) {
   }
   post.setting = params.get('blur') || store.settings.blur || 'light';
   post.tier = quality.tier;
-  const overlay = o.cockpit ? (r) => cockpit.render(r) : null;
+  // n32: Regentropfen auf der Scheibe (Cockpit) bzw. Linse (Stoßstange) – vor dem Cockpit, damit das Armaturenbrett davor liegt
+  const glass = scheibe && env && env.wetterLook && env.wetterLook.glass > 0 && mode !== 'menu' && (o.cockpit || rig.view === 'bumper') ? env.wetterLook.glass : 0;
+  const overlay = o.cockpit || glass ? (r) => {
+    if (glass) scheibe.render(r, { k: glass, speed: o.speed, dt: o.dt, lens: !o.cockpit, covered: !!(air && air.covered) });
+    if (o.cockpit) cockpit.render(r);
+  } : null;
   if (kino) {
     kino.setLevel(LOOK_FIX ?? quality.tier);
     kino.render(scene, camera, { run: o.run, speed: o.speed, boost: o.boost, car: carVis.root, ghost: ghostVis.root, dt: o.dt, cut: o.cut, sunDir: sun.userData.dir, heat: o.heat, overlay, time: app.fixTime, dof: o.dof, shutter: o.shutter, flash: o.flash, white: o.white, whip: o.whip, flareK: o.flareK });
@@ -1099,6 +1138,7 @@ window.__game = {
   get env() { return env; }, get race() { return race; }, get mode() { return mode; }, get replayObj() { return replay; }, scene, camera, renderer, rig, store, ui, quality, trkLib, sammlung,
   modeKey, worldScale: WORLD_SCALE,
   get theme() { return env && env.theme; }, themes: () => themes, setTheme: (v) => setTheme(v), THEMES, decoUniforms,
+  get wetter() { return env && env.wetter; }, get wetterLook() { return env && env.wetterLook; }, setWetter: (v) => setWetter(v),   // n32
   // Import (Tests): Bytes als Array → Ergebnisliste; Strecke laden
   importBytes: (arr, name) => importFiles([new File([new Uint8Array(arr)], name || 'test.trk')]),
   loadImported: (id) => playImported(id),

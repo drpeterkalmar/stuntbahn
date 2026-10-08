@@ -35,9 +35,9 @@ export function makeSky(skyInfo, tex = null, opts = {}) {
   const hz = new THREE.Color().setRGB(...skyInfo.horizon, THREE.SRGBColorSpace);
   const cl = !!opts.clouds;
   const mat = new THREE.ShaderMaterial({
-    uniforms: { sky: { value: tex }, cutV: { value: skyInfo.cutV }, horizon: { value: hz }, exposure: { value: 1.0 }, ...(cl ? cloudUniforms(opts.sunDir) : {}) },
+    uniforms: { sky: { value: tex }, cutV: { value: skyInfo.cutV }, horizon: { value: hz }, exposure: { value: 1.0 }, wSky: { value: new THREE.Vector2(1, 0) }, ...(cl ? cloudUniforms(opts.sunDir) : {}) },
     vertexShader: `varying vec3 vDir; void main(){ vDir = position; vec4 p = projectionMatrix * modelViewMatrix * vec4(position, 1.0); gl_Position = p.xyww; }`,
-    fragmentShader: `uniform sampler2D sky; uniform float cutV; uniform vec3 horizon; uniform float exposure; varying vec3 vDir;
+    fragmentShader: `uniform sampler2D sky; uniform float cutV; uniform vec3 horizon; uniform float exposure; uniform vec2 wSky; varying vec3 vDir;
       ${cl ? CLOUD_GLSL.pars : ''}
       void main(){
         vec3 d = normalize(vDir);
@@ -47,6 +47,8 @@ export function makeSky(skyInfo, tex = null, opts = {}) {
         if (v < cutV - 0.002) c = texture2D(sky, vec2(u, 1.0 - v / cutV)).rgb;
         else c = horizon;
         ${cl ? CLOUD_GLSL.main : ''}
+        // n32 Wetter: x = Helligkeit, y = Entsättigung (1, 0 = klar, Bild unverändert)
+        c = mix( vec3( dot( c, vec3( 0.3, 0.59, 0.11 ) ) ), c, 1.0 - wSky.y ) * wSky.x;
         gl_FragColor = vec4(c * exposure, 1.0);
         #include <colorspace_fragment>
       }`,

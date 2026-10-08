@@ -10,6 +10,7 @@ import { impostorMesh } from './kern/impostor.js';
 import { MAT, WORLD_SCALE } from '../track/defs.js';
 import { THEMES, seaDir, SEA_Y } from '../track/themes.js';
 import { makeNoise2 } from '../core/util.js';
+import { patchSnowCover } from './wetter.js';
 
 const WS = WORLD_SCALE;
 const hashI = (i, k = 0) => { let h = Math.imul((i + 1) ^ 0x9e3779b9, 0x85ebca6b) ^ Math.imul(k + 7, 0xc2b2ae35); h ^= h >>> 15; h = Math.imul(h, 0x27d4eb2d); return ((h ^ (h >>> 13)) >>> 0) / 4294967296; };
@@ -564,6 +565,6 @@ function buildingMaterial() {
       }`);
   };
   m.customProgramCacheKey = () => 'building';
-  bMat = patchStaticShadow(m);
+  bMat = patchSnowCover(patchStaticShadow(m));   // n32: Schnee auf den Dächern
   return bMat;
 }

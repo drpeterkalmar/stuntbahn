@@ -14,6 +14,7 @@ import { clipMime, shareClip } from './cliprec.js';
 import { SAM_STUNTS, SAM_DIFF, SAM_SORTS, DEFAULT_VIEW, filterSort, lengthClass } from '../game/sammlung.js';
 import { HORIZONS } from '../track/trk.js';
 import { THEMES, THEME_IDS, themeAuto } from '../track/themes.js';
+import { WETTER, WETTER_IDS, wetterAuto } from '../track/wetter.js';
 import { showKmhMs, showKmh } from '../core/showspeed.js';
 import { GView } from './gmeter.js';
 import { G_ON } from '../core/gforce.js';
@@ -235,7 +236,7 @@ export class UI {
         <div class="card track">
           ${!m.imported && !m.sam && env.layout.pieces.length ? '<canvas class="tmap" width="320" height="320" aria-label="Streckenkarte"></canvas>' : ''}
           <div class="tname">${isDay || m.samDay ? '📅 Strecke des Tages<br>' : ''}${m.name || 'Strecke'}</div>
-          <div class="tmeta">${nbParts(`${metaLine}${env.theme && THEMES[env.theme] ? ` · <span class="tthema" title="Landschaft${(this.store.settings.theme || 'auto') === 'auto' ? ' (passend)' : ''}">${THEMES[env.theme].icon} ${THEMES[env.theme].name}</span>` : ''}`)}</div>
+          <div class="tmeta">${nbParts(`${metaLine}${env.theme && THEMES[env.theme] ? ` · <span class="tthema" title="Landschaft${(this.store.settings.theme || 'auto') === 'auto' ? ' (passend)' : ''}">${THEMES[env.theme].icon} ${THEMES[env.theme].name}</span>` : ''}${env.wetter && env.wetter !== 'klar' && WETTER[env.wetter] ? ` · <span class="twetter" title="Wetter">${WETTER[env.wetter].icon} ${WETTER[env.wetter].name}</span>` : ''}`)}</div>
           <div class="stunts">${stuntsHtml || 'ohne Stunts'}</div>
           ${apLine}
           <div class="bests">${bests.now}${S.assist === 'easy' ? bests.lastEasy : ''}<span class="bmode">${S.wreck ? '💥 mit Totalschaden' : '↺ Reset +' + PENALTY + ' s'}${S.extras ? ' · 🦘🔥 mit Extras' : ' · ohne Extras'}</span>${bests.old}</div>
@@ -253,7 +254,7 @@ export class UI {
           <button data-a="today">📅 Tages-Strecke</button>
           <button data-a="code">🔢 Code</button>
         </div>
-        <div class="row"><button data-a="trklib">📂 Strecke laden (.TRK)</button><button data-a="themes" class="themebtn" title="Landschaft: ${this.themeLabel(env)}" aria-label="Landschaft: ${this.themeLabel(env)}">${this.themeIcon(env)} Landschaft</button></div>
+        <div class="row"><button data-a="trklib">📂 Strecke laden (.TRK)</button><button data-a="themes" class="themebtn" title="Landschaft: ${this.themeLabel(env)}" aria-label="Landschaft: ${this.themeLabel(env)}">${this.themeIcon(env)} Landschaft</button><button data-a="wetterwahl" class="themebtn" title="Wetter: ${this.wetterLabel(env)}" aria-label="Wetter: ${this.wetterLabel(env)}">${this.wetterIcon(env)} Wetter</button></div>
         <div class="row">
           <button data-a="settings">⚙️ Optionen</button>
           <button data-a="help">🎮 Steuerung</button>
@@ -289,6 +290,26 @@ export class UI {
       <p class="hint">Jede Strecke liegt in einer Landschaft mit eigenem Himmel, Licht, Boden, Pflanzen und Bauten am Horizont. <b>Passend</b>: das Thema folgt aus dem Strecken-Code (bzw. dem Horizont einer .TRK-Strecke). Die Fahrbahn und die Bestzeiten ändern sich nie – nur die Kulisse.</p>
       <div class="themegrid">${btn('auto', '🎯', 'Passend zur Strecke', `hier: ${THEMES[a].icon} ${THEMES[a].name}`)}${THEME_IDS.map((id) => btn(id, THEMES[id].icon, THEMES[id].name, THEMES[id].desc)).join('')}</div>`);
   }
+  // n32: Einstellung „Wetter“ – passend (meist klar, gelegentlich Regen/Schnee je Strecke und Landschaft) oder fest
+  wetterLabel(env) {
+    const v = this.store.settings.wetter || 'auto';
+    if (v !== 'auto' && WETTER[v]) return `${WETTER[v].icon} ${WETTER[v].name}`;
+    const a = env && env.wetter && WETTER[env.wetter] ? env.wetter : null;
+    return `passend${a ? ` (${WETTER[a].icon} ${WETTER[a].name})` : ''}`;
+  }
+  wetterIcon(env) {
+    const v = this.store.settings.wetter || 'auto';
+    const id = v !== 'auto' && WETTER[v] ? v : env && env.wetter;
+    return WETTER[id] && id !== 'klar' ? WETTER[id].icon : '🌦️';
+  }
+  showWetter() {
+    const v = this.store.settings.wetter || 'auto';
+    const a = this.env && this.env.layout && this.env.theme ? wetterAuto(this.env.layout, this.env.theme) : 'klar';
+    const btn = (id, ic, name, desc) => `<button data-a="wetter" data-v="${id}" class="themeopt ${v === id ? 'on' : ''}"><b>${ic} ${name}</b><span>${desc}</span></button>`;
+    this.sheet('Wetter', `
+      <p class="hint">Nur fürs Auge: Regen und Schnee ändern Himmel, Licht und Fahrbahn-Optik – Grip, Fahrphysik, Strecke und Bestzeiten bleiben gleich. <b>Passend</b>: meist klar, manchmal Regen oder Schnee, je nach Strecke und Landschaft (Schnee nie in Wüste und Tropen).</p>
+      <div class="themegrid">${btn('auto', '🎯', 'Passend', `hier: ${WETTER[a].icon} ${WETTER[a].name}`)}${WETTER_IDS.map((id) => btn(id, WETTER[id].icon, WETTER[id].name, WETTER[id].desc)).join('')}</div>`);
+  }
   assistHint(k) {
     const wreck = this.store.settings.wreck;
     const crash = wreck
@@ -322,6 +343,8 @@ export class UI {
       case 'settings': this.showSettings(); break;
       case 'themes': this.showThemes(); break;
       case 'theme': A.setTheme(v); break;
+      case 'wetterwahl': this.showWetter(); break;   // n32
+      case 'wetter': A.setWetter(v); break;
       case 'trklib': this.showLibrary(); break;
       case 'trkpick': this.fileInput.click(); break;
       case 'trkplay': A.playImported(v); break;
