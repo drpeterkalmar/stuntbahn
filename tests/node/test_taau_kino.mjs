@@ -138,7 +138,7 @@ const endbild = (log) => log.find((e) => e.ziel === null && e.defines);
   const q = new Quality(r, null, { autopilot: true });
   q.kino = k; q.post = k;
   ok(q.scaleRangeOf(2).join() === '0.6,1,0.7' && q.scaleRangeOf(1).join() === '0.6,0.85,0.7', `Autopilot-Bereich mit TAA: Kino ${q.scaleRangeOf(2).join('/')}, Standard ${q.scaleRangeOf(1).join('/')}`);
-  const ap = q.startAutopilot({ skala: 0.7, extra: [['taa', 0.05, (s) => { k.taaRueckfall = s === 0; }]] });
+  const ap = q.startAutopilot({ skala: 0.7, extra: [['taa', 0.4, (s) => { k.taaRueckfall = s === 0; }]] });
   ok(ap.ding('taa') && k.renderScale === 0.7, 'Stufe „taa“ angemeldet, Startskala 0,7 im Kino-Look');
   // zu langsam: erst Renderskala bis 0,6, dann Deko, dann TAA → FXAA-Art
   let schritte = [];

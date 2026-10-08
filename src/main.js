@@ -29,6 +29,7 @@ import { buildFilm, FilmPlayer, HL } from './game/highlights.js';
 import { CineCam } from './game/cinecam.js';
 import { ClipRecorder, clipMime } from './ui/cliprec.js';
 import { Quality } from './gfx/quality.js';
+import { GpuZeit } from './gfx/kern/autopilot.js';
 import { geraeteSchluessel, ladeGeraet, merkeGeraet, messeBilder, skalaAusProbe } from './gfx/kern/startprobe.js';
 import { DynReflex } from './gfx/kern/reflex.js';
 import { ImpostorBibliothek } from './gfx/kern/impostor.js';
@@ -82,10 +83,11 @@ const quality = new Quality(renderer, params.get('q') ?? (LOOK_FIX != null ? Str
 // (0,6–1; mit fester Stufe ?q= bleibt sie stehen) – für Peters A/B
 const TAA_URL = params.get('taa') === '1' ? '+taa' : params.get('taa') === '0' ? '-taa' : '';
 const kino = LOOK === 'alt' ? null : new KinoLook(renderer, { level: LOOK_FIX ?? quality.tier, stages: [params.get('vao') === '0' ? '' : '-ssao', TAA_URL, params.get('kl') || ''].filter(Boolean).join(','),
-  taa: { gewicht: params.get('taaw'), muster: params.get('jit'), gamma: params.get('taagamma'), dis: params.get('taadis'), skala: params.get('taaskala'), debug: params.get('taadbg'), scharf: params.get('taasharp'), cub: params.get('taacub'), bewegung: params.get('taamot') } });
+  taa: { gewicht: params.get('taaw'), muster: params.get('jit'), gamma: params.get('taagamma'), dis: params.get('taadis'), skala: params.get('taaskala'), debug: params.get('taadbg'), scharf: params.get('taasharp'), cub: params.get('taacub'), bewegung: params.get('taamot'), sigmaTreffer: params.get('taasig') } });
 // n31: negativer Mip-Bias für TAAU (Texturen in Zielauflösungs-Schärfe abtasten, sonst bleibt Texturdetail bei Renderskala
 // 0,65 verloren) – Konstante in den Shadern, deshalb hier beim Start vor dem ersten Übersetzen: log2(Start-Renderskala),
 // ?taamip= für A/B (0 = aus). Ohne TAA 0.
+const GPU_MESS = params.get('gpumess') === '1';
 const TAA_BOOT = !!(kino && kino.taaGewuenscht(kino.level) && kino.taaTechnik());
 app.mipBias = mipBiasEinbauen(THREE.ShaderChunk, TAA_BOOT ? (params.get('taamip') ?? Math.log2(kino.scaleRangeOf(kino.level)[0])) : 0);
 // Bewegungsunschärfe: im Kino-Look Teil derselben Pipeline (ein Szenen-Durchlauf); ?look=alt: bisheriges post.js
@@ -240,6 +242,8 @@ async function boot() {
     ghostify(ghostVis.root, 'lod');
     app.carLod = { mid: carVis.lodMeshes[1].length, far: carVis.lodMeshes[2].length };
   }).catch((e) => console.warn('Auto-LOD nicht geladen', e));
+  // n31 Messhaken: ?gpumess=1 misst die GPU-Zeit je Bild auch bei fester Stufe (tests/perf_taau.py; sonst nur mit Autopilot)
+  if (GPU_MESS && !quality.gpu) quality.gpu = new GpuZeit(renderer.getContext());
   requestAnimationFrame(frame);
 }
 
@@ -261,8 +265,10 @@ async function startAutopilot() {
     app.startProbe = { ...r, skala: start.skala };
   }
   quality.startAutopilot({ skala: start ? start.skala : st, gl,
-    // n31: TAAU als Stufe – zu langsam (Renderskala schon am Minimum 0,6) → Rückfall auf die FXAA-Art (MSAA bleibt aus)
-    extra: [...(reflex ? [['reflex', 0.06, (s) => { reflexOff = s === 0; }]] : []), ...(kino && kino.taaGewuenscht(2) && kino.taaTechnik() ? [['taa', 0.05, (s) => { kino.taaRueckfall = s === 0; }]] : [])],
+    // n31: TAAU als Stufe – zu langsam (Renderskala schon am Minimum 0,6) → Rückfall auf die FXAA-Art (MSAA bleibt aus).
+    // Kosten 0,4: der Resolve in Bildschirmauflösung kostet gemessen ~40 % der GPU-Zeit eines Kino-Bilds (omen16, 4K-Probe,
+    // TAAU_BERICHT.md) – der Vorbau hatte 0,05 geschätzt
+    extra: [...(reflex ? [['reflex', 0.06, (s) => { reflexOff = s === 0; }]] : []), ...(kino && kino.taaGewuenscht(2) && kino.taaTechnik() ? [['taa', 0.4, (s) => { kino.taaRueckfall = s === 0; }]] : [])],
     onAenderung: () => merkeGeraet(localStorage, key, { skala: quality.ap.skala, stufe: quality.tier }) });
   if (start && quality.ap) merkeGeraet(localStorage, key, { skala: quality.ap.skala, stufe: quality.tier });
 }
@@ -746,7 +752,7 @@ function frame(now) {
   // Test-Haken (tests/test_autopilot.py): künstliche Arbeit je Bild in ms – zählt in die CPU-Zeit wie echte Spiellast
   if (app.testLast > 0) { const tE = performance.now() + app.testLast; while (performance.now() < tE); }
   // GPU-Zeit nur messen, wenn der Autopilot regelt (feste Nutzerwahl: keine Abfragen, kostet sonst je Bild)
-  const gpuMess = quality.gpu && !quality.forced;
+  const gpuMess = quality.gpu && (!quality.forced || GPU_MESS);
   if (gpuMess) quality.gpu.anfang();
   render(rdt);
   if (gpuMess) quality.gpu.ende();

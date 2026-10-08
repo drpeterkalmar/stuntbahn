@@ -1,0 +1,224 @@
+{
+ "datum": "2026-10-08T14:53:01",
+ "stand": "ab_taau_kino1",
+ "modus": "ab",
+ "runden": 3,
+ "varianten": [
+  {
+   "name": "msaa",
+   "wurzel": "/home/user/dev/stuntbahn",
+   "zusatz": "&taa=0&gpumess=1"
+  },
+  {
+   "name": "taau07",
+   "wurzel": "/home/user/dev/stuntbahn",
+   "zusatz": "&taa=1&gpumess=1"
+  },
+  {
+   "name": "taau10",
+   "wurzel": "/home/user/dev/stuntbahn",
+   "zusatz": "&taa=1&taaskala=1&gpumess=1"
+  }
+ ],
+ "profil": {
+  "drossel": 4,
+  "dpr": 2.6,
+  "sek": 8.0,
+  "start": "direkt",
+  "vsync": false
+ },
+ "szenen": {
+  "looping_kino": {
+   "hoch": {
+    "msaa": {
+     "p50": 3.5,
+     "p95": 4.3,
+     "fps": 282.1,
+     "calls": 81,
+     "tris": 289630,
+     "gpu50": 1.214,
+     "gpu95": 1.268,
+     "runden_p95": [
+      4.2,
+      4.4,
+      4.3
+     ],
+     "fehler": []
+    },
+    "taau07": {
+     "p50": 3.5,
+     "p95": 4.3,
+     "fps": 280,
+     "calls": 82,
+     "tris": 289631,
+     "gpu50": 1.258,
+     "gpu95": 1.303,
+     "runden_p95": [
+      4.2,
+      4.3,
+      4.3
+     ],
+     "fehler": []
+    },
+    "taau10": {
+     "p50": 3.5,
+     "p95": 4.4,
+     "fps": 276.8,
+     "calls": 82,
+     "tris": 289631,
+     "gpu50": 1.266,
+     "gpu95": 1.307,
+     "runden_p95": [
+      4.6,
+      4.3,
+      4.4
+     ],
+     "fehler": []
+    }
+   },
+   "quer": {
+    "msaa": {
+     "p50": 3.6,
+     "p95": 4.8,
+     "fps": 269.5,
+     "calls": 79,
+     "tris": 288430,
+     "gpu50": 1.162,
+     "gpu95": 1.213,
+     "runden_p95": [
+      4.2,
+      5.9,
+      4.8
+     ],
+     "fehler": []
+    },
+    "taau07": {
+     "p50": 3.8,
+     "p95": 5.5,
+     "fps": 249.8,
+     "calls": 80,
+     "tris": 288431,
+     "gpu50": 1.162,
+     "gpu95": 1.671,
+     "runden_p95": [
+      4.4,
+      5.5,
+      6.1
+     ],
+     "fehler": []
+    },
+    "taau10": {
+     "p50": 3.9,
+     "p95": 5.4,
+     "fps": 250,
+     "calls": 80,
+     "tris": 288431,
+     "gpu50": 1.286,
+     "gpu95": 1.415,
+     "runden_p95": [
+      4.2,
+      6.7,
+      5.4
+     ],
+     "fehler": []
+    }
+   }
+  },
+  "rennen_kino": {
+   "hoch": {
+    "msaa": {
+     "p50": 5.3,
+     "p95": 7,
+     "fps": 185.2,
+     "calls": 93,
+     "tris": 349581,
+     "gpu50": 1.372,
+     "gpu95": 1.712,
+     "runden_p95": [
+      9.1,
+      6.9,
+      7
+     ],
+     "fehler": []
+    },
+    "taau07": {
+     "p50": 5.3,
+     "p95": 7.6,
+     "fps": 179,
+     "calls": 94,
+     "tris": 349646,
+     "gpu50": 1.348,
+     "gpu95": 2.224,
+     "runden_p95": [
+      8.1,
+      7.6,
+      6.9
+     ],
+     "fehler": []
+    },
+    "taau10": {
+     "p50": 5.5,
+     "p95": 7.4,
+     "fps": 176.8,
+     "calls": 94,
+     "tris": 349513,
+     "gpu50": 1.547,
+     "gpu95": 2.483,
+     "runden_p95": [
+      10.4,
+      7.1,
+      7.4
+     ],
+     "fehler": []
+    }
+   },
+   "quer": {
+    "msaa": {
+     "p50": 5.6,
+     "p95": 7.5,
+     "fps": 169.2,
+     "calls": 108,
+     "tris": 356396,
+     "gpu50": 1.511,
+     "gpu95": 1.864,
+     "runden_p95": [
+      7.4,
+      7.5,
+      9.3
+     ],
+     "fehler": []
+    },
+    "taau07": {
+     "p50": 5.7,
+     "p95": 7.6,
+     "fps": 169.8,
+     "calls": 109,
+     "tris": 356454,
+     "gpu50": 1.438,
+     "gpu95": 2.39,
+     "runden_p95": [
+      7.4,
+      7.7,
+      7.6
+     ],
+     "fehler": []
+    },
+    "taau10": {
+     "p50": 5.7,
+     "p95": 7.4,
+     "fps": 171.5,
+     "calls": 109,
+     "tris": 356442,
+     "gpu50": 1.597,
+     "gpu95": 1.886,
+     "runden_p95": [
+      7.4,
+      7.4,
+      10.2
+     ],
+     "fehler": []
+    }
+   }
+  }
+ }
+}

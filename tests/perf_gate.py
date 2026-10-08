@@ -13,6 +13,7 @@
 # Szenen-Datei (Beispiel für ein anderes Spiel – nur diese Datei ist spielspezifisch):
 #   { "bereit": "window.__app && window.__app.ready",          // JS-Ausdruck: Spiel geladen
 #     "info": "() => { const i = __game.renderer.info; return { calls: i.render.calls, tris: i.render.triangles, tex: i.memory.textures }; }",
+#       (n31: liefert info zusätzlich gpu = GPU-Zeit des Bilds in ms, z. B. per EXT_disjoint_timer_query, kommen gpu50/gpu95 dazu)
 #     "ladeQuery": "?nosw",                                     // Seite für die Ladegröße
 #     "szenen": [ { "name": "menu", "query": "?nosw&q=2", "schritte": ["js-Ausdruck", {"warte": 1.5}, …] } ] }
 #   Schritte: Zeichenkette = JS (page.evaluate), {"warte": s} = Pause (ungedrosselt), {"bis": "js", "max": s, "schritt": "js"}
@@ -50,17 +51,19 @@ class Server:
     def __exit__(self, *a): self.httpd.shutdown(); self.httpd.server_close()
 
 # ---------- Messung im Browser ----------
-MESSEN = """async ([sek, info]) => { const f = info ? eval('(' + info + ')') : null; const t = [], c = [], tr = [], tx = [];
+MESSEN = """async ([sek, info]) => { const f = info ? eval('(' + info + ')') : null; const t = [], c = [], tr = [], tx = [], gp = [];
   await new Promise((res) => { let last = performance.now(); const t0 = last;
     const k = (now) => { t.push(now - last); last = now;
-      if (f) { try { const i = f(); if (i) { c.push(i.calls || 0); tr.push(i.tris || 0); tx.push(i.tex || 0); } } catch (e) {} }
+      if (f) { try { const i = f(); if (i) { c.push(i.calls || 0); tr.push(i.tris || 0); tx.push(i.tex || 0); if (i.gpu > 0) gp.push(i.gpu); } } catch (e) {} }
       if (now - t0 < sek * 1000) requestAnimationFrame(k); else res(); };
     requestAnimationFrame(k); });
   t.shift(); const s = [...t].sort((a, b) => a - b), q = (p) => s[Math.min(s.length - 1, Math.floor(p * s.length))];
   const mittel = (a) => a.length ? Math.round(a.reduce((x, y) => x + y, 0) / a.length) : null;
   return { n: t.length, p50: +q(0.5).toFixed(2), p95: +q(0.95).toFixed(2), p99: +q(0.99).toFixed(2),
     fps: +(1000 * t.length / t.reduce((a, b) => a + b, 0)).toFixed(1), calls: mittel(c), callsMax: c.length ? Math.max(...c) : null,
-    tris: mittel(tr), tex: tx.length ? tx[tx.length - 1] : null }; }"""
+    tris: mittel(tr), tex: tx.length ? tx[tx.length - 1] : null,
+    gpu50: gp.length ? +[...gp].sort((a, b) => a - b)[Math.floor(gp.length * 0.5)].toFixed(3) : null,
+    gpu95: gp.length ? +[...gp].sort((a, b) => a - b)[Math.min(gp.length - 1, Math.floor(gp.length * 0.95))].toFixed(3) : null }; }"""
 
 # macOS: Prozesse, die von einem Hintergrund-Dienst abstammen (z. B. eine Job-Queue per launchd), erben eine starke
 # Zeitgeber-Drosselung – ein mit Playwright gestarteter Browser kam am 08.10.2026 auf 15 Bilder/s selbst bei leerer Seite
@@ -278,11 +281,12 @@ def ab_modus(a, cfg, sync_playwright):
                 for n, L in je.items():
                     ok = [l for l in L if 'p95' in l]
                     med = lambda f: round(statistics.median([l[f] for l in ok]), 2) if ok else None
-                    out[n] = {'p50': med('p50'), 'p95': med('p95'), 'fps': med('fps'), 'calls': med('calls'), 'tris': med('tris'),
+                    medg = lambda f: round(statistics.median([l[f] for l in ok if l.get(f)]), 3) if any(l.get(f) for l in ok) else None
+                    out[n] = {'p50': med('p50'), 'p95': med('p95'), 'fps': med('fps'), 'calls': med('calls'), 'tris': med('tris'), 'gpu50': medg('gpu50'), 'gpu95': medg('gpu95'),
                               'runden_p95': [l.get('p95') for l in L], 'fehler': sum(((l.get('fehler') or []) for l in L), [])[:5]}
                 res['szenen'][sz['name']][g] = out
                 b = out[var[0][0]]
-                print(sz['name'], g, ' | '.join(f"{n}: p50 {o['p50']} p95 {o['p95']}" + (f" ({(o['p95'] - b['p95']) / b['p95'] * 100:+.0f} %)" if o['p95'] and b['p95'] and n != var[0][0] else '') + f" calls {o['calls']}" for n, o in out.items()), flush=True)
+                print(sz['name'], g, ' | '.join(f"{n}: p50 {o['p50']} p95 {o['p95']}" + (f" ({(o['p95'] - b['p95']) / b['p95'] * 100:+.0f} %)" if o['p95'] and b['p95'] and n != var[0][0] else '') + f" calls {o['calls']}" + (f" GPU {o['gpu50']}/{o['gpu95']} ms" if o.get('gpu50') else '') for n, o in out.items()), flush=True)
     out = os.path.join(REPO, 'tests', 'perf', f"{datetime.date.today().isoformat()}_{a.stand}.json")
     os.makedirs(os.path.dirname(out), exist_ok=True)
     json.dump(res, open(out, 'w'), ensure_ascii=False, indent=1)

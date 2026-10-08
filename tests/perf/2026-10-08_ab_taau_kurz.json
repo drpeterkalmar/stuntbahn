@@ -1,0 +1,81 @@
+{
+ "datum": "2026-10-08T14:44:40",
+ "stand": "ab_taau_kurz",
+ "modus": "ab",
+ "runden": 3,
+ "varianten": [
+  {
+   "name": "msaa",
+   "wurzel": "/home/user/dev/stuntbahn",
+   "zusatz": "&taa=0&gpumess=1"
+  },
+  {
+   "name": "taau07",
+   "wurzel": "/home/user/dev/stuntbahn",
+   "zusatz": "&taa=1&gpumess=1"
+  },
+  {
+   "name": "taau065",
+   "wurzel": "/home/user/dev/stuntbahn",
+   "zusatz": "&taa=1&taaskala=0.65&gpumess=1"
+  }
+ ],
+ "profil": {
+  "drossel": 4,
+  "dpr": 2.6,
+  "sek": 6.0,
+  "start": "direkt",
+  "vsync": false
+ },
+ "szenen": {
+  "looping_kino": {
+   "quer": {
+    "msaa": {
+     "p50": 3.4,
+     "p95": 4.1,
+     "fps": 290.9,
+     "calls": 79,
+     "tris": 288430,
+     "gpu50": 1.164,
+     "gpu95": 1.219,
+     "runden_p95": [
+      4.3,
+      4.1,
+      4.1
+     ],
+     "fehler": []
+    },
+    "taau07": {
+     "p50": 3.5,
+     "p95": 4.2,
+     "fps": 284.3,
+     "calls": 80,
+     "tris": 288431,
+     "gpu50": 1.008,
+     "gpu95": 1.645,
+     "runden_p95": [
+      4.2,
+      4.3,
+      4.2
+     ],
+     "fehler": []
+    },
+    "taau065": {
+     "p50": 3.5,
+     "p95": 4.3,
+     "fps": 283.8,
+     "calls": 80,
+     "tris": 288431,
+     "gpu50": 0.987,
+     "gpu95": 1.616,
+     "runden_p95": [
+      4.3,
+      4.3,
+      4.3
+     ],
+     "fehler": []
+    }
+   }
+  }
+ }
+}

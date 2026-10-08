@@ -1,8 +1,8 @@
 {
- "_kommentar": "Stuntbahn-Szenen für tests/perf_gate.py (n30). Grafikstufe fest per ?q= (Autopilot pausiert), außer rennen_autopilot. ?startprobe=0: keine Kurzmessung beim Laden (auf main ohne Wirkung). Looping: Galerie-Strecke, Auto kopfüber im ersten Looping, Spiel angehalten (Bild wird weiter jedes Mal gezeichnet). Vor jeder Szene (außer start_kino/rennen_autopilot) wird gewartet, bis die gebackene Vertex-AO fertig ist (n30; auf main ohne Wirkung) – start_kino misst die ersten 10 s nach dem Laden mit allem, was dort anfällt.",
+ "_kommentar": "Stuntbahn-Szenen für tests/perf_gate.py (n30). Grafikstufe fest per ?q= (Autopilot pausiert), außer rennen_autopilot. ?startprobe=0: keine Kurzmessung beim Laden (auf main ohne Wirkung). n31: info liefert die GPU-Zeit je Bild, wenn gemessen wird (Autopilot oder ?gpumess=1). Looping: Galerie-Strecke, Auto kopfüber im ersten Looping, Spiel angehalten (Bild wird weiter jedes Mal gezeichnet). Vor jeder Szene (außer start_kino/rennen_autopilot) wird gewartet, bis die gebackene Vertex-AO fertig ist (n30; auf main ohne Wirkung) – start_kino misst die ersten 10 s nach dem Laden mit allem, was dort anfällt.",
  "bereit": "window.__app && window.__app.ready && window.__app.frames > 3",
  "init": "window.__noKino = true; window.__noShow = true",
- "info": "() => { const i = __game.renderer.info; return { calls: i.render.calls, tris: i.render.triangles, tex: i.memory.textures }; }",
+ "info": "() => { const i = __game.renderer.info, g = __game.quality.gpu; return { calls: i.render.calls, tris: i.render.triangles, tex: i.memory.textures, gpu: g ? g.ms : null }; }",
  "zusatz": "() => __game.info()",
  "ladeQuery": "?nosw&seed=4711&d=3&g=1",
  "ladeNachlauf": 4,

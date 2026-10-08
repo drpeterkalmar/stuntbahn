@@ -143,7 +143,9 @@ const RESOLVE_FS = `
     float zLo = zMin + dz, zHi = kLin( min( dMax, 1.0 ) ) + dz;
     float ab = uHistOk < 0.5 || pc.w <= 0.0 || any( lessThan( hUv, vec2( 0.0 ) ) ) || any( greaterThan( hUv, vec2( 1.0 ) ) ) ? 1.0 : 0.0;
     vec3 col = weit;
+  #ifdef TAA_DEBUG
     float dbAl = 1.0, dbClip = 0.0, dbS = 1.0, dbR = 1.0;
+  #endif
     if ( ab < 1.0 ) {
       // Disocclusion: beste Übereinstimmung unter den 4 History-Texeln um hUv (Zäune, Kanten: einer passt meist)
       ivec2 h0 = ivec2( floor( hUv * uDstRes - 0.5 ) ), hMax = ivec2( uDstRes ) - 1;
@@ -152,7 +154,9 @@ const RESOLVE_FS = `
         ivec2 hq = clamp( h0 + ivec2( j - ( j / 2 ) * 2, j / 2 ), ivec2( 0 ), hMax );
         float zq = texelFetch( tHist, hq, 0 ).a;
         best = min( best, kDis( zq, zLo, zHi, sgn, sgnC ) );
+      #ifdef TAA_DEBUG
         if ( uDebug > 1.5 ) { dbS = min( dbS, sign( zq ) != sgn && sign( zq ) != sgnC ? 1.0 : 0.0 ); dbR = min( dbR, max( max( zLo - abs( zq ), abs( zq ) - zHi ), 0.0 ) / max( 1e-4, abs( zq ) ) ); }
+      #endif
       }
       ab = max( ab, best );
       vec3 mu = m1 / 9.0, sg = sqrt( max( m2 / 9.0 - mu * mu, 0.0 ) );
@@ -170,14 +174,18 @@ const RESOLVE_FS = `
       float lc = 1.0 / ( 1.0 + kY( cur ).x ), lh = 1.0 / ( 1.0 + kY( hk ).x );   // Luma-Gewichtung (Karis)
       float wc = al * lc, wh = ( 1.0 - al ) * lh;
       col = ( cur * wc + hk * wh ) / ( wc + wh );
+    #ifdef TAA_DEBUG
       dbAl = al; dbClip = length( kHist( hUv ) - hk ) * 4.0;
+    #endif
     }
     // ?taadbg=1: rot = History verworfen, grün = Anteil neues Bild, blau = Clip-Stärke; Körper-Pixel aufgehellt (grau = gut)
     // ?taadbg=2: rot = Tiefe außerhalb des Bereichs, grün = Welt↔Körper-Wechsel, blau = keine History / hinter der Kamera
     // ?taadbg=3: Auto-Koordinaten der vordersten Abtastung (rot = Höhe, grün = Länge, blau = in der Box)
+  #ifdef TAA_DEBUG
     if ( uDebug > 2.5 ) { vec3 l = ( uKInv[ 0 ] * w ).xyz; col = vec3( clamp( ( l.y + 0.6 ) / 1.4, 0.0, 1.0 ), clamp( ( l.z + 2.6 ) / 5.2, 0.0, 1.0 ), all( greaterThan( l, uKMin[ 0 ] ) ) && all( lessThan( l, uKMax[ 0 ] ) ) ? 1.0 : 0.0 ); }
     else if ( uDebug > 1.5 ) col = vec3( min( dbR * 5.0, 1.0 ), dbS, uHistOk < 0.5 || pc.w <= 0.0 ? 1.0 : 0.0 ) * ( sgn < 0.0 ? 0.5 : 1.0 ) + ( sgn < 0.0 ? 0.4 : 0.0 );
     else if ( uDebug > 0.5 ) col = vec3( ab, dbAl, min( dbClip, 1.0 ) ) * ( sgn < 0.0 ? 0.5 : 1.0 ) + ( sgn < 0.0 ? 0.4 : 0.0 );
+  #endif
     gl_FragColor = vec4( col, zNeu );
   }`;
 
@@ -307,7 +315,11 @@ export class TAAU {
     let aus = schreiben.texture;
     if (this.debug) {
       if (!this.dbgRT || this.dbgRT.width !== w || this.dbgRT.height !== h) { if (this.dbgRT) this.dbgRT.dispose(); this.dbgRT = new THREE.WebGLRenderTarget(w, h, { type: THREE.HalfFloatType, depthBuffer: false }); }
-      U.uDebug.value = this.debug; renderer.setRenderTarget(this.dbgRT); renderer.render(this.szene, this.kam); U.uDebug.value = 0;
+      // Debug-Ansicht: eigenes Material mit TAA_DEBUG (im normalen Shader kostet der Debug-Code nichts), gleiche Uniforms
+      if (!this.matDbg) { this.matDbg = this.mat.clone(); this.matDbg.uniforms = this.u; this.matDbg.defines = { TAA_DEBUG: 1 }; }
+      this.quad.material = this.matDbg; U.uDebug.value = this.debug;
+      renderer.setRenderTarget(this.dbgRT); renderer.render(this.szene, this.kam);
+      U.uDebug.value = 0; this.quad.material = this.mat;
       aus = this.dbgRT.texture;
     }
     renderer.autoClear = ac;
@@ -325,6 +337,7 @@ export class TAAU {
   dispose() {
     for (const t of this.hist) if (t) t.dispose();
     if (this.dbgRT) this.dbgRT.dispose();
+    if (this.matDbg) this.matDbg.dispose();
     this.hist = [null, null];
     this.mat.dispose(); this.quad.geometry.dispose();
   }

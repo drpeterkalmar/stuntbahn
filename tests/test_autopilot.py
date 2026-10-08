@@ -17,7 +17,8 @@ def check(c, m):
     print(('OK   ' if c else 'FEHLER ') + m, flush=True)
     if not c: fails.append(m)
 
-Q = '?nosw&startprobe=0&seed=4711&d=3&g=1&blur=off'
+Q = '?nosw&startprobe=0&seed=4711&d=3&g=1&blur=off' + (sys.argv[1] if len(sys.argv) > 1 else '')   # n31: z. B. "&taa=1" (TAAU als Stufe)
+TAA = "(() => { const t = __game.kino && __game.kino.describe().taa; return t ? t.modus : null; })()"
 ZUSTAND = "(() => { const i = __game.info(); return { t: performance.now() / 1000, ap: i.ap, log: i.apLog, tier: i.tier }; })()"
 
 def warte_log(s, bed, max_s):
@@ -53,7 +54,7 @@ with Server() as srv, sync_playwright() as pw:
         check(e is not None and dt <= 3.0, f'schwere Last: erster Schritt nach unten nach {dt:.2f} s ({e})')
         time.sleep(20)
         z = s.ev(ZUSTAND)
-        print('  nach 20 s Last:', json.dumps(z['ap']['stufen']), 'Skala', z['ap']['skala'], 'Engpass', z['ap']['engpass'], 'Stufe', z['tier'])
+        print('  nach 20 s Last:', json.dumps(z['ap']['stufen']), 'Skala', z['ap']['skala'], 'Engpass', z['ap']['engpass'], 'Stufe', z['tier'], 'TAA', s.ev(TAA))
         # 3. Last weg
         s.ev("window.__app.testLast = 0")
         e, dt = warte_log(s, lambda e: e['richtung'] > 0, 8)
@@ -64,7 +65,7 @@ with Server() as srv, sync_playwright() as pw:
             st = z['ap']['stufen']
             if z['tier'] == 2 and all(v >= 1 for k, v in st.items() if k != 'stufe') and z['ap']['skala'] >= z['ap']['bereich'][1] - 1e-6: break
             time.sleep(0.5)
-        check(z['tier'] == 2 and all(v >= 1 for k, v in st.items() if k != 'stufe'), f'wieder volle Qualität nach {time.time() - t0:.1f} s: Stufe {z["tier"]}, {st}, Skala {z["ap"]["skala"]}')
+        check(z['tier'] == 2 and all(v >= 1 for k, v in st.items() if k != 'stufe'), f'wieder volle Qualität nach {time.time() - t0:.1f} s: Stufe {z["tier"]}, {st}, Skala {z["ap"]["skala"]}, TAA {s.ev(TAA)}')
         # 4. Kante: Last so, dass das Bild knapp an 60 Bildern/s liegt
         s.ev("window.__app.testLast = 11")
         time.sleep(5)

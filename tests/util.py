@@ -50,7 +50,7 @@ class Session:
         # offen=True (n30): Browser per `open` statt als Kindprozess starten – nötig für echte Bildraten/Zeitmessung, wenn
         # das Skript aus einer Hintergrund-Queue läuft (macOS drosselt sonst die Zeitgeber des ganzen Prozessbaums,
         # siehe tests/perf_gate.py OffenerBrowser). Auch per Umgebung: BROWSER=open
-        if offen or os.environ.get('BROWSER') == 'open':
+        if (offen or os.environ.get('BROWSER') == 'open') and sys.platform == 'darwin':   # Linux (n31): nicht nötig, `open` gibt es nicht
             from perf_gate import OffenerBrowser
             self.b = OffenerBrowser(pw, ARGS)
         else:
