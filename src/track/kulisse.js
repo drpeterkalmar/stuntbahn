@@ -11,12 +11,8 @@ import { THEMES, farLift, seaDir, SEA_Y } from './themes.js';
 
 const WS = WORLD_SCALE;
 
-export function planKulisse(c) {
-  const { track, L, T, n, R, H, occ, ok, side, faceRoad, flat, kap, at, ground, out, I, tier, o, KS, curveRuns } = c;
-  const themeId = o.themeId && THEMES[o.themeId] ? o.themeId : 'land';
-  const TH = THEMES[themeId];
-  const seed = o.seed || track.layout?.seed || 1;
-  // ---- Sperrzonen: Sprunglücken, Gruben, Schluchten, Teiche ----
+// ---- Sperrzonen: Sprunglücken, Gruben, Schluchten, Teiche ---- (n32: herausgelöst, auch für track/kulisse2.js)
+export function makeGapFree(track, L, n) {
   const rects = [];
   for (const s of track.shapes || []) {
     if (s.type === 'pit') rects.push({ s, f0: s.f0 - 10, f1: s.f1 + 10, rr: (s.hw || 10) + 20 });
@@ -25,7 +21,7 @@ export function planKulisse(c) {
   }
   const gapPts = [];
   for (const j of track.jumps || []) for (let i = Math.max(0, j.lipIdx - 6); i <= Math.min(n - 1, j.landIdx + 6); i += 2) gapPts.push(i);
-  const gapFree = (x, z) => {
+  return (x, z) => {
     for (const { s, f0, f1, rr } of rects) {
       const dx = x - s.E[0], dz = z - s.E[2], f = dx * s.F[0] + dz * s.F[2], r = dx * s.R[0] + dz * s.R[2];
       if (f > f0 && f < f1 && Math.abs(r) < rr) return false;
@@ -33,6 +29,14 @@ export function planKulisse(c) {
     for (const i of gapPts) if (Math.hypot(x - L.px[i], z - L.pz[i]) < L.hw[i] + 30) return false;
     return true;
   };
+}
+
+export function planKulisse(c) {
+  const { track, L, T, n, R, H, occ, ok, side, faceRoad, flat, kap, at, ground, out, I, tier, o, KS, curveRuns } = c;
+  const themeId = o.themeId && THEMES[o.themeId] ? o.themeId : 'land';
+  const TH = THEMES[themeId];
+  const seed = o.seed || track.layout?.seed || 1;
+  const gapFree = makeGapFree(track, L, n);
   // Standort: Mindestabstand + frei + keine Sperrzone + (nahe der Strecke) auf Fahrbahnhöhe
   const MC = c.MIN_CLEAR || {};
   const okK = (x, z, clear, rad, maxSlope = 0.3, i = null, tol = 2.5) => ok(x, z, clear, rad, maxSlope) && occ.free(x, z, rad) && gapFree(x, z)
