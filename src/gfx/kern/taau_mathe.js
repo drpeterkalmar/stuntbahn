@@ -127,13 +127,18 @@ export const TAAU_STANDARD = {
   // Supersampling-Bezug 0,020 (1,0 + MSAA 4: 0,016; 0,65 bilinear: 0,049). Am echten Bild nachstimmen (TODO Heavy-Job)
   gewicht: 0.9,      // Anteil der History bei voller Bestätigung (Auftrag 0,9–0,95; 0,92+ glättet mehr, wird aber weicher); ?taaw=
   gamma: 1.25,       // Varianz-Clip: Boxbreite in Standardabweichungen (enger = weniger Ghosting, mehr Flimmern); ?taagamma=
-  sigmaRek: 0.55,    // Rekonstruktion des aktuellen Bilds: Gauß-Breite in RENDER-Pixeln (glatt, deckt Lücken) – nur bei Ablehnung
+  // Rekonstruktion des aktuellen Bilds, wo die History fehlt: Lanczos-2 über 3×3 (n31 Abnahme; vorher Gauß σ 0,55 – zu weich)
   sigmaTreffer: 0.35,// Beitrag zur History: Gauß-Breite in ZIEL-Pixeln (eine Abtastung genau im Zielpixel zählt voll)
   dis: 0.06,         // Disocclusion: relative Tiefenabweichung, ab der die History verworfen wird (weich bis 2×); ?taadis=
   alphaMin: 0.01,    // nie ganz einfrieren
   reaktiv: 0.5,      // Mindestanteil des neuen Bilds hinter durchsichtigen bewegten Dingen (Geist)
+  // n31 Abnahme im Browser (deterministische Fahrt gegen 2×-Supersampling-Bezug, siehe TAAU_BERICHT.md):
+  cub: -0.75,        // History-Kern: Keys-Kubik a (−0,5 = Catmull-Rom; schärfer gegen aufsummierte Weichheit in Bewegung); ?taacub=
+  bewegung: 0.4,     // Mindestanteil des neuen Bilds bei halbzahliger Verschiebung (Bewegung), aus der Lanczos-Rekonstruktion; ?taamot=
 };
 export function gauss(d2, sigma) { return Math.exp(-d2 / (2 * sigma * sigma)); }
+// Lanczos-2 als Näherung über x² (wie FSR 2, ohne sin), |x| < 2 – gleiche Formel wie kL2 im Shader
+export function lanczos2(x2) { x2 = Math.min(x2, 4); const b = 0.4 * x2 - 1, wi = 0.25 * x2 - 1; return (1.5625 * b * b - 0.5625) * wi * wi; }
 // Anteil des neuen Bilds je Zielpixel. treffer = Gauß-Gewicht der Abtastung, die dem Zielpixel am nächsten liegt (0…1),
 // ablehnung = 0 (History gut) … 1 (verworfen: Disocclusion, außerhalb, Schnitt), reaktiv = Mindestanteil (0…1)
 export function mischAnteil(treffer, ablehnung, reaktiv = 0, o = TAAU_STANDARD) {
@@ -147,6 +152,20 @@ export function disocclusion(zHist, zErw, dis = TAAU_STANDARD.dis) {
   if (!(Math.abs(zHist) > 0)) return 1;
   if (Math.sign(zHist) !== Math.sign(zErw)) return 1;
   const r = Math.abs(Math.abs(zHist) - Math.abs(zErw)) / Math.max(1e-4, Math.abs(zErw));
+  return r <= dis ? 0 : r >= 2 * dis ? 1 : (r - dis) / dis;
+}
+
+// n31 Abnahme (Browser): Bereichstest statt Punkttest. Die History speichert die Tiefe der Abtastung nächst der Zielpixelmitte;
+// verglichen wird mit dem Tiefenbereich [zLo, zHi] der aktuellen 3×3-Nachbarschaft (in die Vorbild-Kamera verschoben).
+// Der Punkttest (vorderste Abtastung gegen vorderste) verwarf im Standbild an jeder Tiefenkante (Masten, Horizont, Zaun)
+// immer wieder die History, weil das 3×3-Fenster mit dem Jitter um ein Render-Pixel springt – genau dort, wo geglättet
+// werden soll. sgnA/sgnB = Körper-Vorzeichen der vordersten und der mittleren Abtastung: Welt↔Körper-Wechsel ist nur dann
+// eine Ablehnung, wenn keine der beiden das Vorzeichen der History hat (Auto fährt weg → Fahrbahn wird frei).
+export function disoBereich(zHist, zLo, zHi, sgnA = 1, sgnB = 1, dis = TAAU_STANDARD.dis) {
+  if (!(Math.abs(zHist) > 0)) return 1;
+  const sg = Math.sign(zHist);
+  if (sg !== sgnA && sg !== sgnB) return 1;
+  const z = Math.abs(zHist), r = Math.max(zLo - z, z - zHi, 0) / Math.max(1e-4, z);
   return r <= dis ? 0 : r >= 2 * dis ? 1 : (r - dis) / dis;
 }
 
@@ -175,26 +194,30 @@ export function taauReferenz(src, jit, W, H, hist, kam = null, o = TAAU_STANDARD
     const u = (x + 0.5) / W, v = (y + 0.5) / H;
     const px = u * src.w, py = v * src.h;           // Zielmitte in Render-Pixel-Koordinaten
     const kx = Math.floor(px + jit[0]), ky = Math.floor(py + jit[1]);
-    let acc = [0, 0, 0], ws = 0, scharf = [0, 0, 0], wt = 0, treffer = 0, dMin = 2, sMin = null;
-    const nb = [];
+    let acc = [0, 0, 0], ws = 0, scharf = [0, 0, 0], wt = 0, treffer = 0, dMin = 2, sMin = null, dMax = -1, dC = 0.5, oC = 1e9;
+    const nb = [], nbRgb = [];
     for (let b = -1; b <= 1; b++) for (let a = -1; a <= 1; a++) {
       const i = Math.min(src.w - 1, Math.max(0, kx + a)), j = Math.min(src.h - 1, Math.max(0, ky + b));
       const c = src.px(i, j), d = src.d ? src.d(i, j) : 0.5;
       const ox = i + 0.5 - jit[0] - px, oy = j + 0.5 - jit[1] - py;   // Abstand in Render-Pixeln
-      const g = gauss(ox * ox + oy * oy, o.sigmaRek);
+      const g = lanczos2(ox * ox) * lanczos2(oy * oy);
       for (let k = 0; k < 3; k++) acc[k] += c[k] * g;
       ws += g;
       const gt = gauss((ox / sx) ** 2 + (oy / sy) ** 2, o.sigmaTreffer);   // enger Kern in ZIEL-Pixeln
       for (let k = 0; k < 3; k++) scharf[k] += c[k] * gt;
       wt += gt; treffer = Math.max(treffer, gt);
-      nb.push(rgb2ycocg(c));
+      nb.push(rgb2ycocg(c)); nbRgb.push(c);
       if (d < dMin) { dMin = d; sMin = [(i + 0.5 - jit[0]) / src.w, (j + 0.5 - jit[1]) / src.h]; }
+      if (d > dMax) dMax = d;
+      if (ox * ox + oy * oy < oC) { oC = ox * ox + oy * oy; dC = d; }   // Abtastung nächst der Zielmitte (Tiefe für die History)
     }
-    const weit = acc.map((s) => s / ws);
+    // gegen Überschwinger (negative Lanczos-Keulen) auf Min/Max der Nachbarschaft geklemmt
+    const cLo = [0, 1, 2].map((k) => Math.min(...nbRgb.map((c) => c[k]))), cHi = [0, 1, 2].map((k) => Math.max(...nbRgb.map((c) => c[k])));
+    const weit = acc.map((s, k) => Math.min(cHi[k], Math.max(cLo[k], s / ws)));
     // Beitrag zur History: Abtastungen nahe der Zielpixelmitte (enger Kern) – sonst mittelt die History die breite, unscharfe
     // Rekonstruktion; die breite nur, wo die History verworfen wird (oder ganz fehlt)
     const eng = wt > 1e-4 ? scharf.map((s) => s / wt) : weit;
-    let farbe = weit, cur = weit, zNeu = kam ? linZ(dMin, kam.near, kam.far) : 1;
+    let farbe = weit, cur = weit, zNeu = kam ? linZ(dC, kam.near, kam.far) : 1;
     if (hist) {
       let hu = u, hv = v, ablehnung = 0, zErw = zNeu;
       if (kam) {
@@ -204,7 +227,8 @@ export function taauReferenz(src, jit, W, H, hist, kam = null, o = TAAU_STANDARD
       if (hu < 0 || hu > 1 || hv < 0 || hv > 1) ablehnung = 1;
       const hx = Math.min(W - 1, Math.max(0, Math.round(hu * W - 0.5))), hy = Math.min(H - 1, Math.max(0, Math.round(hv * H - 0.5)));
       const hi = hy * W + hx;
-      if (kam) ablehnung = Math.max(ablehnung, disocclusion(hist.z[hi], zErw, o.dis));
+      // Tiefenbereich der Nachbarschaft, um die Tiefenänderung der vordersten Abtastung verschoben (Kamerafahrt)
+      if (kam) { const zv = linZ(dMin, kam.near, kam.far); ablehnung = Math.max(ablehnung, disoBereich(hist.z[hi], zErw, linZ(dMax, kam.near, kam.far) + zErw - zv, 1, 1, o.dis)); }
       // nächster Nachbar statt Catmull-Rom: reicht für die Tests (Bewegung in ganzen Zielpixeln)
       const hc = [hist.farbe[hi * 3], hist.farbe[hi * 3 + 1], hist.farbe[hi * 3 + 2]];
       const box = varianzBox(nb, o.gamma);

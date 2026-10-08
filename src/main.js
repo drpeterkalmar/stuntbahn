@@ -40,6 +40,7 @@ import { PyroFX } from './gfx/pyro.js';
 import { pyroGeo, ZIEL } from './game/zielshow.js';
 import { Post } from './gfx/post.js';
 import { KinoLook } from './gfx/kinolook.js';
+import { mipBiasEinbauen } from './gfx/kern/taau.js';
 import { loadDecoAssets, decoUniforms } from './gfx/deco.js';
 import { kulisseTick } from './gfx/kulisse.js';
 import { DEKO, REDUCED, makeBirds, AirMotes, makeBrakeLights } from './gfx/deko.js';
@@ -81,7 +82,12 @@ const quality = new Quality(renderer, params.get('q') ?? (LOOK_FIX != null ? Str
 // (0,6–1; mit fester Stufe ?q= bleibt sie stehen) – für Peters A/B
 const TAA_URL = params.get('taa') === '1' ? '+taa' : params.get('taa') === '0' ? '-taa' : '';
 const kino = LOOK === 'alt' ? null : new KinoLook(renderer, { level: LOOK_FIX ?? quality.tier, stages: [params.get('vao') === '0' ? '' : '-ssao', TAA_URL, params.get('kl') || ''].filter(Boolean).join(','),
-  taa: { gewicht: params.get('taaw'), muster: params.get('jit'), gamma: params.get('taagamma'), dis: params.get('taadis'), skala: params.get('taaskala') } });
+  taa: { gewicht: params.get('taaw'), muster: params.get('jit'), gamma: params.get('taagamma'), dis: params.get('taadis'), skala: params.get('taaskala'), debug: params.get('taadbg'), scharf: params.get('taasharp'), cub: params.get('taacub'), bewegung: params.get('taamot') } });
+// n31: negativer Mip-Bias für TAAU (Texturen in Zielauflösungs-Schärfe abtasten, sonst bleibt Texturdetail bei Renderskala
+// 0,65 verloren) – Konstante in den Shadern, deshalb hier beim Start vor dem ersten Übersetzen: log2(Start-Renderskala),
+// ?taamip= für A/B (0 = aus). Ohne TAA 0.
+const TAA_BOOT = !!(kino && kino.taaGewuenscht(kino.level) && kino.taaTechnik());
+app.mipBias = mipBiasEinbauen(THREE.ShaderChunk, TAA_BOOT ? (params.get('taamip') ?? Math.log2(kino.scaleRangeOf(kino.level)[0])) : 0);
 // Bewegungsunschärfe: im Kino-Look Teil derselben Pipeline (ein Szenen-Durchlauf); ?look=alt: bisheriges post.js
 const post = kino || new Post(renderer);
 quality.post = post; quality.kino = kino;

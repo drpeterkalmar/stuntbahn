@@ -77,7 +77,7 @@ const endbild = (log) => log.find((e) => e.ziel === null && e.defines);
   ok(Math.abs((sz2.proj[8] - p0[8]) - (-2 * j2[0] / sw)) < 1e-9 && k.taau.u.uHistOk.value === 1 && rs2.ziel !== rs.ziel && k.taau.u.tHist.value === rs.ziel.texture,
     'zweites Bild: nächster Versatz, History gültig, liest das Vorbild (Ping-Pong)');
   // Körper
-  ok(k.taau.k[0].art === 1 && k.taau.k[1].art === 2 && k.taau.u.uKMin.value[0].y === box.min.y + 0.03, 'Auto als fester Körper (Box bis 3 cm über Boden), Geist als durchsichtiger');
+  ok(k.taau.k[0].art === 1 && k.taau.k[1].art === 2 && k.taau.u.uKMin.value[0].y === box.min.y + 0.1, 'Auto als fester Körper (Box ab 10 cm über den Reifen – Abnahme: Fahrbahn unter dem Heck lag sonst in der Box), Geist als durchsichtiger');
   geist.visible = false; bild(k, r, cam); ok(k.taau.k[1].art === 0, 'unsichtbarer Geist → kein Körper'); geist.visible = true;
   // Auto bewegt sich: Delta-Matrix = vorige Welt · aktuelle Inverse
   auto.position.set(0, 0, -1.5); auto.updateMatrixWorld(); bild(k, r, cam);
@@ -149,6 +149,19 @@ const endbild = (log) => log.find((e) => e.ziel === null && e.defines);
 }
 
 // ---------- 6. Shader-Quelltext (Ersatz für den Compiler-Lauf im Browser): Klammern, #if/#endif, Uniforms vorhanden ----------
+// n31 Abnahme: negativer Mip-Bias in den three.js-Bausteinen (Konstante TAA_MIP, idempotent)
+{
+  const { mipBiasEinbauen } = await import('../../src/gfx/kern/taau.js');
+  const C = THREE.ShaderChunk;
+  const b = mipBiasEinbauen(C, Math.log2(0.65));
+  mipBiasEinbauen(C, Math.log2(0.65));
+  const n = (C.common.match(/#define TAA_MIP/g) || []).length;
+  ok(Math.abs(b - Math.log2(0.65)) < 1e-9 && n === 1 && C.common.includes('#define TAA_MIP -0.621') && C.map_fragment.includes('texture2D( map, vMapUv, TAA_MIP )')
+    && C.normal_fragment_maps.includes('texture2D( normalMap, vNormalMapUv, TAA_MIP )') && !C.displacementmap_vertex.includes('TAA_MIP'),
+    `Mip-Bias: TAA_MIP ${b.toFixed(3)} einmal in common, map/normalMap mit Bias, Vertex-Bausteine unberührt`);
+  ok(mipBiasEinbauen(C, 0) === 0 && C.common.includes('#define TAA_MIP 0.000') && (C.common.match(/#define TAA_MIP/g) || []).length === 1 && mipBiasEinbauen(C, -5) === -2, 'Mip-Bias: 0 ohne TAA, begrenzt auf −2');
+}
+
 {
   const fs = await import('node:fs');
   const pruefe = (datei, uObj) => {

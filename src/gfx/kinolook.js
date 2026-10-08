@@ -555,10 +555,11 @@ export class KinoLook {
   setCarBox(box) {
     this.u.uBoxMin.value.copy(box.min).addScalar(-0.04); this.u.uBoxMin.value.y = box.min.y + 0.12;
     this.u.uBoxMax.value.copy(box.max).addScalar(0.06);
-    // n31 TAA: Auto-Box für die eigene Reprojektion – fast bis zum Boden (Reifen unten), Fahrbahn darunter bleibt Welt.
-    // TODO Heavy-Job: Unterkante am Bild prüfen (Schlieren an den Reifen ↔ Fahrbahn unter dem Auto wandert mit)
+    // n31 TAA: Auto-Box für die eigene Reprojektion. Unterkante 10 cm über den Reifen (Abnahme im Browser: mit 3 cm lag die
+    // Fahrbahn unter dem Heck in der Box – Federung, Neigung –, wanderte mit dem Auto und wurde in Fahrt verworfen); die
+    // untersten Zentimeter der Reifen gelten als Welt (nur der Clip schützt sie – unsichtbar)
     this.taaBox = { min: box.min.clone().addScalar(-0.04), max: box.max.clone().addScalar(0.06) };
-    this.taaBox.min.y = box.min.y + 0.03;
+    this.taaBox.min.y = box.min.y + 0.1;
   }
   reset() { this.prev.ok = false; if (this.taau) this.taau.reset(); }
 
@@ -729,7 +730,8 @@ export class KinoLook {
       U.tBlur.value = this.blurRT.texture;
     }
     // 5. Endbild
-    U.uSharp.value = taa === 'taa' ? (P.taaSharpen ?? 0.4) : (P.sharpen || 0.3);
+    const ts = +this.taaOpts.scharf;   // ?taasharp= (A/B des Nachschärfens mit TAA)
+    U.uSharp.value = taa === 'taa' ? (this.taaOpts.scharf != null && this.taaOpts.scharf !== '' && Number.isFinite(ts) ? ts : (P.taaSharpen ?? 0.4)) : (P.sharpen || 0.3);
     U.uVig.value = (st.vignette ? 0.2 : 0) + (k > 0 ? 0.22 * Math.min(1, k) : 0);
     const sun = o.sunDir;
     if (sun) U.uSunDir.value.copy(sun);

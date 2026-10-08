@@ -3,7 +3,7 @@
 // gegen Bezug (Supersampling), Ruhe über die Zeit, Spur eines bewegten Objekts ohne Maske, Parallaxe mit Disocclusion.
 import {
   halton, jitterFolge, jitterAnzahl, jitterVersatz, jitterProjektion, mat4Mul, mat4Vec, mat4Inv, perspektive, reprojiziere, linZ,
-  rgb2ycocg, ycocg2rgb, clipAabb, varianzBox, disocclusion, mischAnteil, taaModus, taauReferenz, TAAU_STANDARD, gauss,
+  rgb2ycocg, ycocg2rgb, clipAabb, varianzBox, disocclusion, disoBereich, lanczos2, mischAnteil, taaModus, taauReferenz, TAAU_STANDARD, gauss,
 } from '../../src/gfx/kern/taau_mathe.js';
 
 let bad = 0;
@@ -86,6 +86,11 @@ const view = (x, y, z, yaw = 0) => { // Kamera an (x,y,z), um y gedreht → View
   ok(b.mx[0] < 0.9 && b.mn[0] >= 0.1 && b.mu[0] > 0.29 && b.mu[0] < 0.31, `Varianz-Box enger als Min/Max bei Ausreißer (${b.mn[0].toFixed(2)}…${b.mx[0].toFixed(2)})`);
   ok(disocclusion(20, 20) === 0 && disocclusion(20.8, 20) === 0 && nah(disocclusion(21.8, 20), 0.5, 1e-6) && disocclusion(30, 20) === 1 && disocclusion(-20, 20) === 1 && disocclusion(0, 20) === 1,
     'Disocclusion: gleiche Tiefe 0, 4 % 0, 9 % halb, 50 % ganz, Körper↔Welt immer, leere History immer');
+  // n31 Abnahme: Bereichstest – an einer Tiefenkante (Nachbarschaft 10…40 m) passt die History des Vorder- UND des Hintergrunds
+  ok(disoBereich(10, 10, 40) === 0 && disoBereich(40, 10, 40) === 0 && disoBereich(25, 10, 40) === 0 && disoBereich(5, 10, 40) === 1 && nah(disoBereich(10 / 1.09, 10, 40), 0.5, 1e-6)
+    && disoBereich(-10, 10, 40, 1, 1) === 1 && disoBereich(-10, 10, 40, 1, -1) === 0 && disoBereich(0, 10, 40) === 1,
+    'Disocclusion-Bereich: Vorder-/Hintergrund an der Kante passen, davor (freigelegt) verworfen, Körper nur wenn keine Abtastung Körper ist');
+  ok(nah(lanczos2(0), 1) && nah(lanczos2(1), 0) && lanczos2(2.25) < 0 && nah(lanczos2(4), 0) && lanczos2(0.25) > 0.55 && lanczos2(0.25) < 0.65, 'Lanczos-2-Näherung: 1 bei 0, Nullstellen bei 1 und 2, negative Keule dazwischen');
   ok(nah(mischAnteil(1, 0), 1 - TAAU_STANDARD.gewicht) && mischAnteil(0, 0) === TAAU_STANDARD.alphaMin && mischAnteil(1, 1) === 1 && mischAnteil(0.1, 0, 0.5) === 0.5,
     'Mischanteil: voller Treffer = 1 − Gewicht, kein Treffer = Minimum, Ablehnung = neues Bild, reaktiv = Mindestanteil');
   ok(taaModus({ gewuenscht: false }) === 'aus' && taaModus({ gewuenscht: true }) === 'taa' && taaModus({ gewuenscht: true, technik: false }) === 'aus'

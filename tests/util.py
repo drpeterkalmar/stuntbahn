@@ -92,7 +92,7 @@ class Session:
         _gl_checked = True
         try: r = self.ev(GL_RENDERER)
         except Exception as e: r = 'unbekannt (' + str(e)[:80] + ')'
-        if ARGS is GPU_ARGS and 'Metal' not in str(r):
+        if ARGS is GPU_ARGS and 'Metal' not in str(r) and 'Vulkan' not in str(r):
             print('WARNUNG WebGL läuft nicht auf der GPU:', r, file=sys.stderr, flush=True)
     def ev(self, js, arg=None):
         return self.pg.evaluate(js, arg) if arg is not None else self.pg.evaluate(js)

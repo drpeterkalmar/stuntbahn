@@ -25,8 +25,10 @@ PORT = dict(PIXEL7_LAND, viewport={"width": 412, "height": 915})
 DEV = {'quer': PIXEL7_LAND, 'hoch': PORT}
 BASIS = '?nosw&q=2&startprobe=0&seed=4711&d=3&g=1&blur=off&reflex=0'
 FONT = None
-try: FONT = ImageFont.truetype('/System/Library/Fonts/Helvetica.ttc', 24)
-except Exception: FONT = ImageFont.load_default()
+for _f in ('/System/Library/Fonts/Helvetica.ttc', '/usr/share/fonts/TTF/DejaVuSans.ttf'):   # macOS, Linux
+    try: FONT = ImageFont.truetype(_f, 24); break
+    except Exception: pass
+FONT = FONT or ImageFont.load_default()
 
 # Varianten: (Name, URL-Zusatz, Renderskala, MSAA erzwingen oder None)
 VAR = [

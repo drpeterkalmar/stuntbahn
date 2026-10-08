@@ -3,6 +3,10 @@
 //  - Fahrbahnmarkierungen (Randlinien, Mittelstreifen, Start/Ziel-Karo, Checkpoint-Linie)
 //  - Randsteine rot/weiß, Gras mit Kachel-Brechung
 import * as THREE from 'three';
+import { mipBiasEinbauen } from './kern/taau.js';
+// n31: TAA_MIP muss in jedem Fall definiert sein (Fahrbahn-Detail/Gelände nutzen es); main.js setzt den Wert vor dem ersten
+// Übersetzen (negativer Mip-Bias mit TAAU), sonst 0
+mipBiasEinbauen(THREE.ShaderChunk, 0);
 import { MAT, WORLD_HALF, WORLD_SCALE } from '../track/defs.js';
 
 const loader = new THREE.TextureLoader();
@@ -191,7 +195,7 @@ function patchRoad(mat, detail = true) {
       #ifdef USE_NORMALMAP_TANGENTSPACE
       // n30: Asphaltkorn nahe der Kamera (gleichförmige Bedingung → Mipmaps gültig; Ausblenden über fade)
       if ( sbKino > 0.5 && sbDetailK > 0.0 ) {
-        vec3 dN = texture2D( sbDetailNor, vec2( vRoad.x, vRoad.z ) * sbDetailTile ).xyz * 2.0 - 1.0;
+        vec3 dN = texture2D( sbDetailNor, vec2( vRoad.x, vRoad.z ) * sbDetailTile, TAA_MIP ).xyz * 2.0 - 1.0;
         float fade = sbDetailK * ( 1.0 - smoothstep( 4.0, 20.0, length( vViewPosition ) ) );
         normal = normalize( normal + tbn * vec3( dN.xy * sbDetailStr * fade, 0.0 ) );
       }
@@ -307,7 +311,7 @@ function patchGrass(mat) {
         return mix( mix( gHash( i ), gHash( i + vec2( 1, 0 ) ), f.x ), mix( gHash( i + vec2( 0, 1 ) ), gHash( i + vec2( 1, 1 ) ), f.x ), f.y ); }`)
       .replace('#include <map_fragment>', `#include <map_fragment>
       {
-        vec3 c2 = texture2D( map, vGw * 0.071 + vec2( 0.37, 0.11 ) ).rgb;
+        vec3 c2 = texture2D( map, vGw * 0.071 + vec2( 0.37, 0.11 ), TAA_MIP ).rgb;
         float n = gNoise( vGw * 0.018 ) * 0.6 + gNoise( vGw * 0.07 ) * 0.4;
         vec3 base = mix( diffuseColor.rgb, c2, 0.45 );
         float lum = dot( base, vec3( 0.3, 0.55, 0.15 ) );
