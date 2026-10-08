@@ -9,6 +9,7 @@ werden: Datei(en) nach `src/gfx/kern/` legen, im Spiel ein paar Zeilen Anschluss
 | 2 Start-Kurzmessung | `kern/startprobe.js` | `tests/node/test_autopilot.mjs` (Teil 11) |
 | 3 Qualitäts-Autopilot | `kern/autopilot.js` | `tests/node/test_autopilot.mjs`, im Browser `tests/test_autopilot.py` |
 | 4 Impostor-Bäcker | `kern/oktaeder.js`, `kern/impostor.js`, `tools/build_impostor.{mjs,html,py}` | `tests/node/test_oktaeder.mjs` |
+| 5 TAAU (n31) | `kern/taau.js`, `kern/taau_mathe.js` | `tests/node/test_taau.mjs`, `tests/node/test_taau_kino.mjs`, im Browser `tests/taau_shots.py` |
 | – Lack-Spiegelung | `kern/reflex.js` | `tests/technik_shots.py reflex`, A/B mit `perf_gate.py --ab` |
 | – Asset-Kette | `tools/hdr_diaet.mjs`, `tools/build_assets.mjs --car-mid`, `tools/build_detail_nor.mjs` | `test_hdr`, `test_lod`, `test_detail` |
 
@@ -47,3 +48,8 @@ Kosten im Handy-Profil: eine Würfelseite je Bild ≈ 10–17 Draw-Calls; auf de
 **Vertex-AO** (`src/track/vao.js`, spielspezifisch, aber übertragbar): Strahlen je Eckpunkt gegen die Kollisionswelt,
 schrittweise in den ersten Bildern. Lehre aus der Abnahme: nur Vorderseiten zählen, und grob vernetzte Böden (Fahrbahn
 mit Ecken nur am Rand) ausnehmen, sonst verschmiert die Verdeckung über die ganze Fläche.
+
+**TAAU** (temporales Hochskalieren mit Kantenglättung, n31): `taau.js` + `taau_mathe.js` kopieren. Mit Kino-Look nur
+`stages: '+taa'`; ohne Kino-Look `jitterAn` → Szene (Farbe + DepthTexture, ohne MSAA) → `jitterAus` → `resolve()`. Bewegte
+Objekte als Körper anmelden. Ausführlich: `KINOLOOK.md` „TAAU in ein anderes Spiel“. Node-Tests laden three.js über
+`tests/node/three_haken.mjs` aus `lib/` (Renderer-Attrappe, kein Browser).

@@ -77,10 +77,11 @@ const quality = new Quality(renderer, params.get('q') ?? (LOOK_FIX != null ? Str
 // n30: Kino ohne SSAO, solange die gebackene Vertex-AO an ist (Wände, Röhre, Looping; ?vao=0 = SSAO wie bisher);
 // ?kl=+ssao schaltet sie trotzdem zu (spätere Angabe gewinnt)
 // n31: TAAU als Kino-Look-Stufe `taa` (Standard AUS): ?taa=1 an, ?taa=0 aus; ?taaw= History-Gewicht (0,9), ?jit= Jitter-Muster
-// (auto | 8 | 16 | 32 | 0 = kein Versatz), ?taagamma= Clip-Breite, ?taadis= Disocclusion-Schwelle – für Peters A/B
+// (auto | 8 | 16 | 32 | 0 = kein Versatz), ?taagamma= Clip-Breite, ?taadis= Disocclusion-Schwelle, ?taaskala= Start-Renderskala
+// (0,6–1; mit fester Stufe ?q= bleibt sie stehen) – für Peters A/B
 const TAA_URL = params.get('taa') === '1' ? '+taa' : params.get('taa') === '0' ? '-taa' : '';
 const kino = LOOK === 'alt' ? null : new KinoLook(renderer, { level: LOOK_FIX ?? quality.tier, stages: [params.get('vao') === '0' ? '' : '-ssao', TAA_URL, params.get('kl') || ''].filter(Boolean).join(','),
-  taa: { gewicht: params.get('taaw'), muster: params.get('jit'), gamma: params.get('taagamma'), dis: params.get('taadis') } });
+  taa: { gewicht: params.get('taaw'), muster: params.get('jit'), gamma: params.get('taagamma'), dis: params.get('taadis'), skala: params.get('taaskala') } });
 // Bewegungsunschärfe: im Kino-Look Teil derselben Pipeline (ein Szenen-Durchlauf); ?look=alt: bisheriges post.js
 const post = kino || new Post(renderer);
 quality.post = post; quality.kino = kino;

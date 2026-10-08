@@ -455,7 +455,7 @@ export class KinoLook {
     this.samples = null;           // MSAA-Abtastungen erzwingen (Tests); sonst Preset
     this.dtS = 1 / 60;
     this.renderScale = 1; this.scaleRange = [1, 1, 1];
-    // n31 TAAU: opts.taa = { gewicht, muster, gamma, dis } (URL ?taaw= ?jit= ?taagamma= ?taadis=); an über Stufe `taa`.
+    // n31 TAAU: opts.taa = { gewicht, muster, gamma, dis, skala } (URL ?taaw= ?jit= ?taagamma= ?taadis= ?taaskala=); an über Stufe `taa`.
     // taaRueckfall setzt der Autopilot (true = FXAA-Art statt TAA); taau wird erst angelegt, wenn die Stufe gewünscht ist
     this.taaOpts = opts.taa || {}; this.taau = null; this.taaRueckfall = false; this.taaLetzt = 'aus';
     this.level = -1;
@@ -538,7 +538,11 @@ export class KinoLook {
   // n31: mit Stufe `taa` der TAAU-Bereich (z. B. Kino 0,7 / 0,6 / 1 statt 1 / 0,7 / 1 mit MSAA 4)
   scaleRangeOf(level) {
     const P = PRESETS[level];
-    if (P && P.taaScale && this.taaGewuenscht(level) && this.taaTechnik()) return P.taaScale;
+    if (P && P.taaScale && this.taaGewuenscht(level) && this.taaTechnik()) {
+      // ?taaskala= setzt den Start (A/B „0,65 + TAAU“ gegen „1,0 + MSAA 4“ bei fester Grafikstufe), innerhalb [Min, Max]
+      const [, lo, hi] = P.taaScale, w = +this.taaOpts.skala;
+      return this.taaOpts.skala != null && this.taaOpts.skala !== '' && Number.isFinite(w) ? [Math.max(lo, Math.min(hi, w)), lo, hi] : P.taaScale;
+    }
     return (P && P.scale) || [1, 1, 1];
   }
   describe() {

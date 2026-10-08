@@ -125,6 +125,13 @@ const endbild = (log) => log.find((e) => e.ziel === null && e.defines);
   ok(k.taaModus() === 'aus', '?taa=1&kl=-taa → aus (kl gewinnt)');
 }
 
+// ---------- 4b. ?taaskala= (Start-Renderskala für A/B), geklemmt auf den TAAU-Bereich ----------
+{
+  const a = new KinoLook(attrappe(), { level: 2, stages: '+taa', taa: { skala: '0.65' } }), b = new KinoLook(attrappe(), { level: 1, stages: '+taa', taa: { skala: '0.3' } });
+  const c = new KinoLook(attrappe(), { level: 2, stages: '+taa', taa: { skala: null } });
+  ok(a.renderScale === 0.65 && a.scaleRange.join() === '0.65,0.6,1' && b.renderScale === 0.6 && c.renderScale === 0.7, `?taaskala=0.65 → Start ${a.renderScale}; 0,3 → auf ${b.renderScale} geklemmt; ohne → ${c.renderScale}`);
+}
+
 // ---------- 5. quality.js: Renderskalen-Bereich und Autopilot-Stufe ----------
 {
   const r = attrappe(), k = new KinoLook(r, { level: 2, stages: '+taa' });
