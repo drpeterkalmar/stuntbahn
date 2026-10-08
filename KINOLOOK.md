@@ -70,3 +70,44 @@ Bandenkick oder Schmetterlingswiese.
   zeichnen mit `impostorMesh()` – ein Draw-Call je Art.
 - **Lack-Spiegelung** (`kern/reflex.js`): `attach()` nur für Klarlack-Materialien, Spiegel-Objekte auf eigene Ebene,
   `update()` je Bild vor dem Zeichnen. Kostet je Bild eine Würfelseite (≈ 10–17 Draw-Calls) – vorher messen.
+
+## TAAU in ein anderes Spiel (n31, Stufe `taa`)
+Temporales Hochskalieren mit Kantenglättung („DLSS-Ersatz“) auf WebGL2, eigener Code. Szene mit Halton-Versatz in
+Renderskala 0,6–0,7, **ohne MSAA**; **ein** Resolve-Durchgang in Bildschirmauflösung sammelt die Abtastungen über die Zeit
+in einer History (HalfFloat, Ping-Pong); danach nur CAS-Nachschärfen. Dateien: `src/gfx/kern/taau.js` (three.js, Shader,
+Klasse `TAAU`) + `src/gfx/kern/taau_mathe.js` (reine Mathematik, CPU-Vorlage des Shaders, Node-Test `tests/node/test_taau.mjs`).
+Status: Stuntbahn n31 – Standard **aus** (`?taa=1` an), Abnahme im Browser siehe `TAAU_BERICHT.md`.
+
+**Mit Kino-Look** (Bandenkick, Schmetterlingswiese, sobald dort `kinolook.js` läuft): `kinolook.js` + beide Kern-Dateien
+kopieren, dann
+```js
+const kino = new KinoLook(renderer, { level: 2, stages: '+taa', taa: { gewicht: 0.9, muster: 'auto' } });
+kino.setCarBox(box);                                   // Box des Spielerobjekts in dessen Koordinaten (wie für die Unschärfe)
+kino.render(scene, camera, { car: spieler, ghost: durchsichtigesObjekt, cut, dt, sunDir });
+```
+Der Kino-Look schaltet mit `taa` selbst MSAA ab, nimmt den Renderskalen-Bereich `PRESETS[n].taaScale` und liest im Endbild
+die History. Rückfall auf die FXAA-Art: `kino.taaRueckfall = true` (z. B. als Autopilot-Stufe
+`ap.register('taa', 0.05, (s) => { kino.taaRueckfall = s === 0; })`) oder Renderskala < 0,6. Ohne HalfFloat-Ziel bleibt
+automatisch der bisherige Weg (MSAA).
+
+**Ohne Kino-Look** (eigene Post-Kette): `TAAU` direkt, siehe Kopf von `kern/taau.js`:
+`jitterAn(camera, sw, sh, skala)` → Szene in ein Ziel mit Farbe + `DepthTexture` (ohne MSAA) → `jitterAus(camera)` →
+`resolve(renderer, { farbe, tiefe, sw, sh, w, h, camera, schnitt })` liefert die Textur in w × h.
+
+| Was das Spiel liefert | Wozu |
+|---|---|
+| Farbe in Anzeige-Werten (8 bit reicht) + Tiefe als Textur, perspektivisch (kein logarithmischer Tiefenpuffer) | Rekonstruktion, Reprojektion über Tiefe |
+| Kamera unverändert zwischen `jitterAn` und `jitterAus` (kein `updateProjectionMatrix` dazwischen) | Versatz nur für diesen Durchlauf |
+| `cut`/`schnitt` bei Kameraschnitt/Teleport (große Sprünge erkennt der Kino-Look selbst) | History neu ansetzen |
+| bewegte Objekte mit Tiefe: `koerper(i, obj, box, 'fest')` (Spielerauto, Ball, Figur) | eigene Reprojektion → kein Ghosting |
+| durchsichtige bewegte Objekte: `koerper(i, obj, box, 'durchsichtig')` (Geist) | History dort schwächer (reaktiv) |
+| Overlays (Cockpit, 3D-HUD) erst NACH dem Endbild | bleiben scharf, ohne Versatz |
+
+**Uniforms des Resolves** (`taau.u`): `uGewicht` (History-Anteil, 0,9), `uGamma` (Varianz-Clip, 1,25), `uDis`
+(Disocclusion, relative Tiefe 0,06), `uSigRek`/`uSigTreffer` (Kerne in Render- bzw. Zielpixeln), `uAlphaMin`, Körper
+`uKInv/uKDelta/uKMin/uKMax/uKArt[2]`. Für andere Durchgänge, die die verschobene Tiefe lesen (Dunst, Tiefenschärfe):
+`taau.uJit` (uv) addieren, sonst flimmern sie an Kanten. **URL-Regler** für A/B: `?taa=0|1`, `?taaw=`, `?jit=auto|8|16|32|0`,
+`?taagamma=`, `?taadis=`, `?taaskala=` (Start-Renderskala, z. B. 0.65).
+
+**Grenzen:** Partikel, Rauch, Feuerwerk und Shader-animierte Karten haben keine Bewegungsdaten – nur der Nachbarschafts-Clip
+schützt (Randsaum 2–3 px im ersten Bild). Brauchen sie mehr, als eigene Körper anmelden oder nach dem Resolve zeichnen.

@@ -76,7 +76,12 @@ const LOOK_FIX = LOOK != null && /^[012]$/.test(LOOK) ? +LOOK : null;
 const quality = new Quality(renderer, params.get('q') ?? (LOOK_FIX != null ? String(LOOK_FIX) : null), { autopilot: params.get('autopilot') !== '0', tightShadow: params.get('schattenkam') !== '0' });
 // n30: Kino ohne SSAO, solange die gebackene Vertex-AO an ist (Wände, Röhre, Looping; ?vao=0 = SSAO wie bisher);
 // ?kl=+ssao schaltet sie trotzdem zu (spätere Angabe gewinnt)
-const kino = LOOK === 'alt' ? null : new KinoLook(renderer, { level: LOOK_FIX ?? quality.tier, stages: [params.get('vao') === '0' ? '' : '-ssao', params.get('kl') || ''].filter(Boolean).join(',') });
+// n31: TAAU als Kino-Look-Stufe `taa` (Standard AUS): ?taa=1 an, ?taa=0 aus; ?taaw= History-Gewicht (0,9), ?jit= Jitter-Muster
+// (auto | 8 | 16 | 32 | 0 = kein Versatz), ?taagamma= Clip-Breite, ?taadis= Disocclusion-Schwelle, ?taaskala= Start-Renderskala
+// (0,6–1; mit fester Stufe ?q= bleibt sie stehen) – für Peters A/B
+const TAA_URL = params.get('taa') === '1' ? '+taa' : params.get('taa') === '0' ? '-taa' : '';
+const kino = LOOK === 'alt' ? null : new KinoLook(renderer, { level: LOOK_FIX ?? quality.tier, stages: [params.get('vao') === '0' ? '' : '-ssao', TAA_URL, params.get('kl') || ''].filter(Boolean).join(','),
+  taa: { gewicht: params.get('taaw'), muster: params.get('jit'), gamma: params.get('taagamma'), dis: params.get('taadis'), skala: params.get('taaskala') } });
 // Bewegungsunschärfe: im Kino-Look Teil derselben Pipeline (ein Szenen-Durchlauf); ?look=alt: bisheriges post.js
 const post = kino || new Post(renderer);
 quality.post = post; quality.kino = kino;
@@ -250,7 +255,8 @@ async function startAutopilot() {
     app.startProbe = { ...r, skala: start.skala };
   }
   quality.startAutopilot({ skala: start ? start.skala : st, gl,
-    extra: reflex ? [['reflex', 0.06, (s) => { reflexOff = s === 0; }]] : [],
+    // n31: TAAU als Stufe – zu langsam (Renderskala schon am Minimum 0,6) → Rückfall auf die FXAA-Art (MSAA bleibt aus)
+    extra: [...(reflex ? [['reflex', 0.06, (s) => { reflexOff = s === 0; }]] : []), ...(kino && kino.taaGewuenscht(2) && kino.taaTechnik() ? [['taa', 0.05, (s) => { kino.taaRueckfall = s === 0; }]] : [])],
     onAenderung: () => merkeGeraet(localStorage, key, { skala: quality.ap.skala, stufe: quality.tier }) });
   if (start && quality.ap) merkeGeraet(localStorage, key, { skala: quality.ap.skala, stufe: quality.tier });
 }
@@ -1058,7 +1064,7 @@ function drawFrame(o) {
   const overlay = o.cockpit ? (r) => cockpit.render(r) : null;
   if (kino) {
     kino.setLevel(LOOK_FIX ?? quality.tier);
-    kino.render(scene, camera, { run: o.run, speed: o.speed, boost: o.boost, car: carVis.root, dt: o.dt, cut: o.cut, sunDir: sun.userData.dir, heat: o.heat, overlay, time: app.fixTime, dof: o.dof, shutter: o.shutter, flash: o.flash, white: o.white, whip: o.whip, flareK: o.flareK });
+    kino.render(scene, camera, { run: o.run, speed: o.speed, boost: o.boost, car: carVis.root, ghost: ghostVis.root, dt: o.dt, cut: o.cut, sunDir: sun.userData.dir, heat: o.heat, overlay, time: app.fixTime, dof: o.dof, shutter: o.shutter, flash: o.flash, white: o.white, whip: o.whip, flareK: o.flareK });
     return;
   }
   if (!post.render(scene, camera, { run: o.run, speed: o.speed, boost: o.boost, car: carVis.root, dt: o.dt, cut: o.cut })) renderer.render(scene, camera);
