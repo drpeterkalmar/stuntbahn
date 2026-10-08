@@ -1,0 +1,87 @@
+{
+ "datum": "2026-10-08T11:36:34",
+ "stand": "ab_fix",
+ "modus": "ab",
+ "runden": 3,
+ "varianten": [
+  {
+   "name": "vorher",
+   "wurzel": "/Users/wohnzimmer/dev/stuntbahn_vorher",
+   "zusatz": ""
+  },
+  {
+   "name": "nachher",
+   "wurzel": "/Users/wohnzimmer/dev/stuntbahn",
+   "zusatz": ""
+  }
+ ],
+ "profil": {
+  "drossel": 4,
+  "dpr": 2.6,
+  "sek": 10,
+  "start": "open",
+  "vsync": false
+ },
+ "szenen": {
+  "looping_kino": {
+   "quer": {
+    "vorher": {
+     "p50": 5.4,
+     "p95": 6.7,
+     "fps": 184.7,
+     "calls": 80,
+     "tris": 296751,
+     "runden_p95": [
+      6.7,
+      6.9,
+      6.7
+     ],
+     "fehler": []
+    },
+    "nachher": {
+     "p50": 6.4,
+     "p95": 7.2,
+     "fps": 155.8,
+     "calls": 91,
+     "tris": 368613,
+     "runden_p95": [
+      7.1,
+      7.2,
+      7.2
+     ],
+     "fehler": []
+    }
+   }
+  },
+  "rennen_standard": {
+   "quer": {
+    "vorher": {
+     "p50": 3.8,
+     "p95": 5.4,
+     "fps": 254.9,
+     "calls": 96,
+     "tris": 257406,
+     "runden_p95": [
+      5.5,
+      5.3,
+      5.4
+     ],
+     "fehler": []
+    },
+    "nachher": {
+     "p50": 4.2,
+     "p95": 5.7,
+     "fps": 234.8,
+     "calls": 96,
+     "tris": 249031,
+     "runden_p95": [
+      5.7,
+      5.6,
+      5.7
+     ],
+     "fehler": []
+    }
+   }
+  }
+ }
+}

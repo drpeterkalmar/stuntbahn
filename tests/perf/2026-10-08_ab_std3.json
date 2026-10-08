@@ -1,0 +1,111 @@
+{
+ "datum": "2026-10-08T12:08:34",
+ "stand": "ab_std3",
+ "modus": "ab",
+ "runden": 3,
+ "varianten": [
+  {
+   "name": "vorher",
+   "wurzel": "/Users/wohnzimmer/dev/stuntbahn_vorher",
+   "zusatz": ""
+  },
+  {
+   "name": "nachher",
+   "wurzel": "/Users/wohnzimmer/dev/stuntbahn",
+   "zusatz": ""
+  },
+  {
+   "name": "imp0",
+   "wurzel": "/Users/wohnzimmer/dev/stuntbahn",
+   "zusatz": "&impostor=0"
+  },
+  {
+   "name": "lod0ap0",
+   "wurzel": "/Users/wohnzimmer/dev/stuntbahn",
+   "zusatz": "&lod=0&autopilot=0"
+  },
+  {
+   "name": "imp0lod0ap0",
+   "wurzel": "/Users/wohnzimmer/dev/stuntbahn",
+   "zusatz": "&impostor=0&lod=0&autopilot=0"
+  }
+ ],
+ "profil": {
+  "drossel": 4,
+  "dpr": 2.6,
+  "sek": 10,
+  "start": "open",
+  "vsync": false
+ },
+ "szenen": {
+  "rennen_standard": {
+   "quer": {
+    "vorher": {
+     "p50": 3.9,
+     "p95": 5.4,
+     "fps": 251,
+     "calls": 96,
+     "tris": 257404,
+     "runden_p95": [
+      5.5,
+      5.4,
+      5.4
+     ],
+     "fehler": []
+    },
+    "nachher": {
+     "p50": 4.1,
+     "p95": 5.6,
+     "fps": 237.5,
+     "calls": 96,
+     "tris": 249129,
+     "runden_p95": [
+      5.6,
+      5.7,
+      5.6
+     ],
+     "fehler": []
+    },
+    "imp0": {
+     "p50": 4.1,
+     "p95": 5.7,
+     "fps": 236,
+     "calls": 96,
+     "tris": 257431,
+     "runden_p95": [
+      5.7,
+      5.8,
+      5.5
+     ],
+     "fehler": []
+    },
+    "lod0ap0": {
+     "p50": 4,
+     "p95": 5.5,
+     "fps": 245.9,
+     "calls": 96,
+     "tris": 249069,
+     "runden_p95": [
+      5.7,
+      5.5,
+      5.5
+     ],
+     "fehler": []
+    },
+    "imp0lod0ap0": {
+     "p50": 3.9,
+     "p95": 5.4,
+     "fps": 249.5,
+     "calls": 96,
+     "tris": 257403,
+     "runden_p95": [
+      5.4,
+      5.4,
+      5.5
+     ],
+     "fehler": []
+    }
+   }
+  }
+ }
+}

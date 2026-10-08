@@ -69,6 +69,25 @@ spielbar am Handy (quer oder hochkant), mit Gamepad oder Tastatur. Als App insta
   Abstand zu jeder Fahrbahn (auch Hochstraßen/Rampen), nie im Wasser. Dosiert nach Grafikstufe; ruckelt es, blendet die
   Automatik (nach der Unschärfe) zuerst Gras/Büsche/Wolkenschatten aus. `?deko=aus` (bis n29 `?deko=0`) / `?wolken=0` zum Vergleich.
 
+## 🏎️ Forza-Look bei flüssiger Bildrate + Grafik-Kern (seit 08.10.2026, n30 „Technik“)
+- Peter: „Überlege, wie wir Stuntbahn Details bekommen wie Forza … bei flüssiger Webapp-Leistung.“ Reine Technik/Optik –
+  Physik, Steuerung, Strecken und Bestzeiten unverändert.
+- **Lack spiegelt die Strecke** (Grafik „Kino“): kleine Würfel-Umgebung am Auto, je Bild eine Seite, nur im Klarlack.
+  **Bäume plastisch** (Standard/Kino): Oktaeder-Impostors (8×8 gebackene Ansichten mit Normalen fürs Licht) statt gekreuzter
+  Karten, Schnee im Winter, Herbstlaub. **Asphalt nah** mit Korn und Spurrinnen. Gebackene Umgebungsverdeckung für Wände,
+  Röhre, Looping (Kino dafür ohne SSAO).
+- **Sparen:** Umgebungs-HDRs 512×256 (−6 MB), Heldenauto in drei Detailstufen (55,7 k / 15,8 k / 8,7 k Dreiecke nach
+  Entfernung, Geist mindestens Mittel), Auto-Schattenkarte eng um das Auto (Kino 1024 statt 2048 bei gleicher Schärfe).
+- **Grafik-Autopilot:** misst die Arbeit je Bild (CPU + GPU-Zeit, wenn der Browser sie gibt), regelt Auflösung → Deko →
+  Lack-Spiegelung → Auto-Schatten → Stufe herunter **und wieder hinauf**, ohne Pendeln; beim ersten Start 20-Bilder-Probe im
+  Ladebildschirm, Ergebnis je Gerät gespeichert. Kino bleibt Startstufe. Gedeckelte Bildrate (Energiesparmodus) → kein Herunterregeln.
+- Gemessen mit dem neuen Mess-Gate (Handy-Profil, vorher/nachher im Wechsel): Kino gleich oder schneller (bis −32 %),
+  Einfach gleich, Standard 0,1–0,4 ms langsamer; Ladegröße gesamt −4,2 MB. Details, Fotos, Grenzen: `TECHNIK_BERICHT.md`.
+- **A/B:** `?reflex=0` (bzw. `=1` auch auf Standard), `?impostor=0`, `?detail=0`, `?vao=0`, `?lod=0`, `?autopilot=0`,
+  `?hdr=1k`, `?schattenkam=0`, `?startprobe=0`. Handy: App einmal ganz schließen und neu öffnen.
+- **Grafik-Kern `src/gfx/kern/`** für die anderen Spiele (Autopilot, Kurzmessung, Impostors, Spiegelung) +
+  `tests/perf_gate.py` + Asset-Skripte: Anleitung `src/gfx/kern/LIESMICH.md` und `KINOLOOK.md`.
+
 ## ✨ Mehr Details und Leben, ohne langsamer zu werden (seit 07.10.2026, n28 „Deko“)
 - Peter: „Jedes Spiel mit Opus max ressourcenschonend verschönern … also mehr Details und Eye Candy.“ Reine Optik –
   Physik, Fahrhilfen, Strecken und Bestzeiten unverändert.
@@ -335,7 +354,7 @@ zurückgesetzt, an der er die Fahrbahn verlassen hat (Uhr läuft weiter). Ab 18 
   (funktioniert kopfüber). Fahrhilfen = Mischung Spieler/Autopilot.
 - Grafik: HDRI-Himmel + bildbasiertes Licht, PBR-Texturen, Klarlack-Auto, **vorberechneter Sonnenschatten**
   für die statische Strecke (einmal gerenderte Tiefenkarte), Echtzeit-Schatten nur fürs Auto,
-  automatische Qualitätsstufen nach Bildrate.
+  automatische Qualitätsstufen (seit n30 Grafik-Autopilot nach Arbeitszeit, `src/gfx/kern/`).
 - **Ton aus Aufnahmen** (seit 30.09.2026, n16; CC0 von freesound.org, eine Datei `assets/snd/sfx.m4a`, 0,27 MB, beim Laden der
   Seite dekodiert): Motor aus Drehzahl-Loops eines Prüfstandslaufs (Last und Schiebebetrieb getrennt, überblendet,
   Tonhöhe folgt der Drehzahl), Zündunterbrechung beim Hochschalten, Zwischengas beim Runterschalten, Fehlzündungen im
@@ -348,6 +367,11 @@ zurückgesetzt, an der er die Fahrbahn verlassen hat (Uhr läuft weiter). Ab 18 
 ## Entwicklung & Tests
 ```bash
 npm run test:node                         # alle Node-Tests (Parser, Import, Physik, Generator, Fahrhilfen)
+python3 tests/perf_gate.py --stand nachher # n30 Mess-Gate Handy-Profil (CPU ×4, DPR 2,6, hoch+quer) → tests/perf/<datum>_<stand>.json
+python3 tests/perf_gate.py --ab vorher=../stuntbahn_vorher:: --ab nachher=   # vorher/nachher im Wechsel (Median aus 3 Runden)
+python3 tests/test_autopilot.py           # n30 Grafik-Autopilot im Browser: Last rauf/runter, Reaktion ≤ 3 s, kein Pendeln
+python3 tests/technik_shots.py hdr,lod,schatten,detail,reflex,vao2,baeume,looping hoch,quer   # n30 Vergleichs-Collagen
+python3 tools/build_impostor.py           # n30 Baum-Impostors backen (assets_src/ nötig) → assets/tex/imp/
 node tests/node/test_trk_parser.mjs       # .TRK-Parser + Elementtabelle (Byte-Layout, alle Codes)
 node tests/node/test_trk_import.mjs       # jedes Element baubar, Wegverfolgung, Gelände, Beispielstrecke
 node tests/node/test_trk_corpus.mjs 200   # nur lokal: Archiv-Strecken in trk_local/ (nicht im Repo)

@@ -438,7 +438,9 @@ async function loadTrack(layout, meta = {}, pre = null) {
   await placeParkedCars(track);
   bakeStaticShadow(renderer, scene, sun.userData.dir, track.bounds, quality.staticShadowSize());
   // n30: gebackene Vertex-AO der Strecke – schrittweise in den ersten Bildern (frame), ?vao=0 = aus, ?vao=sync = sofort
-  vaoJob = params.get('vao') === '0' ? null : vaoAuftrag(worldGroup, world, { sync: params.get('vao') === 'sync' });
+  // nur auf Kino: dort ersetzt sie SSAO (spart), auf Standard kostete sie im Handy-Profil ~0,2 ms je Bild (+4 % p95) bei
+  // kaum sichtbarer Wirkung – Budget „gleich oder besser“ (n30-Messung). ?vao=1 auch auf Standard/Einfach
+  vaoJob = params.get('vao') === '0' || (quality.tier < 2 && params.get('vao') !== '1' && params.get('vao') !== 'sync') ? null : vaoAuftrag(worldGroup, world, { sync: params.get('vao') === 'sync' });
   vaoUniforms.sbVaoOn.value = vaoJob && vaoJob.done ? 1 : 0;   // fertig → in frame() weich einblenden statt „Plopp“
   rig.setTrackCams(track);
   lineViz.build(ideal, prof, track);
@@ -731,9 +733,11 @@ function frame(now) {
   }
   // Test-Haken (tests/test_autopilot.py): künstliche Arbeit je Bild in ms – zählt in die CPU-Zeit wie echte Spiellast
   if (app.testLast > 0) { const tE = performance.now() + app.testLast; while (performance.now() < tE); }
-  if (quality.gpu) quality.gpu.anfang();
+  // GPU-Zeit nur messen, wenn der Autopilot regelt (feste Nutzerwahl: keine Abfragen, kostet sonst je Bild)
+  const gpuMess = quality.gpu && !quality.forced;
+  if (gpuMess) quality.gpu.anfang();
   render(rdt);
-  if (quality.gpu) quality.gpu.ende();
+  if (gpuMess) quality.gpu.ende();
   cpuLast = performance.now() - tA;
   // n30: Vertex-AO nach dem Zeichnen und außerhalb der Autopilot-Messung, nur mit Luft im Bild (Menü bis 8 ms, sonst bis
   // 3 ms); fertig → über 1,5 s einblenden
@@ -1024,7 +1028,10 @@ function cineCamera(rdt, pose) {
 const REFLEX_SKY = +(params.get('reflexhimmel') || 3);
 const skyHell = () => { sky.material.uniforms.exposure.value = REFLEX_SKY; }, skyNormal = () => { sky.material.uniforms.exposure.value = 1; };
 function reflexOpts() {
-  return { hide: [carVis.root, ghostVis.root], skip: !carVis.root.visible || carVis.lod >= 2 || (sun.castShadow && !sun.shadow.map), vor: skyHell, nach: skyNormal };
+  // kopfüber (Looping, Korkenzieher): die Würfelkamera 0,9 m über der Automitte säße in bzw. hinter der Fahrbahn → nicht
+  // neu zeichnen, der letzte Würfel bleibt (spart dort auch die Seite)
+  const kopf = carVis.root.matrixWorld.elements[5] < 0.4;   // y-Anteil der Auto-Hochachse (gilt auch im Replay/Film)
+  return { hide: [carVis.root, ghostVis.root], skip: !carVis.root.visible || carVis.lod >= 2 || kopf || (sun.castShadow && !sun.shadow.map), vor: skyHell, nach: skyNormal };
 }
 // Vorwärmen im Ladebildschirm: ein Bild (legt die Schattenkarte an), eine volle Würfelrunde, noch ein Bild (Vorfiltern) –
 // so werden die Shader der Spiegel-Ansicht beim Laden übersetzt statt als Hänger im ersten Menübild

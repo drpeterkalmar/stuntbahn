@@ -326,10 +326,12 @@ export class GpuZeit {
   }
   abholen() {
     const gl = this.gl;
-    const disjoint = gl.getParameter(this.ext.GPU_DISJOINT_EXT);
+    // getParameter(GPU_DISJOINT) ist ein synchroner Rundlauf zum GPU-Prozess (Chrome) – nur fragen, wenn ein Ergebnis da ist
+    let disjoint = null;
     while (this.offen.length) {
       const q = this.offen[0];
       if (!gl.getQueryParameter(q, gl.QUERY_RESULT_AVAILABLE)) break;
+      if (disjoint === null) disjoint = gl.getParameter(this.ext.GPU_DISJOINT_EXT);
       this.offen.shift();
       const ns = gl.getQueryParameter(q, gl.QUERY_RESULT);
       if (disjoint) this.verworfen++; else this.ms = ns / 1e6;

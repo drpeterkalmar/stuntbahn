@@ -1,0 +1,201 @@
+{
+ "datum": "2026-10-08T11:58:29",
+ "stand": "vorher_nachher_2",
+ "modus": "ab",
+ "runden": 3,
+ "varianten": [
+  {
+   "name": "vorher",
+   "wurzel": "/Users/wohnzimmer/dev/stuntbahn_vorher",
+   "zusatz": ""
+  },
+  {
+   "name": "nachher",
+   "wurzel": "/Users/wohnzimmer/dev/stuntbahn",
+   "zusatz": ""
+  }
+ ],
+ "profil": {
+  "drossel": 4,
+  "dpr": 2.6,
+  "sek": 10,
+  "start": "open",
+  "vsync": false
+ },
+ "szenen": {
+  "looping_kino": {
+   "hoch": {
+    "vorher": {
+     "p50": 6.1,
+     "p95": 7.6,
+     "fps": 162.5,
+     "calls": 82,
+     "tris": 297951,
+     "runden_p95": [
+      7.6,
+      7.7,
+      7.5
+     ],
+     "fehler": []
+    },
+    "nachher": {
+     "p50": 5.5,
+     "p95": 6.8,
+     "fps": 182.5,
+     "calls": 81,
+     "tris": 289630,
+     "runden_p95": [
+      6.8,
+      6.9,
+      6.8
+     ],
+     "fehler": []
+    }
+   },
+   "quer": {
+    "vorher": {
+     "p50": 5.5,
+     "p95": 6.7,
+     "fps": 184,
+     "calls": 80,
+     "tris": 296751,
+     "runden_p95": [
+      6.7,
+      6.7,
+      6.7
+     ],
+     "fehler": []
+    },
+    "nachher": {
+     "p50": 4.8,
+     "p95": 6.3,
+     "fps": 207.1,
+     "calls": 79,
+     "tris": 288430,
+     "runden_p95": [
+      6.4,
+      6.3,
+      6.3
+     ],
+     "fehler": []
+    }
+   }
+  },
+  "looping_standard": {
+   "hoch": {
+    "vorher": {
+     "p50": 3.7,
+     "p95": 4.4,
+     "fps": 269.2,
+     "calls": 79,
+     "tris": 273660,
+     "runden_p95": [
+      4.5,
+      4.3,
+      4.4
+     ],
+     "fehler": []
+    },
+    "nachher": {
+     "p50": 3.8,
+     "p95": 4.5,
+     "fps": 262.4,
+     "calls": 79,
+     "tris": 265340,
+     "runden_p95": [
+      4.6,
+      4.5,
+      4.4
+     ],
+     "fehler": []
+    }
+   },
+   "quer": {
+    "vorher": {
+     "p50": 3.6,
+     "p95": 4.3,
+     "fps": 279.2,
+     "calls": 77,
+     "tris": 272460,
+     "runden_p95": [
+      4.3,
+      4.3,
+      4.2
+     ],
+     "fehler": []
+    },
+    "nachher": {
+     "p50": 3.7,
+     "p95": 4.4,
+     "fps": 268.1,
+     "calls": 77,
+     "tris": 264140,
+     "runden_p95": [
+      4.4,
+      4.4,
+      4.4
+     ],
+     "fehler": []
+    }
+   }
+  },
+  "rennen_standard": {
+   "hoch": {
+    "vorher": {
+     "p50": 3.6,
+     "p95": 5.2,
+     "fps": 268.7,
+     "calls": 81,
+     "tris": 250253,
+     "runden_p95": [
+      5.2,
+      5,
+      5.6
+     ],
+     "fehler": []
+    },
+    "nachher": {
+     "p50": 3.8,
+     "p95": 5.3,
+     "fps": 257,
+     "calls": 82,
+     "tris": 241998,
+     "runden_p95": [
+      5.3,
+      5.4,
+      5.3
+     ],
+     "fehler": []
+    }
+   },
+   "quer": {
+    "vorher": {
+     "p50": 4,
+     "p95": 5.5,
+     "fps": 246.7,
+     "calls": 96,
+     "tris": 257414,
+     "runden_p95": [
+      5.5,
+      5.5,
+      5.7
+     ],
+     "fehler": []
+    },
+    "nachher": {
+     "p50": 4.3,
+     "p95": 5.9,
+     "fps": 229.2,
+     "calls": 96,
+     "tris": 249065,
+     "runden_p95": [
+      5.9,
+      6.1,
+      5.8
+     ],
+     "fehler": []
+    }
+   }
+  }
+ }
+}

@@ -34,10 +34,13 @@ export function impostorArten(def) {
   return (Tt.cells || []).map((c) => c[0]);
 }
 const impArt = (opts, name) => (opts.impostor && opts.tier >= 1 ? opts.impostor.art(name) : null);
-const impOpts = (color, emissive) => ({ color, emissive, tint: themeUniforms.tTreeTint, snow: themeUniforms.tTreeSnow, patch: patchStaticShadow });
+// Standard: nur die nächste Ansicht (1 statt 3 Atlas-Zugriffe je Pixel; n30-Messung: Standard sonst knapp über dem Budget)
+let impEinfach = false;
+const impOpts = (color, emissive) => ({ color, emissive, einfach: impEinfach, tint: themeUniforms.tTreeTint, snow: themeUniforms.tTreeSnow, patch: patchStaticShadow });
 
 // ---------- Bäume (track.trees aus build.js: Positionen bleiben, das Thema bestimmt die Art) ----------
 export function buildTrees(track, M, opts, surfaceY, add, treeGeometry) {
+  impEinfach = (opts.tier ?? 2) < 2;
   const th = opts.theme ? opts.theme.def : THEMES.land, Tt = th.trees;
   let tris = 0;
   if (!track.trees || !track.trees.length) return tris;

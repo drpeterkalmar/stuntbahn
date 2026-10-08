@@ -54,3 +54,19 @@ Render-Target und ein Endbild mit Licht-/Farb-Effekten. Abhängigkeiten: nur `th
 | Schmetterlingswiese (`butterfly-game`) | three.js mit eigenem Toon-Shader und eigener Post-Kette (Bloom/DoF über ¼-Blur) | **1–2 Tage** | Eigene Kette durch `KinoLook` ersetzen oder nur Grade/Hochskalieren übernehmen; Toon-Look → `grade: 'neutral'` + eigener Grade, kein AO |
 | Koboldkeller, Bären-Beautysalon | **Canvas 2D** | eigene Variante, **1–2 Tage** | Kein WebGL → Kino-Look als 2D-Endbild: Farbkorrektur/Vignette/Glühen über `ctx.filter` bzw. ein WebGL-Overlay-Canvas, das das 2D-Bild als Textur bekommt (Grade, Bloom, Vignette, Dither – ohne Tiefe, also ohne Dunst/AO) |
 | Spielebox | DOM/2D | lohnt nicht | – |
+
+## Grafik-Kern `src/gfx/kern/` (n30) – weitere Bausteine zum Kopieren
+Ausführlich in `src/gfx/kern/LIESMICH.md`, Messung und Lehren in `TECHNIK_BERICHT.md`. Je Baustein: so kopierst du das in
+Bandenkick oder Schmetterlingswiese.
+- **Qualitäts-Autopilot** (`kern/autopilot.js` + `kern/startprobe.js`): beide Dateien kopieren, die eigene Automatik
+  (`autoQuality()` bzw. `Renderer.sample()`) durch `new GrafikAutopilot({ skala })` + `register(name, kosten, setzer)`
+  ersetzen, je Bild `ap.bild(dt, cpuMs, gpu.ms)`. Für den Kino-Look: `skala.setzen = (s) => kino.renderScale = s`.
+- **Mess-Gate** (`tests/perf_gate.py`): unverändert kopieren, nur `perf_szenen.json` (Szenen als URL + Schritte) neu
+  schreiben; Vergleich alt/neu mit `--ab vorher=../alt:: --ab nachher=`. Auf dem Mac startet es den Browser per `open`.
+- **Asset-Skripte** (`tools/hdr_diaet.mjs`, `tools/build_assets.mjs --car-mid`): HDR auf 512×256 (−75 %), Modell-LOD mit
+  `simplifyWithAttributes`; Quell- und Zielpfade oben im Skript anpassen, Lizenzzeile in `assets/LICENSES.md` mitnehmen.
+- **Impostor-Bäcker** (`kern/oktaeder.js`, `kern/impostor.js`, `tools/build_impostor.{mjs,html,py}`): eigene Modelle in
+  `tools/impostor_modelle.mjs`, backen mit `python3 tools/build_impostor.py`, laden mit `ImpostorBibliothek`,
+  zeichnen mit `impostorMesh()` – ein Draw-Call je Art.
+- **Lack-Spiegelung** (`kern/reflex.js`): `attach()` nur für Klarlack-Materialien, Spiegel-Objekte auf eigene Ebene,
+  `update()` je Bild vor dem Zeichnen. Kostet je Bild eine Würfelseite (≈ 10–17 Draw-Calls) – vorher messen.
