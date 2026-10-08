@@ -23,6 +23,9 @@ from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 HIER = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HIER)
 GPU_ARGS = ["--use-angle=metal", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist", "--enable-webgl"]
+# Linux (omen16, n31): ANGLE über Vulkan statt Metal (gleiche Weiche wie tests/util.py)
+if sys.platform.startswith('linux'):
+    GPU_ARGS = ["--use-gl=angle", "--use-angle=vulkan", "--ignore-gpu-blocklist", "--enable-webgl"]
 UA = "Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36"
 
 def profil(geraet, dpr):
@@ -222,7 +225,7 @@ def main():
     except Exception: rev = None
     nur = set(x for x in a.nur.split(',') if x)
     res = {'datum': datetime.datetime.now().isoformat(timespec='seconds'), 'stand': a.stand, 'wurzel': wurzel, 'git': rev,
-           'profil': {'drossel': a.drossel, 'dpr': a.dpr, 'sek': a.sek, 'geraete': a.geraete, 'gpu': 'ANGLE/Metal headless', 'start': a.start, 'vsync': a.mit_vsync, 'zusatz': a.zusatz}, 'szenen': {}}
+           'profil': {'drossel': a.drossel, 'dpr': a.dpr, 'sek': a.sek, 'geraete': a.geraete, 'gpu': 'ANGLE/Vulkan headless (Linux)' if sys.platform.startswith('linux') else 'ANGLE/Metal headless', 'start': a.start, 'vsync': a.mit_vsync, 'zusatz': a.zusatz}, 'szenen': {}}
     with Server(wurzel) as srv, sync_playwright() as pw:
         for sz in cfg['szenen']:
             if nur and sz['name'] not in nur: continue
