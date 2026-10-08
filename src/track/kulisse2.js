@@ -243,7 +243,7 @@ export function planKulisse2(c) {
     const bl = I('block').map((b) => ({ b, d: (() => { const i = nearest(b.x, b.z); return Math.hypot(b.x - L.px[i], b.z - L.pz[i]); })() })).sort((a, b) => a.d - b.d).slice(0, EV.roof);
     for (const { b } of bl) {
       const P = local(b.x, b.z, b.rot), k = 4 + R.int(5);
-      for (let q = 0; q < k; q++) { const [x, z] = P(R.range(-b.w / 3, b.w / 3), R.range(-b.d / 3, b.d / 3)); fan(x, z, b.rot + R.range(-1, 1), R() < 0.5 ? 2 : 0, null, { roof: +b.h.toFixed(2), bx: b.x, bz: b.z }); }
+      for (let q = 0; q < k; q++) { const [x, z] = P(R.range(-b.w / 3, b.w / 3), R.range(-b.d / 3, b.d / 3)); fan(x, z, b.rot + R.range(-1, 1), R() < 0.5 ? 2 : 0, null, { roof: +b.h.toFixed(2), bx: b.x, bz: b.z, bw: b.w, bd: b.d }); }
     }
   }
 

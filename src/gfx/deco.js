@@ -12,6 +12,8 @@ import { patchStaticShadow } from './materials.js';
 import { planDeco } from '../track/deco.js';
 import { MAT } from '../track/defs.js';
 import { buildRand } from './kulisse.js';
+import { buildKulisse2, standGeometry } from './kulisse2.js';
+import { KULISSE2_URL } from '../track/kulisse2.js';
 
 export const decoUniforms = { uTime: { value: 0 }, uCheer: { value: new THREE.Vector4(0, 0, 1, 0) } };
 let assets = null;
@@ -108,8 +110,10 @@ const ADS = [
   ['KALMAR REIFEN', '#101820', '#ffcc00'], ['BLITZ COLA', '#c8102e', '#ffffff'], ['ALPENSTROM', '#ffffff', '#0a5ca8'], ['TURBO-ÖL', '#111111', '#ff6a00'],
   ['STUNTBAHN', '#0e1116', '#e8e8e8'], ['WIESENMILCH', '#2e7d32', '#ffffff'], ['RAPID TV', '#1a237e', '#ffd54f'], ['DONAU VERSICHERT', '#f5f5f0', '#b71c1c'],
 ];
-function signAtlas() {
-  return canvasTex(1024, 512, (g) => {
+// n32: doppelte Auflösung (2048 × 1024, Sponsor-Schrift scharf); ?kulisse=alt = wie bis n31
+function signAtlas(sc = KULISSE2_URL ? 2 : 1) {
+  return canvasTex(1024 * sc, 512 * sc, (g) => {
+    g.scale(sc, sc);
     g.fillStyle = '#777'; g.fillRect(0, 0, 1024, 512);
     ADS.forEach(([t, bg, fg], k) => {
       const x = (k % 2) * 512, y = Math.floor(k / 2) * 96;
@@ -128,7 +132,7 @@ function signAtlas() {
     });
   });
 }
-const AD_CELL = (k) => [(k % 2) * 0.5, 1 - (Math.floor(k / 2) * 96 + 96) / 512, 0.5, 96 / 512];
+export const AD_CELL = (k) => [(k % 2) * 0.5, 1 - (Math.floor(k / 2) * 96 + 96) / 512, 0.5, 96 / 512];
 const BOARD_CELL = (k) => [k * 170 / 1024, 0, 160 / 1024, 128 / 512];
 // Zuschauer: 4 Streifen (je 1024 × 128) – sitzend (Tribüne, dunkle Sitzreihe dahinter) und stehend (transparent); darunter
 // (n20) dieselben Menschen jubelnd mit hochgerissenen Armen (Zeilen 4–7): der Shader springt dorthin, wenn ein Stunt in der
@@ -173,15 +177,19 @@ function crowdAtlas() {
 }
 // Zuschauer-Material: Atlas-Karten (cellMaterial) + Jubel: im Umkreis von uCheer (x, z, Radius, Stärke) springen die Gruppen
 // und reißen die Arme hoch (Atlas-Zeile + 4); jede Gruppe mit eigener Phase, ein Teil bleibt sitzen
+// n32: Gruppen-Karten (Atlas-Zeilen 2/3, iCell.y < 0,7) in der Nähe ausblenden, wo 3D-Zuschauer stehen (gfx/kulisse2.js
+// setzt crowdNear = [Beginn, Ende] in m; 0, 0 = aus wie bis n31). Tribünen-Streifen bleiben Karten.
+export const crowdNear = { value: new THREE.Vector2(0, 0) };
 function crowdMaterial(map) {
   const m = cellMaterial({ map, alphaTest: 0.5, roughness: 0.85, metalness: 0, side: THREE.DoubleSide });
   const prev = m.onBeforeCompile;
   m.onBeforeCompile = (sh, r) => {
     prev(sh, r);
-    sh.uniforms.uCheer = decoUniforms.uCheer;
+    sh.uniforms.uCheer = decoUniforms.uCheer; sh.uniforms.uNear = crowdNear;
     sh.vertexShader = sh.vertexShader
-      .replace('uniform float uWind, uTime;', 'uniform float uWind, uTime;\nuniform vec4 uCheer;')
+      .replace('uniform float uWind, uTime;', 'uniform float uWind, uTime;\nuniform vec4 uCheer;\nuniform vec2 uNear;')
       .replace('transformed *= f;', `transformed *= f;
+        if ( uNear.y > 0.0 && iCell.y < 0.7 ) transformed *= smoothstep( uNear.x, uNear.y, distance( ip.xyz, cameraPosition ) );
         {
           float ph = fract( sin( dot( ip.xz, vec2( 12.9898, 78.233 ) ) ) * 43758.5453 );
           float ch = uCheer.w * ( 1.0 - smoothstep( uCheer.z * 0.6, uCheer.z, distance( ip.xz, uCheer.xy ) ) );
@@ -194,6 +202,9 @@ function crowdMaterial(map) {
   m.customProgramCacheKey = () => 'decoCrowd';
   return m;
 }
+// n32: auch für Fangzäune und Banden (gfx/kulisse2.js)
+export const fenceMaterial = () => once('fence', () => patchStaticShadow(new THREE.MeshStandardMaterial({ map: chainTex(), alphaTest: 0.35, side: THREE.DoubleSide, roughness: 0.5, metalness: 0.6, color: 0xc8ccd0 })));
+export const signMaterial = () => once('signs', () => cellMaterial({ map: signAtlas(), roughness: 0.6, metalness: 0 }));
 function chainTex() {
   const t = canvasTex(64, 64, (g) => {
     g.clearRect(0, 0, 64, 64); g.strokeStyle = 'rgba(190,196,200,1)'; g.lineWidth = 3;
@@ -400,7 +411,7 @@ export function buildDeco(track, M, surfaceY, add, opts = {}) {
     add(im, false); count(im, posts.length, pg.index.count / 3);
   }
   // ----- Atlas-Karten: Banner, Bremstafeln -----
-  const signMat = once('signs', () => cellMaterial({ map: signAtlas(), roughness: 0.6, metalness: 0 }));
+  const signMat = signMaterial();
   {
     const list = [];
     // Bandenwerbung steht auf dem Boden vor der Leitplanke (1,1 m hoch, Seitenverhältnis wie im Atlas)
@@ -434,7 +445,7 @@ export function buildDeco(track, M, surfaceY, add, opts = {}) {
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(nrm, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
     g.setIndex(idx); g.computeBoundingSphere();
-    const m = once('fence', () => patchStaticShadow(new THREE.MeshStandardMaterial({ map: chainTex(), alphaTest: 0.35, side: THREE.DoubleSide, roughness: 0.5, metalness: 0.6, color: 0xc8ccd0 })));
+    const m = fenceMaterial();
     const mesh = new THREE.Mesh(g, m); mesh.name = 'deco-fence';
     add(mesh, false); count(mesh, 1, idx.length / 3); stats.inst--;
   }
@@ -450,8 +461,14 @@ export function buildDeco(track, M, surfaceY, add, opts = {}) {
     b.box(0, 0.55, 0.2, L, 1.1, 0.25, [0.9, 0.9, 0.88]);                                                         // Brüstung vorn
     const g = b.geo();
     const list = P.stand.map((t) => ({ x: t.x, y: gy(t.x, t.z) - 0.1, z: t.z, rot: t.rot }));
-    const im = instanced(g, paint, list, 'deco-stands');
-    add(im, true); count(im, list.length, g.index.count / 3);
+    // n32: Bauform je Tribüne (track/kulisse2.js STAND_FORMS; ohne = klassisch wie bis n31), je Form ein Mesh
+    const byForm = new Map();
+    P.stand.forEach((t, k) => { const f = t.form || 0; if (!byForm.has(f)) byForm.set(f, []); byForm.get(f).push(list[k]); });
+    for (const [f, l] of byForm) {
+      const gf = f ? standGeometry(f) : g;
+      const im = instanced(gf, paint, l, 'deco-stands');
+      add(im, true); count(im, l.length, gf.index.count / 3);
+    }
     for (const t of list) for (let k = 0; k < steps; k++) {
       const zl = -1 - k * D + 0.2, h = 1.2 + k * Hs - 0.5;
       const cs = Math.cos(t.rot), sn = Math.sin(t.rot);
@@ -597,5 +614,8 @@ export function buildDeco(track, M, surfaceY, add, opts = {}) {
   }
   // ----- Kulissen (n20): Streckenrand (Portal, Fahnen, Kamerakräne), Himmel (Ballons, Zeppelin), Windräder, Themen-Bauten -----
   stats.tris += buildRand(plan, { M, gy, add, tier, theme: opts.theme });
+  // ----- Kulissen n32: 3D-Zuschauer, Fangzäune, Banden, Start/Ziel, Event-Gelände, Picknick, Pyro (?kulisse=alt: nichts) -----
+  const k2 = buildKulisse2(plan, { M, gy, add, tier, theme: opts.theme });
+  stats.tris += k2.tris; stats.meshes += k2.calls; stats.fans = k2.fans;
   return stats;
 }

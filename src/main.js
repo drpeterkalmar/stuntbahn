@@ -8,6 +8,7 @@ import { ThemeManager } from './gfx/themes.js';
 import { themeFor, THEMES, THEME_IDS } from './track/themes.js';
 import { wetterFor, parseWetter, wetterLook } from './track/wetter.js';
 import { Scheibe } from './gfx/scheibe.js';
+import { kulisse2Uniforms, ampelAus } from './gfx/kulisse2.js';
 import { buildWorld, STATIC_LAYER, vaoAuftrag } from './gfx/world.js';
 import { makeCar, loadCarModel, loadCarLods, parkedCarGeometry, EXHAUST } from './gfx/carmesh.js';
 import { CameraRig, CAM_MODES, CAM_NAMES, cockpitDash, clearLens } from './gfx/camera.js';
@@ -872,6 +873,29 @@ const tmpQ = new THREE.Quaternion(), tmpQ2 = new THREE.Quaternion();
 // Kulissen (n20): Zuschauer jubeln, wenn in ihrer Nähe ein Stunt läuft (Sprung, Looping, Röhre) oder das Auto ins Ziel
 // kommt – Rennen, Replay und Kino-Replay. Ort = Auto, Stärke steigt schnell (0,25 s) und klingt langsam ab (3 s).
 const cheer = { idx: 0, k: 0 };
+// n32 Kulissen: Pyro an Stunts – beim Einsetzen des Jubels (Sprung, Looping, Röhre) feuern die Abschussrohre der Planung
+// (track/kulisse2.js, inst.pyro) im Umkreis von 140 m 0,8 s lang Funkenfontänen (v 0) bzw. Rauch (v 1). Nutzt die Funken/
+// Partikel von fx (kein neuer Draw-Call); nur ab Standard (fx.rich). TODO n32-Heavy: Menge/Höhe am Bild abstimmen.
+const stuntPyroState = { was: 0, t: 0, sites: [] };
+function stuntPyro(pose, rdt) {
+  const S = stuntPyroState, w = decoUniforms.uCheer.value.w, dt = Math.min(0.1, rdt || 0);
+  const P = env && env.track.decoPlan && env.track.decoPlan.inst.pyro;
+  if (!P || !P.length || !fx || !fx.rich || !pose || frozen) { S.was = w; return; }
+  if (w > 0.5 && S.was <= 0.5 && S.t <= -4) {
+    const d2 = (p) => (p.x - pose.pos.x) ** 2 + (p.z - pose.pos.z) ** 2;
+    S.sites = P.filter((p) => d2(p) < 140 * 140).sort((a, b) => d2(a) - d2(b)).slice(0, 6);   // Funken-Vorrat (160) reicht für 6
+    S.t = S.sites.length ? 0.8 : S.t;
+  }
+  S.was = w;
+  if (S.t > 0) {
+    for (const p of S.sites) {
+      const y = env.track.terrain.height(p.x, p.z);
+      if (p.v === 0) for (let k = 0; k < 2; k++) fx.sparks.spawn(p.x, y + 0.6, p.z, (Math.random() - 0.5) * 2.5, 9 + Math.random() * 5, (Math.random() - 0.5) * 2.5, 0.7 + Math.random() * 0.5, y + 0.1);
+      else if (Math.random() < 0.5) fx.parts.spawn(fx.p.set(p.x, y + 0.7, p.z), fx.v.set((Math.random() - 0.5) * 1.5, 2.5 + Math.random() * 1.5, (Math.random() - 0.5) * 1.5), 0.8, 4.5, 2.2, Math.random() < 0.5 ? 0xd84315 : 0xeeeeee, 0.55);
+    }
+  }
+  S.t -= dt;
+}
 function updateCheer(pose, rdt) {
   const U = decoUniforms.uCheer.value;
   let on = false;
@@ -945,6 +969,7 @@ function render(rdt) {
     carVis.sync(c, 1, pose);
   }
   updateCheer(pose, rdt);
+  stuntPyro(pose, rdt);   // n32
   // n28: Bremslichter – Pedal (Rennen) bzw. Verzögerung aus dem Tempo (Autopilot, Replay, Film)
   if (brakeLights) {
     let b = 0;
@@ -955,6 +980,8 @@ function render(rdt) {
     brakeLights.set(b, frozen ? 0 : rdt);
   }
   kulisseTick(decoUniforms.uTime.value);
+  // n32: Startampel (rot 1 … 5 im Countdown, dann kurz grün; im Menü aus)
+  { const [on, go] = mode === 'race' && race ? ampelAus(race.state, race.countdown, race.time) : [0, 0]; kulisse2Uniforms.uAmpel.value.set(on, go); }
   if (pose && mode === 'menu' && !app.freezeCam) {
     // Menü: langsame Kamerafahrt um das Auto am Start
     clearLens(camera);
