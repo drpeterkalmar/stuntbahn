@@ -57,15 +57,15 @@ export async function tanne(variante = 0) {
     });
     idx.push(b, b + 1, b + 2, b, b + 2, b + 3);
   };
-  const quirle = 30;
+  const quirle = 44;   // n30-Abnahme: 30 Quirle mit schmalen Ästen wirkten neben der dichten Karte wie ein Gerippe
   for (let q = 0; q < quirle; q++) {
     const f = q / (quirle - 1), y = y0 + (H - y0 - 0.4) * f;
     const r = Math.max(0.25, R0 * Math.pow(1 - f, 0.95) * (0.9 + 0.2 * R()));
-    const aeste = Math.max(4, Math.round(9 - 4 * f + R() * 2));
+    const aeste = Math.max(5, Math.round(12 - 5 * f + R() * 3));
     for (let k = 0; k < aeste; k++) {
       const a = (k / aeste) * Math.PI * 2 + R() * 0.6 + q * 0.37;
       const dir = new THREE.Vector3(Math.cos(a), 0, Math.sin(a)), side = new THREE.Vector3(-dir.z, 0, dir.x);
-      const L = r * (0.85 + 0.3 * R()), w = Math.max(0.35, L * 0.55), droop = 0.35 + 0.35 * R() - 0.2 * f;
+      const L = r * (0.85 + 0.3 * R()), w = Math.max(0.5, L * 0.85), droop = 0.35 + 0.35 * R() - 0.2 * f;
       const base = new THREE.Vector3(0, y, 0).addScaledVector(dir, 0.1);
       const tip = base.clone().addScaledVector(dir, L); tip.y -= L * Math.sin(droop);
       const box = boxes[Math.floor(R() * boxes.length)];
@@ -74,6 +74,10 @@ export async function tanne(variante = 0) {
       // senkrecht (Fläche entlang des Asts)
       const up = new THREE.Vector3(0, w * 0.45, 0);
       quad(base.clone().sub(up), tip.clone().sub(up), tip.clone().add(up), base.clone().add(up), boxes[Math.floor(R() * boxes.length)], y);
+      // zweite, flachere Lage etwas darüber (füllt die Lücken zwischen den Quirlen)
+      const b2 = base.clone(); b2.y += 0.18; const t2 = tip.clone(); t2.y += 0.18 + L * 0.15;
+      const s2 = side.clone().multiplyScalar(w * 0.6);
+      quad(b2.clone().sub(s2), t2.clone().sub(s2), t2.clone().add(s2), b2.clone().add(s2), boxes[Math.floor(R() * boxes.length)], y);
     }
   }
   const g = new THREE.BufferGeometry();

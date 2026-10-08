@@ -51,8 +51,9 @@ with Server(ROOT) as srv, sync_playwright() as pw:
         na = np.array(nor); leer = na[..., 3] < 128; na[leer] = (128, 255, 128, 255); na[..., 3] = 255
         nor = Image.fromarray(na, 'RGBA').convert('RGB')
         ff, fn = f'{name}_farbe.webp', f'{name}_nor.webp'
-        farbe.save(os.path.join(OUT, ff), 'WEBP', quality=86, alpha_quality=90, method=6)
-        nor.save(os.path.join(OUT, fn), 'WEBP', quality=90, method=6)
+        # n30-Abnahme (Ladegröße): Normalen nur fürs Licht → halbe Auflösung reicht; Farbe q80 (vorher 86/90: 2,9 MB alle Arten)
+        farbe.save(os.path.join(OUT, ff), 'WEBP', quality=80, alpha_quality=85, method=6)
+        nor.resize((nor.width // 2, nor.height // 2), Image.LANCZOS).save(os.path.join(OUT, fn), 'WEBP', quality=82, method=6)
         meta['arten'][name] = {'farbe': ff, 'normalen': fn, **r['meta']}
         # Vorschau: Farbe über Grau neben Normalen
         bg = Image.new('RGBA', farbe.size, (90, 90, 90, 255)); bg.alpha_composite(farbe)

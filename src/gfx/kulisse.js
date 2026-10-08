@@ -114,7 +114,8 @@ export function buildTrees(track, M, opts, surfaceY, add, treeGeometry) {
   const nachArt = new Map();
   for (const it of list) if (impArt(opts, it.art)) { if (!nachArt.has(it.art)) nachArt.set(it.art, []); nachArt.get(it.art).push(it); }
   for (const [n, L] of nachArt) {
-    const im = impostorMesh(impArt(opts, n), L, 'trees-thema-' + n, impOpts(lin(1.5, 1.5, 1.4), 0x0a0c06));
+    // nur Lage, Drehung, Höhe (s) – sx/sy der Karten sind absolute Maße, impostorMesh liest sy als Faktor
+    const im = impostorMesh(impArt(opts, n), L.map((it) => ({ x: it.x, y: it.y, z: it.z, rot: it.rot, s: it.s })), 'trees-thema-' + n, impOpts(lin(1.5, 1.5, 1.4), 0x0a0c06));
     add(im, true); tris += 2 * L.length;
   }
   if (nachArt.size) { const rest = list.filter((it) => !nachArt.has(it.art)); list.length = 0; list.push(...rest); }

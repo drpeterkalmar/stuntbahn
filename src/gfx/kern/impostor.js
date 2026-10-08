@@ -38,7 +38,7 @@ export class ImpostorBibliothek {
       const a = m.arten[n];
       if (!a || this.arten.has(n)) continue;
       const p = Promise.all([lade(a.farbe, true), lade(a.normalen, false)])
-        .then(([farbe, nor]) => ({ name: n, farbe, nor, ...a }))
+        .then(([farbe, nor]) => ({ ...a, name: n, farbe, nor }))   // Texturen nach den Metadaten (dort sind farbe/normalen Dateinamen)
         .catch((e) => { this.fehler = String(e && e.message || e); return null; });
       this.arten.set(n, p);
       jobs.push(p.then((x) => { this.arten.set(n, x); }));
@@ -103,7 +103,8 @@ export function impostorMaterial(art, opts = {}) {
       uniform sampler2D impFarbe, impNor; uniform float impN, impSchnee, impRand; uniform vec3 impTint;
       varying vec4 vImpA, vImpB, vImpC; varying vec3 vImpW, vImpX, vImpY, vImpZ;
       vec2 impAt( vec4 a ) { return ( a.zw + clamp( a.xy, impRand, 1.0 - impRand ) ) / impN; }   // nicht in die Nachbar-Zelle greifen
-      vec3 impNW = vec3( 0.0, 1.0, 0.0 );`)
+      vec3 impNW = vec3( 0.0, 1.0, 0.0 );
+      float impBlatt = 1.0;   // Anteil „Laub“ (grünlich) – Instanzfarbe (z. B. Herbstlaub) färbt nur das Laub, nicht den Stamm`)
       .replace('#include <map_fragment>', `{
         ${opts.einfach ? `
         float wm = max( vImpW.x, max( vImpW.y, vImpW.z ) );
@@ -112,11 +113,17 @@ export function impostorMaterial(art, opts = {}) {
         vec4 c = texture2D( impFarbe, impAt( vImpA ) ) * vImpW.x + texture2D( impFarbe, impAt( vImpB ) ) * vImpW.y + texture2D( impFarbe, impAt( vImpC ) ) * vImpW.z;
         vec3 nO = ( texture2D( impNor, impAt( vImpA ) ).xyz * vImpW.x + texture2D( impNor, impAt( vImpB ) ).xyz * vImpW.y + texture2D( impNor, impAt( vImpC ) ).xyz * vImpW.z ) * 2.0 - 1.0;`}
         impNW = normalize( mat3( vImpX, vImpY, vImpZ ) * nO );
+        impBlatt = smoothstep( -0.01, 0.05, c.g - max( c.r, c.b ) * 0.92 );
         diffuseColor.rgb *= c.rgb * impTint;
         diffuseColor.a *= c.a;
         // Schnee (Thema Winter): oben liegende Flächen weiß
-        diffuseColor.rgb = mix( diffuseColor.rgb, vec3( 0.86, 0.9, 0.95 ), impSchnee * smoothstep( 0.35, 0.8, impNW.y ) * 0.85 );
+        diffuseColor.rgb = mix( diffuseColor.rgb, vec3( 0.86, 0.9, 0.95 ), impSchnee * smoothstep( 0.5, 0.95, impNW.y ) * 0.8 );
       }`)
+      .replace('#include <color_fragment>', `#if defined( USE_COLOR_ALPHA )
+        diffuseColor *= vColor;
+      #elif defined( USE_COLOR )
+        diffuseColor.rgb *= mix( vec3( 1.0 ), vColor.rgb, impBlatt );
+      #endif`)
       .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
       normal = normalize( ( viewMatrix * vec4( impNW, 0.0 ) ).xyz );`);
   };

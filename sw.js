@@ -1,5 +1,5 @@
 // Service-Worker: offline spielbar, Cache-Busting über Inhalts-Hash (tools/update_sw.py)
-const VERSION = 'ce8bca435c';
+const VERSION = '0daa79fa9c';
 const CACHE = 'stuntbahn-' + VERSION;
 const ASSETS = [
   './',
@@ -30,6 +30,10 @@ const ASSETS = [
   'assets/tex/gravel_diff.webp',
   'assets/tex/gravel_nor.webp',
   'assets/tex/imp/impostor.json',
+  'assets/tex/imp/tanne0_farbe.webp',
+  'assets/tex/imp/tanne0_nor.webp',
+  'assets/tex/imp/tanne1_farbe.webp',
+  'assets/tex/imp/tanne1_nor.webp',
   'assets/tex/metal_arm.ktx2',
   'assets/tex/metal_diff.ktx2',
   'assets/tex/metal_nor.ktx2',

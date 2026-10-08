@@ -42,13 +42,17 @@ function farbMaterial(m) {
   return new THREE.MeshBasicMaterial({ map: m.map || null, color: m.color ? m.color.clone() : new THREE.Color(1, 1, 1), alphaMap: m.alphaMap || null,
     alphaTest: Math.max(0.35, m.alphaTest || 0), transparent: false, side: THREE.DoubleSide, vertexColors: !!m.vertexColors });
 }
-const NOR_VS = `varying vec3 vN; varying vec2 vUv;
-  void main() { vUv = uv; vN = mat3( modelMatrix ) * normal; gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 ); }`;
-const NOR_FS = `uniform sampler2D map; uniform float useMap, alphaTest; varying vec3 vN; varying vec2 vUv;
+const NOR_VS = `varying vec3 vN; varying vec2 vUv; varying vec3 vW;
+  void main() { vUv = uv; vN = mat3( modelMatrix ) * normal; vW = ( modelMatrix * vec4( position, 1.0 ) ).xyz; gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 ); }`;
+// Normale zur Kamera hin drehen, wenn sie wegzeigt (Rückseite eines Blatts) – NICHT nach gl_FrontFacing: die Tanne hat
+// „Kugel“-Normalen (vom Stamm weg), die bei von hinten gesehenen Zweigflächen sonst nach innen kippten (n30-Abnahme: Schnee
+// nur auf einer Baumhälfte)
+const NOR_FS = `uniform sampler2D map; uniform float useMap, alphaTest; varying vec3 vN; varying vec2 vUv; varying vec3 vW;
   void main() {
     float a = useMap > 0.5 ? texture2D( map, vUv ).a : 1.0;
     if ( a < alphaTest ) discard;
-    vec3 n = normalize( vN ) * ( gl_FrontFacing ? 1.0 : -1.0 );
+    vec3 n = normalize( vN );
+    if ( dot( n, cameraPosition - vW ) < 0.0 ) n = -n;
     gl_FragColor = vec4( n * 0.5 + 0.5, 1.0 );
   }`;
 function normalMaterial(m) {

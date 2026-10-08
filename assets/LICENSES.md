@@ -12,6 +12,8 @@ Physik, Generator, Ton-Synthese und Icons sind eigene Arbeit (Ton-Aufnahmen: sie
 | `car/goblin_lod.glb` | wie oben (abgeleitet) | Olli Teittinen (ollitei) | CC BY 4.0 | stark vereinfacht (86k → 6,5k Dreiecke), ohne Texturen, einfarbige Materialien – nur für geparkte Autos importierter Strecken, wird bei Bedarf geladen |
 | `car/goblin_mid.glb`, `car/goblin_far.glb` | wie oben (abgeleitet) | Olli Teittinen (ollitei) | CC BY 4.0 | n30: Detailstufen (LOD) des Heldenautos, vereinfacht mit Normalen und UVs im Fehlermaß (86k → 15,8k bzw. 8,7k Dreiecke), ohne eigene Texturen (nutzen die des Heldenautos), Meshopt-Kompression; `tools/build_assets.mjs --car-mid` |
 | `tex/asphalt_detail_nor.webp` | selbst erzeugt (`tools/build_detail_nor.mjs`, Worley-Splitt + Rauschen) | Stuntbahn | eigenes Werk, frei (CC0) | n30: Detail-Normalmap „Asphaltkorn“ für die Fahrbahn nahe der Kamera |
+| `tex/imp/tanne0_*.webp`, `tex/imp/tanne1_*.webp` | [Fir Tree 01](https://polyhaven.com/a/fir_tree_01) (Zweig- und Rinden-Texturen) | Poly Haven | CC0 | n30: Oktaeder-Impostor (8×8 Ansichten, Farbe + Normalen) einer daraus gebauten 3D-Tanne (`tools/impostor_modelle.mjs`, `tools/build_impostor.py`) |
+| `tex/imp/laub1_*`, `laub2_*`, `koecher1_*`, `koecher2_*`, `insel_*`, `jacaranda_*`, `insel3_*` | Tree Small 02, Island Tree 01, Quiver Tree 01/02, Island Tree 02, Jacaranda Tree, Island Tree 03 (Poly Haven, Urheber wie in den Zeilen unten) | Poly Haven | CC0 | n30: Oktaeder-Impostors (8×8 Ansichten, Farbe + Normalen) aus den Modellen gebacken (`tools/build_impostor.py`) |
 
 Fiktives Originaldesign (kein Markenauto). Namensnennung auch im Spiel unter „Credits“.
 

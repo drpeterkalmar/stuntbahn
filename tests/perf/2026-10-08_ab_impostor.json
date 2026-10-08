@@ -1,0 +1,87 @@
+{
+ "datum": "2026-10-08T10:43:54",
+ "stand": "ab_impostor",
+ "modus": "ab",
+ "runden": 3,
+ "varianten": [
+  {
+   "name": "basis",
+   "wurzel": "/Users/wohnzimmer/dev/stuntbahn",
+   "zusatz": "&thema=herbst"
+  },
+  {
+   "name": "ohne_imp",
+   "wurzel": "/Users/wohnzimmer/dev/stuntbahn",
+   "zusatz": "&thema=herbst&impostor=0"
+  }
+ ],
+ "profil": {
+  "drossel": 4,
+  "dpr": 2.6,
+  "sek": 10,
+  "start": "open",
+  "vsync": false
+ },
+ "szenen": {
+  "rennen_kino": {
+   "hoch": {
+    "basis": {
+     "p50": 7.2,
+     "p95": 9.7,
+     "fps": 130.7,
+     "calls": 103,
+     "tris": 342073,
+     "runden_p95": [
+      9.7,
+      9.6,
+      9.8
+     ],
+     "fehler": []
+    },
+    "ohne_imp": {
+     "p50": 7.1,
+     "p95": 9.8,
+     "fps": 132.2,
+     "calls": 101,
+     "tris": 358764,
+     "runden_p95": [
+      9.7,
+      9.8,
+      9.8
+     ],
+     "fehler": []
+    }
+   }
+  },
+  "rennen_standard": {
+   "hoch": {
+    "basis": {
+     "p50": 4,
+     "p95": 5.4,
+     "fps": 244.5,
+     "calls": 88,
+     "tris": 235428,
+     "runden_p95": [
+      5.4,
+      5.5,
+      5.4
+     ],
+     "fehler": []
+    },
+    "ohne_imp": {
+     "p50": 4,
+     "p95": 5.4,
+     "fps": 245.3,
+     "calls": 87,
+     "tris": 241157,
+     "runden_p95": [
+      5.4,
+      5.4,
+      5.4
+     ],
+     "fehler": []
+    }
+   }
+  }
+ }
+}

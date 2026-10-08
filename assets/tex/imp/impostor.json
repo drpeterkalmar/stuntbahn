@@ -1,5 +1,87 @@
 {
  "version": 1,
  "_kommentar": "n30: Oktaeder-Impostors (tools/build_impostor.py füllt arten). Leer = Bäume bleiben Karten.",
- "arten": {}
+ "arten": {
+  "tanne0": {
+   "farbe": "tanne0_farbe.webp",
+   "normalen": "tanne0_nor.webp",
+   "N": 8,
+   "zelle": 128,
+   "radius": 0.56675,
+   "mitte": 0.5,
+   "hoehe": 1
+  },
+  "tanne1": {
+   "farbe": "tanne1_farbe.webp",
+   "normalen": "tanne1_nor.webp",
+   "N": 8,
+   "zelle": 128,
+   "radius": 0.58551,
+   "mitte": 0.5,
+   "hoehe": 1
+  },
+  "laub1": {
+   "farbe": "laub1_farbe.webp",
+   "normalen": "laub1_nor.webp",
+   "N": 8,
+   "zelle": 128,
+   "radius": 0.58731,
+   "mitte": 0.5,
+   "hoehe": 1
+  },
+  "laub2": {
+   "farbe": "laub2_farbe.webp",
+   "normalen": "laub2_nor.webp",
+   "N": 8,
+   "zelle": 128,
+   "radius": 0.63838,
+   "mitte": 0.5,
+   "hoehe": 1
+  },
+  "koecher1": {
+   "farbe": "koecher1_farbe.webp",
+   "normalen": "koecher1_nor.webp",
+   "N": 8,
+   "zelle": 128,
+   "radius": 0.51937,
+   "mitte": 0.5,
+   "hoehe": 1
+  },
+  "koecher2": {
+   "farbe": "koecher2_farbe.webp",
+   "normalen": "koecher2_nor.webp",
+   "N": 8,
+   "zelle": 128,
+   "radius": 0.53266,
+   "mitte": 0.5,
+   "hoehe": 1
+  },
+  "insel": {
+   "farbe": "insel_farbe.webp",
+   "normalen": "insel_nor.webp",
+   "N": 8,
+   "zelle": 128,
+   "radius": 0.86744,
+   "mitte": 0.5,
+   "hoehe": 1
+  },
+  "jacaranda": {
+   "farbe": "jacaranda_farbe.webp",
+   "normalen": "jacaranda_nor.webp",
+   "N": 8,
+   "zelle": 128,
+   "radius": 0.70925,
+   "mitte": 0.5,
+   "hoehe": 1
+  },
+  "insel3": {
+   "farbe": "insel3_farbe.webp",
+   "normalen": "insel3_nor.webp",
+   "N": 8,
+   "zelle": 128,
+   "radius": 0.79979,
+   "mitte": 0.5,
+   "hoehe": 1
+  }
+ }
 }
