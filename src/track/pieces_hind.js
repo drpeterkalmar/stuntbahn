@@ -90,7 +90,7 @@ export function tubeWallGeom(ss) {
 }
 // Halbe Bodenbreite der Röhre an Stelle f (Portal: b, in der Rolle 0 = Kreis); nie ganz 0 (kein entartetes Fahrbahn-Segment)
 export function tubeWallFloor(G, f) {
-  const k = Math.min(smootherstep((G.fr0 - f) / TUBE_WALL.morph), smootherstep((f - G.fr1) / TUBE_WALL.morph));
+  const k = Math.max(smootherstep((G.fr0 - f) / TUBE_WALL.morph), smootherstep((f - G.fr1) / TUBE_WALL.morph));
   return Math.max(0.02, G.b * k);
 }
 // Phase der Rolle (0 … 1) über dem Weg u (0 … 1): Drehrate ∝ smootherstep-Rampe an beiden Enden (Anteil ease), dazwischen
