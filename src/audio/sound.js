@@ -58,6 +58,28 @@ async function renderOffline(dur, build) {
   return ctx.startRendering();
 }
 
+// n32 Wetter: Regen als nahtloser Loop (rein rechnend, Node-testbar): Rauschen, band-begrenzt (Hochpass ~900 Hz,
+// Tiefpass ~6 kHz = Rauschen des Regens), dazu einzelne Tropfen (kurze, gedämpfte Töne 1,8–5 kHz, 3–9 ms). Ende in den
+// Anfang überblendet → kein Knacken beim Wiederholen.
+export function rainLoop(n, seed = 41, sr = SR) {
+  const nz = noise(n, seed), out = new Float32Array(n);
+  const hp = Math.exp(-2 * Math.PI * 900 / sr), lp = 1 - Math.exp(-2 * Math.PI * 6000 / sr);
+  let x1 = 0, y1 = 0, z = 0;
+  for (let i = 0; i < n; i++) { const y = hp * (y1 + nz[i] - x1); x1 = nz[i]; y1 = y; z += lp * (y - z); out[i] = z * 0.55; }
+  let s = (seed * 2654435761) >>> 0 || 1; const R = () => { s ^= s << 13; s ^= s >>> 17; s ^= s << 5; return (s >>> 0) / 4294967296; };
+  const drops = Math.round(n / sr * 140);
+  for (let d = 0; d < drops; d++) {
+    const i0 = Math.floor(R() * n), f = 1800 + R() * 3200, len = Math.round(sr * (0.003 + R() * 0.006)), a = 0.05 + R() * 0.2;
+    for (let k = 0; k < len * 4; k++) { const i = (i0 + k) % n; out[i] += a * Math.sin(2 * Math.PI * f * k / sr) * Math.exp(-k / len); }
+  }
+  const X = Math.min(Math.floor(sr * 0.25), n >> 2);   // Überblendung: das letzte Stück in den Anfang mischen, dann kürzen
+  const res = out.slice(0, n - X);
+  for (let k = 0; k < X; k++) { const w = k / X; res[k] = res[k] * w + out[n - X + k] * (1 - w); }
+  let pk = 0; for (const v of res) pk = Math.max(pk, Math.abs(v));
+  if (pk > 0.95) for (let i = 0; i < res.length; i++) res[i] *= 0.95 / pk;
+  return res;
+}
+
 function bufFrom(arr) {
   const ctx = new OfflineAudioContext(1, arr.length, SR);
   const b = ctx.createBuffer(1, arr.length, SR);
@@ -68,6 +90,7 @@ function bufFrom(arr) {
 async function makeBank() {
   const bank = {};
   bank.engine = [1400, 2800, 4600, 6800].map((r) => ({ rpm: r, buf: bufFrom(engineLoop(r, 1)) }));
+  bank.rain = bufFrom(rainLoop(Math.round(SR * 3.25)));   // n32 Wetter (3 s nach der Überblendung)
   // Reifen: bandbegrenztes Rauschen mit tonalem Kern
   bank.tire = await renderOffline(2.0, (ctx) => {
     const n = ctx.createBufferSource(); const nb = ctx.createBuffer(1, SR * 2, SR); nb.copyToChannel(noise(SR * 2, 7), 0); n.buffer = nb;
@@ -177,7 +200,7 @@ const urlQ = globalThis.location && globalThis.location.search ? new URLSearchPa
 export const SND_ALT = !!urlQ && urlQ.get('snd') === 'alt';
 const REC_URL = typeof import.meta !== 'undefined' ? new URL('../../assets/snd/', import.meta.url).href : 'assets/snd/';
 // Pegel (abgeglichen mit tests/sound_levels.py und tests/ton_probe.py: Motor und Crash so laut wie bis n15)
-export const MIX = { eng: 1.2, off: 0.5, tire: 0.42, scrape: 0.5, crash: 0.95, land: 0.8, pop: 0.42, nitro: 0.4, lpOut: 3800, lpOff: 2200, lpCockpit: 1300, pyro: 0.55 };
+export const MIX = { eng: 1.2, off: 0.5, tire: 0.42, scrape: 0.5, crash: 0.95, land: 0.8, pop: 0.42, nitro: 0.4, lpOut: 3800, lpOff: 2200, lpCockpit: 1300, pyro: 0.55, rain: 0.16 };   // rain: n32 (TODO n32-Heavy: am Handy abhören)
 const clamp01 = (x) => Math.max(0, Math.min(1, x));
 const rnd = (a, b) => a + Math.random() * (b - a);
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
@@ -333,7 +356,7 @@ export class Sound {
     this.wantRunning = false;
     if (!this.running || !this.nodes) return;
     const t = this.ctx.currentTime, N = this.nodes;
-    const all = N.rec ? [N.wind, N.nitro, ...N.voices.values(), N.tire, N.scrape].filter(Boolean) : [...N.eng, N.tire, N.wind, N.nitro];
+    const all = (N.rec ? [N.wind, N.nitro, ...N.voices.values(), N.tire, N.scrape].filter(Boolean) : [...N.eng, N.tire, N.wind, N.nitro]).concat(N.rain ? [N.rain] : []);
     for (const n of all) { n.g.gain.setTargetAtTime(0, t, 0.05); n.s.stop(t + 0.3); }
     if (N.rec && N.lim) N.lim.stop(t + 0.3);
     this.running = false; this.nodes = null;
@@ -409,11 +432,23 @@ export class Sound {
   update(car, dt, state, opt = {}) {
     if (!this.running || !this.nodes) return;
     if (this.nodes.rec) this.updateRec(car, dt, state, opt); else this.updateSynth(car, dt, state);
+    this.rainTick(dt, opt);
     // Aufsetzer nach Sprüngen
     if (this._air && car.onGround >= 2 && this._airT > 0.35) this.event({ type: 'land', v: Math.min(16, this._vy || 5) });
     this._air = car.onGround === 0;
     this._airT = this._air ? (this._airT || 0) + dt : 0;
     if (this._air) this._vy = -car.v.y;
+  }
+  // n32 Wetter: Regengeräusch 0 … 1 (main.js aus wetterLook.rain); leise im bestehenden Mix, im Cockpit etwas lauter
+  // (Regen aufs Dach) und dumpfer über den Innenraum-Klang nicht nötig – das Rauschen ist schon gedämpft
+  setRegen(k) { this.regen = Math.max(0, Math.min(1, +k || 0)); }
+  rainTick(dt, opt = {}) {
+    const N = this.nodes, k = this.regen || 0, t = this.ctx.currentTime;
+    if (k > 0.001 && !N.rain && this.bank.rain) { N.rain = this.loop(this.bank.rain, 0, this.master, Math.random() * 2); N.rain.idle = 0; }
+    if (!N.rain) return;
+    N.rain.g.gain.setTargetAtTime(MIX.rain * k * (opt.cockpit ? 1.3 : 1), t, 0.4);
+    N.rain.idle = k > 0.001 ? 0 : N.rain.idle + dt;
+    if (N.rain.idle > 2) { N.rain.s.stop(t + 0.1); N.rain = null; }
   }
   updateRec(car, dt, state, opt) {
     const c = this.ctx, t = c.currentTime, N = this.nodes, R = this.bank.rec, red = R.redline;

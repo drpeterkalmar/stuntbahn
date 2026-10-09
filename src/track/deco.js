@@ -11,6 +11,7 @@
 import { TILE, WORLD_SCALE, WORLD_HALF, tileX, tileZ } from './defs.js';
 import { rng, makeNoise2 } from '../core/util.js';
 import { planKulisse } from './kulisse.js';
+import { planKulisse2, MIN_CLEAR2, KULISSE2_URL } from './kulisse2.js';
 import { HALFPIPE } from './gelaende.js';
 
 const WS = WORLD_SCALE;
@@ -21,6 +22,8 @@ export const MIN_CLEAR = {
   // Kulissen (n20): Fahnen, Kamerakräne, Portal-Stützen, Windräder, Bauten der Themen (Hochhäuser, Wohnblöcke, Kräne,
   // Leuchtturm), Hochstraßen-Pfeiler der Stadt
   flag: 6, cam: 10, portal: 3, turbine: 160, tower: 120, block: 70, crane: 90, light: 200, hwy: 160,
+  // n32: Zuschauer einzeln, Banden, Fangzäune, Start/Ziel, Event-Gelände, Picknick, Pyro (track/kulisse2.js)
+  ...MIN_CLEAR2,
 };
 // Dichte je Qualitätsstufe (Vegetation); Streckenrand-Objekte sind auf allen Stufen gleich
 const DENS = [0.3, 0.55, 1];
@@ -335,7 +338,10 @@ export function planDeco(track, o = {}) {
   }
 
   // ----- 6b) Kulissen (n20, vor der Vegetation: Bäume und Felsen weichen ihnen aus): Streckenrand (Tribünen an Stunts, Portal, Fahnen, Kamerakräne), Himmel, Bauten der Themen -----
-  planKulisse({ track, L, T, n, R, H, occ, ok, side, faceRoad, flat, kap, at, samples, ground, out, I, tier, o, KS, KG, curveRuns, MIN_CLEAR });
+  const kctx = { track, L, T, n, R, H, occ, ok, side, faceRoad, flat, kap, at, samples, ground, out, I, tier, o, KS, KG, curveRuns, MIN_CLEAR };
+  planKulisse(kctx);
+  // n32: mehr und schönere Kulissen/Zuschauer – eigener Zufall, ?kulisse=alt (o.kulisse2 = false) = Planung wie bis n31
+  if (o.kulisse2 ?? KULISSE2_URL) planKulisse2(kctx);
   // ----- 7) Vegetation nahe der Strecke: Gras, Blumen, Büsche -----
   const flatIdx = []; for (let i = 0; i < n; i++) if (flat[i]) flatIdx.push(i);
   const nearPt = (dmin, dexp, dmax) => {

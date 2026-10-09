@@ -250,8 +250,9 @@ export class CineCam {
     // nicht näher als 5 m, und keines zwischen Kamera und Bogen (Abstand zur Sichtlinie in der Ebene < 1,5 m)
     const obs = [], DP = this.env.track.decoPlan;
     if (DP && DP.inst) for (const [k, arr] of Object.entries(DP.inst)) {
-      if (!Array.isArray(arr) || !/^(flag|light|stand|cam|portal|tower|crane|block|turbine|crowd)/.test(k)) continue;
-      for (const o of arr) if (o && Math.hypot(o.x - px, o.z - pz) < 90) obs.push([o.x, o.z, k === 'stand' || k === 'block' ? 6 : 2]);
+      // n32: auch Rennleitungsturm, Leinwand, Ampelmast, Riesenrad, Zelte, Foodtrucks, Hütten (track/kulisse2.js)
+      if (!Array.isArray(arr) || !/^(flag|light|stand|cam|portal|tower|crane|block|turbine|crowd|leitturm|leinwand|ampel|riesenrad|zelt|foodtruck|strandbar|apres|huepfburg)/.test(k)) continue;
+      for (const o of arr) if (o && Math.hypot(o.x - px, o.z - pz) < 90) obs.push([o.x, o.z, k === 'stand' || k === 'block' || k === 'leinwand' || k === 'riesenrad' ? 6 : k === 'leitturm' || k === 'zelt' || k === 'foodtruck' || k === 'strandbar' || k === 'apres' || k === 'huepfburg' ? 4 : 2]);
     }
     const blocked = (c) => obs.some(([x, z, r]) => {
       if (Math.hypot(x - c[0], z - c[2]) < 3 + r) return true;

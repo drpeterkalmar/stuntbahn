@@ -1,6 +1,7 @@
 // Effekte: Bremsspuren (Ringpuffer-Band), Rauch/Staub/Funken als instanzierte Partikel.
 import * as THREE from 'three';
 import { DEKO } from './deko.js';
+import { MAT } from '../track/defs.js';
 
 // Rauch-/Staubwolke (n17): weicher Rand + Wolken-Rauschen (statt glatter Scheibe), Alpha in der Textur, kein Bild nötig
 function smokeTexture() {
@@ -46,11 +47,12 @@ export class SkidMarks {
     this.uNow = { value: 0 };
     const m = DEKO ? new THREE.ShaderMaterial({
       transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -6, uniforms: { uNow: this.uNow },
-      vertexShader: 'attribute float alpha, aT, aE; uniform float uNow; varying float vA, vE; void main(){ vA = alpha * ( 1.0 - smoothstep( 20.0, 35.0, uNow - aT ) ); vE = aE; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
-      fragmentShader: 'varying float vA, vE; void main(){ float e = smoothstep( 0.0, 0.32, min( vE, 1.0 - vE ) ); gl_FragColor = vec4(0.025,0.022,0.02, vA * 0.6 * ( 0.35 + 0.65 * e )); }',
+      // n32: alpha < 0 = Spur im Schnee (helle, gepresste Rille statt Gummiabrieb)
+      vertexShader: 'attribute float alpha, aT, aE; uniform float uNow; varying float vA, vE, vS; void main(){ vA = abs( alpha ) * ( 1.0 - smoothstep( 20.0, 35.0, uNow - aT ) ); vS = step( alpha, -1e-4 ); vE = aE; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
+      fragmentShader: 'varying float vA, vE, vS; void main(){ float e = smoothstep( 0.0, 0.32, min( vE, 1.0 - vE ) ); gl_FragColor = vec4( mix( vec3( 0.025, 0.022, 0.02 ), vec3( 0.66, 0.7, 0.77 ), vS ), vA * mix( 0.6, 0.5, vS ) * ( 0.35 + 0.65 * e )); }',
     }) : new THREE.ShaderMaterial({
       transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -6,
-      vertexShader: 'attribute float alpha; varying float vA; void main(){ vA = alpha; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
+      vertexShader: 'attribute float alpha; varying float vA; void main(){ vA = abs( alpha ); gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
       fragmentShader: 'varying float vA; void main(){ gl_FragColor = vec4(0.02,0.02,0.02, vA * 0.55); }',
     });
     this.mesh = new THREE.Mesh(g, m);
@@ -61,10 +63,10 @@ export class SkidMarks {
     this.last = [null, null, null, null];
   }
   clear() { this.alpha.fill(0); this.mesh.geometry.attributes.alpha.needsUpdate = true; this.last = [null, null, null, null]; }
-  // pro Rad: Kontaktpunkt, Normale, Fahrtrichtung, Stärke 0..1
+  // pro Rad: Kontaktpunkt, Normale, Fahrtrichtung, Stärke 0..1 (n32: negativ = Spur im Schnee, Betrag = Stärke)
   add(k, p, n, side, strength) {
-    const L = this.last[k];
-    if (strength <= 0.05 || !L) { this.last[k] = strength > 0.05 ? { p: p.clone(), s: side.clone() } : null; return; }
+    const L = this.last[k], sa = Math.abs(strength);
+    if (sa <= 0.05 || !L) { this.last[k] = sa > 0.05 ? { p: p.clone(), s: side.clone() } : null; return; }
     if (L.p.distanceToSquared(p) < 0.09) return;
     if (L.p.distanceToSquared(p) > 9) { this.last[k] = { p: p.clone(), s: side.clone() }; return; }
     const i = this.head, w = 0.13, lift = 0.03;
@@ -75,7 +77,7 @@ export class SkidMarks {
     for (let v = 0; v < 4; v++) {
       q[v].addScaledVector(n, lift);
       this.pos.set([q[v].x, q[v].y, q[v].z], (i * 4 + v) * 3);
-      this.alpha[i * 4 + v] = Math.min(1, strength);
+      this.alpha[i * 4 + v] = Math.max(-1, Math.min(1, strength));
       if (this.aT) this.aT[i * 4 + v] = this.now;
     }
     if (this.aT) this.mesh.geometry.attributes.aT.needsUpdate = true;
@@ -208,6 +210,9 @@ export class CarFX {
     this.parts = new Particles(scene);
     this.sparks = new Sparks(scene);
     this.rich = true;   // Kino-Look: mehr Rauch/Staub, Funken (Grafik „Einfach“: wie bisher)
+    // n32 Wetter (main.js aus track/wetter.js wetterLook): Gischt hinter den Hinterrädern ab sprayKmh, Spritzer an Kerbs,
+    // Dampf aus dem Auspuff (Schnee: kalt), helle Spuren im Schnee neben der Fahrbahn. Alles 0 = klar (wie bis n31).
+    this.wetter = { spray: 0, sprayKmh: 60, steam: 0, tracks: 0 };
     this.v = new THREE.Vector3(); this.n = new THREE.Vector3(); this.side = new THREE.Vector3(); this.p = new THREE.Vector3();
     this.acc = 0;
   }
@@ -225,7 +230,21 @@ export class CarFX {
       const braking = car.input.brake > 0.5 && sp > 6 && !car.input.hold ? 0.5 : 0;
       const onRoad = w.mat !== 8;
       const s = onRoad ? Math.max(0, Math.min(1, (slip - 0.18) * 3)) + braking * 0.6 : 0;
-      this.skids.add(k, this.p, this.n, this.side, s * Math.min(1, sp / 6));
+      const W = this.wetter;
+      // n32: neben der Fahrbahn im Schnee bleibt eine helle Rille (negativ = Schnee-Spur, fx SkidMarks)
+      this.skids.add(k, this.p, this.n, this.side, W.tracks > 0 && !onRoad && sp > 1 ? -0.7 * W.tracks : s * Math.min(1, sp / 6));
+      // n32 Gischt: Hinterräder werfen auf nasser Fahrbahn feinen Sprühnebel hoch, der hinter dem Auto zurückbleibt
+      if (W.spray > 0 && emit && onRoad && k >= 2 && sp > W.sprayKmh / 3.6) {
+        const kk = W.spray * Math.min(1, (sp - W.sprayKmh / 3.6) / 12);
+        this.parts.spawn(this.p.set(w.hx, w.hy + 0.25, w.hz), this.v.set(car.v.x * 0.45 + (Math.random() - 0.5) * 1.6, 0.4 + Math.random() * 0.8, car.v.z * 0.45 + (Math.random() - 0.5) * 1.6), 0.5, 3.0 + sp * 0.03, 0.6 + 0.35 * Math.random(), 0xd2d6dc, 0.24 * kk);
+        this.p.set(w.hx, w.hy, w.hz);
+      }
+      // n32 Spritzer an Kerbs (nasser Randstein): kurze, helle Tropfenwolke zur Seite und nach oben
+      if (W.spray > 0 && emit && w.mat === MAT.KERB && sp > 8) {
+        const sg = k % 2 ? 1 : -1, R = car.frame.r;
+        for (let i = 0; i < 2; i++) this.parts.spawn(this.p.set(w.hx, w.hy + 0.1, w.hz), this.v.set(car.v.x * 0.3 + R.x * sg * (1 + Math.random() * 2), 1.2 + Math.random() * 1.5, car.v.z * 0.3 + R.z * sg * (1 + Math.random() * 2)), 0.18, 0.9, 0.45, 0xe2e6ec, 0.45 * W.spray);
+        this.p.set(w.hx, w.hy, w.hz);
+      }
       if (emit && onRoad && s > 0.5 && sp > 8) {
         // Reifenrauch: Kino dichter, größer, steigt und treibt hinter dem Auto her
         // n25: quer rutschend (Drift, Rutschwinkel > ~25°) dichter und größer
@@ -244,6 +263,15 @@ export class CarFX {
       this.p.set(car.pos.x, car.pos.y + 0.6, car.pos.z);
       this.parts.spawn(this.p, this.v.set((Math.random() - 0.5), 1.8 + Math.random(), (Math.random() - 0.5)), 1.0, 4.5, 2.4, 0x2a2a2a, 0.7);
       if (Math.random() < 0.3) this.parts.spawn(this.p, this.v.set((Math.random() - 0.5) * 2, 2.5, (Math.random() - 0.5) * 2), 0.5, 1.0, 0.5, 0xff8a2a, 0.9);
+    }
+    // n32 Dampf aus dem Auspuff bei Kälte (Schnee): kleine weiße Wölkchen am Heck, bei Tempo dünner
+    if (this.wetter.steam > 0 && emit && state !== 'wreck' && Math.random() < 0.6) {
+      const F = car.frame;
+      if (F && F.f && F.u) {
+        const sx = Math.random() < 0.5 ? -0.5 : 0.5;
+        this.p.set(car.pos.x - F.f.x * 2.3 - F.u.x * 0.35 + F.r.x * sx, car.pos.y - F.f.y * 2.3 - F.u.y * 0.35 + F.r.y * sx, car.pos.z - F.f.z * 2.3 - F.u.z * 0.35 + F.r.z * sx);
+        this.parts.spawn(this.p, this.v.set(car.v.x * 0.25 - F.f.x * 0.8, 0.35 + Math.random() * 0.3, car.v.z * 0.25 - F.f.z * 0.8), 0.16, 1.3, 1.1, 0xf2f4f6, 0.2 * this.wetter.steam * (sp < 15 ? 1 : 0.4));
+      }
     }
     // Hüpfer: Staubwolke unter den Rädern beim Absprung (erster Schritt nach dem Auslösen)
     if (car.hopUp && car.hopT > 0 && car.hopT <= dt * 1.01) {
@@ -277,6 +305,15 @@ export class CarFX {
     this.acc += dt;
     if (this.acc < 0.035) return;
     this.acc = 0;
+    // n32 Gischt auch im Replay/Film (Hinterräder aus der Lage; Fahrbahn angenommen)
+    const W = this.wetter;
+    if (W.spray > 0 && Math.abs(sp) > W.sprayKmh / 3.6 && pose.frame) {
+      const F = pose.frame, kk = W.spray * Math.min(1, (Math.abs(sp) - W.sprayKmh / 3.6) / 12);
+      for (const sx of [-0.88, 0.88]) {
+        this.p.set(pose.pos.x + F.r.x * sx - F.f.x * 1.36 - F.u.x * 0.25, pose.pos.y + F.r.y * sx - F.f.y * 1.36 - F.u.y * 0.25, pose.pos.z + F.r.z * sx - F.f.z * 1.36 - F.u.z * 0.25);
+        this.parts.spawn(this.p, this.v.set(F.f.x * sp * 0.45 + (Math.random() - 0.5) * 1.6, 0.4 + Math.random() * 0.8, F.f.z * sp * 0.45 + (Math.random() - 0.5) * 1.6), 0.5, 3.0 + Math.abs(sp) * 0.03, 0.6 + 0.35 * Math.random(), 0xd2d6dc, 0.24 * kk);
+      }
+    }
     const s = Math.max(0, Math.min(1, (Math.tan(Math.min(1.3, Math.abs(beta))) - 0.18) * 3));
     if (s <= 0.5 || Math.abs(sp) < 8) return;
     const F = pose.frame;

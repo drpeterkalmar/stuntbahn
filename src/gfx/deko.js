@@ -3,6 +3,7 @@
 // CPU-Arbeit je Bild). ?deko=0 = Aussehen wie bis n29 (alles hier aus); ?deko=aus = ohne Streckenrand-Deko (bis n29: ?deko=0).
 import * as THREE from 'three';
 import { decoUniforms } from './deco.js';
+import { WETTER_AIR, wetterTeilchen } from '../track/wetter.js';
 
 const Q = globalThis.location ? new URLSearchParams(globalThis.location.search) : new URLSearchParams();
 export const DEKO = Q.get('deko') !== '0';
@@ -183,7 +184,9 @@ export function makeBirds(track, id, tier, seed = 1) {
 // ---------- Luft: Schnee, Herbstblätter, Pollen im Gegenlicht, Sand/Staub ----------
 // Teilchen in einem Kasten um die Kamera (Lage = Zufall + Drift/Wind aus der Zeit, modulo Kasten → kein Nachschub,
 // keine CPU-Arbeit je Bild, kein Speicher-Müll). Nah an der Kamera und am Kastenrand ausgeblendet. Ein Draw-Call.
-// kind: 0 Schnee, 1 Blatt (taumelt), 2 Pollen/Glitzer (additiv), 3 Staub/Sand (vom Wind getrieben)
+// kind: 0 Schnee, 1 Blatt (taumelt), 2 Pollen/Glitzer (additiv), 3 Staub/Sand (vom Wind getrieben),
+// 4 Regenstreifen (n32 Wetter: Strich von der Lage zur Lage vor uStreak Sekunden, relativ zur Kamera-Bewegung →
+// in Fall- und Fahrtrichtung gestreckt = Bewegungsunschärfe; Teilchen-Werte in track/wetter.js WETTER_AIR)
 export const AIR = {
   land: { kind: 2, n: 220, size: 0.08, fall: -0.04, sway: 0.7, wind: 0.35, spin: 0, box: 26, h: 12, c0: [1.0, 0.92, 0.7], c1: [1.0, 1.0, 0.92], a: 0.75 },
   alpen: { kind: 2, n: 200, size: 0.08, fall: -0.03, sway: 0.8, wind: 0.5, spin: 0, box: 26, h: 12, c0: [1.0, 0.95, 0.8], c1: [0.95, 1.0, 1.0], a: 0.7 },
@@ -193,7 +196,7 @@ export const AIR = {
   winter: { kind: 0, n: 1100, size: 0.1, fall: 1.15, sway: 0.45, wind: 0.6, spin: 0, box: 22, h: 12, c0: [0.95, 0.97, 1.0], c1: [1.0, 1.0, 1.0], a: 0.9 },
   wueste: { kind: 3, n: 300, size: 0.05, fall: 0.06, sway: 0.4, wind: 3.4, spin: 0, box: 24, h: 7, c0: [0.85, 0.66, 0.42], c1: [0.95, 0.82, 0.6], a: 0.55 },
 };
-const AIR_MAX = 1100;
+const AIR_MAX = 1600;   // n32: Regen/Schnee-Wetter auf Kino (bis n31: 1100)
 export class AirMotes {
   constructor(scene) {
     const g = new THREE.InstancedBufferGeometry();
@@ -204,10 +207,12 @@ export class AirMotes {
     g.setAttribute('aS', new THREE.InstancedBufferAttribute(a, 4));
     g.instanceCount = 0;
     const U = this.u = { uTime: decoUniforms.uTime, uKind: { value: 2 }, uSize: { value: 0.05 }, uFall: { value: 0 }, uSway: { value: 0.5 }, uWind: { value: 0.3 },
-      uSpin: { value: 0 }, uBox: { value: 34 }, uH: { value: 14 }, uA: { value: 0.7 }, uC0: { value: new THREE.Color() }, uC1: { value: new THREE.Color() }, uSun: { value: new THREE.Vector3(0, 1, 0) } };
+      uSpin: { value: 0 }, uBox: { value: 34 }, uH: { value: 14 }, uA: { value: 0.7 }, uC0: { value: new THREE.Color() }, uC1: { value: new THREE.Color() }, uSun: { value: new THREE.Vector3(0, 1, 0) },
+      // n32 Regen: Kamera-Geschwindigkeit (m/s, main.js aus dem Auto) und Belichtungszeit des Strichs (s)
+      uCamVel: { value: new THREE.Vector3() }, uStreak: { value: 0.045 } };
     this.mat = new THREE.ShaderMaterial({
       uniforms: U, transparent: true, depthWrite: false,
-      vertexShader: `attribute vec4 aS; uniform float uTime, uKind, uSize, uFall, uSway, uWind, uSpin, uBox, uH, uA; uniform vec3 uC0, uC1, uSun;
+      vertexShader: `attribute vec4 aS; uniform float uTime, uKind, uSize, uFall, uSway, uWind, uSpin, uBox, uH, uA, uStreak; uniform vec3 uC0, uC1, uSun, uCamVel;
         varying vec2 vUv; varying float vA; varying vec3 vC;
         void main() {
           vec3 box = vec3( uBox, uH, uBox );
@@ -218,6 +223,21 @@ export class AirMotes {
           vec3 wp = cameraPosition + rel;
           float d = length( rel );
           vA = uA * smoothstep( 0.7, 2.2, d ) * ( 1.0 - smoothstep( uBox * 0.3, uBox * 0.47, d ) ) * ( 1.0 - smoothstep( uH * 0.32, uH * 0.5, abs( rel.y ) ) );
+          if ( uKind > 3.5 ) {
+            // n32 Regenstreifen: Kopf = Lage jetzt, Schweif = Lage vor uStreak s relativ zur Kamera; Breite quer zu Strich
+            // und Blickstrahl (wie die Funken in fx.js, hier im Shader). position.y −0,5 … 0,5 = Schweif … Kopf.
+            vec3 vel = vec3( uWind * sp, -uFall * sp, uWind * 0.37 * sp ) - uCamVel;
+            vec3 a = ( viewMatrix * vec4( wp, 1.0 ) ).xyz, b = ( viewMatrix * vec4( wp - vel * uStreak, 1.0 ) ).xyz;
+            vec3 sd = cross( a - b, a );
+            float sl = length( sd );
+            sd = sl > 1e-5 ? sd / sl : vec3( 1.0, 0.0, 0.0 );
+            float w = uSize * ( 0.7 + 0.6 * aS.y ) * ( 1.0 + 0.04 * d );   // fern etwas breiter (sonst Pixelflimmern)
+            vec3 p = mix( b, a, position.y + 0.5 ) + sd * position.x * w;
+            vUv = position.xy + 0.5;
+            vC = mix( uC0, uC1, aS.z );
+            gl_Position = projectionMatrix * vec4( p, 1.0 );
+            return;
+          }
           vec4 mv = viewMatrix * vec4( wp, 1.0 );
           vec2 c = position.xy;
           float flip = 1.0;
@@ -236,7 +256,8 @@ export class AirMotes {
       fragmentShader: `uniform float uKind; varying vec2 vUv; varying float vA; varying vec3 vC;
         void main() {
           vec2 q = vUv - 0.5; float a;
-          if ( uKind > 0.5 && uKind < 1.5 ) { vec2 e = vec2( q.x * 2.0, q.y * 1.15 ); a = 1.0 - smoothstep( 0.36, 0.46, length( e ) + abs( q.y ) * 0.35 ); }
+          if ( uKind > 3.5 ) a = pow( max( 0.0, 1.0 - abs( q.x ) * 2.0 ), 1.5 ) * smoothstep( -0.5, 0.2, q.y );   // n32 Regen: Kopf hell, Schweif läuft aus
+          else if ( uKind > 0.5 && uKind < 1.5 ) { vec2 e = vec2( q.x * 2.0, q.y * 1.15 ); a = 1.0 - smoothstep( 0.36, 0.46, length( e ) + abs( q.y ) * 0.35 ); }
           else a = pow( max( 0.0, 1.0 - length( q ) * 2.0 ), uKind > 1.5 && uKind < 2.5 ? 1.5 : 1.1 );
           a *= vA;
           if ( a < 0.01 ) discard;
@@ -249,7 +270,7 @@ export class AirMotes {
     this.mesh.frustumCulled = false; this.mesh.renderOrder = 2; this.mesh.name = 'deko-luft';
     this.mesh.visible = false;
     scene.add(this.mesh);
-    this.theme = null; this.tier = 2; this.baseA = 0.7; this.cover = 1;
+    this.theme = null; this.tier = 2; this.baseA = 0.7; this.cover = 1; this.wetter = null; this.lite = false;
   }
   // unter Tunnel/Röhre/Brücke (Strahl nach oben trifft Fahrbahn): Teilchen weich ausblenden, k = 0 … 1
   shelter(covered, dt) {
@@ -257,16 +278,19 @@ export class AirMotes {
     this.u.uA.value = this.baseA * this.cover;
   }
   // Thema/Grafikstufe: Art und Menge (Einfach keine, Standard 70 %; „Bewegung reduzieren“ 30 %)
-  set(id, tier, sunDir) {
-    this.theme = id; this.tier = tier;
-    const A = AIR[id], U = this.u;
+  // n32: wetter = 'regen' | 'schnee' ersetzt die Luft des Themas (Mengen je Stufe: track/wetter.js wetterTeilchen, auch auf
+  // Einfach wenige); lite = Automatik „Deko sparsam“ → Wetter-Teilchen halbiert (Luft des Themas ist dann ganz aus, main.js)
+  set(id, tier, sunDir, wetter = null, lite = false) {
+    this.theme = id; this.tier = tier; this.wetter = WETTER_AIR[wetter] ? wetter : null; this.lite = !!lite;
+    const A = (this.wetter && WETTER_AIR[this.wetter]) || AIR[id], U = this.u;
     if (!A) { this.mesh.visible = false; return; }
     U.uKind.value = A.kind; U.uSize.value = A.size; U.uFall.value = A.fall; U.uSway.value = A.sway; U.uWind.value = A.wind; U.uSpin.value = A.spin;
     U.uBox.value = A.box; U.uH.value = A.h; U.uA.value = A.a * (this.cover ?? 1); this.baseA = A.a; U.uC0.value.setRGB(...A.c0); U.uC1.value.setRGB(...A.c1);
     if (sunDir) U.uSun.value = sunDir;
     this.mat.blending = A.kind === 2 ? THREE.AdditiveBlending : THREE.NormalBlending;
     const k = [0, 0.7, 1][tier] * (REDUCED ? 0.3 : 1);   // Einfach: keine (Budget der niedrigsten Stufe)
-    this.mesh.geometry.instanceCount = Math.min(AIR_MAX, Math.round(A.n * k));
+    const n = this.wetter ? Math.round(wetterTeilchen(this.wetter, tier, REDUCED) * (this.lite ? 0.5 : 1)) : Math.round(A.n * k);
+    this.mesh.geometry.instanceCount = Math.min(AIR_MAX, n);
     this.mesh.visible = this.mesh.geometry.instanceCount > 0;
   }
 }
