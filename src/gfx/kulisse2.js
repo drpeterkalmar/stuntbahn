@@ -35,16 +35,21 @@ const fanSets = [];
 export function kulisse2Tick(cam) {
   for (const S of fanSets) {
     const p = cam.position;
-    if (S.last && (S.last.x - p.x) ** 2 + (S.last.y - p.y) ** 2 + (S.last.z - p.z) ** 2 < 16) continue;
+    if (S.last && (S.last.x - p.x) ** 2 + (S.last.y - p.y) ** 2 + (S.last.z - p.z) ** 2 < 36) continue;
     S.last = (S.last || p.clone()).copy(p);
-    const R2 = S.r * S.r, n = S.x.length;
+    const R2 = S.r * S.r, n = S.x.length, sel = S.sel || (S.sel = new Int32Array(n)), prev = S.prev || (S.prev = new Int32Array(n));
     let k = 0;
-    for (let j = 0; j < n; j++) {
-      if ((S.x[j] - p.x) ** 2 + (S.y[j] - p.y) ** 2 + (S.z[j] - p.z) ** 2 > R2) continue;
-      for (const [dst, src, w] of S.copy) dst.array.set(src.subarray(j * w, j * w + w), k * w);
-      k++;
+    for (let j = 0; j < n; j++) if ((S.x[j] - p.x) ** 2 + (S.y[j] - p.y) ** 2 + (S.z[j] - p.z) ** 2 <= R2) sel[k++] = j;
+    // gleiche Auswahl wie zuletzt → nichts hochladen
+    let same = k === S.n;
+    for (let q = 0; same && q < k; q++) if (sel[q] !== prev[q]) same = false;
+    if (same) continue;
+    for (const [dst, src, w] of S.copy) {
+      for (let q = 0; q < k; q++) dst.array.set(src.subarray(sel[q] * w, sel[q] * w + w), q * w);
+      dst.clearUpdateRanges(); if (k) dst.addUpdateRange(0, k * w);   // nur den benutzten Teil hochladen
+      dst.needsUpdate = true;
     }
-    for (const [dst] of S.copy) dst.needsUpdate = true;
+    prev.set(sel.subarray(0, k));
     S.mesh.count = k; if (S.blob) S.blob.count = k;
     S.n = k;
   }
@@ -464,7 +469,7 @@ export function buildKulisse2(plan, ctx) {
     if (ctx.cull !== false) {
       const cp = (a) => a.array.slice();
       const ia = g.getAttribute('iA'), ib = g.getAttribute('iB');
-      fanSets.push({ mesh: im, blob: bm, r: FF[1] + 6, x: list.map((q) => q.x), y: list.map((q) => q.y), z: list.map((q) => q.z),
+      fanSets.push({ mesh: im, blob: bm, r: FF[1] + 9, n: -1, x: list.map((q) => q.x), y: list.map((q) => q.y), z: list.map((q) => q.z),
         copy: [[im.instanceMatrix, cp(im.instanceMatrix), 16], [ia, cp(ia), 4], [ib, cp(ib), 2], [bm.instanceMatrix, cp(bm.instanceMatrix), 16]] });
       for (const a of [im.instanceMatrix, ia, ib, bm.instanceMatrix]) a.setUsage(THREE.DynamicDrawUsage);
       im.count = bm.count = 0;   // bis zum ersten Tick nichts (main.js ruft kulisse2Tick vor dem Zeichnen)

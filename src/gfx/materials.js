@@ -8,7 +8,7 @@ import { mipBiasEinbauen } from './kern/taau.js';
 // Übersetzen (negativer Mip-Bias mit TAAU), sonst 0
 mipBiasEinbauen(THREE.ShaderChunk, 0);
 import { MAT, WORLD_HALF, WORLD_SCALE } from '../track/defs.js';
-import { zeitUniforms, NACHT_PARS, NACHT_APPLY, ROAD_REFL_PARS, ROAD_REFL_GLSL } from './zeit.js';
+import { zeitUniforms, zeitShader, NACHT_PARS, NACHT_APPLY, ROAD_REFL_PARS, ROAD_REFL_GLSL } from './zeit.js';
 import { wetterUniforms, ROAD_WET_GLSL, ROAD_PUDDLE_NORMAL_GLSL, GRASS_WEATHER_GLSL, GRASS_ROUGH_GLSL, patchSnowCover } from './wetter.js';
 
 const loader = new THREE.TextureLoader();
@@ -112,7 +112,7 @@ function addPatch(mat, fn) {
   mat.onBeforeCompile = (sh, r) => { if (prev) prev(sh, r); fn(sh, r); };
   const pk = mat.customProgramCacheKey ? mat.customProgramCacheKey.bind(mat) : () => '';
   const tag = fn.tag || 'p';
-  mat.customProgramCacheKey = () => pk() + '|' + tag;
+  mat.customProgramCacheKey = () => pk() + '|' + (typeof tag === 'function' ? tag() : tag);   // n32: Schlüssel darf vom Stand abhängen
 }
 
 // Statischer Sonnenschatten für alle Welt- und Auto-Materialien
@@ -171,11 +171,11 @@ export function patchStaticShadow(mat) {
       }
       ${NACHT_PARS}`)
       // Chunk selbst einsetzen: #include wird erst NACH onBeforeCompile aufgelöst
-      .replace('#include <lights_fragment_end>', '#include <lights_fragment_end>\n' + NACHT_APPLY)   // n32 Nacht: Licht-Karte
+      .replace('#include <lights_fragment_end>', '#include <lights_fragment_end>\n' + (zeitShader.an ? NACHT_APPLY : ''))   // n32 Nacht: Licht-Karte (nur Abend/Nacht)
       .replace('#include <lights_fragment_begin>', 'float sbShadowF = sbStatic();\n' + THREE.ShaderChunk.lights_fragment_begin
         .replace('getDirectionalLightInfo( directionalLight, directLight );', 'getDirectionalLightInfo( directionalLight, directLight );\n\t\tdirectLight.color *= ( UNROLLED_LOOP_INDEX == 0 ) ? sbShadowF : 1.0;'));
   };
-  fn.tag = 'sb';
+  fn.tag = () => (zeitShader.an ? 'sbn' : 'sb');
   addPatch(mat, fn);
   return mat;
 }
@@ -200,7 +200,7 @@ function patchRoad(mat, detail = true) {
       float rNoise( vec2 p ) { vec2 i = floor( p ), f = fract( p ); f = f * f * ( 3.0 - 2.0 * f );
         return mix( mix( rHash( i ), rHash( i + vec2( 1, 0 ) ), f.x ), mix( rHash( i + vec2( 0, 1 ) ), rHash( i + vec2( 1, 1 ) ), f.x ), f.y ); }`)
       .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = clamp( roughnessFactor + rRough, 0.04, 1.0 );')
-      .replace('#include <lights_fragment_end>', '#include <lights_fragment_end>\n' + ROAD_REFL_GLSL)
+      .replace('#include <lights_fragment_end>', '#include <lights_fragment_end>\n' + (zeitShader.an ? ROAD_REFL_GLSL : ''))
       .replace('#include <normal_fragment_maps>', detail ? `#include <normal_fragment_maps>
       #ifdef USE_NORMALMAP_TANGENTSPACE
       // n30: Asphaltkorn nahe der Kamera (gleichförmige Bedingung → Mipmaps gültig; Ausblenden über fade)
@@ -272,7 +272,7 @@ function patchRoad(mat, detail = true) {
       // n32: Wetter – nasse Fahrbahn, Pfützen, Matsch am Rand
       ${ROAD_WET_GLSL}`);
   };
-  fn.tag = detail ? 'road2' : 'road';
+  fn.tag = () => (detail ? 'road2' : 'road') + (zeitShader.an ? 'n' : '');
   addPatch(mat, fn);
 }
 

@@ -1,0 +1,95 @@
+{
+ "datum": "2026-10-09T22:14:55",
+ "stand": "n32_ab_end3",
+ "modus": "ab",
+ "runden": 3,
+ "varianten": [
+  {
+   "name": "vorher",
+   "wurzel": "/Users/wohnzimmer/dev/stuntbahn/tests/out/n32/vorher",
+   "zusatz": ""
+  },
+  {
+   "name": "nachher",
+   "wurzel": "/Users/wohnzimmer/dev/stuntbahn",
+   "zusatz": ""
+  }
+ ],
+ "profil": {
+  "drossel": 4,
+  "dpr": 2.6,
+  "sek": 10,
+  "start": "open",
+  "vsync": false
+ },
+ "szenen": {
+  "replay_kino": {
+   "hoch": {
+    "vorher": {
+     "p50": 7.9,
+     "p95": 10.5,
+     "fps": 121.9,
+     "calls": 94,
+     "tris": 346257,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      10.4,
+      10.5,
+      10.6
+     ],
+     "fehler": []
+    },
+    "nachher": {
+     "p50": 8.1,
+     "p95": 10.4,
+     "fps": 121.6,
+     "calls": 96,
+     "tris": 354378,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      10.4,
+      10.4,
+      10.5
+     ],
+     "fehler": []
+    }
+   }
+  },
+  "rennen_autopilot": {
+   "hoch": {
+    "vorher": {
+     "p50": 6.6,
+     "p95": 9.5,
+     "fps": 140,
+     "calls": 95,
+     "tris": 353277,
+     "gpu50": 7.605,
+     "gpu95": 16.903,
+     "runden_p95": [
+      9.5,
+      10.8,
+      9.5
+     ],
+     "fehler": []
+    },
+    "nachher": {
+     "p50": 7.2,
+     "p95": 10.5,
+     "fps": 127,
+     "calls": 96,
+     "tris": 360694,
+     "gpu50": 14.407,
+     "gpu95": 16.031,
+     "runden_p95": [
+      10.6,
+      9.7,
+      10.5
+     ],
+     "fehler": []
+    }
+   }
+  }
+ }
+}

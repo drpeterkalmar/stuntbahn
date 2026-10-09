@@ -8,7 +8,7 @@ import { ThemeManager } from './gfx/themes.js';
 import { themeFor, THEMES, THEME_IDS } from './track/themes.js';
 import { wetterFor, parseWetter, wetterLook } from './track/wetter.js';
 import { zeitFor, parseZeit, zeitLook } from './track/zeit.js';
-import { zeitUniforms, glowUniforms, glowMesh, planNachtLichter, backeLichtKarte, reflNaechste } from './gfx/zeit.js';
+import { zeitUniforms, zeitShader, glowUniforms, glowMesh, planNachtLichter, backeLichtKarte, reflNaechste } from './gfx/zeit.js';
 import { Scheibe } from './gfx/scheibe.js';
 import { kulisse2Uniforms, ampelAus, kulisse2Tick } from './gfx/kulisse2.js';
 import { buildWorld, STATIC_LAYER, vaoAuftrag } from './gfx/world.js';
@@ -353,6 +353,12 @@ function schattenNeu() {
 }
 function zeitAnwenden() {
   const L = env.zeitLook, on = L.lights > 0;
+  // Nacht-Shader-Code nur bei Abend/Nacht: beim Wechsel alle Materialien neu übersetzen lassen (einmalig, im Menü)
+  if (zeitShader.an !== on) {
+    zeitShader.an = on;
+    const touch = (o) => { const m = o.material; if (m) (Array.isArray(m) ? m : [m]).forEach((x) => { x.needsUpdate = true; }); };
+    scene.traverse(touch); if (M) for (const v of Object.values(M)) (Array.isArray(v) ? v : [v]).forEach((x) => { if (x && x.isMaterial) x.needsUpdate = true; });
+  }
   if (headL) {
     if (on && !headL.parent) carVis.root.add(headL, headL.target); else if (!on && headL.parent) { headL.parent.remove(headL.target); headL.parent.remove(headL); }
     headL.intensity = on ? 55 * L.headlight : 0;

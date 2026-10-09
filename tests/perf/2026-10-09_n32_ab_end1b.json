@@ -1,0 +1,61 @@
+{
+ "datum": "2026-10-09T21:58:09",
+ "stand": "n32_ab_end1b",
+ "modus": "ab",
+ "runden": 3,
+ "varianten": [
+  {
+   "name": "vorher",
+   "wurzel": "/Users/wohnzimmer/dev/stuntbahn/tests/out/n32/vorher",
+   "zusatz": ""
+  },
+  {
+   "name": "nachher",
+   "wurzel": "/Users/wohnzimmer/dev/stuntbahn",
+   "zusatz": ""
+  }
+ ],
+ "profil": {
+  "drossel": 4,
+  "dpr": 2.6,
+  "sek": 10,
+  "start": "open",
+  "vsync": false
+ },
+ "szenen": {
+  "rennen_kino": {
+   "hoch": {
+    "vorher": {
+     "p50": 7.4,
+     "p95": 11,
+     "fps": 120.9,
+     "calls": 94,
+     "tris": 350165,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      11,
+      11,
+      10.9
+     ],
+     "fehler": []
+    },
+    "nachher": {
+     "p50": 8,
+     "p95": 11.6,
+     "fps": 112.9,
+     "calls": 97,
+     "tris": 358472,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      11.6,
+      11.7,
+      11.6
+     ],
+     "fehler": []
+    }
+   }
+  }
+ }
+}

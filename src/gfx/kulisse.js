@@ -312,7 +312,7 @@ function flagMaterial() {
       { float u = uv.x; float w = sin( uTime * 7.0 - u * 6.0 + ip.x * 0.3 ) * 0.09 + sin( uTime * 11.0 - u * 9.0 + ip.z ) * 0.03;
         transformed.z += w * u * 1.6; transformed.y -= u * u * 0.06; }`);
   };
-  m.customProgramCacheKey = () => 'decoFlag';
+  const pkF = m.customProgramCacheKey; m.customProgramCacheKey = () => 'decoFlag' + pkF();   // n32: Nacht-Stand im Schlüssel
   return m;
 }
 let flagMat = null;

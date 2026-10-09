@@ -199,7 +199,7 @@ function crowdMaterial(map) {
           }
         }`);
   };
-  m.customProgramCacheKey = () => 'decoCrowd';
+  const pkC = m.customProgramCacheKey; m.customProgramCacheKey = () => 'decoCrowd' + pkC();   // n32: Schlüssel der Basis (Nacht-Stand) behalten
   return m;
 }
 // n32: auch für Fangzäune und Banden (gfx/kulisse2.js)

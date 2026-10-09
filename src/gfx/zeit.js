@@ -19,6 +19,9 @@ export const zeitUniforms = {
   // Spiegel-Lichter für die nasse Fahrbahn (Streifen-Spiegelung): Position + Stärke, Anzahl
   zRefl: { value: Array.from({ length: 4 }, () => new THREE.Vector4(0, -1e4, 0, 0)) }, zReflN: { value: 0 }, zUpV: { value: new THREE.Vector3(0, 1, 0) },
 };
+// Nacht-Shader-Code nur, wenn Abend/Nacht aktiv ist: schon übersprungener Code kostete tagsüber ~0,5 ms je Bild (Mess-Gate
+// Kino, alle Materialien). main.js schaltet um und lässt die Materialien neu übersetzen (Programm-Schlüssel enthält den Stand).
+export const zeitShader = { an: false };
 // Platzhalter (schwarz), damit der Sampler immer gültig ist
 zeitUniforms.zLichtMap.value = (() => { const t = new THREE.DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1); t.needsUpdate = true; return t; })();
 
@@ -31,7 +34,7 @@ export const NACHT_PARS = `
         if ( zLichtK <= 0.0 || zLichtXf.z <= 0.0 ) return vec3( 0.0 );
         vec2 uv = ( vSbWorld.xz - zLichtXf.xy ) * zLichtXf.zw;
         if ( uv.x <= 0.0 || uv.y <= 0.0 || uv.x >= 1.0 || uv.y >= 1.0 ) return vec3( 0.0 );
-        vec3 t = texture2D( zLichtMap, uv ).rgb;
+        vec3 t = textureLod( zLichtMap, uv, 0.0 ).rgb;   // feste Stufe: bleibt in der Bedingung (sonst holt der Chip die Karte tagsüber in jedem Material)
         return t * t * 4.0 * zLichtK;
       }`;
 export const NACHT_APPLY = `
