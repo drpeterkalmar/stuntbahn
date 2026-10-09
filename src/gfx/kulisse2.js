@@ -131,7 +131,7 @@ export function fanMaterial() {
           vec3 hair = fract( iA.z * 5.7 ) < 0.3 ? shirt.yzx : mix( vec3( 0.03, 0.025, 0.02 ), vec3( 0.45, 0.3, 0.12 ), step( 0.72, fract( iA.z * 3.1 ) ) );
           vec3 flag = fract( iA.z * 9.1 ) < 0.5 ? vec3( 0.95, 0.8, 0.05 ) : vec3( 0.8, 0.05, 0.05 );
           vec3 cc = aCls < 0.5 ? pants : aCls < 1.5 ? shirt : aCls < 2.5 ? skin : aCls < 3.5 ? hair : aCls < 4.5 ? flag : aCls < 5.5 ? vec3( 0.55 ) : vec3( 0.03 );
-          vColor = cc * ( 0.72 + 0.28 * smoothstep( 0.0, 1.6, position.y ) );   // unten dunkler (Umgebungsverdeckung angedeutet)
+          vColor.rgb = cc * ( 0.72 + 0.28 * smoothstep( 0.0, 1.6, position.y ) );   // unten dunkler (Umgebungsverdeckung angedeutet); r186: vColor ist vec4
         }`);
       sh.fragmentShader = sh.fragmentShader
         .replace('#include <common>', '#include <common>\nvarying float vFlash;')

@@ -236,7 +236,7 @@ export class CarFX {
       // n32 Gischt: Hinterräder werfen auf nasser Fahrbahn feinen Sprühnebel hoch, der hinter dem Auto zurückbleibt
       if (W.spray > 0 && emit && onRoad && k >= 2 && sp > W.sprayKmh / 3.6) {
         const kk = W.spray * Math.min(1, (sp - W.sprayKmh / 3.6) / 12);
-        this.parts.spawn(this.p.set(w.hx, w.hy + 0.25, w.hz), this.v.set(car.v.x * 0.45 + (Math.random() - 0.5) * 1.6, 0.4 + Math.random() * 0.8, car.v.z * 0.45 + (Math.random() - 0.5) * 1.6), 0.5, 3.0 + sp * 0.03, 0.6 + 0.35 * Math.random(), 0xd2d6dc, 0.24 * kk);
+        for (let q = 0; q < 2; q++) this.parts.spawn(this.p.set(w.hx, w.hy + 0.25, w.hz), this.v.set(car.v.x * 0.45 + (Math.random() - 0.5) * 1.6, 0.5 + Math.random() * 1.0, car.v.z * 0.45 + (Math.random() - 0.5) * 1.6), 0.7, 3.4 + sp * 0.04, 0.6 + 0.4 * Math.random(), 0xd6dadf, 0.36 * kk);
         this.p.set(w.hx, w.hy, w.hz);
       }
       // n32 Spritzer an Kerbs (nasser Randstein): kurze, helle Tropfenwolke zur Seite und nach oben
@@ -311,7 +311,7 @@ export class CarFX {
       const F = pose.frame, kk = W.spray * Math.min(1, (Math.abs(sp) - W.sprayKmh / 3.6) / 12);
       for (const sx of [-0.88, 0.88]) {
         this.p.set(pose.pos.x + F.r.x * sx - F.f.x * 1.36 - F.u.x * 0.25, pose.pos.y + F.r.y * sx - F.f.y * 1.36 - F.u.y * 0.25, pose.pos.z + F.r.z * sx - F.f.z * 1.36 - F.u.z * 0.25);
-        this.parts.spawn(this.p, this.v.set(F.f.x * sp * 0.45 + (Math.random() - 0.5) * 1.6, 0.4 + Math.random() * 0.8, F.f.z * sp * 0.45 + (Math.random() - 0.5) * 1.6), 0.5, 3.0 + Math.abs(sp) * 0.03, 0.6 + 0.35 * Math.random(), 0xd2d6dc, 0.24 * kk);
+        for (let q = 0; q < 2; q++) this.parts.spawn(this.p, this.v.set(F.f.x * sp * 0.45 + (Math.random() - 0.5) * 1.6, 0.5 + Math.random() * 1.0, F.f.z * sp * 0.45 + (Math.random() - 0.5) * 1.6), 0.7, 3.4 + Math.abs(sp) * 0.04, 0.6 + 0.4 * Math.random(), 0xd6dadf, 0.36 * kk);
       }
     }
     const s = Math.max(0, Math.min(1, (Math.tan(Math.min(1.3, Math.abs(beta))) - 0.18) * 3));

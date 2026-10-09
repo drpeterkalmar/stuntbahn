@@ -65,7 +65,7 @@ export function wendeWetterAn(c, B, w, themeId, tier, extra = {}) {
     kino.grade = WETTER_GRADES[L.id] ? 'wetter_' + L.id : B.kino.grade;
     mixRGB(kino.hazeCol.copy(B.kino.haze), L.haze, L.hazeK);
     kino.sunCol.copy(B.kino.sun); if (L.sunTint) kino.sunCol.multiply(tmpC.setRGB(...L.sunTint));
-    kino.aerial.density = B.kino.aerial.density / Math.max(0.2, L.fog);   // TODO n32-Heavy: am Bild abstimmen
+    kino.aerial.density = B.kino.aerial.density * (1 + (1 / Math.max(0.2, L.fog) - 1) * 0.6);   // n32 Heavy: am Bild abgestimmt (voll ×2 war zu milchig)
     kino.aerial.max = L.fog < 1 ? Math.min(0.75, B.kino.aerial.max * 1.6) : B.kino.aerial.max;
   }
   // Flächen
@@ -88,12 +88,16 @@ export const ROAD_WET_GLSL = `
       if ( wWet + wSlush > 0.0 ) {
         float wx = vRoad.x, ws = vRoad.z, whw = vRoad.y - floor( vRoad.y / 100.0 + 0.001 ) * 100.0, wax = abs( wx );
         float wn = rNoise( vec2( wx * 0.33, ws * 0.11 ) ) * 0.62 + rNoise( vec2( wx * 1.4, ws * 0.47 ) ) * 0.38;
-        float wrut = exp( - pow( abs( wax - whw * 0.34 ), 2.0 ) / 0.12 );                    // Spurrinnen stehen zuerst unter Wasser
-        float wfw = max( fwidth( wn ), 0.004 );
-        sbPud = smoothstep( 0.66 - wrut * 0.14 - wfw, 0.7 - wrut * 0.14 + wfw, wn ) * wPud * ( 1.0 - smoothstep( whw - 1.2, whw - 0.4, wax ) );
-        float wk = wWet * ( 0.78 + 0.22 * wn );
-        diffuseColor.rgb *= 1.0 - 0.4 * wk - 0.22 * sbPud;
-        rRough -= wk * 0.42 + sbPud * 0.6;
+        float wrut = exp( - pow( abs( wax - whw * 0.34 ), 2.0 ) / 0.18 );                    // Spurrinnen stehen zuerst unter Wasser
+        // Pfützen: kleine, unregelmäßige Lachen (feineres Rauschen), fast nur in den Spurrinnen und am tiefen Rand
+        float wp = rNoise( vec2( wx * 0.9, ws * 0.3 ) ) * 0.55 + rNoise( vec2( wx * 2.7, ws * 0.9 ) ) * 0.3 + wn * 0.15;
+        float wfw = max( fwidth( wp ), 0.004 );
+        float wthr = 0.8 - wrut * 0.2;
+        sbPud = smoothstep( wthr - wfw, wthr + 0.03 + wfw, wp ) * wPud * ( 1.0 - smoothstep( whw - 1.2, whw - 0.4, wax ) );
+        float wk = wWet * ( 0.8 + 0.2 * wn );
+        diffuseColor.rgb *= 1.0 - 0.45 * wk - 0.3 * sbPud;
+        // nasser Asphalt glänzt (in den Spurrinnen mehr), Pfützen fast spiegelnd mit leichter Unruhe
+        rRough -= wk * ( 0.4 + 0.18 * wrut ) + sbPud * 0.35;
         if ( wSlush > 0.0 ) {
           // Matsch am Rand (grau-weiß, rau), Schneewall dahinter heller; innen bleibt die Fahrbahn dunkel und befahrbar
           float edgeS = smoothstep( whw - 1.6 - wn * 0.9, whw - 0.2, wax ) * wSlush;
@@ -118,7 +122,7 @@ export const GRASS_WEATHER_GLSL = `
         }`;
 // Rauheit des Geländes (nach roughnessmap_fragment): nass glatter, Schnee rau
 export const GRASS_ROUGH_GLSL = `
-        if ( wWet + wSnow > 0.0 ) roughnessFactor = clamp( roughnessFactor - 0.25 * wWet + 0.1 * wSnow, 0.3, 1.0 );`;
+        if ( wWet + wSnow > 0.0 ) roughnessFactor = clamp( roughnessFactor - 0.12 * wWet + 0.1 * wSnow, 0.45, 1.0 );   // n32 Heavy: nasser Sand/Wiese glänzte zu hell`;
 
 // Schnee auf nach oben zeigenden Flächen (Dächer, Tribünendächer, Bauten, Felsen, Zäune): an emissivemap_fragment
 // (Normale steht fest, Licht noch nicht gerechnet). Weltnormale aus der Blickraum-Normale.

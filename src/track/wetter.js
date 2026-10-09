@@ -82,7 +82,7 @@ const NEUTRAL = Object.freeze({
 export const WETTER_LOOK = {
   klar: NEUTRAL,
   regen: {
-    ...NEUTRAL, id: 'regen', fog: 0.5, sun: 0.32, env: 0.78, shadow: 0.35, skyDark: 0.42, skyDesat: 0.55,
+    ...NEUTRAL, id: 'regen', fog: 0.5, sun: 0.32, env: 0.78, shadow: 0.35, skyDark: 0.5, skyDesat: 0.55,
     clouds: { k: 0.86, soft: 0.42, dark: 0.62 }, haze: [0.6, 0.63, 0.67], hazeK: 0.7, sunTint: [0.86, 0.9, 0.96],
     wet: 1, puddles: 0.8, spray: 1, glass: 1, rain: 1,
   },
@@ -96,11 +96,11 @@ export const WETTER_LOOK = {
 // Teilchen in der Luft je Wetter (Format wie AIR in gfx/deko.js; null = die Luft des Themas). kind 4 = Regenstreifen
 // (n32, neue Art „Streifen“: senkrecht fallend, in Fall- und Fahrtrichtung gestreckt = Bewegungsunschärfe).
 export const WETTER_AIR = {
-  regen: { kind: 4, n: 1400, size: 0.012, fall: 9.5, sway: 0.05, wind: 1.1, spin: 0, box: 20, h: 14, c0: [0.62, 0.66, 0.72], c1: [0.78, 0.82, 0.88], a: 0.38 },
+  regen: { kind: 4, n: 3000, size: 0.026, fall: 9.5, sway: 0.05, wind: 1.1, spin: 0, box: 40, h: 14, c0: [0.8, 0.83, 0.88], c1: [0.95, 0.97, 1.0], a: 0.72 },
   schnee: { kind: 0, n: 1500, size: 0.11, fall: 1.0, sway: 0.6, wind: 0.9, spin: 0, box: 22, h: 12, c0: [0.95, 0.97, 1.0], c1: [1.0, 1.0, 1.0], a: 0.92 },
 };
 // Anteil der Teilchen je Grafikstufe (Einfach wenig, Standard 60 %, Kino alle) und „Bewegung reduzieren“
-export const WETTER_TEILCHEN = [0.22, 0.6, 1];
+export const WETTER_TEILCHEN = [0.12, 0.6, 1];   // n32 Heavy: Einfach 12 % (Regen 360, Schnee 180)
 export function wetterTeilchen(w, tier, reduced = false) {
   const A = WETTER_AIR[w];
   if (!A) return 0;
@@ -118,6 +118,9 @@ export function wetterLook(w, themeId = 'land', tier = 2) {
   const o = { ...L, air: WETTER_AIR[w] || null };
   // Winter hat schon Schnee am Boden (Thema): Schnee-Wetter verstärkt nur Fall, Wolken, Licht
   if (w === 'schnee' && themeId === 'winter') o.fog = 0.55;
+  // n32 Heavy (Bild): Themen mit schon dichtem Dunst (Winter, Herbst) liefen bei Regen/Schnee ins Weiße → weniger Nebel dazu
+  if (themeId === 'winter') o.fog = Math.max(o.fog, 0.8);
+  if (themeId === 'herbst') o.fog = Math.max(o.fog, 0.72);
   // Wüste: Regen kurz und hell (kein Dauergrau), Sand wird nur dunkler
   if (w === 'regen' && themeId === 'wueste') { o.skyDark = 0.25; o.sun = 0.5; o.puddles = 0.3; }
   if (tier < WETTER_STUFE.spiegel) o.puddles = 0;

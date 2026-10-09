@@ -27,7 +27,7 @@ def drive_to(s, i, secs):
         s.ev("__game.sim(0.05)"); t += 0.05; s.frames(1)
 with Server() as srv, sync_playwright() as pw:
     s = Session(pw, srv.base, device=dev)
-    s.open(f'?nosw&{q}&thema={themes[0]}&q=1')
+    s.open(f'?nosw&{q}&thema={themes[0]}&q={os.environ.get("Q", "1")}&startprobe=0{os.environ.get("ZUSATZ", "")}')
     for k, th in enumerate(themes):
         if k:
             s.ev("window.__app.freezeCam = false; __game.freeze(false); __game.cam('chase'); __game.toMenu()")

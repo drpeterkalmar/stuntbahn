@@ -1,0 +1,61 @@
+{
+ "datum": "2026-10-09T19:15:04",
+ "stand": "n32_wetter_autopilot",
+ "modus": "ab",
+ "runden": 3,
+ "varianten": [
+  {
+   "name": "klar",
+   "wurzel": "/Users/wohnzimmer/dev/stuntbahn",
+   "zusatz": "&wetter=klar"
+  },
+  {
+   "name": "regen",
+   "wurzel": "/Users/wohnzimmer/dev/stuntbahn",
+   "zusatz": "&wetter=regen"
+  }
+ ],
+ "profil": {
+  "drossel": 4,
+  "dpr": 2.6,
+  "sek": 10,
+  "start": "open",
+  "vsync": false
+ },
+ "szenen": {
+  "rennen_autopilot": {
+   "hoch": {
+    "klar": {
+     "p50": 7.2,
+     "p95": 10.6,
+     "fps": 126.4,
+     "calls": 99,
+     "tris": 385110,
+     "gpu50": 14.61,
+     "gpu95": 15.504,
+     "runden_p95": [
+      11,
+      10,
+      10.6
+     ],
+     "fehler": []
+    },
+    "regen": {
+     "p50": 7.1,
+     "p95": 9.2,
+     "fps": 137.8,
+     "calls": 100,
+     "tris": 391205,
+     "gpu50": 8.551,
+     "gpu95": 16.326,
+     "runden_p95": [
+      9.2,
+      10.1,
+      8.9
+     ],
+     "fehler": []
+    }
+   }
+  }
+ }
+}

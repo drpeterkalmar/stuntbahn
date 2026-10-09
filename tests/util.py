@@ -12,11 +12,11 @@ DESKTOP = dict(viewport={"width": 1280, "height": 720}, device_scale_factor=1)
 # Schmetterlingswiese gemessen 60 statt 5 fps und 0,2 statt 3 CPU-Kerne bei gleichem Bild.
 # --enable-unsafe-swiftshader bleibt nur als Rückfall, falls Metal einmal fehlt (dann warnt _check_gl).
 # SwiftShader erzwingen: WEBGL=swiftshader python3 tests/<test>.py
-GPU_ARGS = ["--use-angle=metal", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist", "--enable-webgl"]
-SWIFT_ARGS = ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist", "--enable-webgl"]
+GPU_ARGS = ["--use-angle=metal", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist", "--enable-webgl", "--mute-audio"]   # n32: stumm (Peter 08.10.)
+SWIFT_ARGS = ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist", "--enable-webgl", "--mute-audio"]
 # Linux (omen16, n31): Metal gibt es nicht – ANGLE über Vulkan (RTX 3070), sonst fiele Chromium auf SwiftShader zurück
 if sys.platform.startswith('linux'):
-    GPU_ARGS = ["--use-gl=angle", "--use-angle=vulkan", "--ignore-gpu-blocklist", "--enable-webgl"]
+    GPU_ARGS = ["--use-gl=angle", "--use-angle=vulkan", "--ignore-gpu-blocklist", "--enable-webgl", "--mute-audio"]
 ARGS = SWIFT_ARGS if os.environ.get('WEBGL') == 'swiftshader' else GPU_ARGS
 GL_RENDERER = """() => { const gl = document.createElement('canvas').getContext('webgl2'); if (!gl) return 'kein WebGL2';
   const e = gl.getExtension('WEBGL_debug_renderer_info'); return e ? gl.getParameter(e.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER); }"""

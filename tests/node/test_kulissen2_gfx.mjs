@@ -29,7 +29,7 @@ fg.computeBoundingBox(); ok(fg.boundingBox.max.y > 1.7 && fg.boundingBox.max.y <
   const m = fanMaterial(), sh = { uniforms: {}, vertexShader: THREE.ShaderLib.physical.vertexShader, fragmentShader: THREE.ShaderLib.physical.fragmentShader };
   for (const a of ['#include <beginnormal_vertex>', '#include <begin_vertex>', '#include <color_vertex>', '#include <common>']) ok(sh.vertexShader.includes(a), `r186 Anker ${a}`);
   m.onBeforeCompile(sh);
-  ok(sh.vertexShader.includes('fanJoint( fJo, fJm, fJl, fJk )') && (sh.vertexShader.match(/fanJoint\(/g) || []).length === 2 && sh.vertexShader.includes('objectNormal = fJm * objectNormal') && sh.vertexShader.includes('vColor = cc'), 'Figur-Shader: Haltung, Normale, Farbe eingesetzt');
+  ok(sh.vertexShader.includes('fanJoint( fJo, fJm, fJl, fJk )') && (sh.vertexShader.match(/fanJoint\(/g) || []).length === 2 && sh.vertexShader.includes('objectNormal = fJm * objectNormal') && sh.vertexShader.includes('vColor.rgb = cc'), 'Figur-Shader: Haltung, Normale, Farbe eingesetzt (r186: vColor ist vec4 → .rgb)');
   ok(sh.fragmentShader.includes('totalEmissiveRadiance += vec3( 9.0, 9.0, 8.5 ) * vFlash'), 'Figur-Shader: Kamerablitz');
   ok(sh.uniforms.uFanFade && sh.uniforms.uCheer && sh.uniforms.uTime, 'Figur-Shader: Uniforms');
   const bal = (s) => [...s].filter((c) => c === '{').length === [...s].filter((c) => c === '}').length;

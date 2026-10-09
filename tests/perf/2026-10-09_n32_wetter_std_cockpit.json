@@ -1,0 +1,130 @@
+{
+ "datum": "2026-10-09T19:09:03",
+ "stand": "n32_wetter_std_cockpit",
+ "modus": "ab",
+ "runden": 3,
+ "varianten": [
+  {
+   "name": "klar",
+   "wurzel": "/Users/wohnzimmer/dev/stuntbahn",
+   "zusatz": "&wetter=klar"
+  },
+  {
+   "name": "regen",
+   "wurzel": "/Users/wohnzimmer/dev/stuntbahn",
+   "zusatz": "&wetter=regen"
+  },
+  {
+   "name": "schnee",
+   "wurzel": "/Users/wohnzimmer/dev/stuntbahn",
+   "zusatz": "&wetter=schnee"
+  }
+ ],
+ "profil": {
+  "drossel": 4,
+  "dpr": 2.6,
+  "sek": 10,
+  "start": "open",
+  "vsync": false
+ },
+ "szenen": {
+  "rennen_standard": {
+   "hoch": {
+    "klar": {
+     "p50": 4.1,
+     "p95": 5.6,
+     "fps": 238.8,
+     "calls": 86,
+     "tris": 272718,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      5.7,
+      5.6,
+      5.6
+     ],
+     "fehler": []
+    },
+    "regen": {
+     "p50": 4.1,
+     "p95": 5.7,
+     "fps": 234.7,
+     "calls": 86,
+     "tris": 276530,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      5.9,
+      5.7,
+      5.6
+     ],
+     "fehler": []
+    },
+    "schnee": {
+     "p50": 4.3,
+     "p95": 5.8,
+     "fps": 226.5,
+     "calls": 86,
+     "tris": 274710,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      5.8,
+      6.2,
+      5.8
+     ],
+     "fehler": []
+    }
+   }
+  },
+  "cockpit_kino": {
+   "hoch": {
+    "klar": {
+     "p50": 8.7,
+     "p95": 15.6,
+     "fps": 106.5,
+     "calls": 78,
+     "tris": 246243,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      15.6,
+      16.2,
+      15.3
+     ],
+     "fehler": []
+    },
+    "regen": {
+     "p50": 9.3,
+     "p95": 15.8,
+     "fps": 99.1,
+     "calls": 80,
+     "tris": 253571,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      15.8,
+      15.5,
+      15.8
+     ],
+     "fehler": []
+    },
+    "schnee": {
+     "p50": 9.4,
+     "p95": 16.5,
+     "fps": 97.8,
+     "calls": 80,
+     "tris": 249836,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      16.5,
+      16.5,
+      16.8
+     ],
+     "fehler": []
+    }
+   }
+  }
+ }
+}

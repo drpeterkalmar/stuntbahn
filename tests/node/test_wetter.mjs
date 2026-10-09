@@ -124,7 +124,7 @@ ok(W.wetterLook('schnee', 'alpen', 2).snow === 1 && W.wetterLook('schnee', 'alpe
   a.set('land', 1, null, 'regen', true); ok(n() === Math.round(W.wetterTeilchen('regen', 1) * 0.5), 'Regen/„Deko sparsam“: halbiert');
   a.set('kueste', 2, null, 'schnee'); ok(a.u.uKind.value === 0 && n() === W.WETTER_AIR.schnee.n, 'Schnee/Kino');
   a.set('kueste', 2, null, 'klar'); ok(a.u.uKind.value === AIR.kueste.kind && n() === AIR.kueste.n && a.wetter === null, 'zurück auf klar: Luft des Themas');
-  for (const w of ['regen', 'schnee']) for (const t of [0, 1, 2]) ok(W.wetterTeilchen(w, t) <= 1600, `${w}/${t}: ≤ AIR_MAX`);
+  for (const w of ['regen', 'schnee']) for (const t of [0, 1, 2]) ok(W.wetterTeilchen(w, t) <= 3000, `${w}/${t}: ≤ AIR_MAX (3000, n32 Heavy)`);
   const vs = a.mat.vertexShader;
   ok(/uKind > 3\.5/.test(vs) && /uCamVel/.test(vs) && /uStreak/.test(vs) && /return;/.test(vs), 'Regenstreifen im Vertex-Shader (Kamera-Bewegung, Belichtungszeit)');
 }

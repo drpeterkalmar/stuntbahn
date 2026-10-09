@@ -196,7 +196,7 @@ export const AIR = {
   winter: { kind: 0, n: 1100, size: 0.1, fall: 1.15, sway: 0.45, wind: 0.6, spin: 0, box: 22, h: 12, c0: [0.95, 0.97, 1.0], c1: [1.0, 1.0, 1.0], a: 0.9 },
   wueste: { kind: 3, n: 300, size: 0.05, fall: 0.06, sway: 0.4, wind: 3.4, spin: 0, box: 24, h: 7, c0: [0.85, 0.66, 0.42], c1: [0.95, 0.82, 0.6], a: 0.55 },
 };
-const AIR_MAX = 1600;   // n32: Regen/Schnee-Wetter auf Kino (bis n31: 1100)
+const AIR_MAX = 3000;   // n32: Regen auf Kino (großer Kasten, bis ~18 m sichtbar; bis n31: 1100)
 export class AirMotes {
   constructor(scene) {
     const g = new THREE.InstancedBufferGeometry();
@@ -209,9 +209,10 @@ export class AirMotes {
     const U = this.u = { uTime: decoUniforms.uTime, uKind: { value: 2 }, uSize: { value: 0.05 }, uFall: { value: 0 }, uSway: { value: 0.5 }, uWind: { value: 0.3 },
       uSpin: { value: 0 }, uBox: { value: 34 }, uH: { value: 14 }, uA: { value: 0.7 }, uC0: { value: new THREE.Color() }, uC1: { value: new THREE.Color() }, uSun: { value: new THREE.Vector3(0, 1, 0) },
       // n32 Regen: Kamera-Geschwindigkeit (m/s, main.js aus dem Auto) und Belichtungszeit des Strichs (s)
-      uCamVel: { value: new THREE.Vector3() }, uStreak: { value: 0.045 } };
+      uCamVel: { value: new THREE.Vector3() }, uStreak: { value: 0.07 } };
     this.mat = new THREE.ShaderMaterial({
-      uniforms: U, transparent: true, depthWrite: false,
+      // n32: beidseitig – die Regenstreifen (kind 4) liegen je nach Fall-/Kamerarichtung mit der Rückseite zur Kamera
+      uniforms: U, transparent: true, depthWrite: false, side: THREE.DoubleSide,
       vertexShader: `attribute vec4 aS; uniform float uTime, uKind, uSize, uFall, uSway, uWind, uSpin, uBox, uH, uA, uStreak; uniform vec3 uC0, uC1, uSun, uCamVel;
         varying vec2 vUv; varying float vA; varying vec3 vC;
         void main() {
@@ -219,10 +220,16 @@ export class AirMotes {
           float ph = aS.w * 6.2832, sp = 0.75 + 0.5 * aS.y;
           vec3 p0 = aS.xyz * box + vec3( uWind * uTime * sp, -uFall * uTime * sp, uWind * 0.37 * uTime * sp )
             + vec3( sin( uTime * 0.9 * sp + ph ), sin( uTime * 1.3 + ph * 2.0 ) * 0.3, cos( uTime * 0.7 * sp + ph * 1.3 ) ) * uSway;
-          vec3 rel = mod( p0 - cameraPosition + box * 0.5, box ) - box * 0.5;
-          vec3 wp = cameraPosition + rel;
-          float d = length( rel );
-          vA = uA * smoothstep( 0.7, 2.2, d ) * ( 1.0 - smoothstep( uBox * 0.3, uBox * 0.47, d ) ) * ( 1.0 - smoothstep( uH * 0.32, uH * 0.5, abs( rel.y ) ) );
+          // n32: Regen (kind 4) – Kasten nach oben versetzt (Mitte 0,3·uH über der Kamera): sonst steckt die untere Hälfte
+          // der Tropfen im Boden und vor der Landschaft kommt kaum ein Streifen an
+          vec3 cc = cameraPosition + vec3( 0.0, uKind > 3.5 ? uH * 0.3 : 0.0, 0.0 );
+          vec3 rel = mod( p0 - cc + box * 0.5, box ) - box * 0.5;
+          vec3 wp = cc + rel;
+          float d = length( wp - cameraPosition );
+          float yf = uKind > 3.5 ? ( 1.0 - smoothstep( uH * 0.3, uH * 0.5, rel.y ) ) * ( 1.0 - smoothstep( uH * 0.44, uH * 0.5, - rel.y ) )   // Regen: unten fast bis zur Kastenkante
+            : 1.0 - smoothstep( uH * 0.32, uH * 0.5, abs( rel.y ) );
+          vA = uA * smoothstep( 0.7, 2.2, d ) * ( 1.0 - smoothstep( uBox * 0.3, uBox * 0.47, d ) ) * yf;
+          rel = wp - cameraPosition;
           if ( uKind > 3.5 ) {
             // n32 Regenstreifen: Kopf = Lage jetzt, Schweif = Lage vor uStreak s relativ zur Kamera; Breite quer zu Strich
             // und Blickstrahl (wie die Funken in fx.js, hier im Shader). position.y −0,5 … 0,5 = Schweif … Kopf.
