@@ -130,8 +130,9 @@ export function haftOffAt(track, idx) {
 }
 const STUNT_NAMES = { loop: 'Looping', tube: 'Röhre', cork: 'Korkenzieher', jump: 'Sprung', zig: 'Zickzack' };
 // Zickzack-Barriere (n33): Stunt-Zone von ZIG_ZONE[0] m vor dem ersten bis ZIG_ZONE[1] m hinter dem letzten Block – dort lenkt
+// (30 m: mit 14 m stand der Mittel-Bot bei 0,35 s Reaktion vor dem ersten Block noch auf der falschen Seite, 1/16 ohne Crash)
 // auf Leicht der Autopilot den Slalom, Mittel hat die Spurhilfe (zur Ideallinie, nicht zur Fahrbahnmitte: dort stehen Blöcke)
-export const ZIG_ZONE = [14, 6];
+export const ZIG_ZONE = [30, 6];
 export function zigMask(track) {
   const L = track.line, z = new Uint8Array(L.n);
   for (const o of track.obstacles || []) {

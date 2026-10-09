@@ -37,6 +37,7 @@ export const ZIGZAG = { n: 5, cells: 3, sp: 26, lb: 3.2, d: 8.0, h: 1.3, gap: 1.
 // ohne Berührung
 export const ZIGZAG2 = { n: 3, cells: 2, sp: 24, lb: 3.2, d: 7.3, h: 1.3, gap: 1.3, ahead: 2.6 };
 const zDef = (type) => (type === 'zigzag2' ? ZIGZAG2 : ZIGZAG);
+const ZIG_LEAD = 8;   // Tempo-Deckel gilt ab so viele m vor dem ersten Block (Anfahrt zur Seite)
 // Für Messungen (Node): Form ändern, STUNT_ZICKZACK_FORM="n,sp,lb,d,gap" bzw. STUNT_ZICKZACK2_FORM
 export function setZigzag(o, kurz = false) { Object.assign(kurz ? ZIGZAG2 : ZIGZAG, o); }
 for (const [e, kurz] of [['STUNT_ZICKZACK_FORM', false], ['STUNT_ZICKZACK2_FORM', true]]) {
@@ -61,7 +62,9 @@ export function zigzagBounds(type, f, m = 1, M = 1.3) {
 }
 function buildZigzag(pb) {
   const type = pb.pc.type, Z = zDef(type), L = Z.cells * T;
-  const S = lin(0, L, Math.round(L)).map((f) => ({ f, y: 0, r: 0, ...zigzagBounds(type, f, pb.m) }));
+  // wave 5: Zickzack-Zone fürs Tempo-Profil (Deckel PROF.vZig, ai/profile.js) – vom ersten bis hinter den letzten Block
+  const Bk = zigzagBlocks(type, pb.m), zA = Bk[0].f - Z.lb / 2 - ZIG_LEAD, zB = Bk[Bk.length - 1].f + Z.lb / 2 + 3;
+  const S = lin(0, L, Math.round(L)).map((f) => ({ f, y: 0, r: 0, ...zigzagBounds(type, f, pb.m), ...(f >= zA && f <= zB ? { wave: 5 } : {}) }));
   pb.path(S, { profile: 'road', kind: 'zigzag' });
   for (const b of zigzagBlocks(type, pb.m)) {
     // Block: vom Fahrbahnrand (+0,6 m über die Kante, deckt die Bankett-Fuge) bis d in die Fahrbahn

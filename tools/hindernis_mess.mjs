@@ -20,7 +20,7 @@ const ROOT = path.resolve(arg('root', path.join(HERE, '..')));
 const imp = (p) => import(url.pathToFileURL(path.join(ROOT, p)).href);
 const DT = 1 / 120;
 const CAR_HW = 1.0, CAR_HL = 2.35, ROOF = 0.78;   // halbe Breite/Länge der Karosserie, Dach über der Wagenmitte (car.js PROBES)
-const NEU = ['zigzag', 'zigzag2', 'tube_wall', 'spiral'];
+const NEU = ['zigzag', 'zigzag2', 'tube_wall', 'spiral', 'tube', 'loop'];   // dazu Röhre/Looping zum Vergleich
 
 // Beobachter je Simulationsschritt für die Hindernis-Stücke der Strecke (track.obstacles)
 export function obstWatch(track) {

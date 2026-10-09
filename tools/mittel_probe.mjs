@@ -67,6 +67,8 @@ export function runBot(v, set, bot, seed = 7, hook = null) {
   const W0 = { ...BRAKE_WARN }; if (set.react) BRAKE_WARN.react = set.react; if (set.hint) BRAKE_WARN.hint = set.hint;   // Abstimm-Läufe (--extra=react:…,hint:…)
   const race = new Race(env, { assist: 'medium', countdown: 0.5, brakeHelp: 'hint' });
   const mid = new Autopilot(L, P);   // „grob zur Mitte“: Regler auf die Fahrbahnmitte statt auf die Ideallinie
+  // n33: in der Zickzack-Barriere zielt der Mensch durch die Gassen (Ideallinie) – auf die Fahrbahnmitte stünden die Blöcke
+  const midZ = env.ideal ? new Autopilot(env.ideal, P) : null;
   const r = rng(seed), q = [];
   const why = {}, gs = set.speed || 1.25;
   let tBtn = 0, tbT = 0, tSt = 0;
@@ -86,11 +88,14 @@ export function runBot(v, set, bot, seed = 7, hook = null) {
       // nach Reset/Rückspulen/Versetzen: neu orientieren, Hände kurz vom Lenkrad (alte Korrekturen verfallen)
       if (race.state !== 'running' || Math.abs(race.ap.tr.idx - mid.tr.idx) > 12) { mid.tr.reset(race.ap.tr.idx); q.length = 0; }
       mid.control(race.car);
+      const inZig = midZ && race.zig && race.zig[race.ap.tr.idx];
+      if (midZ) { if (Math.abs(race.ap.tr.idx - midZ.tr.idx) > 12) midZ.tr.reset(race.ap.tr.idx); midZ.control(race.car); }
+      const M = inZig ? midZ : mid;
       // Handy: 0,35 s Reaktion in echter Zeit = 0,35 × Spieltempo s Spielzeit (bis n22 1,25, Mittel ab n23 1,0)
       const touch = bot === 'mensch-touch', handy = bot === 'mensch-handy' || touch, lag = handy ? Math.round(0.35 * gs / DT) : 24;
       // (n24) Schanzen-Hinweis „langsamer ▼“ zählt wie „Bremsen!“, aber nur Gas weg
-      q.push([mid.fbN, !!race.bhOn, race.jumpSt === 'hi']); const [fb, bh, jhi] = q.length > lag ? q.shift() : [0, false, false];
-      let steer = Math.max(-1, Math.min(1, mid.ffN + KFB * fb + noise * (handy ? 0.15 : NOISE)));
+      q.push([M.fbN, !!race.bhOn, race.jumpSt === 'hi']); const [fb, bh, jhi] = q.length > lag ? q.shift() : [0, false, false];
+      let steer = Math.max(-1, Math.min(1, M.ffN + KFB * fb + noise * (handy ? 0.15 : NOISE)));
       if (handy) steer = Math.round(steer * 3) / 3;
       if (touch) {
         // Daumen auf ◀ ▶ (digital): drückt in Richtung des Wunsch-Einschlags, solange der wirksame Einschlag kleiner ist;
