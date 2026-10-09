@@ -2,11 +2,12 @@
 // 1) Rechteck-Rundkurs, zufällig ausgebeult (bleibt kreuzungsfrei)
 // 2) Ecken → enge/weite/Steilkurven, Geraden → Stunt-Elemente je nach Schwierigkeit
 // 3) Lösbarkeit prüft verify() mit dem Autopilot (Crash → Element entschärfen, neu prüfen)
-import { GRID } from './defs.js';
+import { GRID, HINDERNIS2 } from './defs.js';
 import { rng } from '../core/util.js';
 import { pieceCells, PIECES } from './pieces.js';
 import './pieces_3d.js';
 import './pieces_trk.js';
+import './pieces_hind.js';
 import { generate3d } from './generator3d.js';
 import { generateGel } from './generatorG.js';
 
@@ -15,8 +16,28 @@ export const DIFFS = {
   2: { name: 'Sportlich', w: [11, 15], h: [7, 10], bumps: [2, 4], large: 0.7, bank: 0.4, density: 0.3, must: ['jump', 'loop', 'bridge'], types: { bumps: 2, crest: 2, chicane: 2, loop: 2, bridge: 1, jump: 2, tube: 2 } },
   3: { name: 'Irre', w: [12, 17], h: [8, 11], bumps: [3, 5], large: 0.5, bank: 0.5, density: 0.45, must: ['jump', 'loop', 'jump', 'tube', 'loop', 'bridge'], types: { bumps: 1, crest: 2, chicane: 2, loop: 3, bridge: 1, jump: 3, tube: 2 } },
 };
-const LEN = { straight: 1, checkpoint: 1, bumps: 1, crest: 2, chicane: 2, loop: 2, tube: 2, jump: 3, bridge: 5 };
-const RUNUP = { bumps: 0, crest: 1, chicane: 0, loop: 1, tube: 0, jump: 1, bridge: 0 };
+// n33 Generator-Version 2 (Original-Stunt-Hindernisse, defs.js HINDERNIS2): Zickzack-Barriere (Sportlich/Irre 3 Felder,
+// Sanft höchstens eine kurze), Röhre mit Wand, Hochstraße mit Spirale („sbridge“: Spirale hinauf → Brücke → Spirale oder
+// Rampe hinunter, mindestens eine Spirale) statt nur Rampe–Brücke–Rampe. Version 1 (alte Codes ohne „h“) unverändert.
+export const DIFFS2 = {
+  1: { ...DIFFS[1], must: ['loop', 'zigzag2', 'crest'], types: { bumps: 3, crest: 3, chicane: 2, bridge: 2, sbridge: 1 } },
+  2: { ...DIFFS[2], must: ['jump', 'loop', 'sbridge', 'zigzag'], types: { bumps: 2, crest: 2, chicane: 1, loop: 2, bridge: 1, sbridge: 1, jump: 2, tube: 2, zigzag: 2, tube_wall: 2 } },
+  3: { ...DIFFS[3], must: ['jump', 'loop', 'sbridge', 'zigzag', 'tube_wall', 'jump', 'tube', 'loop'], types: { bumps: 1, crest: 2, chicane: 1, loop: 3, bridge: 1, sbridge: 1, jump: 3, tube: 2, zigzag: 2, tube_wall: 2 } },
+};
+// Pflicht-Element passt nirgends hin → kürzere Ersatzform (nur Version 2)
+export const HIND_FALLBACK = { zigzag: 'zigzag2' };
+// Einzelne Elemente abgeschaltet (?zickzack=0, ?roehrewand=0, ?spirale2=0): aus Gewichten und Pflicht nehmen bzw. ersetzen
+export function hindFilter(D, H = HINDERNIS2) {
+  const off = new Set([...(H.zickzack ? [] : ['zigzag', 'zigzag2']), ...(H.roehrewand ? [] : ['tube_wall']), ...(H.spirale ? [] : ['sbridge'])]);
+  if (!off.size) return D;
+  const sub = { sbridge: 'bridge' };
+  const types = {};
+  for (const [t, w] of Object.entries(D.types)) { const u = off.has(t) ? sub[t] : t; if (u) types[u] = (types[u] || 0) + w; }
+  return { ...D, types, must: D.must.map((t) => (off.has(t) ? sub[t] : t)).filter(Boolean) };
+}
+export const genV = (opts) => ((opts && opts.gv) | 0) >= 2 ? 2 : 1;
+const LEN = { straight: 1, checkpoint: 1, bumps: 1, crest: 2, chicane: 2, loop: 2, tube: 2, jump: 3, bridge: 5, sbridge: 5, zigzag: 3, zigzag2: 2, tube_wall: 2 };
+const RUNUP = { bumps: 0, crest: 1, chicane: 0, loop: 1, tube: 0, jump: 1, bridge: 0, sbridge: 0, zigzag: 1, zigzag2: 1, tube_wall: 1 };
 
 const ADJ = ['Wilde', 'Donnernde', 'Flinke', 'Kühne', 'Rasende', 'Schwindelnde', 'Goldene', 'Tollkühne', 'Brausende', 'Sausende', 'Verwegene', 'Heulende'];
 const NOUN = ['Schleife', 'Talfahrt', 'Kurvenhatz', 'Achterbahn', 'Stuntmeile', 'Pistenjagd', 'Hügelhatz', 'Flugschanze', 'Ringfahrt', 'Wirbelbahn', 'Kesseljagd', 'Sprungmeile'];
@@ -109,7 +130,8 @@ export function generate(seed, diff = 2, opts = {}) {
   if (opts.d3) return generate3d(seed, diff, opts);
   // Gelände-Strecken (n22): eigener Generator, Schlüssel „-g“
   if (opts.gel) return generateGel(seed, diff, opts);
-  const D = DIFFS[diff];
+  const v2 = genV(opts) === 2;
+  const D = v2 ? hindFilter(DIFFS2[diff]) : DIFFS[diff];
   const r = rng((seed >>> 0) * 7919 + diff * 104729);
   let cyc = makeCycle(r, D);
   const n = cyc.length;
@@ -174,7 +196,23 @@ export function generate(seed, diff = 2, opts = {}) {
     return weights[0][0];
   };
   const placed = [];
-  const AFTER = { loop: 1, jump: 1, tube: 1 };
+  const AFTER = v2 ? { loop: 1, jump: 1, tube: 1, zigzag: 1, zigzag2: 1, tube_wall: 1 } : { loop: 1, jump: 1, tube: 1 };
+  // Hochstraße mit Spirale (v2): Spiralen brauchen die beiden Felder daneben (links oder rechts, frei, im Raster)
+  const spiralSide = (s, m) => {
+    const c = cyc[out[s].at], d = dr[(out[s].at - 1 + n) % n];
+    const cells = pieceCells('spiral', c[0], c[1], d, m).cells.slice(2);
+    for (const q of cells) if (used.has(key(q)) || q[0] < 2 || q[1] < 2 || q[0] > GRID - 3 || q[1] > GRID - 3) return null;
+    return cells;
+  };
+  const sbridgePlan = (s) => {
+    // Hinauf an s (2 Felder), Brücke an s+2, hinunter an s+3 (2 Felder); je Spirale Seite frei wählen
+    const opt = (k) => { const ms = r.chance(0.5) ? [1, -1] : [-1, 1]; for (const m of ms) { const c = spiralSide(k, m); if (c) return { t: 'spiral', m, cells: c }; } return null; };
+    let up = r.chance(0.7) ? opt(s) : null, dn = r.chance(0.6) ? opt(s + 3) : null;
+    if (!up && !dn) { up = opt(s); if (!up) dn = opt(s + 3); }
+    if (!up && !dn) return null;
+    if (up && dn && up.cells.some((q) => dn.cells.some((w) => w[0] === q[0] && w[1] === q[1]))) dn = null;
+    return { up: up || { t: 'slope2', m: 1, cells: [] }, dn: dn || { t: 'slope2', m: 1, cells: [] } };
+  };
   // freie Plätze für Element t: Lauf [a,b], Position s mit Vorlauf/Nachlauf aus Geraden
   const fits = (t, s) => {
     const lo = s - RUNUP[t], hi = s + LEN[t] - 1 + (AFTER[t] || 0);
@@ -184,14 +222,21 @@ export function generate(seed, diff = 2, opts = {}) {
     return true;
   };
   const place = (t, s) => {
+    if (t === 'sbridge') {
+      const sp = sbridgePlan(s);
+      if (!sp) { t = 'bridge'; } else { out[s].sb = sp; for (const q of [...sp.up.cells, ...sp.dn.cells]) used.add(key(q)); }
+    }
+    // Zickzack: Seite des ersten Blocks
+    if (t === 'zigzag' || t === 'zigzag2') out[s].m = r.chance(0.5) ? 1 : -1;
     out[s].t = t; out[s].cells = LEN[t];
     for (let q = s + 1; q < s + LEN[t]; q++) out[q].t = 'skip';
     placed.push({ t, at: s });
   };
   const candidates = (t) => { const c = []; for (let s = 2; s < out.length; s++) if (fits(t, s)) c.push(s); return c; };
   // Pflicht-Stunts zuerst (verteilt), dann zufällig auffüllen
-  for (const t of D.must) {
-    const c = candidates(t);
+  for (let t of D.must) {
+    let c = candidates(t);
+    if (!c.length && v2 && HIND_FALLBACK[t]) { t = HIND_FALLBACK[t]; c = candidates(t); }
     if (!c.length) continue;
     // möglichst weit weg von bereits platzierten
     let best = c[r.int(c.length)], bd = -1;
@@ -222,7 +267,7 @@ export function generate(seed, diff = 2, opts = {}) {
   // In Layout (Element + Position) umwandeln
   const layout = toLayout(cyc, dr, out);
   layout.seed = seed; layout.diff = diff;
-  layout.meta = { seed, diff, key: `${seed}-${diff}`, name: trackName(seed), diffName: D.name };
+  layout.meta = { seed, diff, key: `${seed}-${diff}${v2 ? '-h' : ''}`, name: trackName(seed), diffName: D.name, ...(v2 ? { gv: 2 } : {}) };
   return layout;
 }
 
@@ -236,6 +281,14 @@ function toLayout(cyc, dr, out) {
     const c = cyc[it.at], d = dr[(it.at - 1 + cyc.length) % cyc.length];
     const entryDir = it.at === 0 ? dr[0] : d;
     const base = { i: c[0], j: c[1], d: entryDir, m: it.m || 1, lvl };
+    if (it.t === 'sbridge' && it.sb) {
+      // n33: Spirale (oder Rampe) hinauf → Brücke → Spirale (oder Rampe) hinunter
+      const F = [[1, 0], [0, 1], [-1, 0], [0, -1]][entryDir];
+      pieces.push({ ...base, type: it.sb.up.t, m: it.sb.up.m, lvl: 0, h1: 1 });
+      pieces.push({ ...base, type: 'bridge', i: c[0] + F[0] * 2, j: c[1] + F[1] * 2, lvl: 1 });
+      pieces.push({ ...base, type: it.sb.dn.t, m: it.sb.dn.m, i: c[0] + F[0] * 3, j: c[1] + F[1] * 3, lvl: 1, h1: 0 });
+      continue;
+    }
     if (it.t === 'bridge') {
       pieces.push({ ...base, type: 'rampUp' });
       const F = [[1, 0], [0, 1], [-1, 0], [0, -1]][entryDir];
@@ -261,8 +314,10 @@ export function defuse(layout, pieceIdx) {
   const p = layout.pieces[pieceIdx];
   if (!p) return false;
   const repl = { loop: ['straight', 'straight'], tube: ['straight', 'straight'], jump: ['straight', 'straight', 'straight'], crest: ['straight', 'straight'], chicane: ['straight', 'straight'], bumps: ['straight'], bank: null,
-    waves: ['straight', 'straight', 'straight'], tr_corklr: ['straight', 'straight'], halfpipe: ['straight', 'straight', 'straight'] };
+    waves: ['straight', 'straight', 'straight'], tr_corklr: ['straight', 'straight'], halfpipe: ['straight', 'straight', 'straight'],
+    zigzag: ['straight', 'straight', 'straight'], zigzag2: ['straight', 'straight'] };   // n33: Zickzack → Geraden
   if (p.type === 'bank') { p.type = 'turnL'; return true; }
+  if (p.type === 'tube_wall') { p.type = 'tube'; return true; }   // n33: Röhre mit Wand → Röhre (Buckel), danach ggf. Geraden
   // 3D-Teile (n19): Ersatz mit gleicher Form und gleichem Ebenenwechsel – Steilwand/Steilkurve → weite Kurve,
   // Klippensprung → Steilrampe gleicher Länge, Spirale/Wendel → Rampe über die beiden geraden Felder
   if (p.type === 'wall' || p.type === 'tr_bankC') { p.type = 'turnL'; return true; }

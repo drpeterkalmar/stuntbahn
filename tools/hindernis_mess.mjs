@@ -140,12 +140,12 @@ async function quote() {
   const res = [];
   for (const gv of arg('gv', '1,2').split(',').map(Number)) {
     for (const [name, mk, s, d] of trackList(generate, art, gv).slice(von, von + n)) {
-      const t0 = Date.now(), lay = mk(), c0 = countNew(lay.pieces);
+      const t0 = Date.now(), lay = mk(), c0 = countNew(lay.pieces), lay0 = JSON.parse(JSON.stringify(lay));
       const v0 = verifySync(JSON.parse(JSON.stringify(lay)), 0);
       const v = v0.ok ? v0 : verifySync(lay);
       const c1 = countNew(v.layout.pieces);
-      res.push({ art, gv, s, d, name, ok: v.ok, ok0: v0.ok, fixes: v.fixes, ap: v.apTime, neu0: c0, neu1: c1, why0: v0.ok ? null : v0.reason, at0: v0.ok ? null : (lay.pieces[v0.piece] || {}).type });
-      console.log(`${name.padEnd(14)} v${gv} ${v.ok ? 'ok' : 'NEIN'}${v0.ok ? '' : ` (Prüffahrt erst nach ${v.fixes} Entschärfung(en); zuerst ${v0.reason} an ${(lay.pieces[v0.piece] || {}).type})`} neu ${JSON.stringify(c0)}${JSON.stringify(c1) !== JSON.stringify(c0) ? ' → ' + JSON.stringify(c1) : ''} (${((Date.now() - t0) / 1000).toFixed(1)} s)`);
+      res.push({ art, gv, s, d, name, ok: v.ok, ok0: v0.ok, fixes: v.fixes, ap: v.apTime, neu0: c0, neu1: c1, why0: v0.ok ? null : v0.reason, at0: v0.ok ? null : (lay0.pieces[v0.piece] || {}).type });
+      console.log(`${name.padEnd(14)} v${gv} ${v.ok ? 'ok' : 'NEIN'}${v0.ok ? '' : ` (Prüffahrt erst nach ${v.fixes} Entschärfung(en); zuerst ${v0.reason} an ${(lay0.pieces[v0.piece] || {}).type})`} neu ${JSON.stringify(c0)}${JSON.stringify(c1) !== JSON.stringify(c0) ? ' → ' + JSON.stringify(c1) : ''} (${((Date.now() - t0) / 1000).toFixed(1)} s)`);
     }
   }
   if (arg('json')) { const f = arg('json'); const old = fs.existsSync(f) ? JSON.parse(fs.readFileSync(f, 'utf8')) : []; fs.writeFileSync(f, JSON.stringify(old.concat(res))); }

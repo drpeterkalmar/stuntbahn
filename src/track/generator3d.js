@@ -14,7 +14,8 @@ import { GRID } from './defs.js';
 import { rng } from '../core/util.js';
 import { pieceCells, PIECES } from './pieces.js';
 import { cliffDesign } from './pieces_3d.js';
-import { DIFFS, bump, dirIdx, trackName } from './generator.js';
+import { DIFFS, DIFFS2, hindFilter, genV, HIND_FALLBACK, bump, dirIdx, trackName } from './generator.js';
+import { HINDERNIS2 } from './defs.js';
 
 // Je Stufe: höchste Ebene, Seitenlängen der Schleifen, Anteil Acht, Ausflüge nach oben (Chance, Anzahl), Gewichte der
 // Ebenenwechsel (auf/ab je Betrag), Stunts (zusätzlich zu DIFFS[diff].types), Ecken-Varianten auf Ebene 0
@@ -29,10 +30,27 @@ export const D3 = {
     up: { 1: { slope2: 1, spiral: 3, tr_corkud: 1 }, 2: { slope3: 2, spiral: 3 }, 3: { slope4: 2 } }, down: { 1: { slope2: 1, spiral: 2, cliff: 4 }, 2: { slope3: 1, spiral: 1, cliff2: 4 }, 3: { slope4: 2 } },
     types: { waves: 2, tr_corklr: 2 }, must: ['jump', 'loop', 'tr_corklr', 'waves', 'tube'], wall: 0.35, bankC: 0.15 },
 };
+// n33 Generator-Version 2: Spiralen als Ebenenwechsel häufiger (Gewicht ×1,5, ?spirale2=0 aus), Zickzack-Barriere und Röhre
+// mit Wand auf Ebene 0 (Pflicht: Sanft die kurze Zickzack, Sportlich Zickzack, Irre Zickzack + Röhre mit Wand statt der
+// Pflicht-Röhre – die normale Röhre bleibt in den Zufalls-Gewichten). Mit ×2 verdrängten die Spiralen die Geraden auf
+// Ebene 0, auf denen die Stunts stehen
+export function d3V2(D, diff, H = HINDERNIS2) {
+  const twice = (w) => Object.fromEntries(Object.entries(w).map(([k, x]) => [k, k === 'spiral' && H.spirale ? 1.5 * x : x]));
+  const up = {}, down = {};
+  for (const k of Object.keys(D.up)) up[k] = twice(D.up[k]);
+  for (const k of Object.keys(D.down)) down[k] = twice(D.down[k]);
+  // neue Pflicht-Elemente zuletzt (vorn verdrängten sie Loopings und Wellen; 3D-Strecken haben wenige lange Geraden auf Ebene 0)
+  const extra = diff === 1 ? { must: ['zigzag2'], types: {} } : diff === 2 ? { must: ['zigzag'], types: { zigzag: 2, tube_wall: 1 } } : { must: ['zigzag'], types: { zigzag: 2, tube_wall: 2 } };
+  const must = [...D.must, ...extra.must].map((t) => (diff === 3 && t === 'tube' ? 'tube_wall' : t));
+  const f = hindFilter({ types: { ...D.types, ...extra.types }, must }, H);
+  return { ...D, up, down, types: f.types, must: f.must };
+}
 const SIDE = new Set(['spiral', 'tr_corkud']);   // brauchen zusätzlich die Felder neben der Fahrbahn
-const LEN = { straight: 1, checkpoint: 1, bumps: 1, crest: 2, chicane: 2, loop: 2, tube: 2, jump: 3, waves: 3, tr_corklr: 2 };
-const RUNUP = { bumps: 0, crest: 1, chicane: 0, loop: 1, tube: 0, jump: 1, waves: 0, tr_corklr: 1 };
-const AFTER = { loop: 1, jump: 1, tube: 1, tr_corklr: 1, waves: 0 };
+const LEN = { straight: 1, checkpoint: 1, bumps: 1, crest: 2, chicane: 2, loop: 2, tube: 2, jump: 3, waves: 3, tr_corklr: 2, zigzag: 3, zigzag2: 2, tube_wall: 2 };
+// n33: in 3D ohne eigenen Anlauf (wie die Röhre) – Geraden auf Ebene 0 sind knapp; reicht das Tempo nicht, entschärft die
+// Prüffahrt (Röhre mit Wand → Röhre)
+const RUNUP = { bumps: 0, crest: 1, chicane: 0, loop: 1, tube: 0, jump: 1, waves: 0, tr_corklr: 1, zigzag: 0, zigzag2: 0, tube_wall: 0 };
+const AFTER = { loop: 1, jump: 1, tube: 1, tr_corklr: 1, waves: 0, zigzag: 1, zigzag2: 1, tube_wall: 1 };
 const key = (p) => p[0] + ',' + p[1];
 const cellsOf = (type) => PIECES[type].cells.length === 4 && SIDE.has(type) ? 2 : PIECES[type].cells.length;
 
@@ -91,22 +109,23 @@ function crossOk(cyc) {
 
 // ---------- Hauptfunktion ----------
 export function generate3d(seed, diff, opts = {}) {
-  const D = D3[diff], base = DIFFS[diff];
+  const v2 = genV(opts) === 2;
+  const D = v2 ? d3V2(D3[diff], diff) : D3[diff], base = v2 ? hindFilter(DIFFS2[diff]) : DIFFS[diff];
   for (let attempt = 0; attempt < 40; attempt++) {
     const r = rng(((seed >>> 0) * 7919 + diff * 104729 + (opts.variant || 0) * 7727 + attempt * 31337 + 0x3d0) >>> 0);
-    const lay = tryBuild(r, D, base, diff);
+    const lay = tryBuild(r, D, base, diff, v2);
     if (!lay) continue;
     lay.seed = seed; lay.diff = diff;
     // Schlüssel ohne Variante: fällt Variante 0 bei der Autopilot-Prüfung durch, gilt für alle dieselbe Ersatz-Variante
-    const k = `${seed}-${diff}-3d`;
-    lay.meta = { seed, diff, d3: true, variant: opts.variant || 0, key: k, name: trackName(seed), diffName: base.name, levels: lay.maxLvl, crossings: lay.crossings, attempt };
+    const k = `${seed}-${diff}-3d${v2 ? 'h' : ''}`;
+    lay.meta = { seed, diff, d3: true, variant: opts.variant || 0, key: k, name: trackName(seed), diffName: base.name, levels: lay.maxLvl, crossings: lay.crossings, attempt, ...(v2 ? { gv: 2 } : {}) };
     delete lay.maxLvl; delete lay.crossings;
     return lay;
   }
   throw new Error('3D-Generator: keine Strecke für ' + seed + '-' + diff);
 }
 
-function tryBuild(r, D, base, diff) {
+function tryBuild(r, D, base, diff, v2 = false) {
   // --- 1) Grundform
   const eight = r.chance(D.eight);
   let cyc = place(eight ? eightCycle(r, D) : rectCycle(r, D), r);
@@ -267,6 +286,7 @@ function tryBuild(r, D, base, diff) {
   }
   const types = { ...base.types, ...D.types };
   delete types.bridge;   // alte Brücke (Rampe–Brücke–Rampe) gibt es in 3D als Rampen/Hochstraße
+  delete types.sbridge;  // n33: Hochstraße mit Spirale ebenso (3D wechselt die Ebenen selbst, Spiralen dort häufiger)
   const weights = Object.entries(types);
   const pickType = () => { const tot = weights.reduce((s, [, w]) => s + w, 0); let x = r() * tot; for (const [t, w] of weights) { x -= w; if (x <= 0) return t; } return weights[0][0]; };
   const placed = [];
@@ -276,10 +296,11 @@ function tryBuild(r, D, base, diff) {
     for (let q = lo; q <= hi; q++) if (out[q].t !== 'straight' || out[q].lv || out[q].lock) return false;
     return true;
   };
-  const putSt = (t, s) => { out[s].t = t; out[s].cells = LEN[t]; for (let q = s + 1; q < s + LEN[t]; q++) out[q].t = 'skip'; placed.push({ t, at: s }); };
+  const putSt = (t, s) => { out[s].t = t; out[s].cells = LEN[t]; if (t === 'zigzag' || t === 'zigzag2') out[s].m = r.chance(0.5) ? 1 : -1; for (let q = s + 1; q < s + LEN[t]; q++) out[q].t = 'skip'; placed.push({ t, at: s }); };
   const cand = (t) => { const c = []; for (let s = 2; s < N; s++) if (fitsSt(t, s)) c.push(s); return c; };
-  for (const t of D.must) {
-    const c = cand(t);
+  for (let t of D.must) {
+    let c = cand(t);
+    if (!c.length && v2 && HIND_FALLBACK[t]) { t = HIND_FALLBACK[t]; c = cand(t); }
     if (!c.length) continue;
     let best = c[r.int(c.length)], bd = -1;
     for (let k = 0; k < 6; k++) {
