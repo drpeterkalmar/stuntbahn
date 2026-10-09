@@ -286,7 +286,7 @@ function tryBuild(r, D, base, diff, v2 = false) {
   }
   const types = { ...base.types, ...D.types };
   delete types.bridge;   // alte Brücke (Rampe–Brücke–Rampe) gibt es in 3D als Rampen/Hochstraße
-  delete types.sbridge;  // n33: Hochstraße mit Spirale ebenso (3D wechselt die Ebenen selbst, Spiralen dort häufiger)
+  delete types.sbridge; delete types.sbridgeC;   // n33: Hochstraße mit Spirale ebenso (3D wechselt die Ebenen selbst, Spiralen häufiger)
   const weights = Object.entries(types);
   const pickType = () => { const tot = weights.reduce((s, [, w]) => s + w, 0); let x = r() * tot; for (const [t, w] of weights) { x -= w; if (x <= 0) return t; } return weights[0][0]; };
   const placed = [];

@@ -200,7 +200,8 @@ async function fahrer() {
 }
 
 function summary(file) {
-  const S = JSON.parse(fs.readFileSync(file, 'utf8'));
+  // je Strecke (Art, Version, Name) nur der letzte Lauf (Häppchen können sich überschneiden)
+  const S = [...new Map(JSON.parse(fs.readFileSync(file, 'utf8')).map((r) => [`${r.art}|${r.gv}|${r.name}`, r])).values()];
   const pc = (a, b) => (b ? (100 * a / b).toFixed(1).replace('.', ',') + ' %' : '–');
   if (S.length && S[0].runs) {
     const keys = ['leicht-sauber', 'leicht-brachial', 'mittel-handy', 'original'];

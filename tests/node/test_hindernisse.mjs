@@ -114,10 +114,10 @@ console.log('--- D: Autopilot ---');
     check(!r.crash && r.idx >= env.ideal.n - 4, `${el} ${lvl ? 'Ebene 1' : 'flach'}: Autopilot ohne Crash durch (${f2(r.t)} s)`);
   }
   // Zufallsstrecken Version 2 mit neuen Elementen: Prüffahrt ohne Entschärfen
-  const picks = [[3194, 3, {}], [3097, 2, {}], [3000, 3, { gel: true }], [3291, 2, { d3: true }]];
+  const picks = [[3194, 3, {}], [3097, 2, {}], [9, 2, {}], [3000, 3, { gel: true }], [3291, 2, { d3: true }]];
   for (const [s, d, o] of picks) {
     const lay = generate(s, d, { ...o, gv: 2 }), v = verifySync(lay, 0);
-    const neu = lay.pieces.filter((p) => /zigzag|tube_wall/.test(p.type) || (p.type === 'spiral' && !o.d3)).map((p) => p.type);
+    const neu = lay.pieces.filter((p) => /zigzag|tube_wall/.test(p.type) || (!o.d3 && (p.type === 'spiral' || p.type === 'cliff'))).map((p) => p.type);
     check(v.ok, `${lay.meta.key}: Prüffahrt ohne Entschärfen (${neu.join(', ') || '–'})`);
   }
 }
@@ -152,6 +152,8 @@ console.log('--- E: Generator ---');
   }
   check(!occBad, 'Version 2: Belegung gültig (flach jedes Feld einmal, 3D Kreuzungen)');
   check(sbOk >= 10 && !sbBad, `flach: Hochstraße mit Spirale ${sbOk}× (Spirale/Rampe hinauf → Brücke → hinunter)`);
+  const k9 = generate(9, 2, { gv: 2 }).pieces, kc = k9.findIndex((p) => p.type === 'cliff');
+  check(kc > 1 && k9[kc - 1].type === 'bridge' && k9[kc - 1].lvl === 1 && k9[kc].lvl === 1 && k9[kc].h1 === 0 && k9[kc - 2].type === 'spiral' && k9[kc - 2].h1 === 1, 'flach 9-2-h: Spirale hinauf → Brücke → Klippensprung hinunter');
   const need = ['flach:zigzag:1', 'flach:zigzag:2', 'flach:zigzag:3', 'flach:tube_wall:3', 'gel:zigzag:2', 'gel:tube_wall:3', '3d:zigzag:2', '3d:tube_wall:3', 'flach:spiral', '3d:spiral'];
   check(need.every((k) => cnt[k] > 0) && !cnt['flach:tube_wall:1'] && !cnt['gel:tube_wall:1'], `neue Elemente in allen Arten: ${need.map((k) => `${k} ${cnt[k] || 0}`).join(', ')}`);
   // Sanft: höchstens eine kurze Zickzack

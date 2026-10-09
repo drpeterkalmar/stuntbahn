@@ -18,26 +18,27 @@ export const DIFFS = {
 };
 // n33 Generator-Version 2 (Original-Stunt-Hindernisse, defs.js HINDERNIS2): Zickzack-Barriere (Sportlich/Irre 3 Felder,
 // Sanft höchstens eine kurze), Röhre mit Wand, Hochstraße mit Spirale („sbridge“: Spirale hinauf → Brücke → Spirale oder
-// Rampe hinunter, mindestens eine Spirale) statt nur Rampe–Brücke–Rampe. Version 1 (alte Codes ohne „h“) unverändert.
+// Rampe hinunter, mindestens eine Spirale; „sbridgeC“: Spirale hinauf → Brücke → Klippensprung hinunter) statt nur
+// Rampe–Brücke–Rampe. Version 1 (alte Codes ohne „h“) unverändert.
 export const DIFFS2 = {
   1: { ...DIFFS[1], must: ['loop', 'zigzag2', 'crest'], types: { bumps: 3, crest: 3, chicane: 2, bridge: 2, sbridge: 1 } },
-  2: { ...DIFFS[2], must: ['jump', 'loop', 'sbridge', 'zigzag'], types: { bumps: 2, crest: 2, chicane: 1, loop: 2, bridge: 1, sbridge: 1, jump: 2, tube: 2, zigzag: 2, tube_wall: 2 } },
-  3: { ...DIFFS[3], must: ['jump', 'loop', 'sbridge', 'zigzag', 'tube_wall', 'jump', 'tube', 'loop'], types: { bumps: 1, crest: 2, chicane: 1, loop: 3, bridge: 1, sbridge: 1, jump: 3, tube: 2, zigzag: 2, tube_wall: 2 } },
+  2: { ...DIFFS[2], must: ['jump', 'loop', 'sbridge', 'zigzag'], types: { bumps: 2, crest: 2, chicane: 1, loop: 2, bridge: 1, sbridge: 1, sbridgeC: 1, jump: 2, tube: 2, zigzag: 2, tube_wall: 2 } },
+  3: { ...DIFFS[3], must: ['jump', 'loop', 'sbridge', 'zigzag', 'tube_wall', 'jump', 'tube', 'loop'], types: { bumps: 1, crest: 2, chicane: 1, loop: 3, bridge: 1, sbridge: 1, sbridgeC: 1, jump: 3, tube: 2, zigzag: 2, tube_wall: 2 } },
 };
 // Pflicht-Element passt nirgends hin → kürzere Ersatzform (nur Version 2)
 export const HIND_FALLBACK = { zigzag: 'zigzag2' };
 // Einzelne Elemente abgeschaltet (?zickzack=0, ?roehrewand=0, ?spirale2=0): aus Gewichten und Pflicht nehmen bzw. ersetzen
 export function hindFilter(D, H = HINDERNIS2) {
-  const off = new Set([...(H.zickzack ? [] : ['zigzag', 'zigzag2']), ...(H.roehrewand ? [] : ['tube_wall']), ...(H.spirale ? [] : ['sbridge'])]);
+  const off = new Set([...(H.zickzack ? [] : ['zigzag', 'zigzag2']), ...(H.roehrewand ? [] : ['tube_wall']), ...(H.spirale ? [] : ['sbridge', 'sbridgeC'])]);
   if (!off.size) return D;
-  const sub = { sbridge: 'bridge' };
+  const sub = { sbridge: 'bridge', sbridgeC: 'bridge' };
   const types = {};
   for (const [t, w] of Object.entries(D.types)) { const u = off.has(t) ? sub[t] : t; if (u) types[u] = (types[u] || 0) + w; }
   return { ...D, types, must: D.must.map((t) => (off.has(t) ? sub[t] : t)).filter(Boolean) };
 }
 export const genV = (opts) => ((opts && opts.gv) | 0) >= 2 ? 2 : 1;
-const LEN = { straight: 1, checkpoint: 1, bumps: 1, crest: 2, chicane: 2, loop: 2, tube: 2, jump: 3, bridge: 5, sbridge: 5, zigzag: 3, zigzag2: 2, tube_wall: 2 };
-const RUNUP = { bumps: 0, crest: 1, chicane: 0, loop: 1, tube: 0, jump: 1, bridge: 0, sbridge: 0, zigzag: 1, zigzag2: 1, tube_wall: 1 };
+const LEN = { straight: 1, checkpoint: 1, bumps: 1, crest: 2, chicane: 2, loop: 2, tube: 2, jump: 3, bridge: 5, sbridge: 5, sbridgeC: 6, zigzag: 3, zigzag2: 2, tube_wall: 2 };
+const RUNUP = { bumps: 0, crest: 1, chicane: 0, loop: 1, tube: 0, jump: 1, bridge: 0, sbridge: 0, sbridgeC: 0, zigzag: 1, zigzag2: 1, tube_wall: 1 };
 
 const ADJ = ['Wilde', 'Donnernde', 'Flinke', 'Kühne', 'Rasende', 'Schwindelnde', 'Goldene', 'Tollkühne', 'Brausende', 'Sausende', 'Verwegene', 'Heulende'];
 const NOUN = ['Schleife', 'Talfahrt', 'Kurvenhatz', 'Achterbahn', 'Stuntmeile', 'Pistenjagd', 'Hügelhatz', 'Flugschanze', 'Ringfahrt', 'Wirbelbahn', 'Kesseljagd', 'Sprungmeile'];
@@ -196,7 +197,7 @@ export function generate(seed, diff = 2, opts = {}) {
     return weights[0][0];
   };
   const placed = [];
-  const AFTER = v2 ? { loop: 1, jump: 1, tube: 1, zigzag: 1, zigzag2: 1, tube_wall: 1 } : { loop: 1, jump: 1, tube: 1 };
+  const AFTER = v2 ? { loop: 1, jump: 1, tube: 1, zigzag: 1, zigzag2: 1, tube_wall: 1, sbridgeC: 1 } : { loop: 1, jump: 1, tube: 1 };
   // Hochstraße mit Spirale (v2): Spiralen brauchen die beiden Felder daneben (links oder rechts, frei, im Raster)
   const spiralSide = (s, m) => {
     const c = cyc[out[s].at], d = dr[(out[s].at - 1 + n) % n];
@@ -222,9 +223,18 @@ export function generate(seed, diff = 2, opts = {}) {
     return true;
   };
   const place = (t, s) => {
+    // Hochstraße mit Spirale: gut ein Drittel endet mit dem Klippensprung, wenn dahinter noch ein Feld frei ist
+    if (t === 'sbridge' && r.chance(0.35) && fits('sbridgeC', s)) t = 'sbridgeC';
     if (t === 'sbridge') {
       const sp = sbridgePlan(s);
       if (!sp) { t = 'bridge'; } else { out[s].sb = sp; for (const q of [...sp.up.cells, ...sp.dn.cells]) used.add(key(q)); }
+    }
+    if (t === 'sbridgeC') {
+      // Spirale (wenn Platz, sonst Rampe) hinauf, Brücke, Klippensprung hinunter (3 Felder, cliffDesign(6))
+      const ms = r.chance(0.5) ? [1, -1] : [-1, 1];
+      let up = null; for (const m of ms) { const c = spiralSide(s, m); if (c) { up = { t: 'spiral', m, cells: c }; break; } }
+      out[s].sb = { up: up || { t: 'slope2', m: 1, cells: [] }, dn: { t: 'cliff', m: 1, cells: [] } };
+      if (up) for (const q of up.cells) used.add(key(q));
     }
     // Zickzack: Seite des ersten Blocks
     if (t === 'zigzag' || t === 'zigzag2') out[s].m = r.chance(0.5) ? 1 : -1;
@@ -281,7 +291,7 @@ function toLayout(cyc, dr, out) {
     const c = cyc[it.at], d = dr[(it.at - 1 + cyc.length) % cyc.length];
     const entryDir = it.at === 0 ? dr[0] : d;
     const base = { i: c[0], j: c[1], d: entryDir, m: it.m || 1, lvl };
-    if (it.t === 'sbridge' && it.sb) {
+    if ((it.t === 'sbridge' || it.t === 'sbridgeC') && it.sb) {
       // n33: Spirale (oder Rampe) hinauf → Brücke → Spirale (oder Rampe) hinunter
       const F = [[1, 0], [0, 1], [-1, 0], [0, -1]][entryDir];
       pieces.push({ ...base, type: it.sb.up.t, m: it.sb.up.m, lvl: 0, h1: 1 });
