@@ -15,6 +15,7 @@ import { SAM_STUNTS, SAM_DIFF, SAM_SORTS, DEFAULT_VIEW, filterSort, lengthClass 
 import { HORIZONS } from '../track/trk.js';
 import { THEMES, THEME_IDS, themeAuto } from '../track/themes.js';
 import { WETTER, WETTER_IDS, wetterAuto } from '../track/wetter.js';
+import { ZEIT, ZEIT_IDS, zeitAuto } from '../track/zeit.js';
 import { showKmhMs, showKmh } from '../core/showspeed.js';
 import { GView } from './gmeter.js';
 import { G_ON } from '../core/gforce.js';
@@ -236,7 +237,7 @@ export class UI {
         <div class="card track">
           ${!m.imported && !m.sam && env.layout.pieces.length ? '<canvas class="tmap" width="320" height="320" aria-label="Streckenkarte"></canvas>' : ''}
           <div class="tname">${isDay || m.samDay ? '📅 Strecke des Tages<br>' : ''}${m.name || 'Strecke'}</div>
-          <div class="tmeta">${nbParts(`${metaLine}${env.theme && THEMES[env.theme] ? ` · <span class="tthema" title="Landschaft${(this.store.settings.theme || 'auto') === 'auto' ? ' (passend)' : ''}">${THEMES[env.theme].icon} ${THEMES[env.theme].name}</span>` : ''}${env.wetter && env.wetter !== 'klar' && WETTER[env.wetter] ? ` · <span class="twetter" title="Wetter">${WETTER[env.wetter].icon} ${WETTER[env.wetter].name}</span>` : ''}`)}</div>
+          <div class="tmeta">${nbParts(`${metaLine}${env.theme && THEMES[env.theme] ? ` · <span class="tthema" title="Landschaft${(this.store.settings.theme || 'auto') === 'auto' ? ' (passend)' : ''}">${THEMES[env.theme].icon} ${THEMES[env.theme].name}</span>` : ''}${env.wetter && env.wetter !== 'klar' && WETTER[env.wetter] ? ` · <span class="twetter" title="Wetter">${WETTER[env.wetter].icon} ${WETTER[env.wetter].name}</span>` : ''}${env.zeit && env.zeit !== 'tag' && ZEIT[env.zeit] ? ` · <span class="tzeit" title="Tageszeit">${ZEIT[env.zeit].icon} ${ZEIT[env.zeit].name}</span>` : ''}`)}</div>
           <div class="stunts">${stuntsHtml || 'ohne Stunts'}</div>
           ${apLine}
           <div class="bests">${bests.now}${S.assist === 'easy' ? bests.lastEasy : ''}<span class="bmode">${S.wreck ? '💥 mit Totalschaden' : '↺ Reset +' + PENALTY + ' s'}${S.extras ? ' · 🦘🔥 mit Extras' : ' · ohne Extras'}</span>${bests.old}</div>
@@ -254,7 +255,7 @@ export class UI {
           <button data-a="today">📅 Tages-Strecke</button>
           <button data-a="code">🔢 Code</button>
         </div>
-        <div class="row"><button data-a="trklib">📂 Strecke laden (.TRK)</button><button data-a="themes" class="themebtn" title="Landschaft: ${this.themeLabel(env)}" aria-label="Landschaft: ${this.themeLabel(env)}">${this.themeIcon(env)} Landschaft</button><button data-a="wetterwahl" class="themebtn" title="Wetter: ${this.wetterLabel(env)}" aria-label="Wetter: ${this.wetterLabel(env)}">${this.wetterIcon(env)} Wetter</button></div>
+        <div class="row"><button data-a="trklib">📂 Strecke laden (.TRK)</button><button data-a="themes" class="themebtn" title="Landschaft: ${this.themeLabel(env)}" aria-label="Landschaft: ${this.themeLabel(env)}">${this.themeIcon(env)} Landschaft</button><button data-a="wetterwahl" class="themebtn" title="Wetter: ${this.wetterLabel(env)}" aria-label="Wetter: ${this.wetterLabel(env)}">${this.wetterIcon(env)} Wetter</button><button data-a="zeitwahl" class="themebtn" title="Tageszeit: ${this.zeitLabel(env)}" aria-label="Tageszeit: ${this.zeitLabel(env)}">${this.zeitIcon(env)} Tageszeit</button></div>
         <div class="row">
           <button data-a="settings">⚙️ Optionen</button>
           <button data-a="help">🎮 Steuerung</button>
@@ -302,6 +303,26 @@ export class UI {
     const id = v !== 'auto' && WETTER[v] ? v : env && env.wetter;
     return WETTER[id] && id !== 'klar' ? WETTER[id].icon : '🌦️';
   }
+  // n32 Nachtrag: Einstellung „Tageszeit“ – passend (meist Tag, gelegentlich Abend/Nacht je Strecke) oder fest
+  zeitLabel(env) {
+    const v = this.store.settings.zeit || 'auto';
+    if (v !== 'auto' && ZEIT[v]) return `${ZEIT[v].icon} ${ZEIT[v].name}`;
+    const a = env && env.zeit && ZEIT[env.zeit] ? env.zeit : null;
+    return `passend${a ? ` (${ZEIT[a].icon} ${ZEIT[a].name})` : ''}`;
+  }
+  zeitIcon(env) {
+    const v = this.store.settings.zeit || 'auto';
+    const id = v !== 'auto' && ZEIT[v] ? v : env && env.zeit;
+    return ZEIT[id] && id !== 'tag' ? ZEIT[id].icon : '🕒';
+  }
+  showZeit() {
+    const v = this.store.settings.zeit || 'auto';
+    const a = this.env && this.env.layout && this.env.theme ? zeitAuto(this.env.layout, this.env.theme) : 'tag';
+    const btn = (id, ic, name, desc) => `<button data-a="zeit" data-v="${id}" class="themeopt ${v === id ? 'on' : ''}"><b>${ic} ${name}</b><span>${desc}</span></button>`;
+    this.sheet('Tageszeit', `
+      <p class="hint">Nur fürs Auge: Abend und Nacht ändern Himmel und Licht – Fahrphysik, Strecke und Bestzeiten bleiben gleich. Nachts leuchten Flutlicht, Scheinwerfer, Lichterketten und Fenster; mit Regen spiegelt die nasse Fahrbahn die Lichter. <b>Passend</b>: meist Tag, manchmal Abend oder Nacht, je nach Strecke.</p>
+      <div class="themegrid">${btn('auto', '🎯', 'Passend', `hier: ${ZEIT[a].icon} ${ZEIT[a].name}`)}${ZEIT_IDS.map((id) => btn(id, ZEIT[id].icon, ZEIT[id].name, ZEIT[id].desc)).join('')}</div>`);
+  }
   showWetter() {
     const v = this.store.settings.wetter || 'auto';
     const a = this.env && this.env.layout && this.env.theme ? wetterAuto(this.env.layout, this.env.theme) : 'klar';
@@ -345,6 +366,8 @@ export class UI {
       case 'theme': A.setTheme(v); break;
       case 'wetterwahl': this.showWetter(); break;   // n32
       case 'wetter': A.setWetter(v); break;
+      case 'zeitwahl': this.showZeit(); break;   // n32 Nachtrag
+      case 'zeit': A.setZeit(v); break;
       case 'trklib': this.showLibrary(); break;
       case 'trkpick': this.fileInput.click(); break;
       case 'trkplay': A.playImported(v); break;

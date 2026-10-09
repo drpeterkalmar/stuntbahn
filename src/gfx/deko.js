@@ -2,6 +2,7 @@
 // Vogelschwärme. Alles im Spiel erzeugt (0 KB Download), je ein Draw-Call, Bewegung im Shader aus der Zeit (keine
 // CPU-Arbeit je Bild). ?deko=0 = Aussehen wie bis n29 (alles hier aus); ?deko=aus = ohne Streckenrand-Deko (bis n29: ?deko=0).
 import * as THREE from 'three';
+import { zeitUniforms } from './zeit.js';
 import { decoUniforms } from './deco.js';
 import { WETTER_AIR, wetterTeilchen } from '../track/wetter.js';
 
@@ -209,7 +210,7 @@ export class AirMotes {
     const U = this.u = { uTime: decoUniforms.uTime, uKind: { value: 2 }, uSize: { value: 0.05 }, uFall: { value: 0 }, uSway: { value: 0.5 }, uWind: { value: 0.3 },
       uSpin: { value: 0 }, uBox: { value: 34 }, uH: { value: 14 }, uA: { value: 0.7 }, uC0: { value: new THREE.Color() }, uC1: { value: new THREE.Color() }, uSun: { value: new THREE.Vector3(0, 1, 0) },
       // n32 Regen: Kamera-Geschwindigkeit (m/s, main.js aus dem Auto) und Belichtungszeit des Strichs (s)
-      uCamVel: { value: new THREE.Vector3() }, uStreak: { value: 0.07 } };
+      uCamVel: { value: new THREE.Vector3() }, uStreak: { value: 0.07 }, zHell: zeitUniforms.zHell };   // n32: nachts dunkler
     this.mat = new THREE.ShaderMaterial({
       // n32: beidseitig – die Regenstreifen (kind 4) liegen je nach Fall-/Kamerarichtung mit der Rückseite zur Kamera
       uniforms: U, transparent: true, depthWrite: false, side: THREE.DoubleSide,
@@ -260,7 +261,7 @@ export class AirMotes {
           if ( uKind > 1.5 && uKind < 2.5 ) { vec3 vd = normalize( rel ); vC *= 0.55 + 1.6 * pow( max( dot( -vd, -uSun ), 0.0 ), 4.0 ) + 0.5 * pow( 0.5 + 0.5 * sin( uTime * 5.0 + ph * 9.0 ), 8.0 ); }
           gl_Position = projectionMatrix * mv;
         }`,
-      fragmentShader: `uniform float uKind; varying vec2 vUv; varying float vA; varying vec3 vC;
+      fragmentShader: `uniform float uKind, zHell; varying vec2 vUv; varying float vA; varying vec3 vC;
         void main() {
           vec2 q = vUv - 0.5; float a;
           if ( uKind > 3.5 ) a = pow( max( 0.0, 1.0 - abs( q.x ) * 2.0 ), 1.5 ) * smoothstep( -0.5, 0.2, q.y );   // n32 Regen: Kopf hell, Schweif läuft aus
@@ -268,7 +269,7 @@ export class AirMotes {
           else a = pow( max( 0.0, 1.0 - length( q ) * 2.0 ), uKind > 1.5 && uKind < 2.5 ? 1.5 : 1.1 );
           a *= vA;
           if ( a < 0.01 ) discard;
-          gl_FragColor = vec4( vC, a );
+          gl_FragColor = vec4( vC * ( uKind > 3.5 ? max( zHell, 0.45 ) : uKind < 0.5 ? max( zHell, 0.35 ) : zHell ), a );   // Regen/Schnee bleiben nachts im Licht sichtbar
           #include <tonemapping_fragment>
           #include <colorspace_fragment>
         }`,
@@ -335,10 +336,11 @@ export function makeBrakeLights(root) {
   let k = 0;
   return {
     grp: mesh,
+    nacht: 0,   // n32: abends/nachts leuchten die Rückleuchten auch ohne Bremsen kräftig (main.js: Licht der Tageszeit)
     // b = Bremsen 0 … 1 (aus Pedal bzw. Verzögerung), dt für weiches An-/Ausgehen
     set(b, dt) {
       k += (b - k) * Math.min(1, dt * (b > k ? 22 : 8));
-      U.uCol.value.setRGB(1.0, 0.07, 0.03).multiplyScalar(0.25 + 3.3 * k);
+      U.uCol.value.setRGB(1.0, 0.07, 0.03).multiplyScalar(0.25 + 0.2 * this.nacht + 3.3 * k);
       U.uA.value = 0.55 + 0.45 * k;
     },
   };

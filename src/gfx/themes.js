@@ -11,6 +11,8 @@ import { WORLD_SCALE } from '../track/defs.js';
 import { applyClouds, DEKO, FLOWERS } from './deko.js';
 import { GRADES } from './kinolook.js';
 import { merkeBasis, wendeWetterAn, meldeWetterGrades } from './wetter.js';
+import { wendeZeitAn } from './zeit.js';
+import { zeitLook } from '../track/zeit.js';
 
 meldeWetterGrades(GRADES);   // n32: Farbkorrektur „wetter_regen“ / „wetter_schnee“
 
@@ -30,9 +32,13 @@ export class ThemeManager {
     this.wetter = 'klar'; this.tier = 2; this.base = null; this.look = null; this.treeSnow = 0;
   }
   // Wetter setzen (main.js: beim Laden der Strecke und bei Wahl im Menü; tier = Grafikstufe). Ohne Neubau der Welt.
-  setWetter(w, tier = this.tier) {
-    this.wetter = w || 'klar'; this.tier = tier;
-    if (this.cur && this.base) this.look = wendeWetterAn({ ...this.c, themeUniforms }, this.base, this.wetter, this.cur.id, this.tier, { treeSnow: this.treeSnow });
+  // n32: Tageszeit (zeitL = track/zeit.js zeitLook) unter dem Wetter: erst Licht/Himmel der Tageszeit, darauf das Wetter
+  setWetter(w, tier = this.tier, zeitL = this.zeitL) {
+    this.wetter = w || 'klar'; this.tier = tier; this.zeitL = zeitL || null;
+    if (this.cur && this.base) {
+      const B = wendeZeitAn(this.c, this.base, this.zeitL || zeitLook('tag'));   // Tag: Licht-Richtung/Himmel des Themas zurück
+      this.look = wendeWetterAn({ ...this.c, themeUniforms }, B, this.wetter, this.cur.id, this.tier, { treeSnow: this.treeSnow });
+    }
     return this.look;
   }
   // Paket laden (Promise, mehrfach aufrufbar: Vorab-Laden während der Autopilot prüft)

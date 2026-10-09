@@ -561,7 +561,7 @@ export class Cockpit {
     const cov = Math.max(0, Math.min(1, e.cover || 0));
     this.cover += (cov - this.cover) * (1 - Math.exp(-dt * 4));
     const dk = 1 - 0.78 * this.cover;
-    this.scene.environmentIntensity = 0.5 * (1 - 0.6 * this.cover);
+    this.scene.environmentIntensity = 0.5 * (1 - 0.6 * this.cover) * (this.envK ?? 1);   // n32: Abend/Nacht dunkler
     this.hemi.intensity = 0.6 * dk;
     if (this.cover > 0.05) {
       this.tPhase = (this.tPhase + Math.abs(e.speed || 0) * dt / 12) % 1;

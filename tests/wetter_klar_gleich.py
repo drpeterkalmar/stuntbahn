@@ -22,7 +22,7 @@ def run(root, extra, tag):
             if k:
                 s.ev("window.__app.freezeCam = false; __game.freeze(false); __game.toMenu()")
                 s.ev(f"__game.setTheme('{th}')"); s.pg.wait_for_function(f"__game.theme === '{th}'", timeout=180000)
-            s.ev("__game.setAssist('easy'); __game.start({ autopilot: true })"); s.ev("__game.sim(9.0)"); s.ev("__game.freeze(true)")
+            s.ev("__game.setAssist('easy'); __game.start({ autopilot: true }); __game.freeze(true)"); s.ev("__game.sim(9.0)")
             s.ev(POSE); s.frames(40)
             p = os.path.join(D, f'gleich_{th}_{tag}.png'); s.pg.screenshot(path=p); out[th] = p
         print(tag, 'Fehler', s.errors[:4], flush=True)

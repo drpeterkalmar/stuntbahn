@@ -742,7 +742,7 @@ export class KinoLook {
       this._v.copy(camera.position).addScaledVector(sun, camera.far * 0.5).project(camera);
       const front = this._v2.copy(sun).applyQuaternion(this._q.copy(camera.quaternion).invert()).z < 0;
       U.uSunScr.value.set(this._v.x * 0.5 + 0.5, this._v.y * 0.5 + 0.5, front && Math.abs(this._v.x) < 1.6 && Math.abs(this._v.y) < 1.6 ? 1 : 0);
-      U.uFlare.value = (this.level >= 2 ? 1 : 0.8) * (o.flareK || 1);   // n27: im Kino-Replay kräftigere Blendung
+      U.uFlare.value = (this.level >= 2 ? 1 : 0.8) * (o.flareK ?? 1);   // n32: 0 = keine Blendung (Nacht)   // n27: im Kino-Replay kräftigere Blendung
       // Sichtbarkeit: weich überblenden (Bäume/Pfeiler vor der Sonne flackern sonst), nach Schnitten sofort
       U.uK.value = o.cut ? 1 : Math.min(1, (o.dt || 1 / 60) * 12);
       this.pass(this.mat('sunvis', {}, SUNVIS_FS, { blending: THREE.CustomBlending, blendSrc: THREE.SrcAlphaFactor, blendDst: THREE.OneMinusSrcAlphaFactor, transparent: true }), this.sunRT, false);

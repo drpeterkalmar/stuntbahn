@@ -35,9 +35,14 @@ export function makeSky(skyInfo, tex = null, opts = {}) {
   const hz = new THREE.Color().setRGB(...skyInfo.horizon, THREE.SRGBColorSpace);
   const cl = !!opts.clouds;
   const mat = new THREE.ShaderMaterial({
-    uniforms: { sky: { value: tex }, cutV: { value: skyInfo.cutV }, horizon: { value: hz }, exposure: { value: 1.0 }, wSky: { value: new THREE.Vector2(1, 0) }, ...(cl ? cloudUniforms(opts.sunDir) : {}) },
+    uniforms: { sky: { value: tex }, cutV: { value: skyInfo.cutV }, horizon: { value: hz }, exposure: { value: 1.0 }, wSky: { value: new THREE.Vector2(1, 0) },
+      // n32 Tageszeit: Nacht (Sterne, Mond: x Stärke, yzw Mond-Richtung), Abendrot (x Stärke, yzw Sonne), Tönung, alter Sonnenfleck
+      wNight: { value: new THREE.Vector4(0, 0, 1, 0) }, wGlow: { value: new THREE.Vector4(0, 0, 1, 0) }, wTint: { value: new THREE.Vector3(1, 1, 1) }, wOld: { value: new THREE.Vector4(0, 0, 1, 0) },
+      ...(cl ? cloudUniforms(opts.sunDir) : {}) },
     vertexShader: `varying vec3 vDir; void main(){ vDir = position; vec4 p = projectionMatrix * modelViewMatrix * vec4(position, 1.0); gl_Position = p.xyww; }`,
     fragmentShader: `uniform sampler2D sky; uniform float cutV; uniform vec3 horizon; uniform float exposure; uniform vec2 wSky; varying vec3 vDir;
+      uniform vec4 wNight, wGlow, wOld; uniform vec3 wTint;
+      float sH( vec3 p ) { return fract( sin( dot( p, vec3( 127.1, 311.7, 74.7 ) ) ) * 43758.5453 ); }
       ${cl ? CLOUD_GLSL.pars : ''}
       void main(){
         vec3 d = normalize(vDir);
@@ -48,7 +53,21 @@ export function makeSky(skyInfo, tex = null, opts = {}) {
         else c = horizon;
         ${cl ? CLOUD_GLSL.main : ''}
         // n32 Wetter: x = Helligkeit, y = Entsättigung (1, 0 = klar, Bild unverändert)
-        c = mix( vec3( dot( c, vec3( 0.3, 0.59, 0.11 ) ) ), c, 1.0 - wSky.y ) * wSky.x;
+        // n32 Tageszeit: Sonnenfleck des Himmelsbilds dämpfen (Abend/Nacht steht die Sonne woanders)
+        if ( wOld.x > 0.0 ) c = mix( c, c * 0.35, smoothstep( 0.985, 0.9995, dot( d, wOld.yzw ) ) * wOld.x );
+        c = mix( vec3( dot( c, vec3( 0.3, 0.59, 0.11 ) ) ), c, 1.0 - wSky.y ) * wSky.x * wTint;
+        if ( wGlow.x > 0.0 ) {   // Abendrot: warmer Schein zur tiefen Sonne, am Horizont breit, Sonnenscheibe
+          float sd = max( dot( d, wGlow.yzw ), 0.0 ), hzn = 1.0 - smoothstep( 0.0, 0.45, abs( d.y - 0.03 ) );
+          c += wGlow.x * ( vec3( 1.0, 0.45, 0.16 ) * pow( sd, 6.0 ) * ( 0.35 + 0.9 * hzn ) + vec3( 1.0, 0.62, 0.3 ) * hzn * 0.12 + vec3( 2.4, 1.6, 0.8 ) * smoothstep( 0.99965, 0.99988, sd ) );
+        }
+        if ( wNight.x > 0.0 ) {   // Nacht: Sterne (Raster auf der Kugel, funkeln leicht), Mond mit Hof, Horizont-Schimmer
+          vec3 sp = d * 220.0, id = floor( sp ), f = fract( sp ) - 0.5;
+          float h = sH( id ), star = step( 0.985, h ) * smoothstep( 0.32, 0.0, length( f ) ) * smoothstep( 0.02, 0.25, d.y );
+          float m = dot( d, wNight.yzw );
+          c += wNight.x * ( vec3( 0.85, 0.9, 1.0 ) * star * ( 0.6 + 2.4 * fract( h * 91.7 ) )
+            + vec3( 1.5, 1.55, 1.65 ) * smoothstep( 0.99978, 0.99988, m ) + vec3( 0.06, 0.08, 0.12 ) * pow( max( m, 0.0 ), 60.0 )
+            + vec3( 0.012, 0.018, 0.035 ) * ( 1.0 - smoothstep( 0.0, 0.35, d.y ) ) );
+        }
         gl_FragColor = vec4(c * exposure, 1.0);
         #include <colorspace_fragment>
       }`,

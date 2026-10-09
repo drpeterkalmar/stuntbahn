@@ -1,0 +1,81 @@
+{
+ "datum": "2026-10-09T21:30:28",
+ "stand": "n32_zeit_kino5",
+ "modus": "ab",
+ "runden": 3,
+ "varianten": [
+  {
+   "name": "tag",
+   "wurzel": "/Users/wohnzimmer/dev/stuntbahn",
+   "zusatz": "&zeit=tag"
+  },
+  {
+   "name": "nachtregen0",
+   "wurzel": "/Users/wohnzimmer/dev/stuntbahn",
+   "zusatz": "&zeit=nacht&wetter=regen&spiegel=0"
+  },
+  {
+   "name": "nachtregen",
+   "wurzel": "/Users/wohnzimmer/dev/stuntbahn",
+   "zusatz": "&zeit=nacht&wetter=regen"
+  }
+ ],
+ "profil": {
+  "drossel": 4,
+  "dpr": 2.6,
+  "sek": 10,
+  "start": "open",
+  "vsync": false
+ },
+ "szenen": {
+  "rennen_kino": {
+   "hoch": {
+    "tag": {
+     "p50": 7.8,
+     "p95": 11.6,
+     "fps": 114.8,
+     "calls": 97,
+     "tris": 358462,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      11.6,
+      11.3,
+      11.7
+     ],
+     "fehler": []
+    },
+    "nachtregen0": {
+     "p50": 8.5,
+     "p95": 12.2,
+     "fps": 106.4,
+     "calls": 100,
+     "tris": 366236,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      12.2,
+      12.2,
+      12.2
+     ],
+     "fehler": []
+    },
+    "nachtregen": {
+     "p50": 9,
+     "p95": 12.8,
+     "fps": 100.8,
+     "calls": 100,
+     "tris": 366187,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      12.8,
+      12.7,
+      12.9
+     ],
+     "fehler": []
+    }
+   }
+  }
+ }
+}

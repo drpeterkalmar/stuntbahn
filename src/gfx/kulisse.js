@@ -4,6 +4,7 @@
 //  - Bauten der Themen (Hochhäuser, Kräne, Hochstraße, Leuchtturm, Hütten …) und der Streckenrand (gfx: buildRand)
 // Alles ohne Kollision, instanziert bzw. zusammengefasst; Positionen plant track/kulisse.js (Node-testbar).
 import * as THREE from 'three';
+import { zeitUniforms } from './zeit.js';
 import { GB, cellMaterial, cardGeometry, instanced, decoAssets, decoUniforms, canvasTex, lumTint } from './deco.js';
 import { patchStaticShadow, themeUniforms } from './materials.js';
 import { impostorMesh } from './kern/impostor.js';
@@ -208,12 +209,12 @@ export function buildBackdrop(theme, add, opts = {}) {
   g.computeBoundingSphere();
   const hz = theme.horizon || new THREE.Color(0.75, 0.76, 0.8);
   const m = new THREE.ShaderMaterial({
-    uniforms: { uHz: { value: new THREE.Vector3(hz.r, hz.g, hz.b) }, uSun: { value: new THREE.Vector3(0.3, 0.8, 0.5) }, uTime: decoUniforms.uTime },
+    uniforms: { uHz: { value: new THREE.Vector3(hz.r, hz.g, hz.b) }, uSun: { value: new THREE.Vector3(0.3, 0.8, 0.5) }, uTime: decoUniforms.uTime, zHell: zeitUniforms.zHell, zNacht: zeitUniforms.zNacht },
     vertexShader: `attribute vec4 aT; attribute vec3 color; varying vec4 vT; varying vec3 vC; varying vec3 vW;
       void main(){ vT = aT; vC = color; vec4 w = modelMatrix * vec4( position, 1.0 ); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`,
-    fragmentShader: `uniform vec3 uHz; varying vec4 vT; varying vec3 vC; varying vec3 vW;
+    fragmentShader: `uniform vec3 uHz; uniform float zHell, zNacht; varying vec4 vT; varying vec3 vC; varying vec3 vW;
       float hh( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) * 43758.5453 ); }
-      void main(){
+      void main(){ float zWin = 0.0;
         float y = vW.y, top = vT.y, flags = vT.w;
         vec3 c = vC;
         // Grate: Helligkeit wechselt mit dem Winkel (Licht-/Schattenseiten der Flanken), unten dunkler
@@ -230,10 +231,12 @@ export function buildBackdrop(theme, add, opts = {}) {
           vec2 q = vec2( ang / 5.0, y / 4.2 ), id = floor( q ), f = fract( q );
           float win = step( 0.25, f.x ) * step( f.x, 0.8 ) * step( 0.3, f.y ) * step( f.y, 0.85 );
           c = mix( c, mix( vec3( 0.42, 0.5, 0.58 ), vec3( 1.4, 1.05, 0.6 ), step( 0.86, hh( id ) ) ), win * 0.55 );
+          zWin = win * step( 0.55, hh( id + 7.3 ) );   // n32 Nacht: gut die Hälfte der Fenster leuchtet
         }
         // Dunst: unten fast Horizontfarbe, oben je Lage
         float k = mix( 0.92, vT.z, smoothstep( 0.0, max( 40.0, top ), y + 60.0 ) );
         c = mix( c, uHz, k );
+        c = c * zHell + vec3( 1.0, 0.7, 0.36 ) * zWin * zNacht * ( 1.0 - k * 0.7 );   // n32 Abend/Nacht: dunkler, Fenster leuchten
         gl_FragColor = vec4( c, 1.0 );
         #include <colorspace_fragment>
       }`,
@@ -551,16 +554,18 @@ function buildingMaterial() {
   m.onBeforeCompile = (sh) => {
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vBw; varying vec3 vBn;')
       .replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\n{ vec4 w4 = vec4( transformed, 1.0 ); w4 = instanceMatrix * w4; vBw = ( modelMatrix * w4 ).xyz; vBn = normalize( mat3( modelMatrix ) * mat3( instanceMatrix ) * normal ); }');
-    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vBw; varying vec3 vBn;\nfloat bH( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) * 43758.5453 ); }')
+    sh.uniforms.zNacht = zeitUniforms.zNacht;
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vBw; varying vec3 vBn; uniform float zNacht; float bLit = 0.0;\nfloat bH( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) * 43758.5453 ); }')
       .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix( roughnessFactor, 0.32, bWin );')
+      .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += vec3( 1.0, 0.72, 0.4 ) * bLit * zNacht * 1.8;')   // n32 Nacht: Fensterlicht
       .replace('#include <map_fragment>', `#include <map_fragment>
-      float bWin = 0.0;
+      float bWin = 0.0; bLit = 0.0;
       if ( vBn.y > 0.7 ) diffuseColor.rgb *= 0.35;
       else {
         vec2 q = vec2( abs( vBn.x ) > abs( vBn.z ) ? vBw.z : vBw.x, vBw.y );
         vec2 c = q / vec2( 3.0, 3.6 ), id = floor( c ), f = fract( c );
         float win = step( 0.18, f.x ) * step( f.x, 0.82 ) * step( 0.25, f.y ) * step( f.y, 0.85 ) * step( 1.2, vBw.y - floor( vBw.y / 4000.0 ) );
-        bWin = win;
+        bWin = win; bLit = win * step( 0.62, bH( id + 3.1 ) );
         diffuseColor.rgb = mix( diffuseColor.rgb, vec3( 0.05, 0.07, 0.1 ) + vec3( 0.45, 0.32, 0.14 ) * step( 0.92, bH( id ) ), win * 0.9 );
       }`);
   };

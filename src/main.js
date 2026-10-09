@@ -7,6 +7,8 @@ import { makeSky, sunDirFromUV, bakeStaticShadow } from './gfx/env.js';
 import { ThemeManager } from './gfx/themes.js';
 import { themeFor, THEMES, THEME_IDS } from './track/themes.js';
 import { wetterFor, parseWetter, wetterLook } from './track/wetter.js';
+import { zeitFor, parseZeit, zeitLook } from './track/zeit.js';
+import { zeitUniforms, glowUniforms, glowMesh, planNachtLichter, backeLichtKarte, reflNaechste } from './gfx/zeit.js';
 import { Scheibe } from './gfx/scheibe.js';
 import { kulisse2Uniforms, ampelAus, kulisse2Tick } from './gfx/kulisse2.js';
 import { buildWorld, STATIC_LAYER, vaoAuftrag } from './gfx/world.js';
@@ -45,13 +47,13 @@ import { pyroGeo, ZIEL } from './game/zielshow.js';
 import { Post } from './gfx/post.js';
 import { KinoLook } from './gfx/kinolook.js';
 import { mipBiasEinbauen } from './gfx/kern/taau.js';
-import { loadDecoAssets, decoUniforms } from './gfx/deco.js';
+import { loadDecoAssets, decoUniforms, GB } from './gfx/deco.js';
 import { kulisseTick } from './gfx/kulisse.js';
 import { DEKO, REDUCED, makeBirds, AirMotes, makeBrakeLights } from './gfx/deko.js';
 import { daySeed } from './core/util.js';
 import { showKmhMs } from './core/showspeed.js';
 import { GMeter, G_ON } from './core/gforce.js';
-import { WORLD_TAG, WORLD_SCALE, STUNT_TAG, TUBE_TAG } from './track/defs.js';
+import { WORLD_TAG, WORLD_SCALE, STUNT_TAG, TUBE_TAG, MAT } from './track/defs.js';
 // Geprüfte Strecken (Autopilot, Entschärfungen) je Weltmaßstab getrennt: ?welt=1 prüft neu statt die Teile der
 // anderen Welt zu übernehmen
 const VBUILD = BUILD + WORLD_TAG + STUNT_TAG + TUBE_TAG + '@r29';   // n26: ?stunt=1 prüft und speichert getrennt; n29: ?roehre=glatt auch, Röhre mit Buckel prüft neu
@@ -96,7 +98,7 @@ app.mipBias = mipBiasEinbauen(THREE.ShaderChunk, TAA_BOOT ? (params.get('taamip'
 // Bewegungsunschärfe: im Kino-Look Teil derselben Pipeline (ein Szenen-Durchlauf); ?look=alt: bisheriges post.js
 const post = kino || new Post(renderer);
 quality.post = post; quality.kino = kino;
-let sun, M, carVis, ghostVis, sky, cockpit, themes, air = null, brakeLights = null, brakeV = null, scheibe = null;
+let sun, M, carVis, ghostVis, sky, cockpit, themes, air = null, brakeLights = null, brakeV = null, scheibe = null, headL = null, headGlow = null;
 // n30: dynamische Lack-Spiegelung (gfx/kern/reflex.js) nur auf Kino: dort kostet sie im Handy-Profil 0–3 % p95, auf
 // Standard +26–31 % (Draw-Calls der Würfelseite, CPU) – Regel des Auftrags „> +8 % → nur Kino“. ?reflex=0 aus,
 // ?reflex=1 auch auf Standard. Der Autopilot darf sie als „teure Deko“ abschalten (reflexOff)
@@ -204,6 +206,12 @@ async function boot() {
   scene.add(carVis.root);
   rig.carBox = carLocalBox(carVis);
   if (DEKO) brakeLights = makeBrakeLights(carVis.root);   // n28 (nach der Auto-Box: zählt nicht zur Karosserie)   // Stoßstangen-Kamera: vor die Nase
+  // n32 Tageszeit: Scheinwerfer (EIN echtes SpotLight, dreht mit dem Auto – auch im Looping) und zwei Leuchtpunkte vorn.
+  // Hängen nur abends/nachts am Auto (ein Licht mehr ändert alle Shader; tagsüber kostet es so nichts).
+  headL = new THREE.SpotLight(0xffeedd, 0, 170, 0.46, 0.75, 1.3);   // flacher Abfall: nah nicht überbelichtet (Looping), fern noch hell
+  headL.position.set(0, 0.8, -2.0); headL.target.position.set(0, -1.6, -32); headL.name = 'scheinwerfer';
+  headGlow = glowMesh([-0.66, 0.66].map((x) => ({ x, y: 0.58, z: -2.12, s: 0.75, c: [7, 6.8, 6.2], kind: 4, ph: 0 })), 'scheinwerfer-glanz');
+  headGlow.visible = false; carVis.root.add(headGlow);
   post.setCarBox(rig.carBox);
   ghostVis = await makeCar({ color: 0xffffff, contact: false });
   ghostify(ghostVis.root);
@@ -235,7 +243,7 @@ async function boot() {
   ui.bind({ startRace, newTrack, setAssist, toMenu, retry, startReplay, cycleCam, rewind: () => race && race.requestRewind(), pause: togglePause,
     skipCine: () => endCine(true), skipShow: () => endShow(true), replayCine: () => { if (race && race.film && ui.lastRes) startCine(ui.lastRes); },
     recordCine: () => { if (race && race.film && ui.lastRes) startCine(ui.lastRes, { record: true }); },
-    hop: () => { if (mode === 'race' && race && !frozen) race.requestHop(); }, nitro: () => { if (mode === 'race' && race && !frozen) race.requestNitro(); }, setLine, toggleLine, setPaint, setTheme, setWetter, sound, input, quality, importFiles, playImported, deleteImported, trkLib, showcase: SHOWCASE, showcaseBytes, store, sammlung });
+    hop: () => { if (mode === 'race' && race && !frozen) race.requestHop(); }, nitro: () => { if (mode === 'race' && race && !frozen) race.requestNitro(); }, setLine, toggleLine, setPaint, setTheme, setWetter, setZeit, sound, input, quality, importFiles, playImported, deleteImported, trkLib, showcase: SHOWCASE, showcaseBytes, store, sammlung });
   initDrop();
   ui.showMenu(env);
   mode = params.has('race') ? 'race' : 'menu';
@@ -298,10 +306,69 @@ function wendeWetter() {
   if (!env || !env.theme) return;
   env.wetter = wetterOf(env.layout, env.theme);
   env.wetterTier = quality.tier;
-  const L = (themes && themes.setWetter(env.wetter, quality.tier)) || wetterLook(env.wetter, env.theme, quality.tier);
+  env.zeit = zeitOf(env.layout, env.theme); env.zeitLook = zeitLook(env.zeit, quality.tier);   // n32 Tageszeit (unter dem Wetter)
+  const L = (themes && themes.setWetter(env.wetter, quality.tier, env.zeitLook)) || wetterLook(env.wetter, env.theme, quality.tier);
   env.wetterLook = L;
   if (fx) Object.assign(fx.wetter, { spray: L.spray, sprayKmh: L.sprayKmh, steam: L.steam, tracks: L.tracks });
   sound.setRegen(L.rain);
+  zeitAnwenden();
+}
+// n32 Tageszeit (Nachtrag Peter 09.10.): URL ?zeit= > Einstellung > passend (meist Tag). Nur Optik, wertet nicht extra.
+let URL_ZEIT = parseZeit(params.get('zeit'));
+// ?spiegel=0 … 4: Zahl der Licht-Spiegelungen auf nasser Fahrbahn fest (A/B, Messung); sonst Kino 4, Standard 2, „Deko sparsam“ (Automatik) 0
+const SPIEGEL = params.has('spiegel') ? Math.max(0, Math.min(4, +params.get('spiegel') || 0)) : null;
+const zeitOf = (layout, themeId) => zeitFor(layout, themeId, store.settings.zeit || 'auto', URL_ZEIT);
+// Nacht-Lichter der Strecke (Licht-Karte + Leuchtpunkte) einmal je Welt bauen, sobald Abend/Nacht gebraucht wird
+function nachtAufbauen() {
+  if (!env || !env.worldReady || !worldGroup || !env.zeitLook || env.zeitLook.lights <= 0) return;
+  if (env.nacht && env.nacht.group === worldGroup) return;
+  const t0 = performance.now(), T = env.track, gy = (x, z) => T.terrain.height(x, z);
+  const P = planNachtLichter(T, T.decoPlan, gy, env.theme);
+  const K = backeLichtKarte(P.pools, T.bounds, quality.tier >= 1 ? 512 : 256);
+  if (zeitUniforms.zLichtMap.value && zeitUniforms.zLichtMap.value.image && zeitUniforms.zLichtMap.value.image.width > 1) zeitUniforms.zLichtMap.value.dispose();
+  zeitUniforms.zLichtMap.value = K.tex; zeitUniforms.zLichtXf.value.set(...K.xf);
+  // Streckenlaternen (nur Abend/Nacht): Mast, Ausleger, Leuchtenkopf – EIN instanziertes Mesh im Paint-Material
+  let lat = null;
+  if (P.laternen.length) {
+    const b = new GB(), st = [0.36, 0.38, 0.41];
+    b.cyl(0, -0.3, 0, 0.11, 0.08, 10.1, 6, st, false);
+    b.box(0, 9.75, 1.6, 0.1, 0.1, 3.3, st);
+    b.box(0, 9.62, 3.2, 0.45, 0.16, 0.9, [0.2, 0.2, 0.22]);
+    lat = new THREE.InstancedMesh(b.geo(), M[MAT.PAINT], P.laternen.length);
+    const o = new THREE.Object3D();
+    P.laternen.forEach((p, k) => { o.position.set(p.x, p.y, p.z); o.rotation.set(0, p.rot, 0); o.updateMatrix(); lat.setMatrixAt(k, o.matrix); });
+    lat.computeBoundingSphere(); lat.name = 'nacht-laternen'; worldGroup.add(lat);
+  }
+  const glow = glowMesh(P.glows, 'nacht-lichter'), kette = glowMesh(P.ketten, 'nacht-ketten');
+  worldGroup.add(glow); if (P.ketten.length) worldGroup.add(kette);
+  env.nacht = { group: worldGroup, glow, kette, lat, refl: P.refl, n: P.glows.length + P.ketten.length, pools: P.pools.length, laternen: P.laternen.length, ms: Math.round(performance.now() - t0) };
+}
+// Licht-Richtung geändert (Abend tief, Nacht Mond) → Sonnenschatten der Strecke neu backen
+function schattenNeu() {
+  if (!env || !env.worldReady || !worldGroup) return;   // beim Laden backt loadTrack selbst
+  const d = sun.userData.dir;
+  if (env.bakedDir && env.bakedDir.distanceToSquared(d) < 1e-8) return;
+  bakeStaticShadow(renderer, scene, d, env.track.bounds, quality.staticShadowSize());
+  env.bakedDir = d.clone();
+}
+function zeitAnwenden() {
+  const L = env.zeitLook, on = L.lights > 0;
+  if (headL) {
+    if (on && !headL.parent) carVis.root.add(headL, headL.target); else if (!on && headL.parent) { headL.parent.remove(headL.target); headL.parent.remove(headL); }
+    headL.intensity = on ? 55 * L.headlight : 0;
+  }
+  if (headGlow) headGlow.visible = on;
+  if (brakeLights) brakeLights.nacht = L.lights;
+  if (cockpit) cockpit.envK = L.cockpit;
+  nachtAufbauen();
+  if (env.nacht) { env.nacht.glow.visible = on; env.nacht.kette.visible = on && L.ketten > 0; if (env.nacht.lat) env.nacht.lat.visible = on; }
+  if (env.birds) env.birds.visible = L.id !== 'nacht';
+  schattenNeu();
+}
+function setZeit(v) {
+  store.settings.zeit = parseZeit(v) || 'auto'; store.save(); URL_ZEIT = null;
+  wendeWetter();
+  if (mode === 'menu') ui.showMenu(env);
 }
 function setWetter(v) {
   store.settings.wetter = parseWetter(v) || 'auto'; store.save(); URL_WETTER = null;
@@ -474,12 +541,14 @@ async function loadTrack(layout, meta = {}, pre = null) {
   if (worldGroup) { scene.remove(worldGroup); worldGroup.traverse((o) => { if (o.geometry) o.geometry.dispose(); }); worldGroup = null; }
   worldGroup = buildWorld(track, M, { world, tier: quality.tier, ideal, prof, deco: params.get('deko') !== 'aus', impostor: IMP, theme: { id: th.id, def: th.def, veg: th.veg, horizon: th.horizon, seed: layout.seed || layout.meta?.seed || 1 } });
   // Deko (n28): Vogelschwärme über der Landschaft (ein Draw-Call, Bahn im Shader)
-  if (DEKO) { const b = makeBirds(track, th.id, quality.tier, layout.seed || layout.meta?.seed || 1); if (b) worldGroup.add(b); }
+  if (DEKO) { const b = makeBirds(track, th.id, quality.tier, layout.seed || layout.meta?.seed || 1); if (b) { worldGroup.add(b); env.birds = b; b.visible = !env.zeitLook || env.zeitLook.id !== 'nacht'; } }
   // n30: Lack-Spiegelung zeigt nur die großen Flächen (Strecke, Gelände, Wasser, Kulisse, Bäume, Tribünen, Zäune, Banner)
   if (reflex) worldGroup.traverse((o) => { if ((o.isMesh || o.isInstancedMesh) && REFLEX_OBJ.test(o.name)) o.layers.enable(REFLEX_LAYER); });
   scene.add(worldGroup);
   await placeParkedCars(track);
   bakeStaticShadow(renderer, scene, sun.userData.dir, track.bounds, quality.staticShadowSize());
+  env.bakedDir = sun.userData.dir.clone(); env.worldReady = true;
+  zeitAnwenden();   // n32: Nacht-Lichter dieser Welt (Abend/Nacht)
   // n30: gebackene Vertex-AO der Strecke – schrittweise in den ersten Bildern (frame), ?vao=0 = aus, ?vao=sync = sofort
   // nur auf Kino: dort ersetzt sie SSAO (spart), auf Standard kostete sie im Handy-Profil ~0,2 ms je Bild (+4 % p95) bei
   // kaum sichtbarer Wirkung – Budget „gleich oder besser“ (n30-Messung). ?vao=1 auch auf Standard/Einfach
@@ -980,6 +1049,13 @@ function render(rdt) {
     brakeLights.set(b, frozen ? 0 : rdt);
   }
   kulisseTick(decoUniforms.uTime.value);
+  // n32 Tageszeit: Leuchtpunkte (Zeit, Auto für Reflektoren im Scheinwerferlicht, Lichterketten aus bei „Deko sparsam“)
+  if (env && env.zeitLook && env.zeitLook.lights > 0) {
+    glowUniforms.uTime.value = decoUniforms.uTime.value;
+    const R = carVis.root; R.updateMatrixWorld();
+    glowUniforms.uCar.value.setFromMatrixPosition(R.matrixWorld); glowUniforms.uCarF.value.set(0, 0, -1).transformDirection(R.matrixWorld);
+    glowUniforms.uKetten.value = quality.decoLite ? 0 : env.zeitLook.ketten;
+  }
   kulisse2Tick(camera);   // n32: 3D-Zuschauer in Sichtweite vorauswählen
   // n32: Startampel (rot 1 … 5 im Countdown, dann kurz grün; im Menü aus)
   { const [on, go] = mode === 'race' && race ? ampelAus(race.state, race.countdown, race.time) : [0, 0]; kulisse2Uniforms.uAmpel.value.set(on, go); }
@@ -1027,6 +1103,8 @@ function render(rdt) {
     fx.update(replay.paused ? 0 : rdt * (cine ? cine.player.speed : replay.speedMul), camera);
   }
   if (lineViz) lineViz.update(camera, race, store.settings.assist, mode, store.settings.line);
+  // n32: abends/nachts leuchtet die Ideallinie stärker (Lesbarkeit)
+  if (lineViz && lineViz.mat && LINE_LEVELS[store.settings.line] && LINE_LEVELS[store.settings.line].opacity) lineViz.mat.uniforms.uOpacity.value = Math.min(0.9, LINE_LEVELS[store.settings.line].opacity * (1 + (env && env.zeitLook ? env.zeitLook.line : 0)));
   sky.position.copy(camera.position);
   if (mode === 'race' && race) { ui.hud(race, env, ghost); sound.update(race.car, rdt, race.state, { cockpit: rig.view === 'cockpit' }); }
   if (mode === 'replay' && replay && cine) { ui.cineHud(cine); cineSound(rdt); cine.stats.frames++; }
@@ -1065,7 +1143,7 @@ function render(rdt) {
   const cfx = cine ? cineFx(rdt) : null;
   const shutter = cine ? Math.min(2.5, 1 / Math.pow(Math.max(0.2, cine.player.speed), 0.6)) : 1;
   const flash = pyroTick(rdt, pose);
-  drawFrame({ run: running, speed: spd, boost, dt: rdt, cut: blurCut, cockpit: inCockpit, heat: !inCockpit && pose && mode !== 'menu' ? heatOf(spd, boost) : null, dof: cdof, shutter, flash, white: cfx ? cfx.white : 0, whip: cfx ? cfx.whip : null, flareK: cine ? 1.5 : 1 });
+  drawFrame({ run: running, speed: spd, boost, dt: rdt, cut: blurCut, cockpit: inCockpit, heat: !inCockpit && pose && mode !== 'menu' ? heatOf(spd, boost) : null, dof: cdof, shutter, flash, white: cfx ? cfx.white : 0, whip: cfx ? cfx.whip : null, flareK: (cine ? 1.5 : 1) * (env && env.zeitLook ? env.zeitLook.flare : 1) });
   // Video-Aufnahme: Bild direkt nach dem Zeichnen kopieren (Balken wie im CSS: 2,39:1, mindestens 8,5 %)
   if (cine && cine.rec) { const W = innerWidth, H = innerHeight; cine.rec.frame(H > W ? 0 : Math.max(0.085, (H - W / 2.39) / 2 / H), ui.capState()); }
   blurCut = false;
@@ -1124,6 +1202,8 @@ function reflexVorwaermen() {
 
 // Bild zeichnen: Kino-Look (eine Pipeline: Szene, Unschärfe, Licht/Farbe, Cockpit darüber) bzw. ?look=alt wie bis n22
 function drawFrame(o) {
+  // n32 Nacht: Spiegel-Lichter mit der endgültigen Kamera dieses Bilds (Blickraum); nur bei Nässe, ab Standard (Kino 8, Standard 4)
+  if (env && env.nacht && env.zeitLook && env.zeitLook.lights > 0) reflNaechste(env.wetterLook && env.wetterLook.wet > 0 ? env.nacht.refl : null, camera, SPIEGEL ?? (quality.decoLite ? 0 : quality.tier >= 2 ? 4 : quality.tier >= 1 ? 2 : 0));
   // n30: Auto-LOD nach Entfernung/Bildwinkel (Geist mindestens Mittel: durchscheinend, Feinheiten sieht man nicht)
   carVis.updateLod(camera, app.lodForce != null ? { force: app.lodForce } : undefined);
   if (ghostVis.root.visible) ghostVis.updateLod(camera, { min: 1 });
@@ -1167,6 +1247,7 @@ window.__game = {
   modeKey, worldScale: WORLD_SCALE,
   get theme() { return env && env.theme; }, themes: () => themes, setTheme: (v) => setTheme(v), THEMES, decoUniforms,
   get wetter() { return env && env.wetter; }, get wetterLook() { return env && env.wetterLook; }, setWetter: (v) => setWetter(v),   // n32
+  get zeit() { return env && env.zeit; }, get zeitLook() { return env && env.zeitLook; }, setZeit: (v) => setZeit(v), get nacht() { return env && env.nacht; }, zeitUniforms, glowUniforms,
   // Import (Tests): Bytes als Array → Ergebnisliste; Strecke laden
   importBytes: (arr, name) => importFiles([new File([new Uint8Array(arr)], name || 'test.trk')]),
   loadImported: (id) => playImported(id),

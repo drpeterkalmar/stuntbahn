@@ -1,5 +1,6 @@
 // Effekte: Bremsspuren (Ringpuffer-Band), Rauch/Staub/Funken als instanzierte Partikel.
 import * as THREE from 'three';
+import { zeitUniforms } from './zeit.js';
 import { DEKO } from './deko.js';
 import { MAT } from '../track/defs.js';
 
@@ -99,14 +100,14 @@ export class Particles {
     g.setAttribute('iAlpha', this.iAlpha);
     g.setAttribute('iColor', this.iColor);
     const mat = new THREE.ShaderMaterial({
-      uniforms: { map: { value: smokeTexture() } },
+      uniforms: { map: { value: smokeTexture() }, zHell: zeitUniforms.zHell },   // n32: Rauch/Staub/Gischt nachts dunkel
       vertexShader: `attribute float iAlpha; attribute vec3 iColor; varying float vA; varying vec3 vC; varying vec2 vUv;
         void main(){ vUv = uv; vC = iColor;
           vec4 mv = modelViewMatrix * instanceMatrix * vec4(position, 1.0);
           vA = iAlpha * smoothstep(0.6, 2.2, -mv.z);   // nah an der Kamera ausblenden (keine bildfüllenden Flächen)
           gl_Position = projectionMatrix * mv; }`,
-      fragmentShader: `uniform sampler2D map; varying float vA; varying vec3 vC; varying vec2 vUv;
-        void main(){ vec4 t = texture2D(map, vUv); if (t.a * vA < 0.01) discard; gl_FragColor = vec4(vC * t.rgb, t.a * vA);
+      fragmentShader: `uniform sampler2D map; uniform float zHell; varying float vA; varying vec3 vC; varying vec2 vUv;
+        void main(){ vec4 t = texture2D(map, vUv); if (t.a * vA < 0.01) discard; gl_FragColor = vec4(vC * t.rgb * zHell, t.a * vA);
           #include <colorspace_fragment>
         }`,
       transparent: true, depthWrite: false,

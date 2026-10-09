@@ -47,7 +47,7 @@ export class Store {
   constructor() {
     let d = {};
     try { d = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch { d = {}; }
-    this.settings = Object.assign({ assist: 'easy', paint: 0xa3120e, sound: true, ghost: true, touch: 'auto', tilt: false, wreck: false, line: 'soft', lineLast: 'soft', cam: 'chase', quality: 'auto', diff: 2, lastSeed: null, seenHelp: false, extras: true, autoExtras: true, blur: 'light', brakeHelp: 'hint', tbsize: 'gross', flat: false, cine: true, fahrstil: 'brachial', wetter: 'auto' }, d.settings || {});   // wetter: n32 (nur Optik, wertet nicht extra)
+    this.settings = Object.assign({ assist: 'easy', paint: 0xa3120e, sound: true, ghost: true, touch: 'auto', tilt: false, wreck: false, line: 'soft', lineLast: 'soft', cam: 'chase', quality: 'auto', diff: 2, lastSeed: null, seenHelp: false, extras: true, autoExtras: true, blur: 'light', brakeHelp: 'hint', tbsize: 'gross', flat: false, cine: true, fahrstil: 'brachial', wetter: 'auto', zeit: 'auto' }, d.settings || {});   // wetter, zeit: n32 (nur Optik, wertet nicht extra)
     this.best = d.best || {};      // key|modeKey -> { time, date, name, pen }
     this.ghostIndex = d.ghostIndex || []; // Reihenfolge für LRU
     // Leicht (n15, Peter 28.09.: „keine Highscores, nur Zeit notieren“): letzte Zeiten je Strecke, neueste zuerst,

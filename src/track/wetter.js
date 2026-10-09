@@ -35,15 +35,15 @@ export function parseWetter(v) {
   return ALIAS[String(v).trim().toLowerCase()] || null;
 }
 
-function hash32(...a) {
+export function hash32(...a) {
   let h = 0x811c9dc5;
   for (const v of a) { h = Math.imul(h ^ (v >>> 0), 16777619); h ^= h >>> 13; h = Math.imul(h, 0x5bd1e995); h ^= h >>> 15; }
   return h >>> 0;
 }
-function strHash(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619); return h >>> 0; }
+export function strHash(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619); return h >>> 0; }
 
 // Kennzahl der Strecke für den Würfel: Seed (generiert) bzw. Schlüssel (.TRK, Sammlung, Demo)
-function streckenZahl(layout) {
+export function streckenZahl(layout) {
   const m = (layout && layout.meta) || {};
   if (m.key && !(m.seed ?? layout?.seed)) return strHash(String(m.key));
   const seed = m.seed ?? layout?.seed ?? 1, diff = m.diff ?? layout?.diff ?? 2;

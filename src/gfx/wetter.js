@@ -29,7 +29,7 @@ export function merkeBasis(c) {
   return {
     fogNear: scene.fog.near, fogFar: scene.fog.far, fogCol: scene.fog.color.clone(),
     sunI: sun.intensity, sunCol: sun.color.clone(), envI: scene.environmentIntensity,
-    horizon: U.horizon.value.clone(),
+    horizon: U.horizon.value.clone(), sunDir: sun.userData && sun.userData.dir ? sun.userData.dir.clone() : null,
     clouds: U.cK ? { k: U.cK.value, soft: U.cSoft.value, sc: U.cSc.value, sp: U.cSp.value, dark: U.cDark.value.clone() } : null,
     kino: kino ? { grade: kino.grade, haze: kino.hazeCol.clone(), sun: kino.sunCol.clone(), aerial: { ...kino.aerial } } : null,
   };
@@ -39,7 +39,9 @@ export function merkeBasis(c) {
 // extra = { treeSnow (Thema) }. Liefert das verwendete Aussehen (wetterLook).
 export function wendeWetterAn(c, B, w, themeId, tier, extra = {}) {
   const { scene, sky, sun, kino } = c, U = sky.material.uniforms;
-  const L = wetterLook(w, themeId, tier);
+  const L0 = wetterLook(w, themeId, tier);
+  // n32 Tageszeit: B kann eine von gfx/zeit.js geänderte Basis sein (Nacht: Dunst fast schwarz statt grau, Himmel dunkel)
+  const hs = B.hazeScale ?? 1, L = hs !== 1 && L0.haze ? { ...L0, haze: L0.haze.map((v) => v * hs) } : L0;
   // Nebel: dichter (näher) und zur Dunstfarbe
   scene.fog.near = B.fogNear * L.fog; scene.fog.far = B.fogFar * L.fog;
   mixRGB(scene.fog.color.copy(B.fogCol), L.haze, L.hazeK);
@@ -48,7 +50,7 @@ export function wendeWetterAn(c, B, w, themeId, tier, extra = {}) {
   sun.color.copy(B.sunCol); if (L.sunTint) sun.color.multiply(tmpC.setRGB(...L.sunTint));
   scene.environmentIntensity = B.envI * L.env;
   // Himmel: abdunkeln/entsättigen (Uniform wSky aus env.js makeSky), Horizont zum Dunst, Wolkendecke
-  if (U.wSky) U.wSky.value.set(1 - L.skyDark, L.skyDesat);
+  if (U.wSky) U.wSky.value.set((1 - L.skyDark) * (B.skyK ?? 1), L.skyDesat);
   mixRGB(U.horizon.value.copy(B.horizon), L.haze, L.hazeK * 0.8);
   if (U.cK && B.clouds) {
     const C0 = B.clouds;
@@ -62,7 +64,7 @@ export function wendeWetterAn(c, B, w, themeId, tier, extra = {}) {
   }
   // Kino-Look: Farbkorrektur, Dunst (Luftperspektive dichter), Sonnenfarbe
   if (kino && B.kino) {
-    kino.grade = WETTER_GRADES[L.id] ? 'wetter_' + L.id : B.kino.grade;
+    kino.grade = WETTER_GRADES[L.id] && !B.kino.zeitGrade ? 'wetter_' + L.id : B.kino.grade;   // Abend/Nacht: deren Farbkorrektur
     mixRGB(kino.hazeCol.copy(B.kino.haze), L.haze, L.hazeK);
     kino.sunCol.copy(B.kino.sun); if (L.sunTint) kino.sunCol.multiply(tmpC.setRGB(...L.sunTint));
     kino.aerial.density = B.kino.aerial.density * (1 + (1 / Math.max(0.2, L.fog) - 1) * 0.6);   // n32 Heavy: am Bild abgestimmt (voll ×2 war zu milchig)
