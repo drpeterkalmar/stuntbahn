@@ -25,6 +25,8 @@ export const HL = {
   land: { tilt: 28, bonus: 10 },
   // Looping & Co.: base · (0,6 + 0,4 · min(1,5, mittleres Tempo / v0)); Looping nur, wenn das Auto wirklich kopfüber war
   loop: { base: 42, v0: 40 }, cork: { base: 48, v0: 40 }, wendel: { base: 36, v0: 35 }, tube: { base: 28, v0: 40 },
+  // n33: Röhre mit Wand (360°-Rolle über die Decke, nur wenn wirklich kopfüber) und Zickzack-Barriere (Slalom, nach Tempo)
+  tubewall: { base: 50, v0: 30 }, zigzag: { base: 16, v0: 22 },
   spiral: { base: 18, dh: 1.2 },            // Spirale/Wendel: base + dh · Höhenunterschied (m)
   waves: { base: 14, air: 25 },             // Achterbahn-Wellen (n19) befahren: base + air · Summe der Luftzeit (s)
   slope: { base: 10, dv: 1 / 4, min: 25 },  // Steilabfahrt (n19): base + Tempo-Gewinn (km/h) · dv, ab min km/h Gewinn
@@ -83,6 +85,8 @@ export const LABEL = {
   cork: (m) => `🍥 Korkenzieher${gx(m.g)}`,
   wendel: (m) => (m.dh ? `🌀 Wendel · ${R(m.dh)} m ${m.up ? 'hinauf' : 'hinunter'}` : `🌀 Wendel${gx(m.g)}`),
   tube: (m) => `🕳️ Röhre${gx(m.g)}`,
+  tubewall: (m) => `🔄 Röhre über Kopf${gx(m.g)}`,
+  zigzag: (m) => `🚧 Zickzack · ${R(showKmhMs(m.v))} km/h`,
   spiral: (m) => `🌀 Spirale · ${R(m.dh)} m ${m.up ? 'hinauf' : 'hinunter'}`,
   wall: (m) => `🧱 Steilwand · ${R(m.deg)}°${gx(m.g)}`,
   halfpipe: (m) => `🛹 Halfpipe${gx(m.g)}`,
@@ -108,7 +112,7 @@ export const SHOTS = {
   jump: [['drone', 'peak'], ['tele', 'end']], gorge: [['heli', 'peak'], ['tele', 'end']], cliff: [['drone', 'peak'], ['action', 'end']],
   drop: [['drone', 'end']], air: [['drone', 'end']], hop: [['drone', 'end']], waves: [['action', 'end']], kuppe: [['action', 'end']],
   hard: [['tele', 'end']], loop: [['onboard', 0.9], ['tele', 'end']], cork: [['action', 'end']], wendel: [['heli', 'end']],
-  tube: [['action', 'end']], spiral: [['heli', 'end']], slope: [['onboard', 0.9], ['drone', 'end']], wall: [['drone', 'end']], halfpipe: [['drone', 'end']],
+  tube: [['action', 'end']], tubewall: [['action', 'end']], zigzag: [['drone', 'end']], spiral: [['heli', 'end']], slope: [['onboard', 0.9], ['drone', 'end']], wall: [['drone', 'end']], halfpipe: [['drone', 'end']],
   nitro: [['action', 1.6], ['onboard', 2.5], ['drone', 'end']], top: [['onboard', 1.0], ['drone', 'end']],
   near: [['action', 'end']], curve: [['action', 'peak'], ['drone', 'end']], drift: [['drone', 'peak'], ['action', 'end']], spin: [['drone', 'end']], wheels2: [['action', 'end']], crash: [['tele', 'end']], finish: [['tele', 'end']],
 };
@@ -119,7 +123,8 @@ export const SHOTS_ALT = {
   drop: [[['crane', 'end']], [['fan', 'end']]], air: [[['fan', 'end']]], hop: [[['drone', 'peak'], ['low', 'end']]], kuppe: [[['rear', 'peak'], ['low', 'end']]],
   hard: [[['fan', 'end']], [['crane', 'end']]],
   loop: [[['fan', 'peak'], ['crane', 'end']], [['crane', 'peak'], ['tele', 'end']], [['low', 0.8], ['fan', 'end']]],
-  cork: [[['crane', 'end']], [['fan', 'peak'], ['action', 'end']]], tube: [[['crane', 'end']], [['rear', 'end']]], waves: [[['crane', 'end']], [['rear', 'end']]],
+  cork: [[['crane', 'end']], [['fan', 'peak'], ['action', 'end']]], tube: [[['crane', 'end']], [['rear', 'end']]],
+  tubewall: [[['crane', 'end']], [['rear', 'end']]], zigzag: [[['low', 'peak'], ['drone', 'end']], [['fan', 'end']]], waves: [[['crane', 'end']], [['rear', 'end']]],
   wendel: [[['crane', 'end']]], spiral: [[['crane', 'end']]], wall: [[['fan', 'end']], [['crane', 'end']]], halfpipe: [[['crane', 'end']], [['fan', 'end']]],
   nitro: [[['low', 1.2], ['rear', 2.4], ['crane', 'end']], [['fan', 1.6], ['action', 'end']]], top: [[['low', 'peak'], ['rear', 'end']], [['fan', 'end']]],
   slope: [[['crane', 'end']]], near: [[['fan', 'end']]], curve: [[['fan', 'peak'], ['crane', 'end']], [['low', 'peak'], ['drone', 'end']]],
@@ -227,7 +232,7 @@ function pieceAt(env, i) {
   return { type: pc.type || lp.type || '', g: lp.g || '' };
 }
 const isCork = (t) => /cork/.test(t);
-const STRUCT = /^(loop|tube|tr_loop|tr_pipe|tr_pipeT|tr_corklr|tr_corkud|wall|halfpipe|bank|tr_bankC|tr_bank|spiral)$/;
+const STRUCT = /^(loop|tube|tr_loop|tr_pipe|tr_pipeT|tr_corklr|tr_corkud|wall|halfpipe|bank|tr_bankC|tr_bank|spiral|tube_wall|zigzag|zigzag2)$/;   // n33: + Röhre mit Wand, Zickzack
 
 // ---------- Kandidaten ----------
 export function findMoments(rec, env, marks = {}) {
@@ -297,7 +302,8 @@ export function findMoments(rec, env, marks = {}) {
     out.push(m);
   }
 
-  // 2. Bauwerke: Looping, Korkenzieher, Wendel, Röhre, Spirale, Steilwand, Halfpipe (zusammenhängende Bilder je Stück)
+  // 2. Bauwerke: Looping, Korkenzieher, Wendel, Röhre, Spirale, Steilwand, Halfpipe, n33 Röhre mit Wand, Zickzack
+  // (zusammenhängende Bilder je Stück)
   const runs = [];
   let cur = null;
   for (let i = 0; i < F; i++) {
@@ -305,7 +311,8 @@ export function findMoments(rec, env, marks = {}) {
     let k = null;
     if (P.type === 'tr_corkud') k = 'wendel';
     else if (L.loop[j]) k = isCork(P.type) ? 'cork' : 'loop';
-    else if (L.tube[j]) k = 'tube';
+    else if (L.tube[j]) k = P.type === 'tube_wall' ? 'tubewall' : 'tube';
+    else if (P.type === 'zigzag' || P.type === 'zigzag2') k = 'zigzag';
     else if (P.type === 'spiral') k = 'spiral';
     else if (P.type === 'waves') k = 'waves';
     else if (P.type === 'slope3' || P.type === 'slope4') k = 'slope';
@@ -322,11 +329,11 @@ export function findMoments(rec, env, marks = {}) {
     let vs = 0, mn = 1, imn = i0;
     for (let i = i0; i <= i1; i++) { vs += Math.abs(D.sp[i]); if (D.upY[i] < mn) { mn = D.upY[i]; imn = i; } }
     const v = vs / (i1 - i0 + 1), m = { kind: r.kind, i0, i1, ip: imn, dur, v };
-    if (r.kind === 'loop' || r.kind === 'cork' || r.kind === 'tube') {
-      if (r.kind === 'loop' && mn > -0.2) continue;   // nicht wirklich über Kopf (z. B. abgebrochen)
+    if (r.kind === 'loop' || r.kind === 'cork' || r.kind === 'tube' || r.kind === 'tubewall' || r.kind === 'zigzag') {
+      if ((r.kind === 'loop' || r.kind === 'tubewall') && mn > -0.2) continue;   // nicht wirklich über Kopf (z. B. abgebrochen)
       const H = HL[r.kind];
       m.score = H.base * (0.6 + 0.4 * Math.min(1.5, v / H.v0));
-      if (r.kind === 'tube') m.ip = (i0 + i1) >> 1;
+      if (r.kind === 'tube' || r.kind === 'zigzag') m.ip = (i0 + i1) >> 1;
     } else if (r.kind === 'spiral' || r.kind === 'wendel') {
       m.dh = Math.abs(D.py[i1] - D.py[i0]); m.up = D.py[i1] > D.py[i0];
       m.score = r.kind === 'wendel' ? HL.wendel.base * (0.6 + 0.4 * Math.min(1.5, v / HL.wendel.v0)) + HL.spiral.dh * m.dh : HL.spiral.base + HL.spiral.dh * m.dh;

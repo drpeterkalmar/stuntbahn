@@ -53,10 +53,10 @@ import { DEKO, REDUCED, makeBirds, AirMotes, makeBrakeLights } from './gfx/deko.
 import { daySeed } from './core/util.js';
 import { showKmhMs } from './core/showspeed.js';
 import { GMeter, G_ON } from './core/gforce.js';
-import { WORLD_TAG, WORLD_SCALE, STUNT_TAG, TUBE_TAG, MAT } from './track/defs.js';
+import { WORLD_TAG, WORLD_SCALE, STUNT_TAG, TUBE_TAG, MAT, GEN_V, HIND_TAG } from './track/defs.js';
 // Geprüfte Strecken (Autopilot, Entschärfungen) je Weltmaßstab getrennt: ?welt=1 prüft neu statt die Teile der
 // anderen Welt zu übernehmen
-const VBUILD = BUILD + WORLD_TAG + STUNT_TAG + TUBE_TAG + '@r29';   // n26: ?stunt=1 prüft und speichert getrennt; n29: ?roehre=glatt auch, Röhre mit Buckel prüft neu
+const VBUILD = BUILD + WORLD_TAG + STUNT_TAG + TUBE_TAG + '@r29' + (HIND_TAG ? '@h' + HIND_TAG : '');   // n26: ?stunt=1 prüft und speichert getrennt; n29: ?roehre=glatt auch, Röhre mit Buckel prüft neu; n33: einzeln abgeschaltete Hindernisse auch
 
 const DT = 1 / 120;
 const params = new URLSearchParams(location.search);
@@ -233,9 +233,10 @@ async function boot() {
   if (params.has('demo')) await loadTrack(demoLayout(), { name: 'Teststrecke' });
   else if (params.has('gallery')) await loadTrack(params.get('gallery') === 'gel' ? galleryGelLayout() : galleryLayout());   // ?gallery=gel: Gelände-Galerie (n22)
   else if (params.has('trk')) await loadImported(params.get('trk')).catch((e) => { console.warn(e); return loadGenerated(daySeed(), 2); });
-  // ?seed=…&d=… wie bisher flach (alte Codes, Tests); &3d=1 = Hochstraße (n19), &g=1 = Gelände (n22). Ohne Seed: Strecke
-  // des Tages in der gewählten Streckenart (ab n22 Standard „Gelände“; Schalter im Menü)
-  else await loadGenerated(q ? +q : daySeed(), +(params.get('d') || 2), q ? (params.get('g') === '1' ? 'gel' : params.get('3d') === '1' ? '3d' : 'flat') : store.settings.trackMode);
+  // ?seed=…&d=… wie bisher flach (alte Codes, Tests); &3d=1 = Hochstraße (n19), &g=1 = Gelände (n22), &h=1 = Generator mit
+  // den n33-Hindernissen (Code-Zusatz „h“). Ohne Seed: Strecke des Tages in der gewählten Streckenart (ab n22 Standard
+  // „Gelände“; Schalter im Menü), ab n33 mit den neuen Hindernissen
+  else await loadGenerated(q ? +q : daySeed(), +(params.get('d') || 2), q ? (params.get('g') === '1' ? 'gel' : params.get('3d') === '1' ? '3d' : 'flat') : store.settings.trackMode, false, q ? (params.get('h') === '1' ? 2 : 1) : GEN_V);
   reflexVorwaermen();
   await startAutopilot();
   ui.loading(1, 'Fertig');
@@ -387,9 +388,11 @@ function pickRandomThema(rnd = Math.random) {
   return ids[Math.floor(rnd() * ids.length) % ids.length] || THEME_IDS[0];
 }
 const modeOf = (m) => (m === true ? '3d' : m === false ? 'flat' : m === '3d' || m === 'gel' || m === 'flat' ? m : store.settings.trackMode || 'gel');
-async function loadGenerated(seed, diff, mode = 'flat', randomTheme = false) {
+// gv: Generator-Version (n33: 2 = mit Zickzack, Röhre mit Wand, Spiralen-Hochstraße; Code-Zusatz „h“). ?hindernis2=0 → immer 1
+async function loadGenerated(seed, diff, mode = 'flat', randomTheme = false, gv = GEN_V) {
   mode = modeOf(mode);
-  const gopt = (variant) => (mode === '3d' ? { d3: true, variant } : mode === 'gel' ? { gel: true, variant } : {});
+  gv = Math.min(gv || 1, GEN_V);
+  const gopt = (variant) => ({ ...(mode === '3d' ? { d3: true, variant } : mode === 'gel' ? { gel: true, variant } : {}), ...(gv >= 2 ? { gv } : {}) });
   let lay = generate(seed, diff, gopt(0));
   if (randomTheme) RANDOM_THEMA = { key: lay.meta.key, id: typeof randomTheme === 'string' && THEMES[randomTheme] ? randomTheme : pickRandomThema() };
   themes.prefetch(themeOf(lay));   // Kulissen-Paket lädt, während der Autopilot prüft
@@ -594,10 +597,10 @@ function startRace(opts = {}) {
   prevPose = null;
 }
 function retry() { startRace(); }
-async function newTrack(seed, diff, mode, randomTheme = false) {
+async function newTrack(seed, diff, mode, randomTheme = false, gv = GEN_V) {
   ui.loading(0.5, 'Strecke bauen …');
   await new Promise((r) => setTimeout(r, 30));
-  await loadGenerated(seed, diff, modeOf(mode), randomTheme);
+  await loadGenerated(seed, diff, modeOf(mode), randomTheme, gv);
   ui.loading(1);
   ui.showMenu(env);
   mode = 'menu';
@@ -1271,7 +1274,7 @@ window.__game = {
   // G-Kräfte (n24): live (Rennen) bzw. Replay an der aktuellen Stelle; Lage des runden G-Meters
   gState() { if (mode === 'replay' && replay) return { ...replay.gState() }; if (!race) return null; gLiveSync(); return gLive.m.state(); },
   gmeterBox() { const e = document.getElementById('gmeter'); if (!e || !e.classList.contains('show')) return null; const b = e.getBoundingClientRect(); return [b.left, b.top, b.right, b.bottom]; },
-  newTrack: (s, d, mode, randomTheme) => newTrack(s, d, mode, randomTheme),
+  newTrack: (s, d, mode, randomTheme, gv) => newTrack(s, d, mode, randomTheme, gv),
   setAssist,
   setLine,
   toggleLine,

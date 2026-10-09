@@ -128,7 +128,19 @@ export function haftOffAt(track, idx) {
   for (const j of track.jumps) if (idx >= j.lipIdx - 30 && idx <= (j.endIdx ?? j.landIdx + 12)) return true;
   return false;
 }
-const STUNT_NAMES = { loop: 'Looping', tube: 'Röhre', cork: 'Korkenzieher', jump: 'Sprung' };
+const STUNT_NAMES = { loop: 'Looping', tube: 'Röhre', cork: 'Korkenzieher', jump: 'Sprung', zig: 'Zickzack' };
+// Zickzack-Barriere (n33): Stunt-Zone von ZIG_ZONE[0] m vor dem ersten bis ZIG_ZONE[1] m hinter dem letzten Block – dort lenkt
+// auf Leicht der Autopilot den Slalom, Mittel hat die Spurhilfe (zur Ideallinie, nicht zur Fahrbahnmitte: dort stehen Blöcke)
+export const ZIG_ZONE = [14, 6];
+export function zigMask(track) {
+  const L = track.line, z = new Uint8Array(L.n);
+  for (const o of track.obstacles || []) {
+    if (o.kind !== 'zigzag' || !o.blockIdx || !o.blockIdx.length) continue;
+    const s0 = L.s[o.blockIdx[0]] - ZIG_ZONE[0], s1 = L.s[o.blockIdx[o.blockIdx.length - 1]] + ZIG_ZONE[1];
+    for (let i = Math.max(0, o.idx0 - 40); i <= Math.min(L.n - 1, o.idx1 + 40); i++) if (L.s[i] >= s0 && L.s[i] <= s1) z[i] = 1;
+  }
+  return z;
+}
 // Autopilot-Fahrstil auf Leicht (n25, Option „Autopilot-Fahrstil“, store.settings.fahrstil; Standard im Spiel Brachial):
 // 'sauber' = Stand bis n24 (Mitlenk-Modell, Profil mit Reserve), 'brachial' = Tempo am Limit, Drifts, Show-Momente
 // (ai/drift.js). Der Autopilot lenkt dann selbst (Hände weg = er fährt); Lenken schiebt um nudge mit (im Drift nudgeDrift,
@@ -192,6 +204,7 @@ export class Race {
     this.hud = null;        // Hinweis fürs HUD (Stunt-Ansage, „Zurück zur Strecke“) oder null
     this.shortcut = null;   // laufender Ausflug neben die Fahrbahn { p0, idx, lap, cp, driven }
     this.onRoad = { prog: 0, idx: 0, lap: 0, cp: 0 };
+    this.zig = zigMask(env.track);   // n33: Zickzack-Barrieren
     this.zones = this.stuntZones();
     // Extras (Peter 28.09.2026): je 1 Hüpfer + 1 Nitro pro Runde, beim Überfahren von Start/Ziel wieder voll
     // (nicht ansparen). Option „Hüpfer & Nitro“ (Standard an); auf Leicht nutzt der Autopilot sie auf Wunsch
@@ -276,7 +289,7 @@ export class Race {
     let dres = null;
     if (brachial) dres = this.drift.step(dt, car, this.ap, ap, this.manual || this.own > 0.02, this.tracker.lap);
     else { ap.hand = 0; this.ap.extra = 0; }
-    const stunt = L.loop[idx] || L.tube[idx] || L.air[idx] || this.isJumpZone(idx);
+    const stunt = L.loop[idx] || L.tube[idx] || L.air[idx] || this.isJumpZone(idx) || this.zig[idx];
     let steer = input.steer, thr = input.throttle, brk = input.brake;
     this.hud = null;
     if (this.autopilotOnly) { steer = ap.steer; thr = ap.throttle; brk = ap.brake; }
@@ -316,7 +329,8 @@ export class Race {
         steer = s2;
       } else this.calmLag = false;
       // n29: in der Röhre kurz vor dem Buckel „Röhre – Buckel!“ statt „Röhre“
-      const zn = (z) => (z.inside && this.humpAhead(idx) ? `${z.name} – Buckel!` : `${z.name}${z.inside ? '' : ' voraus'}`);
+      // n33: Röhre mit Wand voraus bzw. vor der Wand „Röhre – Wand! – Überkopf“
+      const zn = (z) => (this.wallAhead(idx, z) ? `${z.name}${z.inside ? '' : ' voraus'} – Wand! – Überkopf` : z.inside && this.humpAhead(idx) ? `${z.name} – Buckel!` : `${z.name}${z.inside ? '' : ' voraus'}`);
       if (zone) this.hud = { kind: 'stunt', text: `${zn(zone)} – Autopilot lenkt` };
       if (lane && lane.zone) this.hud = { kind: 'lane', text: `${zn(lane.zone)} – Spurhilfe${lane.k > 0 || !lane.zone.inside ? '' : ' aus'}` };
       // Leicht: außerhalb der toten Zone Tempo raus (wirkt im nächsten Regler-Schritt); sonst unverändert
@@ -537,12 +551,19 @@ export class Race {
   // steer = Lenkung des Spurhalters (Fahrbahnmitte), k = sein Anteil (0 … lanePull), zone = Stück fürs HUD (oder null)
   laneSteer(dt, input, idx) {
     const L = this.env.track.line, car = this.car, A = this.assist;
-    const on = (L.loop[idx] || L.tube[idx]) && !L.air[idx] && car.onGround > 0;
+    const zig = this.zig[idx];
+    const on = (L.loop[idx] || L.tube[idx] || zig) && !L.air[idx] && car.onGround > 0;
     const a = Math.abs(input.steer);
     this.laneOwn = a > SPUR.in ? Math.min(1, (this.laneOwn || 0) + dt / SPUR.out) : a < SPUR.keep ? Math.max(0, (this.laneOwn || 0) - dt / SPUR.back) : (this.laneOwn || 0);
     let z = this.zoneAhead(idx, Math.max(SPUR.annMin, car.fwdSpeed() * SPUR.ann));
     if (z && !z.kinds.some((k) => k !== 'jump')) z = null;
     if (!on) return { steer: 0, k: 0, zone: z };
+    // n33: im Zickzack zur Ideallinie (Slalom), sonst zur Fahrbahnmitte
+    if (zig) {
+      if (!this.zigAp) this.zigAp = new Autopilot(this.env.ideal || L, this.env.prof);
+      this.zigAp.tr.idx = this.ap.tr.idx; this.zigAp.tr.lap = this.ap.tr.lap;
+      return { steer: this.zigAp.control(car).steer, k: A.lanePull * (1 - this.laneOwn), zone: z };
+    }
     if (!this.laneAp) this.laneAp = new Autopilot(L, this.env.prof);
     this.laneAp.tr.idx = this.ap.tr.idx; this.laneAp.tr.lap = this.ap.tr.lap;
     return { steer: this.laneAp.control(car).steer, k: A.lanePull * (1 - this.laneOwn), zone: z };
@@ -554,6 +575,7 @@ export class Race {
     const L = this.env.track.line, T = this.env.track, out = [];
     const kindAt = (i) => {
       if (this.isJumpZone(i) || L.air[i]) return 'jump';
+      if (this.zig[i]) return 'zig';
       if (L.tube[i]) return 'tube';
       if (L.loop[i]) { const pc = T.pieces[L.piece[i]]; return pc && /cork/.test(pc.type) ? 'cork' : 'loop'; }
       return null;
@@ -564,7 +586,7 @@ export class Race {
       if (k && cur && i === cur.i1 + 1) { cur.i1 = i; cur.s1 = L.s[i]; if (!cur.kinds.includes(k)) cur.kinds.push(k); continue; }
       if (k) { cur = { i0: i, i1: i, s0: L.s[i], s1: L.s[i], kinds: [k] }; out.push(cur); }
     }
-    for (const z of out) z.name = STUNT_NAMES[z.kinds.includes('loop') ? 'loop' : z.kinds.includes('cork') ? 'cork' : z.kinds.includes('tube') ? 'tube' : 'jump'];
+    for (const z of out) z.name = STUNT_NAMES[z.kinds.includes('loop') ? 'loop' : z.kinds.includes('cork') ? 'cork' : z.kinds.includes('tube') ? 'tube' : z.kinds.includes('zig') ? 'zig' : 'jump'];
     return out;
   }
 
@@ -574,6 +596,14 @@ export class Race {
     if (!T.humps || !T.humps.length || !L.tube[idx]) return false;
     const reach = Math.max(30, Math.abs(this.car.fwdSpeed()) * 1.6);
     for (const h of T.humps) { const d = L.s[h.idx0] - L.s[idx]; if (idx <= h.idxC && d < reach && d > -h.len) return true; }
+    return false;
+  }
+
+  // Röhre mit Wand (n33) in Zone z voraus und das Auto noch vor der Wand
+  wallAhead(idx, z) {
+    const T = this.env.track;
+    if (!T.obstacles || !z) return false;
+    for (const o of T.obstacles) if (o.kind === 'tube_wall' && o.idxW >= z.i0 && o.idxW <= z.i1 && (z.inside ? idx <= o.idxW : true)) return true;
     return false;
   }
 
@@ -1174,7 +1204,7 @@ export class Race {
   // Ausgeschlossen, wenn während der Wirkung ein Sprung, Looping, Korkenzieher oder eine Röhre kommt.
   planExtras() {
     const L = this.env.track.line, T = this.env.track, P = this.ap.P || this.env.prof, n = L.n, def = CAR_DEF;
-    const stunt = (i) => L.air[i] || L.loop[i] || L.tube[i] || this.isJumpZone(i);
+    const stunt = (i) => L.air[i] || L.loop[i] || L.tube[i] || this.isJumpZone(i) || this.zig[i];   // n33: kein Nitro im Zickzack
     // Runde in Fahrtrichtung ab dem Start (nur eine Runde zählt: Gewinn hinter dem Ziel ist nichts wert)
     const ord = [];
     for (let k = 0, i = Math.max(0, this.startIdx - 1); k < n; k++) {
