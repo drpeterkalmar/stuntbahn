@@ -14,6 +14,7 @@ import { clamp, smoothstep, smootherstep, makeNoise2, rng } from '../core/util.j
 import { GRIP_ALT } from '../physics/car.js';
 import { makeLandscape, planElevation, buildGelTerrain, ENV } from './gelaende.js';
 import { PROFILES_GEL } from './pieces_gel.js';   // Gelände-Teile (n22): Halfpipe, Tunnel, Geländebrücke
+import './pieces_hind.js';   // n33: Zickzack-Barriere, Röhre mit Wand (nur Generator-Version 2)
 
 const WS = WORLD_SCALE;
 // Chunk-Kante wächst mit dem Maßstab: gleich viele Draw-Calls wie im alten Raster (bis 27.09.2026: 100 m)
@@ -150,7 +151,8 @@ const PROFILES = {
   },
   tube(s, o, ss = 1) {
     // Querschnitt: flacher Boden ±b, Viertelkreise Radius R, Decke auf 2R (n26: × Stunt-Maßstab, tubeGeom)
-    const { b, R, th } = tubeGeom(ss), H = 2 * R, n = 10;
+    // s.tb (n33, Röhre mit Wand): halbe Bodenbreite an dieser Stelle (→ 0 = Kreis); ohne s.tb wie bisher
+    const { R, th } = tubeGeom(ss), b = s.tb ?? tubeGeom(ss).b, H = 2 * R, n = 10;
     const inner = [
       { a: [-b, 0], b: [b, 0], mat: MAT.ROAD, col: 1, road: 1 },
       ...arcSegs(b, R, R, -Math.PI / 2, Math.PI / 2, n, MAT.CONCRETE, 1, true),
@@ -278,6 +280,8 @@ export function buildTrack(layout, opt = {}) {
   const decals = [];         // Portale/Banner für die Grafik
   const jumps = [];
   const humps = [];          // Buckel in Röhren (n29): { piece, f0, f1, c, H, hw, idx0, idx1, idxC }
+  const marks = [];          // n33: gelb-schwarze Warnflächen (Zickzack-Blöcke, Röhren-Wand) für gfx/jumpdeck.js: { pos, nrm, uv }
+  const obstacles = [];      // n33: Zickzack-Barrieren und Röhren-Wände: { piece, kind, …, idx0, idx1 (, idxW) }
   const cpMarks = [];        // {pieceIdx, s}
   let startMark = null;
   const occupied = new Uint8Array(GRID * GRID);
@@ -371,7 +375,7 @@ export function buildTrack(layout, opt = {}) {
           p, up: s.up ? norm(Wv(s.up)) : [0, 1, 0], bank: (s.bank || 0) + (tiltAt ? tiltAt(s.f) : 0), hw: s.hw ?? o.hw ?? ROAD_HW,
           surf: s.surf ?? 1, air: s.air || 0, loop: s.loop || 0, tube: s.tube || 0, wave: s.wave || 0, f: s.f,
           hg: s.y + lvl * LH - (trkTerr || Dat ? gAt(p[0], p[2]) : 0), prof: s.prof || (o.profile === 'loop' ? (s.loop ? 'loopLane' : 'road') : o.profile === 'tube' ? (s.tube ? 'tube' : 'road') : o.profile),
-          lo: s.lo, hi: s.hi, bankH: s.bankH, ex: s.ex, wf: s.wf, hy: s.hy,
+          lo: s.lo, hi: s.hi, bankH: s.bankH, ex: s.ex, wf: s.wf, hy: s.hy, tb: s.tb,
         };
       });
       // Randtangenten exakt waagrecht in Ein-/Ausfahrtsrichtung (glatte Übergänge) – außer das Stück
@@ -490,7 +494,7 @@ export function buildTrack(layout, opt = {}) {
     };
 
     const addRibbon = (samples, o) => {
-      const S = samples.map((s) => { const p = W(s.f, s.y, s.r); return { p, up: [0, 1, 0], bank: 0, hw: s.hw ?? ROAD_HW, surf: 1, f: s.f, hg: s.y + lvl * LH - (trkTerr || Dat ? gAt(p[0], p[2]) : 0), prof: o.profile }; });
+      const S = samples.map((s) => { const p = W(s.f, s.y, s.r); return { p, up: [0, 1, 0], bank: 0, hw: s.hw ?? ROAD_HW, surf: 1, f: s.f, hg: s.y + lvl * LH - (trkTerr || Dat ? gAt(p[0], p[2]) : 0), prof: o.profile, tb: s.tb }; });
       for (let i = 0; i < S.length; i++) {
         const T = i === 0 ? norm(sub(S[1].p, S[0].p)) : i === S.length - 1 ? norm(sub(S[i].p, S[i - 1].p)) : norm(sub(S[i + 1].p, S[i - 1].p));
         S[i].T = T; S[i].N = [0, 1, 0]; S[i].B = cross(T, [0, 1, 0]);
@@ -608,6 +612,20 @@ export function buildTrack(layout, opt = {}) {
       jumpInfo: (j) => { if (!decor) jumps.push({ piece: pidx, ...j, E, F, R, base: Dat ? base + Dat(j.lipF, 0) : base }); },
       // Buckel im Röhrenboden (n29): Lage für Warnstreifen (gfx/jumpdeck.js), Tests und Messungen
       hump: (h) => { if (!decor) humps.push({ piece: pidx, ...h }); },
+      // Warnfläche (n33, nur Optik): ebenes, konvexes Vieleck aus Punkten [f, y, r] (lokal), Normale nl [f, y, r] (lokal);
+      // Textur-Koordinaten in Metern längs der lokalen Achsen ua/va, lift m vor der Fläche (kein Z-Fighting)
+      markPoly: (pts, nl, ua, va, lift = 0.02) => {
+        if (decor) return;
+        const nw = norm(Wv(nl)), pos = [], uv = [];
+        for (const q of pts) {
+          const w = W(q[0], q[1], q[2]);
+          pos.push(w[0] + nw[0] * lift, w[1] + nw[1] * lift, w[2] + nw[2] * lift);
+          uv.push(q[0] * ua[0] + q[1] * ua[1] + q[2] * ua[2], q[0] * va[0] + q[1] * va[1] + q[2] * va[2]);
+        }
+        marks.push({ pos, nrm: nw, uv });
+      },
+      // Hindernis-Stück (n33): Lage für HUD, Highlights, Kulissen, Tests (Linien-Indizes nach dem Bau)
+      obstacleInfo: (o) => { if (!decor) obstacles.push({ piece: pidx, E, F, R, base, ...o }); },
       portal: (f, facingOpt) => {
         // Betonfassade um die Röhrenöffnung (Ring zwischen Innenkontur und Rechteck)
         // n26: Öffnung = Röhren-Querschnitt des Stunt-Maßstabs (bis n25 b 2,2 / R 3,5 m), Fassade mindestens so breit
@@ -720,6 +738,12 @@ export function buildTrack(layout, opt = {}) {
     if (j.landLen) j.endIdx = idxAt(j.piece, j.landF + j.landLen + 10);
   }
   for (const h of humps) { h.idx0 = idxAt(h.piece, h.f0); h.idx1 = idxAt(h.piece, h.f1); h.idxC = idxAt(h.piece, h.c); }
+  for (const o of obstacles) {
+    const pi = pieceInfo[o.piece];
+    o.idx0 = pi.lineStart; o.idx1 = pi.lineEnd;
+    if (o.kind === 'tube_wall') { o.idxW = idxAt(o.piece, o.f); o.idxR0 = idxAt(o.piece, o.fr0); o.idxR1 = idxAt(o.piece, o.fr1); }
+    if (o.kind === 'zigzag') o.blockIdx = o.blocks.map((b) => idxAt(o.piece, b.f));
+  }
 
   // ----- Gelände -----
   const terrain = trkTerr || (gel ? buildGelTerrain({ line: L, layout, plan: gel.plan, land: gel.land, shapes, occupied, pieces: pieceInfo }) : buildTerrain(occupied, shapes, layout.seed || 1));
@@ -755,6 +779,7 @@ export function buildTrack(layout, opt = {}) {
     layout, line: L, batches: outBatches,
     col: { pos: new Float32Array(colPos), nrm: new Float32Array(colNrm), mat: new Uint8Array(colMat), ...(colPiece ? { piece: Int32Array.from(colPiece) } : {}) },
     checkpoints, start, jumps, humps, decals, shapes, terrain, trees, pieces: pieceInfo, stuntScale: SS,
+    ...(marks.length ? { marks } : {}), ...(obstacles.length ? { obstacles } : {}),
     bounds: { minX, maxX, minZ, maxZ, maxY },
     ...(gel ? { gel } : {}),
   };

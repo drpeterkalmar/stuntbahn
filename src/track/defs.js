@@ -68,6 +68,24 @@ export const TUBE_OBST = (() => {
 })();
 // Zwischenspeicher geprüfter Strecken: glatte Röhre getrennt (main.js VBUILD)
 export const TUBE_TAG = TUBE_OBST ? '' : '@rg';
+// n33 Original-Stunt-Hindernisse (Peter 08.10.2026: „Zickzack-Barriere, Spirale, Röhre mit Wand in der Mitte, um eine
+// Überkopf-Spirale zu erzwingen“): Generator-Version 2 (pieces_hind.js, generator*.js). Alte Strecken-Codes behalten ihr
+// Layout – die neuen Zufallsstrecken tragen im Code das Zeichen „h“ (4711-2-h, 4711-2-3dh, 4711-2-gh); ohne „h“ baut der
+// Generator wie bis n32. URL ?hindernis2=0 = Generator wie vorher für alle Strecken (A/B, wertet nicht), je Element
+// ?zickzack=0, ?roehrewand=0, ?spirale2=0 (Spirale auf flachen/Gelände-Strecken, häufiger in 3D). Node: STUNT_HINDERNIS2=0,
+// STUNT_ZICKZACK=0, STUNT_ROEHREWAND=0, STUNT_SPIRALE2=0.
+export const HINDERNIS2 = (() => {
+  const q = globalThis.location && globalThis.location.search, P = q ? new URLSearchParams(q) : null;
+  const env = (globalThis.process && globalThis.process.env) || {};
+  const get = (u, e) => { const v = P ? P.get(u) : null; return v != null ? v : env[e] ?? null; };
+  const on = get('hindernis2', 'STUNT_HINDERNIS2') !== '0';
+  const el = (u, e) => on && get(u, e) !== '0';
+  return { on, zickzack: el('zickzack', 'STUNT_ZICKZACK'), roehrewand: el('roehrewand', 'STUNT_ROEHREWAND'), spirale: el('spirale2', 'STUNT_SPIRALE2') };
+})();
+// Generator-Version neuer Zufallsstrecken (1 = wie bis n32)
+export const GEN_V = HINDERNIS2.on ? 2 : 1;
+// Zwischenspeicher geprüfter Strecken: einzelne Elemente abgeschaltet → getrennt (main.js VBUILD)
+export const HIND_TAG = !HINDERNIS2.on ? '' : (HINDERNIS2.zickzack ? '' : 'z') + (HINDERNIS2.roehrewand ? '' : 'w') + (HINDERNIS2.spirale ? '' : 's');
 export const ROAD_Y = 0.06;      // Fahrbahn liegt knapp über dem Gelände
 export const WORLD_HALF = GRID * TILE / 2;   // halbe Kantenlänge des Rasters (m)
 
