@@ -8,7 +8,7 @@ const THREE = await import('three');
 const ctx2d = new Proxy({}, { get: (t, k) => (k in t ? t[k] : (k === 'createLinearGradient' ? () => ({ addColorStop() {} }) : () => {})), set: (t, k, v) => { t[k] = v; return true; } });
 globalThis.document = { createElement: () => ({ width: 0, height: 0, getContext: () => ctx2d, style: {} }) };
 globalThis.matchMedia = () => ({ matches: false });
-const { buildKulisse2, standGeometry, fanGeometry, fanMaterial, ampelAus, kulisse2Uniforms, FAN_FADE } = await import('../../src/gfx/kulisse2.js');
+const { buildKulisse2, standGeometry, fanGeometry, fanMaterial, ampelAus, kulisse2Uniforms, FAN_FADE, kulisse2Tick } = await import('../../src/gfx/kulisse2.js');
 const { crowdNear } = await import('../../src/gfx/deco.js');
 const { generate } = await import('../../src/track/generator.js');
 const { prepare } = await import('../../src/track/verify.js');
@@ -29,7 +29,7 @@ fg.computeBoundingBox(); ok(fg.boundingBox.max.y > 1.7 && fg.boundingBox.max.y <
   const m = fanMaterial(), sh = { uniforms: {}, vertexShader: THREE.ShaderLib.physical.vertexShader, fragmentShader: THREE.ShaderLib.physical.fragmentShader };
   for (const a of ['#include <beginnormal_vertex>', '#include <begin_vertex>', '#include <color_vertex>', '#include <common>']) ok(sh.vertexShader.includes(a), `r186 Anker ${a}`);
   m.onBeforeCompile(sh);
-  ok(sh.vertexShader.includes('fanJoint( fJo, fJm, fJl, fJk )') && (sh.vertexShader.match(/fanJoint\(/g) || []).length === 2 && sh.vertexShader.includes('objectNormal = fJm * objectNormal') && sh.vertexShader.includes('vColor.rgb = cc'), 'Figur-Shader: Haltung, Normale, Farbe eingesetzt (r186: vColor ist vec4 → .rgb)');
+  ok(sh.vertexShader.includes('fanJoint( fJo, fJm, fJl, fJk )') && (sh.vertexShader.match(/fanJoint\(/g) || []).length === 2 && sh.vertexShader.includes('objectNormal = fJm * objectNormal') && sh.vertexShader.includes('vColor.rgb = pow( cc'), 'Figur-Shader: Haltung, Normale, Farbe eingesetzt (r186: vColor ist vec4 → .rgb)');
   ok(sh.fragmentShader.includes('totalEmissiveRadiance += vec3( 9.0, 9.0, 8.5 ) * vFlash'), 'Figur-Shader: Kamerablitz');
   ok(sh.uniforms.uFanFade && sh.uniforms.uCheer && sh.uniforms.uTime, 'Figur-Shader: Uniforms');
   const bal = (s) => [...s].filter((c) => c === '{').length === [...s].filter((c) => c === '}').length;
@@ -56,7 +56,14 @@ for (const [s, d, o] of [[4711, 2, { gel: true }], [25, 2, { gel: true }], [4711
     const fan = meshes.find((m) => m.name === 'kulisse2-zuschauer');
     if (tier === 0) ok(!fan && crowdNear.value.y === 0, `${tag}: Einfach ohne 3D-Figuren, Karten wie bis n31`);
     else {
-      ok(fan && fan.count === plan.fans.length && st.fans === plan.fans.length, `${tag}: alle ${plan.fans.length} Zuschauer gezeichnet`);
+      ok(fan && fan.instanceMatrix.count === plan.fans.length && st.fans === plan.fans.length, `${tag}: alle ${plan.fans.length} Zuschauer angelegt`);
+      // n32 Heavy: Vorauswahl – an einer Figur sind einige sichtbar (nicht alle), weit weg keine
+      if (fan && plan.fans.length) {
+        const f0 = plan.fans[0], cam = { position: new THREE.Vector3(f0.x, fan.instanceMatrix.array[13] + 1.6, f0.z) };
+        kulisse2Tick(cam); const near = fan.count;
+        cam.position.set(f0.x + 5000, 0, f0.z); kulisse2Tick(cam);
+        ok(near > 0 && near <= plan.fans.length && fan.count === 0, `${tag}: Vorauswahl nah ${near}/${plan.fans.length}, fern ${fan.count}`);
+      }
       ok(crowdNear.value.y > crowdNear.value.x && crowdNear.value.x > 0 && crowdNear.value.y <= FAN_FADE[tier][1], `${tag}: Gruppen-Karten nah aus`);
       const iA = fan.geometry.getAttribute('iA');
       ok(iA && iA.count === plan.fans.length && iA.isInstancedBufferAttribute, `${tag}: Instanz-Daten`);
@@ -65,7 +72,7 @@ for (const [s, d, o] of [[4711, 2, { gel: true }], [25, 2, { gel: true }], [4711
     for (const n of ['kulisse2-bauten']) ok(meshes.some((m) => m.name === n), `${tag}: ${n} vorhanden`);
     ok(!plan.catchFences.length || meshes.some((m) => m.name === 'kulisse2-fangzaun'), `${tag}: Fangzaun gezeichnet`);
     ok(!plan.banden.length || meshes.some((m) => m.name === 'kulisse2-banden'), `${tag}: Banden-Werbung gezeichnet`);
-    ok(!plan.startGrid.length || meshes.some((m) => m.name === 'kulisse2-startaufstellung'), `${tag}: Startaufstellung gezeichnet`);
+    ok(!plan.startGrid.length || meshes.some((m) => m.name === 'kulisse2-bauten'), `${tag}: Startaufstellung gezeichnet (im Bauten-Mesh)`);
     ok(!(plan.portal || (plan.inst.ampel || []).length) || meshes.some((m) => m.name === 'kulisse2-ampel'), `${tag}: Startampel gezeichnet`);
     const amp = meshes.find((m) => m.name === 'kulisse2-ampel');
     if (amp) { const a = amp.geometry.getAttribute('aI').array, ids = new Set([...a].filter((v) => v >= 0)); ok(ids.size === 5 && amp.material.uniforms.uAmpel === kulisse2Uniforms.uAmpel, `${tag}: Ampel 5 Lichter am Uniform`); }

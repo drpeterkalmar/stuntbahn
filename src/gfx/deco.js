@@ -410,10 +410,14 @@ export function buildDeco(track, M, surfaceY, add, opts = {}) {
     const im = instanced(pg, paint, posts, 'deco-railposts');
     add(im, false); count(im, posts.length, pg.index.count / 3);
   }
+  // ----- Kulissen n32: 3D-Zuschauer, Fangzäune, Banden, Start/Ziel, Event-Gelände, Picknick, Pyro (?kulisse=alt: nichts) -----
+  // merge: Banden-Werbung und Fangzaun-Netz kommen in die Meshes der Bandenwerbung bzw. des Zauns (spart 2 Draw-Calls)
+  const k2 = buildKulisse2(plan, { M, gy, add, tier, theme: opts.theme, merge: true });
+  stats.tris += k2.tris; stats.meshes += k2.calls; stats.fans = k2.fans;
   // ----- Atlas-Karten: Banner, Bremstafeln -----
   const signMat = signMaterial();
   {
-    const list = [];
+    const list = [...(k2.signs || [])];
     // Bandenwerbung steht auf dem Boden vor der Leitplanke (1,1 m hoch, Seitenverhältnis wie im Atlas)
     for (const b of P.banner || []) { const y = gy(b.x, b.z); list.push({ x: b.x, y: y - 0.06, z: b.z, rot: b.rot, sx: 1.12 * 512 / 96, sy: 1.12, cell: AD_CELL(b.v) }); }
     for (const b of P.board || []) {
@@ -430,8 +434,9 @@ export function buildDeco(track, M, surfaceY, add, opts = {}) {
     }
   }
   // ----- Zaun (Maschendraht) -----
-  if (plan.fences.length) {
+  if (plan.fences.length || k2.fence) {
     const pos = [], nrm = [], uv = [], idx = [];
+    if (k2.fence) { pos.push(...k2.fence.pos); nrm.push(...k2.fence.nrm); uv.push(...k2.fence.uv); idx.push(...k2.fence.idx); }   // n32 Fangzäune
     for (const f of plan.fences) {
       const b0 = pos.length / 3;
       let s = 0;
@@ -614,8 +619,5 @@ export function buildDeco(track, M, surfaceY, add, opts = {}) {
   }
   // ----- Kulissen (n20): Streckenrand (Portal, Fahnen, Kamerakräne), Himmel (Ballons, Zeppelin), Windräder, Themen-Bauten -----
   stats.tris += buildRand(plan, { M, gy, add, tier, theme: opts.theme });
-  // ----- Kulissen n32: 3D-Zuschauer, Fangzäune, Banden, Start/Ziel, Event-Gelände, Picknick, Pyro (?kulisse=alt: nichts) -----
-  const k2 = buildKulisse2(plan, { M, gy, add, tier, theme: opts.theme });
-  stats.tris += k2.tris; stats.meshes += k2.calls; stats.fans = k2.fans;
   return stats;
 }

@@ -8,7 +8,7 @@ import { ThemeManager } from './gfx/themes.js';
 import { themeFor, THEMES, THEME_IDS } from './track/themes.js';
 import { wetterFor, parseWetter, wetterLook } from './track/wetter.js';
 import { Scheibe } from './gfx/scheibe.js';
-import { kulisse2Uniforms, ampelAus } from './gfx/kulisse2.js';
+import { kulisse2Uniforms, ampelAus, kulisse2Tick } from './gfx/kulisse2.js';
 import { buildWorld, STATIC_LAYER, vaoAuftrag } from './gfx/world.js';
 import { makeCar, loadCarModel, loadCarLods, parkedCarGeometry, EXHAUST } from './gfx/carmesh.js';
 import { CameraRig, CAM_MODES, CAM_NAMES, cockpitDash, clearLens } from './gfx/camera.js';
@@ -980,6 +980,7 @@ function render(rdt) {
     brakeLights.set(b, frozen ? 0 : rdt);
   }
   kulisseTick(decoUniforms.uTime.value);
+  kulisse2Tick(camera);   // n32: 3D-Zuschauer in Sichtweite vorauswählen
   // n32: Startampel (rot 1 … 5 im Countdown, dann kurz grün; im Menü aus)
   { const [on, go] = mode === 'race' && race ? ampelAus(race.state, race.countdown, race.time) : [0, 0]; kulisse2Uniforms.uAmpel.value.set(on, go); }
   if (pose && mode === 'menu' && !app.freezeCam) {

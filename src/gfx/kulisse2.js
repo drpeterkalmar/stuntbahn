@@ -16,6 +16,8 @@ import { MAT } from '../track/defs.js';
 
 // Entfernung (m), ab der 3D-Zuschauer ausgeblendet werden [Beginn, Ende] je Grafikstufe (0 = keine 3D-Figuren)
 export const FAN_FADE = [null, [36, 48], [58, 74]];
+// ?fans3d=0: keine 3D-Figuren (nur Karten wie bis n31, A/B und Mess-Gate)
+const FANS3D = !(globalThis.location && new URLSearchParams(globalThis.location.search || '').get('fans3d') === '0');
 // Ampel: x = Lichter an (0 … 5), y = grün (0/1) – main.js setzt es aus dem Countdown
 export const kulisse2Uniforms = { uAmpel: { value: new THREE.Vector2(0, 0) } };
 // Ampel aus dem Rennzustand: Countdown (3 … 0 s) → 1 … 5 rote Lichter, danach 1,5 s grün; sonst aus
@@ -26,6 +28,27 @@ export function ampelAus(state, countdown, sinceGo) {
 }
 
 // ---------- 3D-Zuschauer ----------
+// n32 Heavy: Vorauswahl auf der CPU – nur Figuren in Sichtweite (≤ Ausblend-Ende + Rand) kommen in den Zeichenpuffer.
+// Vorher rechnete der Grafikchip alle 480/900 Figuren (je 260 Ecken mit Gelenk-Shader), auch die weit entfernten
+// (Mess-Gate Standard: +0,3–0,4 ms). Die Liste wird nur neu geschrieben, wenn die Kamera ~4 m weiter ist.
+const fanSets = [];
+export function kulisse2Tick(cam) {
+  for (const S of fanSets) {
+    const p = cam.position;
+    if (S.last && (S.last.x - p.x) ** 2 + (S.last.y - p.y) ** 2 + (S.last.z - p.z) ** 2 < 16) continue;
+    S.last = (S.last || p.clone()).copy(p);
+    const R2 = S.r * S.r, n = S.x.length;
+    let k = 0;
+    for (let j = 0; j < n; j++) {
+      if ((S.x[j] - p.x) ** 2 + (S.y[j] - p.y) ** 2 + (S.z[j] - p.z) ** 2 > R2) continue;
+      for (const [dst, src, w] of S.copy) dst.array.set(src.subarray(j * w, j * w + w), k * w);
+      k++;
+    }
+    for (const [dst] of S.copy) dst.needsUpdate = true;
+    S.mesh.count = k; if (S.blob) S.blob.count = k;
+    S.n = k;
+  }
+}
 // Teile (aPart): 0 Rumpf/Kopf, 1/2 Bein links/rechts, 3/4 Arm links/rechts, 5 Fahnenstange, 6 Fahnentuch (am rechten Arm)
 // Farbklassen (aCls): 0 Hose, 1 Shirt, 2 Haut, 3 Haar/Mütze, 4 Fahne, 5 Stange, 6 Schuhe
 export function fanGeometry() {
@@ -44,7 +67,8 @@ export function fanGeometry() {
     }
   };
   box(-0.1, 0.45, 0.01, 0.14, 0.9, 0.17, 1, 0); box(0.1, 0.45, 0.01, 0.14, 0.9, 0.17, 2, 0);          // Beine (bis zum Boden)
-  box(0, 1.19, 0, 0.4, 0.64, 0.23, 0, 1);                                                             // Rumpf
+  box(0, 1.33, 0, 0.44, 0.36, 0.24, 0, 1);                                                            // Brust mit Schultern
+  box(0, 1.03, 0.005, 0.34, 0.3, 0.21, 0, 1);                                                         // Taille
   box(0, 1.645, 0.005, 0.19, 0.26, 0.21, 0, 2);                                                       // Kopf mit Hals
   box(0, 1.79, -0.01, 0.205, 0.06, 0.225, 0, 3);                                                      // Haar/Mütze
   for (const [s, part] of [[-1, 3], [1, 4]]) {
@@ -123,15 +147,20 @@ export function fanMaterial() {
         .replace('#include <color_vertex>', `#include <color_vertex>
         {
           float c16 = iA.y;
-          vec3 shirt = 0.5 + 0.42 * cos( 6.2831 * ( c16 / 16.0 + vec3( 0.0, 0.33, 0.67 ) ) );
-          shirt = mix( shirt, vec3( dot( shirt, vec3( 0.33 ) ) ) * vec3( 1.25, 1.25, 1.2 ), step( 0.7, fract( c16 * 0.37 ) ) * 0.85 );
+          // n32 Heavy: Kleidung wie auf echten Tribünen (viel Dunkel/Neutral, dazu Team-Farben) statt Regenbogen; sRGB-Werte,
+          // unten linear gerechnet
+          vec3 SH[16] = vec3[16]( vec3( 0.1, 0.14, 0.3 ), vec3( 0.92, 0.92, 0.9 ), vec3( 0.09, 0.09, 0.1 ), vec3( 0.72, 0.1, 0.1 ),
+            vec3( 0.5, 0.52, 0.55 ), vec3( 0.13, 0.3, 0.66 ), vec3( 0.14, 0.34, 0.2 ), vec3( 0.93, 0.74, 0.12 ), vec3( 0.86, 0.42, 0.1 ),
+            vec3( 0.52, 0.66, 0.82 ), vec3( 0.58, 0.53, 0.4 ), vec3( 0.42, 0.09, 0.13 ), vec3( 0.08, 0.4, 0.42 ), vec3( 0.8, 0.46, 0.58 ),
+            vec3( 0.38, 0.27, 0.18 ), vec3( 0.25, 0.26, 0.28 ) );
+          vec3 shirt = SH[ int( mod( c16, 16.0 ) ) ];
           float h2 = fract( sin( c16 * 12.9898 + iA.z * 78.233 ) * 43758.5453 );
-          vec3 pants = h2 < 0.55 ? vec3( 0.05, 0.07, 0.14 ) : h2 < 0.8 ? vec3( 0.22, 0.2, 0.17 ) : vec3( 0.36, 0.3, 0.2 );
-          vec3 skin = mix( vec3( 0.86, 0.6, 0.45 ), vec3( 0.25, 0.14, 0.08 ), fract( iA.z * 7.3 ) * fract( iA.z * 7.3 ) );
+          vec3 pants = h2 < 0.45 ? vec3( 0.17, 0.23, 0.36 ) : h2 < 0.75 ? vec3( 0.1, 0.1, 0.11 ) : h2 < 0.9 ? vec3( 0.48, 0.43, 0.32 ) : vec3( 0.32, 0.33, 0.35 );
+          vec3 skin = mix( vec3( 0.9, 0.72, 0.6 ), vec3( 0.36, 0.22, 0.14 ), fract( iA.z * 7.3 ) * fract( iA.z * 7.3 ) );
           vec3 hair = fract( iA.z * 5.7 ) < 0.3 ? shirt.yzx : mix( vec3( 0.03, 0.025, 0.02 ), vec3( 0.45, 0.3, 0.12 ), step( 0.72, fract( iA.z * 3.1 ) ) );
           vec3 flag = fract( iA.z * 9.1 ) < 0.5 ? vec3( 0.95, 0.8, 0.05 ) : vec3( 0.8, 0.05, 0.05 );
           vec3 cc = aCls < 0.5 ? pants : aCls < 1.5 ? shirt : aCls < 2.5 ? skin : aCls < 3.5 ? hair : aCls < 4.5 ? flag : aCls < 5.5 ? vec3( 0.55 ) : vec3( 0.03 );
-          vColor.rgb = cc * ( 0.72 + 0.28 * smoothstep( 0.0, 1.6, position.y ) );   // unten dunkler (Umgebungsverdeckung angedeutet); r186: vColor ist vec4
+          vColor.rgb = pow( cc, vec3( 2.2 ) ) * ( 0.72 + 0.28 * smoothstep( 0.0, 1.6, position.y ) );   // linear; unten dunkler (Umgebungsverdeckung angedeutet); r186: vColor ist vec4
         }`);
       sh.fragmentShader = sh.fragmentShader
         .replace('#include <common>', '#include <common>\nvarying float vFlash;')
@@ -167,6 +196,33 @@ function blobMaterial() {
 }
 
 // ---------- Bauten (GB, Vertexfarben) ----------
+// n32 Heavy: Farben hier als sRGB (wie man sie sich vorstellt) angeben – die Vertexfarben rechnet three.js linear; ohne
+// Umrechnung wurden aus Dunkelblau Hellblau, aus Grau fast Weiß (Bonbon-/Baukasten-Look im Browser-Bild)
+const LIN = (c) => [c[0] ** 2.2, c[1] ** 2.2, c[2] ** 2.2];
+// (Klasse erst beim ersten Bau anlegen: deco.js und diese Datei importieren sich gegenseitig, GB gibt es beim Laden noch nicht)
+let GBLc = null;
+const newGBL = () => new (GBLc || (GBLc = makeGBL()))();
+function makeGBL() { return class GBL extends GB {
+  box(x, y, z, sx, sy, sz, col, yaw, skipBottom) { return super.box(x, y, z, sx, sy, sz, LIN(col), yaw, skipBottom); }
+  cyl(x, y, z, r0, r1, h, seg, col, cap, colTop) { return super.cyl(x, y, z, r0, r1, h, seg, LIN(col), cap, colTop && LIN(colTop)); }
+  gable(x, y, z, sx, sz, h, col, yaw, over) { return super.gable(x, y, z, sx, sz, h, LIN(col), yaw, over); }
+  // Seitenprofil (lokal: Punkte [z, y] gegen den Uhrzeigersinn) quer extrudiert, halbe Breite hw, um yaw gedreht
+  profil(cx, cy, cz, pts, hw, col, yaw = 0) {
+    const c = LIN(col), cs = Math.cos(yaw), sn = Math.sin(yaw), W = (lx, ly, lz) => [cx + lx * cs + lz * sn, cy + ly, cz - lx * sn + lz * cs];
+    const N = (nx, ny, nz) => [nx * cs + nz * sn, ny, -nx * sn + nz * cs];
+    const tri = THREE.ShapeUtils.triangulateShape(pts.map(([z, y]) => new THREE.Vector2(z, y)), []);
+    for (const s of [1, -1]) {
+      const b0 = this.p.length / 3;
+      for (const [z, y] of pts) this.v(W(s * hw, y, z), N(s, 0, 0), c);
+      for (const [a, b, d] of tri) this.i.push(...(s > 0 ? [b0 + a, b0 + d, b0 + b] : [b0 + a, b0 + b, b0 + d]));
+    }
+    for (let k = 0; k < pts.length; k++) {   // Mantel
+      const [z0, y0] = pts[k], [z1, y1] = pts[(k + 1) % pts.length], dz = z1 - z0, dy = y1 - y0, l = Math.hypot(dz, dy) || 1;
+      const n = N(0, -dz / l, dy / l);
+      this.quad(W(-hw, y0, z0), W(hw, y0, z0), W(hw, y1, z1), W(-hw, y1, z1), n, c);
+    }
+  }
+}; }
 const loc = (cx, cz, rot) => { const cs = Math.cos(rot), sn = Math.sin(rot); return (lx, lz) => [cx + lx * cs + lz * sn, cz - lx * sn + lz * cs]; };
 // Teile eines Objekts im lokalen System (lokal +z = zur Straße), y relativ zum Boden y0
 function obj(b, cx, y0, cz, rot) {
@@ -175,19 +231,27 @@ function obj(b, cx, y0, cz, rot) {
     box: (lx, ly, lz, sx, sy, sz, col, dr = 0) => { const [x, z] = P(lx, lz); b.box(x, y0 + ly, z, sx, sy, sz, col, rot + dr); },
     cyl: (lx, ly, lz, r0, r1, h, seg, col) => { const [x, z] = P(lx, lz); b.cyl(x, y0 + ly, z, r0, r1, h, seg, col); },
     gable: (lx, ly, lz, sx, sz, h, col, over = 0.3) => { const [x, z] = P(lx, lz); b.gable(x, y0 + ly, z, sx, sz, h, col, rot, over); },
+    profil: (lx, ly, lz, pts, hw, col) => { const [x, z] = P(lx, lz); b.profil(x, y0 + ly, z, pts, hw, col, rot); },
   };
 }
 const CAR_COLS = [[0.7, 0.05, 0.04], [0.05, 0.12, 0.35], [0.85, 0.85, 0.85], [0.06, 0.06, 0.07], [0.45, 0.47, 0.5], [0.12, 0.3, 0.14], [0.8, 0.55, 0.05], [0.25, 0.08, 0.3], [0.6, 0.62, 0.65], [0.1, 0.35, 0.6], [0.5, 0.25, 0.1], [0.92, 0.9, 0.8]];
-const TENT_COLS = [[0.85, 0.1, 0.08], [0.95, 0.95, 0.95], [0.1, 0.3, 0.7], [0.95, 0.7, 0.05]];
+const TENT_COLS = [[0.94, 0.94, 0.93], [0.78, 0.1, 0.08], [0.94, 0.94, 0.93], [0.1, 0.24, 0.52], [0.94, 0.94, 0.93], [0.95, 0.72, 0.1]];   // n32 Heavy: meist weiße Pavillons
 const TRUCK_COLS = [[0.9, 0.35, 0.05], [0.15, 0.55, 0.75], [0.85, 0.82, 0.75], [0.6, 0.1, 0.12]];
 const STEEL = [0.5, 0.52, 0.55], DARK = [0.08, 0.08, 0.09], WOOD = [0.42, 0.28, 0.15], CONC = [0.62, 0.61, 0.58];
 
+// n32 Heavy: geparktes Auto mit Silhouette statt zwei Kästen – Seitenprofil (Motorhaube, Scheiben schräg, Heck) extrudiert,
+// dunkles Fensterband, Räder; drei Formen (Limousine, Kombi, Kleinwagen), ~70 Dreiecke
+const CAR_FORMS = [
+  { L: 4.6, body: [[-2.3, 0.3], [2.3, 0.3], [2.32, 0.62], [2.1, 0.82], [0.95, 0.9], [0.35, 1.38], [-1.0, 1.42], [-1.75, 0.98], [-2.3, 0.92]], win: [[0.85, 0.92], [0.33, 1.32], [-0.98, 1.36], [-1.62, 0.98]] },
+  { L: 4.7, body: [[-2.35, 0.3], [2.35, 0.3], [2.37, 0.64], [2.15, 0.84], [1.0, 0.92], [0.45, 1.45], [-2.25, 1.47], [-2.35, 0.95]], win: [[0.92, 0.95], [0.43, 1.39], [-2.12, 1.41], [-2.2, 0.98]] },
+  { L: 3.8, body: [[-1.9, 0.3], [1.9, 0.3], [1.92, 0.66], [1.6, 0.88], [0.75, 0.96], [0.2, 1.48], [-1.65, 1.5], [-1.9, 0.95]], win: [[0.68, 0.98], [0.18, 1.42], [-1.55, 1.44], [-1.75, 0.98]] },
+];
 function car(o, v) {
-  const c = CAR_COLS[v % CAR_COLS.length];
-  o.box(0, 0.55, 0, 1.8, 0.62, 4.3, c);
-  o.box(0, 1.08, -0.25, 1.55, 0.5, 2.2, [c[0] * 0.6, c[1] * 0.6, c[2] * 0.6]);
-  o.box(0, 1.08, -0.25, 1.58, 0.36, 2.0, [0.06, 0.08, 0.1]);   // Scheiben
-  for (const [x, z] of [[-0.8, 1.35], [0.8, 1.35], [-0.8, -1.35], [0.8, -1.35]]) o.box(x, 0.32, z, 0.26, 0.64, 0.64, DARK);
+  const c = CAR_COLS[v % CAR_COLS.length], F = CAR_FORMS[Math.floor(v / CAR_COLS.length) % CAR_FORMS.length];
+  o.profil(0, 0, 0, F.body, 0.88, c);
+  o.profil(0, 0.004, 0, F.win, 0.895, [0.05, 0.06, 0.08]);   // Fensterband (minimal breiter → liegt außen auf)
+  const ax = F.L / 2 - 0.75;
+  for (const z of [ax, -ax]) o.box(0, 0.33, z, 1.86, 0.62, 0.62, DARK);   // Räder (Achse quer, verdeckt im Radkasten)
 }
 const BUILD = {
   zelt(o, v) {   // Pavillon 5 × 5 m, Dach als Satteldach mit Volant
@@ -270,7 +334,7 @@ const BUILD = {
 // Blick zur Straße +z), damit die Zuschauer-Streifen auf den Stufen weiter passen. form 1: Stahltribüne mit Treppen,
 // Geländern, offenem Unterbau und auskragendem Dach (0,45 m stark, Fachwerkträger); form 2: offene Alu-Tribüne ohne Dach.
 export function standGeometry(form) {
-  const b = new GB(), L = 18, steps = 7, D = 1.5, Hs = 0.75;
+  const b = newGBL(), L = 18, steps = 7, D = 1.5, Hs = 0.75;
   const seat = form === 2 ? [0.72, 0.74, 0.76] : [0.55, 0.12, 0.1], seat2 = form === 2 ? [0.62, 0.64, 0.66] : [0.75, 0.75, 0.73];
   const stairC = [0.82, 0.82, 0.8], steel = form === 2 ? [0.6, 0.62, 0.64] : [0.32, 0.34, 0.38];
   const top = (k) => 1.2 + k * Hs;
@@ -300,15 +364,15 @@ export function standGeometry(form) {
       b.box(x, H - 0.25, (zf + zb) / 2 - 1, 0.18, 0.15, depth - 1.5, steel);      // Untergurt
       for (let q = 0; q <= 4; q++) b.box(x, H + 0.22, zb + q * (depth - 1.5) / 4, 0.1, 0.95, 0.1, steel);   // Pfosten
     }
-    b.box(0, H + 0.95, (zf + zb) / 2, L + 1, 0.45, depth + 0.8, [0.86, 0.87, 0.88]);   // Dachplatte
-    b.box(0, H + 0.85, zf + 0.42, L + 1, 0.7, 0.12, [0.75, 0.08, 0.06]);              // Blende (Sponsorfarbe)
+    b.box(0, H + 0.95, (zf + zb) / 2, L + 1, 0.45, depth + 0.8, [0.86, 0.87, 0.88], 0, false);   // Dachplatte (mit Unterseite: man sieht sie von unten)
+    b.box(0, H + 0.85, zf + 0.42, L + 1, 0.7, 0.12, [0.75, 0.08, 0.06], 0, false);    // Blende (Sponsorfarbe)
   }
   return b.geo();
 }
 
 // Ampel-Lichter: 5 Paare in einem Gehäuse, Shader-Licht aus kulisse2Uniforms.uAmpel (1 Draw-Call)
 function ampelLights(cx, cy, cz, yaw) {
-  const b = new GB(), P = loc(cx, cz, yaw);
+  const b = newGBL(), P = loc(cx, cz, yaw);
   b.box(cx, cy, cz, 3.0, 0.9, 0.35, DARK, yaw);
   const nHousing = b.p.length / 3;
   for (let k = 0; k < 5; k++) for (const r of [0, 1]) {
@@ -346,8 +410,9 @@ function screenTexture() {
   }));
 }
 
-// Maschendraht-Band entlang einer Punktreihe (wie der Zaun in deco.js, Höhe h)
-function fenceBand(fences, gy) {
+// Maschendraht-Band entlang einer Punktreihe (wie der Zaun in deco.js, Höhe h); raw = nur die Arrays (deco.js hängt sie an
+// das Zaun-Mesh an)
+function fenceBand(fences, gy, raw = false) {
   const pos = [], nrm = [], uv = [], idx = [];
   for (const f of fences) {
     const b0 = pos.length / 3; let s = 0;
@@ -358,6 +423,7 @@ function fenceBand(fences, gy) {
       if (k) { const b = b0 + (k - 1) * 2; idx.push(b, b + 2, b + 1, b + 1, b + 2, b + 3); }
     });
   }
+  if (raw) return { pos, nrm, uv, idx };
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(nrm, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
   g.setIndex(idx); g.computeBoundingSphere();
@@ -370,10 +436,11 @@ export function buildKulisse2(plan, ctx) {
   const P = plan.inst, paint = M[MAT.PAINT];
   const st = { tris: 0, calls: 0, fans: 0 };
   crowdNear.value.set(0, 0);
+  fanSets.length = 0;   // immer nur die Welt der aktuellen Strecke
   if (!plan.fans) return st;   // ?kulisse=alt
   const put = (mesh, caster, tris) => { add(mesh, caster); st.tris += tris; st.calls++; };
   // ----- 3D-Zuschauer -----
-  const FF = FAN_FADE[tier];
+  const FF = FANS3D ? FAN_FADE[tier] : null;
   if (FF && plan.fans.length) {
     const g = fanGeometry(), list = [], iA = [], iB = [];
     const blockFoot = (f) => { let m = gy(f.bx, f.bz); const r = Math.max(f.bw || 0, f.bd || 0) / 2; for (const [a, b] of [[-1, -1], [1, -1], [-1, 1], [1, 1], [0, 1], [1, 0], [0, -1], [-1, 0]]) m = Math.min(m, gy(f.bx + a * r, f.bz + b * r)); return m; };
@@ -391,11 +458,21 @@ export function buildKulisse2(plan, ctx) {
     // Blob-Schatten
     const bg = new THREE.PlaneGeometry(1, 1); bg.rotateX(-Math.PI / 2); bg.translate(0, 0.04, 0);
     const bl = plan.fans.map((f, k) => ({ x: f.x, y: list[k].y, z: f.z, rot: f.rot, sx: f.pose === 4 ? 1.4 : 0.95, sy: 1, sz: f.pose === 4 ? 1.6 : 0.95 }));
-    put(instanced(bg, blobMaterial(), bl, 'kulisse2-zuschauer-schatten'), false, bl.length * 2);
+    const bm = instanced(bg, blobMaterial(), bl, 'kulisse2-zuschauer-schatten');
+    put(bm, false, bl.length * 2);
+    // Vorauswahl (kulisse2Tick): Quelldaten aller Figuren merken, Puffer werden je Kamera-Ort neu gefüllt
+    if (ctx.cull !== false) {
+      const cp = (a) => a.array.slice();
+      const ia = g.getAttribute('iA'), ib = g.getAttribute('iB');
+      fanSets.push({ mesh: im, blob: bm, r: FF[1] + 6, x: list.map((q) => q.x), y: list.map((q) => q.y), z: list.map((q) => q.z),
+        copy: [[im.instanceMatrix, cp(im.instanceMatrix), 16], [ia, cp(ia), 4], [ib, cp(ib), 2], [bm.instanceMatrix, cp(bm.instanceMatrix), 16]] });
+      for (const a of [im.instanceMatrix, ia, ib, bm.instanceMatrix]) a.setUsage(THREE.DynamicDrawUsage);
+      im.count = bm.count = 0;   // bis zum ersten Tick nichts (main.js ruft kulisse2Tick vor dem Zeichnen)
+    }
     crowdNear.value.set(FF[0] - 6, FF[0] + 2);   // Gruppen-Karten erst dort, wo die 3D-Figuren ausblenden
   }
   // ----- Bauten (ein Mesh) -----
-  const b = new GB();
+  const b = newGBL();
   for (const kind of ['zelt', 'foodtruck', 'schirm', 'parkauto', 'riesenrad', 'huepfburg', 'strandbar', 'apres', 'picnic', 'pyro', 'leitturm', 'leinwand', 'ampel']) {
     for (const it of P[kind] || []) BUILD[kind](obj(b, it.x, gy(it.x, it.z) - 0.02, it.z, it.rot), it.v || 0, it);
   }
@@ -425,30 +502,32 @@ export function buildKulisse2(plan, ctx) {
       last = s; b.cyl(p.x, gy(p.x, p.z) - 0.1, p.z, 0.05, 0.05, f.h + 0.15, 6, STEEL, true);
     });
   }
+  // Startaufstellung: weiße Winkel auf der Fahrbahn, 4 cm hoch im Bauten-Mesh (eigenes Material mit Polygon-Versatz kostete
+  // einen Material-Wechsel je Bild; 4 cm reichen gegen Z-Flimmern)
+  for (const sp of plan.startGrid) {
+    const o = obj(b, sp.x, sp.y + 0.02, sp.z, sp.rot), W = [0.95, 0.95, 0.93];
+    o.box(0, 0, 0.6, 2.2, 0.04, 0.16, W); o.box(-1.02, 0, -0.2, 0.16, 0.04, 1.6, W); o.box(1.02, 0, -0.2, 0.16, 0.04, 1.6, W);
+  }
   if (b.i.length) { const g = b.geo(); g.computeBoundingSphere(); const mesh = new THREE.Mesh(g, paint); mesh.name = 'kulisse2-bauten'; put(mesh, true, g.index.count / 3); }
   // ----- Fangzaun-Netz -----
-  if (plan.catchFences.length) { const g = fenceBand(plan.catchFences, gy); const mesh = new THREE.Mesh(g, fenceMaterial()); mesh.name = 'kulisse2-fangzaun'; put(mesh, false, g.index.count / 3); }
+  if (plan.catchFences.length) {
+    if (ctx.merge) { st.fence = fenceBand(plan.catchFences, gy, true); st.tris += st.fence.idx.length / 3; }
+    else { const g = fenceBand(plan.catchFences, gy); const mesh = new THREE.Mesh(g, fenceMaterial()); mesh.name = 'kulisse2-fangzaun'; put(mesh, false, g.index.count / 3); }
+  }
   // ----- Banden-Werbung (schärferer Werbe-Atlas) -----
-  if (signs.length) put(instanced(quadGeometry(), signMaterial(), signs, 'kulisse2-banden', true), false, signs.length * 2);
-  // ----- Startaufstellung: weiße Winkel auf der Fahrbahn -----
-  if (plan.startGrid.length) {
-    const gb = new GB(), W = [0.95, 0.95, 0.93];
-    for (const sp of plan.startGrid) {
-      const o = obj(gb, sp.x, sp.y + 0.025, sp.z, sp.rot);
-      o.box(0, 0, 0.6, 2.2, 0.01, 0.16, W); o.box(-1.02, 0, -0.2, 0.16, 0.01, 1.6, W); o.box(1.02, 0, -0.2, 0.16, 0.01, 1.6, W);
-    }
-    const g = gb.geo();
-    const m = once('gridPaint', () => patchStaticShadow(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, metalness: 0, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 })));
-    const mesh = new THREE.Mesh(g, m); mesh.name = 'kulisse2-startaufstellung'; put(mesh, false, g.index.count / 3);
+  if (signs.length) {
+    if (ctx.merge) { st.signs = signs; st.tris += signs.length * 2; }
+    else put(instanced(quadGeometry(), signMaterial(), signs, 'kulisse2-banden', true), false, signs.length * 2);
   }
   // ----- Startampel: am Portal (unter der Brücke) bzw. am Mast -----
-  const amp = plan.ampel && plan.portal ? { x: plan.portal.x, y: plan.portal.y + 9.2, z: plan.portal.z, yaw: Math.atan2(plan.portal.tx, plan.portal.tz) + Math.PI / 2 } : null;
+  const amp = plan.ampel && plan.portal ? { x: plan.portal.x, y: plan.portal.y + 9.2, z: plan.portal.z, yaw: Math.atan2(plan.portal.tx, plan.portal.tz) } : null;   // n32 Heavy: quer über der Fahrbahn (war 90° verdreht)
   const mast = (P.ampel || [])[0];
   const A = amp || (mast ? (() => { const [x, z] = loc(mast.x, mast.z, mast.rot)(0, mast.arm || 3.2); return { x, y: gy(mast.x, mast.z) + 5.3, z, yaw: mast.rot + Math.PI / 2 }; })() : null);
   if (A) { const mesh = ampelLights(A.x, A.y, A.z, A.yaw); put(mesh, false, mesh.geometry.index.count / 3); }
   // ----- Leinwand-Bild -----
   for (const lw of P.leinwand || []) {
-    const m = once('leinwandMat', () => new THREE.MeshStandardMaterial({ map: screenTexture(), emissive: 0xffffff, emissiveMap: screenTexture(), emissiveIntensity: 0.9, roughness: 0.4, metalness: 0 }));
+    // selbstleuchtend → unbeleuchtetes Material (billiger als Standard mit Emissive), etwas über 1 für den Bloom
+    const m = once('leinwandMat', () => new THREE.MeshBasicMaterial({ map: screenTexture(), color: new THREE.Color(1.15, 1.15, 1.15) }));
     const g = new THREE.PlaneGeometry(12, 6.75), mesh = new THREE.Mesh(g, m), [x, z] = loc(lw.x, lw.z, lw.rot)(0, -0.18);
     mesh.position.set(x, gy(lw.x, lw.z) + 9.2, z); mesh.rotation.set(0, lw.rot, 0); mesh.name = 'kulisse2-leinwand';
     put(mesh, false, 2);

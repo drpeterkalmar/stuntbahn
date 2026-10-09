@@ -12,7 +12,7 @@ themes = (sys.argv[3] if len(sys.argv) > 3 else 'land,wueste,alpen,kueste,stadt,
 dev = dict(PIXEL7_LAND, viewport={"width": 412, "height": 915}) if mode == 'hoch' else PIXEL7_LAND
 seed, diff, *rest = code.split('-')
 q = f'seed={seed}&d={diff}' + ('&g=1' if 'g' in rest else '&3d=1' if '3d' in rest else '')
-SUB = 'kulissen'
+SUB = os.environ.get('SUB', 'kulissen')   # n32: Ausgabeordner (z. B. n32_vorher / n32_nachher)
 PLAN = "(() => { const w = __game.scene.getObjectByName('world'); return w && w.userData.stats.deco ? w.userData.stats.deco.planObj : null; })()"
 # Index ds Meter vor/nach i (entlang der Linie)
 BACK = "((i, ds) => { const L = __game.env.track.line; const s0 = L.s[i] - ds; let j = i; while (j > 1 && L.s[j] > s0) j--; return j; })"
@@ -25,7 +25,7 @@ def drive_to(s, i, secs):
     t = 0
     while t < secs:
         s.ev("__game.sim(0.05)"); t += 0.05; s.frames(1)
-with Server() as srv, sync_playwright() as pw:
+with Server(os.environ.get('WURZEL', ROOT)) as srv, sync_playwright() as pw:   # n32: WURZEL = Vorher-Kopie
     s = Session(pw, srv.base, device=dev)
     s.open(f'?nosw&{q}&thema={themes[0]}&q={os.environ.get("Q", "1")}&startprobe=0{os.environ.get("ZUSATZ", "")}')
     for k, th in enumerate(themes):

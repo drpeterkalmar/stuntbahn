@@ -180,8 +180,10 @@ export function planKulisse2(c) {
     }
     return false;
   };
-  placeBig('leitturm', [[-30, -mainSg, 26], [-50, -mainSg, 30], [-30, mainSg, 40], [20, -mainSg, 28]], 4);
-  placeBig('leinwand', [[25, -mainSg, 34], [50, -mainSg, 36], [70, mainSg, 46], [-70, -mainSg, 36]], 6.5);
+  // n32 Heavy: mehr Ausweich-Plätze (vorher fehlte der Turm auf ~1/3 der Strecken, z. B. 25-2-g in allen Landschaften)
+  const more = (base, offs, ds) => [...base, ...offs.flatMap((o) => ds.flatMap((d) => [[o, -mainSg, d], [o, mainSg, d + 8]]))];
+  placeBig('leitturm', more([[-30, -mainSg, 26], [-50, -mainSg, 30], [-30, mainSg, 40], [20, -mainSg, 28]], [-15, -40, -65, 35, 55], [24, 32, 42]), 4);
+  placeBig('leinwand', more([[25, -mainSg, 34], [50, -mainSg, 36], [70, mainSg, 46], [-70, -mainSg, 36]], [10, 35, 85, -45, -95], [30, 40, 52]), 6.5);
   out.konfetti = { x: L.px[si], z: L.pz[si], y: L.py[si], tx: L.tx[si], tz: L.tz[si], hw: L.hw[si] };
 
   // ---- 5) Banden: an Stunts (±40 m) und an Start/Ziel (−70 … +50 m), beidseitig, 2-m-Segmente ----
