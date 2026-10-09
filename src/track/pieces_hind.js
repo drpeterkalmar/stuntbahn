@@ -162,7 +162,7 @@ function buildTubeWall(pb) {
   pb.markPoly(mp, [-1, 0, 0], [0, 0, 1], [0, 1, 0]);
   pb.markPoly([[fc - th / 2, yT, tl[0] - 0.1], [fc - th / 2, yT, tr[0] + 0.1], [fc + th / 2, yT, tr[0] + 0.1], [fc + th / 2, yT, tl[0] - 0.1]], [0, 1, 0], [0, 0, 1], [1, 0, 0]);
   pb.portal(G.fp0); pb.portal(G.fp1);
-  pb.obstacleInfo({ kind: 'tube_wall', f: fc, top: yT, R: G.Rr, fr0: G.fr0, fr1: G.fr1 });
+  pb.obstacleInfo({ kind: 'tube_wall', f: fc, top: yT, rad: G.Rr, fr0: G.fr0, fr1: G.fr1 });
 }
 // Dreieck mit Außennormale nOut (Wicklung passend gedreht)
 function triOut(pb, A, B, C, nOut, mat, collide) {
