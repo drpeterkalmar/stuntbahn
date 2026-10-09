@@ -69,6 +69,23 @@ spielbar am Handy (quer oder hochkant), mit Gamepad oder Tastatur. Als App insta
   Abstand zu jeder Fahrbahn (auch Hochstraßen/Rampen), nie im Wasser. Dosiert nach Grafikstufe; ruckelt es, blendet die
   Automatik (nach der Unschärfe) zuerst Gras/Büsche/Wolkenschatten aus. `?deko=aus` (bis n29 `?deko=0`) / `?wolken=0` zum Vergleich.
 
+## 🌧️🌙 Wetter, Abend/Nacht, schönere Kulissen und Zuschauer (seit 09.10.2026, n32)
+- Peter: „Regen- und Schneewetter (fürs Erste nur Kosmetik), mehr und schönere Kulissen und Zuschauer“ + Nachtmodus.
+  **Nur Optik** – Physik, Strecken und Bestzeiten unverändert (47/47 Strecken bitgleich).
+- **🌦️ Wetter** (Menü): Passend (meist klar, je Strecke manchmal Regen/Schnee; Schnee nie in Wüste/Küste/Land/Stadt), Klar,
+  Regen (Streifen, nasse Fahrbahn mit Glanz und Pfützen, Gischt, Tropfen auf Scheibe/Linse, Regenrauschen), Schnee
+  (Schneefall, verschneite Landschaft und Dächer, Matsch am Rand, Spuren, Auspuffdampf). `?wetter=klar|regen|schnee`.
+- **🕒 Tageszeit** (Menü): Passend (meist Tag), Tag, **Abend** (Golden Hour, lange Schatten), **Nacht** (Sterne, Mond,
+  Flutlicht, Laternen, Scheinwerfer, Lichterketten an Looping/Röhre/Korkenzieher/Schanzen, Leitpfosten, Fensterlicht).
+  Nacht + Regen: Lichter spiegeln sich als Streifen auf der nassen Fahrbahn. `?zeit=tag|abend|nacht`.
+- **Kulissen:** 3D-Zuschauer in der Nähe (jubeln, Fahnen, Handy-Blitze, Picknick), Fangzäune, Bandenreihen, Startaufstellung,
+  Startampel im Countdown, Boxenmauer, Rennleitungsturm, Leinwand, zwei neue Tribünen-Bauformen, Event-Gelände je Landschaft
+  (Zelte, Foodtrucks, Parkplatz, Riesenrad/Hüpfburg, Strandbar, Après-Ski-Hütte), Pyro an Stunts. Alles im Spiel erzeugt.
+- Leistung hochkant gleich wie vorher, quer +3 bis +7 % (im Messrauschen); Nacht + Regen +5 %; keine neuen Downloads.
+  A/B: `?kulisse=alt`, `?fans3d=0`, `?spiegel=0`. Details, Messwerte, Fotos: `WETTER_KULISSEN_BERICHT.md`.
+  Code: `src/track/wetter.js`, `src/track/zeit.js`, `src/track/kulisse2.js`, `src/gfx/wetter.js`, `src/gfx/zeit.js`,
+  `src/gfx/kulisse2.js`, `src/gfx/scheibe.js`. Handy: App einmal ganz schließen und neu öffnen.
+
 ## 🔬 TAAU – „DLSS-Ersatz“ als zuschaltbarer Baustein (seit 08.10.2026, n31)
 - Temporales Hochskalieren mit Kantenglättung, selbst gebaut auf WebGL2: Szene in Renderskala 0,6–0,7 mit wanderndem
   Abtastpunkt, ein Durchgang sammelt die Bilder über die Zeit in voller Auflösung. **Standard aus** – zum Ausprobieren

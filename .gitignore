@@ -42,3 +42,7 @@ tests/shots/deko/*
 !tests/shots/technik/
 tests/shots/technik/*
 !tests/shots/technik/*.jpg
+# n32 Wetter/Kulissen/Tageszeit: nur die Bericht-Collagen
+!tests/shots/n32/
+tests/shots/n32/*
+!tests/shots/n32/*.jpg
