@@ -48,8 +48,13 @@ Auto-Sekunde** (rog17, ~60× billiger). Feld 5 Gegner nach den Verkehrs-Fixes: S
   Stunt-Anfahrt kein Deckel (Profil-Tempo nötig), kein Überholen 70 m vor bis 25 m nach Stunts, daneben ausweichen.
 - Crash/Reset wie `Race.recover` auf Leicht (12 m bzw. 45 m vor Stunts zurück, zweimal an derselben Stelle → dahinter,
   nicht in ein anderes Auto), +5 s ohne Totalschaden, 2,6 s Wrack mit Totalschaden; Wächter Abseits/festgefahren/abgestürzt.
-- Schiene: Pose über `car.place` (keine Raycasts), Wechsel nur ruhig (4 Räder, kein Stunt), Fehler dort pauschal
-  (`SCHIENE.verlustPatzer` 3,5 s, `pCrash` 0,5, Startwerte).
+- Schiene: Pose über `car.place` (keine Raycasts), Wechsel nur ruhig (4 Räder, kein Stunt), Fehler dort pauschal: das Auto
+  steht genau `verlustCrash` 4,5 s (Patzer mit Crash, Anteil `pCrash` 0,2 + Strafzeit), `verlustPatzer` 1,6 s,
+  `verlustSpaet` 0,2 s – kalibriert mit `tools/gegner_fehler.mjs` (30 Strecken Locker, je Rennen mit/ohne Fehler-Plan:
+  Patzer → Crash 5/24 = 21 %, Verbremser kosten ~0 s; Schiene ↔ Physik mit Fehlern +1,1 % / −0,1 % je 15 Strecken).
+- „Zu spät gebremst“ mit kurzer Panik-Vollbremsung (`STAERKEN.*.panik` 0,2–0,7 s) – ohne war spätes, hartes Bremsen sogar
+  minimal schneller; auch mit Panik kostet ein Verbremser im Mittel kaum Zeit (Profil hat Brems-Reserve). Wirkung ist klein;
+  sichtbare Fehler sind die Patzer (Stunt zu langsam/zu schnell → Crash in ~21 %).
 - `GegnerFeld`: Raster, `spielerAufstellen(race)`, `step(dt, race)`, Kollisionen, Rückspulen (10 Hz, 8 s; Totalschaden an
   → Gegner spulen mit), Zieleinlauf, `NACHLAUF` 10 s, `abschliessen()` (Hochrechnung), `stand(race)`, `ausweichen(race)`,
   Aufzeichnung (`aufnahme()`), Aufholhilfe ±5 % (Option).
