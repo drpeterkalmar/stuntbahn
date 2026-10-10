@@ -545,6 +545,8 @@ export class Car {
         if (sv > this.scrape) { this.scrape = sv; this.scrapeP[0] = px; this.scrapeP[1] = py; this.scrapeP[2] = pz; this.scrapeN[0] = nx; this.scrapeN[1] = ny; this.scrapeN[2] = nz; this.scrapeK = kind; }
       }
       if (vn < 0) {
+        // Schadensmodell (n34, physics/schaden.js): Karosserie-Treffer (Dach, Front/Heck, Seite) melden – ändert die Physik nicht
+        if (this.onTreffer && kind >= 1 && kind <= 3) this.onTreffer(px, py, pz, nx, ny, nz, -vn, kind);
         if (!this.crash) {
           const info = { kind, vn: +vn.toFixed(1), n: [+nx.toFixed(2), +ny.toFixed(2), +nz.toFixed(2)], p: [+px.toFixed(1), +py.toFixed(1), +pz.toFixed(1)] };
           if (kind === 2 || kind === 3) { if (vn < -9.5) this.setCrash('Aufprall', info); }

@@ -241,3 +241,46 @@ export class Truemmer {
     return this.t < T.leben;
   }
 }
+
+// ---------- Bindeglied Auto ↔ Schaden ----------
+// Hängt sich an ein Auto (physics/car.js onTreffer), sammelt die Treffer eines Physikschritts (je Stelle nur der stärkste –
+// mehrere Karosserie-Sonden treffen beim selben Aufprall), rechnet sie in Auto-Koordinaten um und trägt sie ein. Auto-Auto-
+// Stöße kommen über stoss() (physics/autoauto.js-Ergebnis). Ereignisse: { art: 'teil', teil, p (Welt), v (Welt) } für Trümmer
+// und Ton; version zählt hoch, wenn sich die Optik ändert (gfx/schadenvis.js rechnet dann die Dellen neu).
+export class SchadenAuto {
+  constructor(car) {
+    this.car = car; this.S = neuerSchaden(); this.verlauf = new SchadenVerlauf(); this.puffer = []; this.ereignisse = [];
+    this.version = 0; this.nTreffer = 0; this.wrackGemeldet = false;
+    car.onTreffer = (px, py, pz, nx, ny, nz, vn) => { if (vn > DELLE.v0) this.puffer.push([px, py, pz, -nx, -ny, -nz, vn]); };
+  }
+  // Auto-Auto-Stoß: r = Ergebnis von stoss(A, B, …); seite = +1 für A (Außen-Normale = n, zu B hin), −1 für B
+  stoss(r, seite) { if (r && r.vn > DELLE.v0) this.puffer.push([r.p[0], r.p[1], r.p[2], r.n[0] * seite, r.n[1] * seite, r.n[2] * seite, r.vn]); }
+  // nach dem Physikschritt: Treffer eintragen; t = Rennzeit (Aufzeichnungs-Uhr, für das Rückspulen)
+  schritt(t) {
+    if (!this.puffer.length) return false;
+    const P = this.puffer.sort((a, b) => b[6] - a[6]), genommen = [];
+    for (const h of P) {
+      if (genommen.some((g) => Math.hypot(g[0] - h[0], g[1] - h[1], g[2] - h[2]) < 0.6)) continue;
+      genommen.push(h);
+      const p = inAuto(this.car, h[0], h[1], h[2]), d = inAuto(this.car, h[3], h[4], h[5], false);
+      const r = treffer(this.S, p, d, h[6], ++this.nTreffer);
+      for (const k of r.abgefallen) this.ereignisse.push({ art: 'teil', teil: k, p: [h[0], h[1], h[2]], v: [this.car.v.x, this.car.v.y, this.car.v.z], vn: h[6] });
+    }
+    this.puffer.length = 0;
+    this.version++;
+    this.verlauf.merke(t, this.S);
+    return true;
+  }
+  // Rückspulen (Uhr läuft mit zurück): Stand zur Zeit t
+  zurueck(t) { this.verlauf.bei(t, this.S); this.verlauf.merke(t, this.S); this.version++; this.wrackGemeldet = false; }
+  reparieren() { reparieren(this.S); this.verlauf = new SchadenVerlauf(); this.version++; this.wrackGemeldet = false; }
+  // Fahrfolgen vor car.step (race.schadenFolgen): Ziehen zur beschädigten Seite, weniger Gas, bei 100 % Wrack
+  folgen(car) {
+    const F = fahrFolgen(this.S);
+    if (F.zug) car.input.steer = Math.max(-1, Math.min(1, car.input.steer + F.zug / Math.max(0.05, car.def.steerMax)));
+    if (F.leistung < 1) car.input.throttle *= F.leistung;
+    if (F.wrack && !this.wrackGemeldet) { this.wrackGemeldet = true; car.setCrash('Totalschaden'); }
+  }
+  rauch() { return this.S.gesamt >= OPTIK.rauch; }
+  scheibe() { return this.S.gesamt >= OPTIK.scheibe; }
+}

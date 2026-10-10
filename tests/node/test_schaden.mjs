@@ -3,7 +3,7 @@
 // 40 harten Treffern, Normalen nachgezogen (gegen Differenzen), Teile-Ablösung deterministisch (Spiegel, Stoßstange, Haube),
 // Fahrfolgen, kompakter Zustand (packen/entpacken), Rückspul-Verlauf, Trümmer-Flug, Welt → Auto.
 import { schadenModus, neuerSchaden, treffer, verschiebung, normale, fahrFolgen, packen, entpacken, reparieren, kopie,
-  SchadenVerlauf, Truemmer, inAuto, teilVon, TEILE, DELLE, INNEN, FOLGEN, TRUEMMER } from '../../src/physics/schaden.js';
+  SchadenVerlauf, Truemmer, inAuto, teilVon, TEILE, DELLE, INNEN, FOLGEN, TRUEMMER, SchadenAuto } from '../../src/physics/schaden.js';
 import { ladeGoblin } from '../../tools/schaden_teile.mjs';
 import { Car } from '../../src/physics/car.js';
 import { MAT } from '../../src/track/defs.js';
@@ -122,6 +122,29 @@ ok(schadenModus('', {}) === 'aus' && schadenModus('?schaden=optik', {}) === 'opt
   const front = inAuto(c, c.pos.x + 2, c.pos.y, c.pos.z), seite = inAuto(c, 0, 0, 1, false);
   ok(Math.abs(front[2] + 2) < 1e-9 && Math.abs(front[0]) < 1e-9, `Welt → Auto: 2 m vor dem Auto = z −2 (${front.map((v) => v.toFixed(2)).join(', ')})`);
   ok(Math.abs(seite[0] - 1) < 1e-9, 'Welt-Richtung +z = Auto rechts (x +1), wenn das Auto nach +x schaut');
+}
+// 9. Auto fährt gegen eine Wand (Platte + Wand z = −20): Treffer vorn, Delle vorn, Stoßstange ab; Physik unverändert
+{
+  const welt = (wand) => ({ ray(ox, oy, oz, dx, dy, dz, maxT) {
+    let best = null;
+    if (dy < -1e-9) { const t = -oy / dy; if (t >= 0 && t <= maxT) best = { t, x: ox + dx * t, y: 0, z: oz + dz * t, nx: 0, ny: 1, nz: 0, mat: MAT.ROAD }; }
+    if (wand && dz < -1e-9) { const t = (-20 - oz) / dz; if (t >= 0 && t <= maxT && (!best || t < best.t)) best = { t, x: ox + dx * t, y: oy + dy * t, z: -20, nx: 0, ny: 0, nz: 1, mat: MAT.WALL ?? 3 }; }
+    return best;
+  } });
+  const fahrt = (mitSchaden) => {
+    const c = new Car(); c.place([0, 0, 0], [0, 0, -1], [0, 1, 0], 22);
+    const SA = mitSchaden ? new SchadenAuto(c) : null;
+    for (let t = 0; t < 2; t += 1 / 120) { c.input.throttle = 0.2; c.step(1 / 120, welt(true)); if (SA) SA.schritt(t); }
+    return { c, SA };
+  };
+  const a = fahrt(false), b = fahrt(true);
+  ok(a.c.pos.z === b.c.pos.z && a.c.v.z === b.c.v.z && (a.c.crash || {}).reason === (b.c.crash || {}).reason, `Treffer-Haken ändert die Physik nicht (Crash „${(b.c.crash || {}).reason}“, Lage gleich)`);
+  const S = b.SA.S;
+  ok(S.dellen.length >= 1 && S.dellen.every((d) => d.p[2] < -1.8) && S.gesamt > 0.2, `Wand frontal 22 m/s: ${S.dellen.length} Delle(n) vorn (z ${S.dellen.map((d) => d.p[2].toFixed(2)).join(', ')}), Gesamt ${(S.gesamt * 100).toFixed(0)} %`);
+  ok(b.SA.verlauf.st.length >= 2 && b.SA.version >= 1, 'Treffer im Verlauf (Rückspulen) und Version erhöht');
+  const SA2 = new SchadenAuto(new Car()); SA2.S.gesamt = 1; const c2 = SA2.car; c2.input.steer = 0; c2.input.throttle = 1;
+  SA2.folgen(c2);
+  ok(c2.crash && c2.crash.reason === 'Totalschaden' && c2.input.throttle < 1, 'Fahrfolgen bei 100 %: Wrack „Totalschaden“, weniger Gas');
 }
 console.log(bad ? `Schaden: ${bad} FEHLER` : 'Schaden: alle Prüfungen grün');
 process.exit(bad ? 1 : 0);
