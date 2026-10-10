@@ -12,7 +12,9 @@ const HEIL = neuerSchaden();
 let heilV = 0;
 
 export const SCHATTEN_NAH = 60;          // m: weiter weg werfen Gegner keinen Echtzeit-Schatten (Kontaktschatten bleibt)
-export const SCHILD = { hoch: 1.95, weit: 260, nah: 6, breite: 2.6, min: 1.1, max: 7, k: 0.03 };   // m; Größe wächst mit dem Abstand
+// Namensschild: Höhe über dem Auto, sichtbar von nah bis weit m; Breite = 4 × clamp(Abstand × k, min, max) m (10 m: 2,8 m,
+// 50 m: 5 m, 150 m: 15 m ≈ 6 % der Bildbreite) – Startwerte, am Bild abstimmen (TODO n34-Heavy)
+export const SCHILD = { hoch: 1.95, weit: 260, nah: 6, breite: 2.6, min: 0.7, max: 6, k: 0.025 };
 const qa = new THREE.Quaternion(), qb = new THREE.Quaternion(), v3 = new THREE.Vector3();
 
 // Namensschild: Canvas 256 × 64, Startnummer im Lack-Kreis, Name weiß auf dunklem Grund
