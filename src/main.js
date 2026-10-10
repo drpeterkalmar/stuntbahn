@@ -17,7 +17,7 @@ import { CameraRig, CAM_MODES, CAM_NAMES, cockpitDash, clearLens } from './gfx/c
 import { Cockpit } from './gfx/cockpit.js';
 import { displayGear } from './gfx/gauges.js';
 import { Input } from './game/input.js';
-import { Race, ASSISTS, GAME_SPEEDS, GAME_SPEED_STD, FAHRSTIL_URL, REC_HZ } from './game/race.js';
+import { Race, ASSISTS, GAME_SPEEDS, GAME_SPEED_STD, FAHRSTIL_URL, REC_HZ, REC_STRIDE } from './game/race.js';
 import { UI } from './ui/ui.js';
 import { generate, demoLayout, galleryLayout, galleryGelLayout } from './track/generator.js';
 import { verify, prepare, probeLap } from './track/verify.js';
@@ -961,7 +961,12 @@ function handleEvents() {
     sound.event(e);
     // Auto versetzt (Reset/Überspringen/Rückspulen): Kamera neu ansetzen, keine Zwischenbild-Interpolation
     if (e.type === 'reset' || e.type === 'skip' || e.type === 'rewind') { rig.init = false; prevPose = null; blurCut = true; }
-    if (e.type === 'rewind' && !e.keepClock && schadenSp) schadenSp.zurueck(race.recFrames() / REC_HZ);   // n34: Schaden spult mit
+    // n34: Schaden spult mit – Uhr zurück (Totalschaden an): Stand zur Zeit; Uhr läuft weiter: Stand des zurückgeholten
+    // Schnappschusses (seine Aufzeichnungs-Länge) gilt ab jetzt
+    if (e.type === 'rewind' && schadenSp) {
+      if (!e.keepClock) schadenSp.zurueck(race.recFrames() / REC_HZ);
+      else { const sn = race.snaps[race.snaps.length - 1]; if (sn) schadenSp.zurueckAuf(sn.recLen / REC_STRIDE / REC_HZ, race.recFrames() / REC_HZ); }
+    }
     if (e.type === 'finish') {
       const res = store.submit(env.meta.key, race.assistKey, race.wreckOn, race.finalTime, race.assistKey === 'easy' ? null : race.ghostRec(), { ...env.meta, penalties: race.penalties, extras: race.extrasOn, nitro: race.nitroLog, gegner: gegner ? gegner.fahrer.length : 0 });
       ui.lastRace = race; ui.lastRes = res;

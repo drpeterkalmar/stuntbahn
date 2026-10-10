@@ -274,6 +274,9 @@ export class SchadenAuto {
   }
   // Rückspulen (Uhr läuft mit zurück): Stand zur Zeit t
   zurueck(t) { this.verlauf.bei(t, this.S); this.verlauf.merke(t, this.S); this.version++; this.wrackGemeldet = false; }
+  // Rückspulen, Uhr läuft weiter (Totalschaden aus): Stand von damals (tAlt) gilt ab jetzt (tJetzt) – das Replay zeigt den
+  // Schnitt, davor bleibt der alte Verlauf
+  zurueckAuf(tAlt, tJetzt) { this.verlauf.bei(tAlt, this.S); this.verlauf.merke(tJetzt, this.S); this.version++; this.wrackGemeldet = false; }
   reparieren() { reparieren(this.S); this.verlauf = new SchadenVerlauf(); this.version++; this.wrackGemeldet = false; }
   // Fahrfolgen vor car.step (race.schadenFolgen): Ziehen zur beschädigten Seite, weniger Gas, bei 100 % Wrack
   folgen(car) {

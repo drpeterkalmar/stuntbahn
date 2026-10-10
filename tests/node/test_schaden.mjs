@@ -95,6 +95,10 @@ ok(schadenModus('', {}) === 'aus' && schadenModus('?schaden=optik', {}) === 'opt
   ok(V.bei(6).dellen.length === 1 && V.bei(9.5).dellen.length === 2 && V.bei(0.5).dellen.length === 0, 'Verlauf: Rückspulen spult den Schaden mit');
   V.merke(6.0, V.bei(6));
   ok(V.bei(9.5).dellen.length === 1, 'Verlauf: nach dem Rückspulen gelten spätere Stände nicht mehr');
+  // Rückspulen mit weiterlaufender Uhr: Stand von t = 6 gilt ab t = 12
+  const SA = new SchadenAuto(new Car()); SA.verlauf = V; SA.S = V.bei(9.5);
+  SA.zurueckAuf(6, 12);
+  ok(SA.S.dellen.length === 1 && SA.verlauf.bei(13).dellen.length === 1 && SA.verlauf.bei(5.5).dellen.length === 1, 'Rückspulen (Uhr läuft weiter): Stand von damals gilt ab jetzt');
   const K = kopie(S); reparieren(S);
   ok(S.dellen.length === 0 && S.teile === 0 && S.gesamt === 0 && K.dellen.length === 2, 'Reparieren setzt zurück (Kopie bleibt)');
 }
