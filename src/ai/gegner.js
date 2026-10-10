@@ -693,7 +693,7 @@ export class GegnerFeld {
     if (k < 0 || !this.snaps.length) return;
     const sn = this.snaps[k];
     this.snaps.length = k + 1;
-    this.fahrer.forEach((g, i) => { g.laden(sn.g[i]); g.zn.zurueck(sn.uhr); });
+    this.fahrer.forEach((g, i) => { g.laden(sn.g[i]); g.zn.zurueck(sn.uhr); g.recN = Math.min(g.recN, Math.floor(sn.uhr * REC.hz + 1e-6) + 1); });
     if (this.spielerZn) this.spielerZn.zurueck(sn.uhr);
     this.uhr = sn.uhr;
   }
