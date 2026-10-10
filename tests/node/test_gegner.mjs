@@ -11,6 +11,8 @@ import { GegnerFeld, gegnerOptionen, gegnerListe, streckenMasken, STAERKEN, FAHR
 import { startRaster, spielerSlot, rangliste, Zeitnahme, abstaende, restzeit, fortschritt, zielFortschritt } from '../../src/game/rennfeld.js';
 import { ueberlapp, quader } from '../../src/physics/autoauto.js';
 import { Car, driveAccel } from '../../src/physics/car.js';
+import { hashes } from '../../tools/gegner_aus_hash.mjs';
+import fs from 'fs';
 
 let bad = 0;
 const ok = (c, m) => { console.log((c ? 'OK   ' : 'FAIL ') + m); if (!c) bad++; };
@@ -181,5 +183,27 @@ for (const S of strecken) {
   ok(Math.abs(off) >= 2.2 && off >= M.lo[i] && off <= M.hi[i], `Leicht: Gegner voraus → Ausweich-Versatz ${off.toFixed(2)} m (innerhalb ${M.lo[i].toFixed(1)} … ${M.hi[i].toFixed(1)})`);
 }
 ok(hash01(5, 3) === hash01(5, 3) && hash01(5, 3) !== hash01(5, 4), 'hash01 deterministisch');
+// 13. Gegner Aus = bitgleich zum Stand vor n34 (Aufzeichnung + Zeit, Autopilot und gescripteter Spieler, 3 Fahrhilfen)
+{
+  const ref = JSON.parse(fs.readFileSync(new URL('./data/gegner_aus_ref.json', import.meta.url), 'utf8'));
+  const neu = hashes();
+  const diff = Object.keys(ref).filter((k) => ref[k] !== neu[k]);
+  ok(diff.length === 0 && Object.keys(neu).length === Object.keys(ref).length, `Gegner Aus: ${Object.keys(ref).length} Rennen bitgleich zur Basis (Aufzeichnung, Zeit, Crashs)${diff.length ? ' – abweichend: ' + diff.join(', ') : ''}`);
+}
+// 14. Bestzeiten „mit Gegnern“: eigene Liste, Solo unberührt, eigener Geist
+{
+  const mem = new Map();
+  globalThis.localStorage = { getItem: (k) => (mem.has(k) ? mem.get(k) : null), setItem: (k, v) => mem.set(k, String(v)), removeItem: (k) => mem.delete(k), get length() { return mem.size; }, key: (i) => [...mem.keys()][i] };
+  const { Store, modeKey } = await import('../../src/game/store.js');
+  ok(modeKey('medium', false, true) === 'medium+reset@x' && modeKey('medium', false, true, true) === 'medium+reset@x@g', 'Schlüssel: Solo unverändert, mit Gegnern „@g“');
+  const St = new Store(); St.ab = false;
+  const rec = new Float32Array(16 * 4 * 30).fill(0.1);
+  St.submit('T1', 'medium', false, 70, rec, {});
+  const r = St.submit('T1', 'medium', false, 60, rec, { gegner: 3 });
+  ok(r.isBest && St.bestFor('T1', 'medium', false, true).time === 70 && St.bestFor('T1', 'medium', false, true, true).time === 60, 'schnellere Zeit mit Gegnern: eigene Bestzeit, Solo-Bestzeit bleibt 70 s');
+  ok(St.loadGhost('T1', 'medium', false, true, true) && St.loadGhost('T1', 'medium', false, true, false), 'Geist je Liste (Solo und mit Gegnern)');
+  const e = St.submit('T1', 'easy', false, 50, rec, { gegner: 1 });
+  ok(e.easy && e.list[0].g === 1, 'Leicht: Zeit notiert mit Kennung „mit Gegnern“');
+}
 console.log(bad ? `KI-Gegner: ${bad} FEHLER` : 'KI-Gegner: alle Prüfungen grün');
 process.exit(bad ? 1 : 0);

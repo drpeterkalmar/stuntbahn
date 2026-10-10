@@ -43,8 +43,10 @@ export function abMode(search = globalThis.location ? globalThis.location.search
   return AB_PARAMS.some(([k, v]) => q.has(k) && (AB_SCALE[k] ? Math.abs(parseFloat(q.get(k)) - AB_SCALE[k]) > 1e-6 : v === null ? q.get(k) !== '' : q.get(k) === v));
 }
 export const AB = abMode();
-export function modeKey(assist, wreck, extras = true) {
-  return assist + (wreck ? '+wrack' : '+reset') + (extras ? '@x' : '');
+// n34: Rennen mit KI-Gegnern zählen in eine eigene Liste „mit Gegnern“ (@g, gleich wie viele und welche Stärke) – die
+// Solo-Bestzeiten bleiben unberührt
+export function modeKey(assist, wreck, extras = true, gegner = false) {
+  return assist + (wreck ? '+wrack' : '+reset') + (extras ? '@x' : '') + (gegner ? '@g' : '');
 }
 
 export class Store {
@@ -110,19 +112,19 @@ export class Store {
   }
   // Leicht: letzte Zeiten dieser Strecke (neueste zuerst, nicht nach Zeit sortiert)
   timesFor(key) { return this.times[key] || []; }
-  bestFor(key, assist, wreck = this.settings.wreck, extras = this.settings.extras) { return this.best[key + '|' + modeKey(assist, wreck, extras)] || null; }
+  bestFor(key, assist, wreck = this.settings.wreck, extras = this.settings.extras, gegner = false) { return this.best[key + '|' + modeKey(assist, wreck, extras, gegner)] || null; }
   // Bestzeit derselben Wertung mit der jeweils anderen Extras-Einstellung (nur Anzeige: „ohne/mit Extras“)
   otherExtrasBestFor(key, assist, wreck = this.settings.wreck) { return this.bestFor(key, assist, wreck, !this.settings.extras); }
   // Rennen beendet: Bestzeit prüfen, Geist speichern (rec inkl. Strafzeit-Stillstand, Race.ghostRec)
   submit(key, assist, wreck, time, rec, meta = {}) {
     // Leicht: keine Wertung, kein Geist – nur die Zeit mit Datum vorne in die Liste
     if (assist === 'easy') {
-      const L = [{ t: time, d: new Date().toISOString().slice(0, 10), pen: meta.penalties || 0, x: meta.extras !== false ? 1 : 0, w: wreck ? 1 : 0 }, ...this.timesFor(key)].slice(0, TIMES_MAX);
+      const L = [{ t: time, d: new Date().toISOString().slice(0, 10), pen: meta.penalties || 0, x: meta.extras !== false ? 1 : 0, w: wreck ? 1 : 0, ...(meta.gegner ? { g: 1 } : {}) }, ...this.timesFor(key)].slice(0, TIMES_MAX);
       this.times[key] = L;
       this.save();
       return { easy: true, isBest: false, prev: null, time, list: L };
     }
-    const k = key + '|' + modeKey(assist, wreck, meta.extras !== false);
+    const k = key + '|' + modeKey(assist, wreck, meta.extras !== false, !!meta.gegner);
     const prev = this.best[k];
     // A/B-Vergleich per URL: Zeit zeigen, aber nicht werten (n21)
     if (this.ab ?? AB) return { isBest: false, prev: prev ? prev.time : null, time, ab: true };
@@ -158,9 +160,9 @@ export class Store {
       while (this.ghostIndex.length > GHOST_MAX) localStorage.removeItem('stuntbahn.ghost.' + this.ghostIndex.shift());
     } catch { /* Speicher voll: Geist verwerfen */ }
   }
-  loadGhost(key, assist, wreck = this.settings.wreck, extras = this.settings.extras) {
+  loadGhost(key, assist, wreck = this.settings.wreck, extras = this.settings.extras, gegner = false) {
     if (this.ab ?? AB) return null;
-    const k = key + '|' + modeKey(assist, wreck, extras);
+    const k = key + '|' + modeKey(assist, wreck, extras, gegner);
     const s = localStorage.getItem('stuntbahn.ghost.' + k);
     if (!s) return null;
     const nitro = (this.best[k] && this.best[k].nx) || [];
