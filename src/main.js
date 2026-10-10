@@ -596,9 +596,10 @@ function startRace(opts = {}) {
   if (env.meta.sam) { S.samPlayed = { ...(S.samPlayed || {}), [env.meta.key]: Date.now() }; store.save(); }
   // Leicht (n15): kein Geisterauto (keine Bestzeit-Wertung)
   // n34 KI-Gegner (Menü „🏁 Gegner“ bzw. ?gegner=…&staerke=…): Feld bauen, Spieler auf seinen Rasterplatz; Bestzeiten
-  // und Geist aus der eigenen Liste „mit Gegnern“. Nicht in der Autopilot-Vorführung.
+  // und Geist aus der eigenen Liste „mit Gegnern“. Mit Autopilot (Test-Haken __game.start({ autopilot: true })) nur bei
+  // ausdrücklichem ?gegner= (Mess-Gate tests/perf_szenen_gegner.json)
   const GO = gegnerOptionen(location.search, S);
-  gegner = GO.anzahl > 0 && !opts.autopilot ? new GegnerFeld(env, { anzahl: GO.anzahl, staerke: GO.staerke, seed: race.driftSeed >>> 0, startplatz: GO.startplatz, wreckOn: race.wreckOn, assist: S.assist, aufholhilfe: GO.aufholhilfe, schiene: GO.schiene }) : null;
+  gegner = GO.anzahl > 0 && (!opts.autopilot || GO.url) ? new GegnerFeld(env, { anzahl: GO.anzahl, staerke: GO.staerke, seed: race.driftSeed >>> 0, startplatz: GO.startplatz, wreckOn: race.wreckOn, assist: S.assist, aufholhilfe: GO.aufholhilfe, schiene: GO.schiene }) : null;
   gegnerRec = null;
   if (gegner) {
     gegner.spielerAufstellen(race);
