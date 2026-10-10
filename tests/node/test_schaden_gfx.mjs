@@ -4,7 +4,7 @@
 // her, Trümmer fliegen und verschwinden, Zeitbedarf eines Treffers.
 import './three_haken.mjs';
 const THREE = await import('three');
-const { schadenVorbereiten, schadenZeigen, TruemmerVis } = await import('../../src/gfx/schadenvis.js');
+const { schadenVorbereiten, schadenZeigen, TruemmerVis, DELLEN_BUDGET } = await import('../../src/gfx/schadenvis.js');
 const { neuerSchaden, treffer, verschiebung, TEILE, kopie } = await import('../../src/physics/schaden.js');
 const { ladeGoblin } = await import('../../tools/schaden_teile.mjs');
 const { Car } = await import('../../src/physics/car.js');
@@ -37,7 +37,7 @@ const teileVorher = tri(V.teile.map((E) => E.T));
 // Treffer am linken Spiegel: Spiegel ab
 treffer(S, [-0.95, 0.3, -0.75], [-1, 0, 0], 12, 1);
 const t0 = performance.now();
-const neu = schadenZeigen(cv, S, ver++);
+const neu = schadenZeigen(cv, S, ver++, true, Infinity);
 const ms = performance.now() - t0;
 const spiegel = V.teile.reduce((a, E) => a + E.jeTeil[0].length / 3, 0);
 ok(neu.length === 1 && neu[0] === 0 && teileVorher - tri(V.teile.map((E) => E.T)) === spiegel, `Spiegel links ab: ${spiegel} Dreiecke aus dem Teile-Index`);
@@ -57,7 +57,11 @@ ok(ms < 40, `Treffer darstellen (Dellen im Umkreis + Teile): ${ms.toFixed(1)} ms
 // Rückspulen: Zustand ohne Treffer → Lage wieder wie vorher, Spiegel wieder dran
 {
   const leer = neuerSchaden();
-  schadenZeigen(cv, leer, ver++);
+  // in Häppchen (Budget je Bild): erstes Häppchen höchstens Budget Punkte, nach einigen Bildern alles
+  const v0 = ver++;
+  const tA = performance.now(); schadenZeigen(cv, leer, v0); const msA = performance.now() - tA;
+  let bilder = 1; while (V.warte.length && bilder < 100) { schadenZeigen(cv, leer, v0); bilder++; }
+  ok(V.warte.length === 0 && bilder > 1 && msA < DELLEN_BUDGET + 3, `Dellen in Häppchen: ${bilder} Bilder, erstes ${msA.toFixed(1)} ms (Budget ${DELLEN_BUDGET} ms + Planung)`);
   const D = V.dellen[0];
   let maxD = 0; for (let i = 0; i < D.pos.array.length; i++) maxD = Math.max(maxD, Math.abs(D.pos.array[i] - D.orig[i]));
   ok(maxD < 1e-7 && tri(V.teile.map((E) => E.T)) === teileVorher, 'Rückspulen auf „heil“: Lage wie vorher, Spiegel wieder dran');
