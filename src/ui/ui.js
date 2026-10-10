@@ -19,6 +19,8 @@ import { ZEIT, ZEIT_IDS, zeitAuto } from '../track/zeit.js';
 import { showKmhMs, showKmh } from '../core/showspeed.js';
 import { GView } from './gmeter.js';
 import { G_ON } from '../core/gforce.js';
+import { STAERKEN, GEGNER_ANZAHLEN, gegnerOptionen } from '../ai/gegner.js';   // n34 KI-Gegner
+import { STARTPLAETZE } from '../game/rennfeld.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const h = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
@@ -59,7 +61,7 @@ export class UI {
       <div id="loading" class="screen show"><div class="logo">STUNT<b>BAHN</b></div><div class="bar"><i></i></div><p>Laden …</p></div>
       <div id="menu" class="screen"></div>
       <div id="hud">
-        <div class="tl"><div class="time">0:00,00</div><div class="pen"></div><div class="best"></div></div>
+        <div class="tl"><div class="time">0:00,00</div><div class="pen"></div><div class="best"></div><div class="gpos" aria-live="off"></div></div>
         <div class="tc"><div class="cp"></div></div>
         <div class="hint2" aria-live="polite"></div>
         <div class="tr"><div class="rbs">
@@ -253,6 +255,7 @@ export class UI {
         <div class="lbl">Fahrhilfe</div>
         <div class="seg" data-g="assist">${Object.entries(ASSISTS).map(([k, A]) => `<button data-a="assist" data-v="${k}" class="${S.assist === k ? 'on' : ''}">${A.icon} ${A.name}</button>`).join('')}</div>
         <div class="hint mhint" data-a="hintmore">${this.assistHint(S.assist)}</div>
+        <div class="row"><button data-a="gegnerwahl" class="themebtn gegnerbtn" title="Gegner: ${this.gegnerLabel()}" aria-label="Gegner: ${this.gegnerLabel()}">🏁 ${this.gegnerLabel()}</button></div>
         <div class="lbl">Neue Strecke</div>
         <div class="segrow"><div class="seg" data-g="diff">${[1, 2, 3].map((d) => `<button data-a="diff" data-v="${d}" class="${(S.diff || 2) === d ? 'on' : ''}">${DIFFS[d].name}</button>`).join('')}</div><div class="seg mode" data-g="mode">${MODES.map(([k, ic, nm, tt]) => `<button data-a="mode" data-v="${k}" class="${S.trackMode === k ? 'on' : ''}" aria-pressed="${S.trackMode === k}" aria-label="${nm}" title="${nm}: ${tt}">${ic}</button>`).join('')}</div></div>
         <div class="row">
@@ -336,6 +339,48 @@ export class UI {
       <p class="hint">Nur fürs Auge: Regen und Schnee ändern Himmel, Licht und Fahrbahn-Optik – Grip, Fahrphysik, Strecke und Bestzeiten bleiben gleich. <b>Passend</b>: meist klar, manchmal Regen oder Schnee, je nach Strecke und Landschaft (Schnee nie in Wüste und Tropen).</p>
       <div class="themegrid">${btn('auto', '🎯', 'Passend', `hier: ${WETTER[a].icon} ${WETTER[a].name}`)}${WETTER_IDS.map((id) => btn(id, WETTER[id].icon, WETTER[id].name, WETTER[id].desc)).join('')}</div>`);
   }
+  // ---------- KI-Gegner (n34) ----------
+  gegnerLabel() {
+    const G = gegnerOptionen(location.search, this.store.settings);
+    return G.anzahl ? `${G.anzahl} Gegner · ${STAERKEN[G.staerke].name}` : 'Gegner: Aus';
+  }
+  showGegner() {
+    const S = this.store.settings, G = gegnerOptionen(location.search, S);
+    const seg = (act, list, cur) => `<div class="seg">${list.map(([k, n]) => `<button data-a="${act}" data-v="${k}" class="${String(cur) === String(k) ? 'on' : ''}">${n}</button>`).join('')}</div>`;
+    const sw = (act, on, label) => `<button data-a="${act}" class="${on ? 'on' : ''}">${on ? '✅' : '⬜'} ${label}</button>`;
+    this.sheet('🏁 Gegner', `
+      ${G.url ? '<p class="hint">Der Link-Zusatz <code>?gegner=</code> gilt vorrangig.</p>' : ''}
+      <div class="lbl">Anzahl</div>
+      ${seg('gegner', GEGNER_ANZAHLEN.map((n) => [n, n ? String(n) : 'Aus']), G.anzahl)}
+      <div class="lbl">Stärke</div>
+      ${seg('gstaerke', Object.entries(STAERKEN).map(([k, s]) => [k, s.name]), G.staerke)}
+      <p class="hint">${{ locker: '<b>Locker:</b> fahren deutlich unter dem Limit, bremsen spät, verpatzen öfter einen Stunt – gut zum Üben.', ebenbuertig: '<b>Ebenbürtig:</b> etwa wie ein geübter Fahrer auf Mittel – mal vorn, mal hinten.', profi: '<b>Profi:</b> fast so schnell wie der Autopilot, kaum Fehler.' }[G.staerke]} Jeder Gegner fährt mit derselben Physik wie du, hat seinen eigenen Stil (aggressiv oder sauber), Namen und Lack. In Looping, Röhre und Korkenzieher wird nicht überholt.</p>
+      <div class="lbl">Dein Startplatz</div>
+      ${seg('gstart', Object.entries(STARTPLAETZE), G.startplatz)}
+      <div class="row">${sw('gschilder', G.schilder, 'Namen-Schilder')}${sw('gaufhol', G.aufholhilfe, 'Aufholhilfe')}</div>
+      <p class="hint">Rennen mit Gegnern zählen in eine <b>eigene Bestzeiten-Liste</b> – deine Solo-Zeiten bleiben unberührt. Das Rennen endet, wenn du im Ziel bist; wer dann noch fährt, darf höchstens 10 s weiterfahren, danach wird seine Zeit hochgerechnet. Auf Leicht weicht die Hilfe den Gegnern aus, Berührungen sind sanft; auf Original kann ein harter Stoß zum Crash führen.${G.aufholhilfe ? ' <b>Aufholhilfe:</b> Gegner weit hinter dir werden etwas schneller, weit vorn etwas langsamer.' : ''}</p>`);
+  }
+  // HUD: Platz „3/6“, Abstand zum Vorder- und Hintermann (4 × je Sekunde aktualisiert); feld = null blendet aus
+  hudGegner(feld, race) {
+    const E = $('#hud .gpos');
+    if (!feld) { if (this._gp) { this._gp = ''; E.innerHTML = ''; E.classList.remove('show'); } return; }
+    const now = performance.now();
+    if (now - (this._gpT || 0) < 250) return;
+    this._gpT = now;
+    const L = feld.stand(race), i = L.findIndex((e) => e.spieler);
+    if (i < 0) return;
+    const me = L[i], vor = L[i - 1], hin = L[i + 1];
+    const s = (x) => (x == null ? '' : x.toFixed(1).replace('.', ','));
+    const html = `<b>Platz ${me.platz}/${L.length}</b>${vor && me.vor != null ? `<i class="v">▲ ${vor.name.split(' ')[0]} +${s(me.vor)} s</i>` : ''}${hin && me.hinter != null ? `<i class="h">▼ ${hin.name.split(' ')[0]} −${s(me.hinter)} s</i>` : ''}`;
+    if (html !== this._gp) { this._gp = html; E.innerHTML = html; E.classList.add('show'); }
+  }
+  // Zieltabelle (Ergebnis): alle Autos mit Zeit, Abstand zum Sieger, * = hochgerechnet
+  gegnerTabelle(L) {
+    if (!L || !L.length) return '';
+    const sieg = L[0].zeit;
+    const rows = L.map((e) => `<tr class="${e.spieler ? 'me' : ''}"><td>${e.platz}.</td><td><span class="gnr" style="background:${e.spieler ? '#fff' : '#' + (e.farbe || 0).toString(16).padStart(6, '0')}">${e.nummer}</span> ${e.name}</td><td>${e.zeit != null ? fmtTime(e.zeit) + (e.hochgerechnet ? '*' : '') : '–'}</td><td>${e.platz > 1 && e.zeit != null && sieg != null ? '+' + (e.zeit - sieg).toFixed(2).replace('.', ',') : ''}</td></tr>`).join('');
+    return `<table class="gtab">${rows}</table>${L.some((e) => e.hochgerechnet) ? '<div class="hint">* noch unterwegs – Zeit hochgerechnet</div>' : ''}`;
+  }
   assistHint(k) {
     const wreck = this.store.settings.wreck;
     const crash = wreck
@@ -374,6 +419,13 @@ export class UI {
       case 'wetter': A.setWetter(v); break;
       case 'zeitwahl': this.showZeit(); break;   // n32 Nachtrag
       case 'zeit': A.setZeit(v); break;
+      // n34 KI-Gegner: Anzahl, Stärke, Startplatz, Namen-Schilder, Aufholhilfe (gespeichert; URL ?gegner= hat Vorrang)
+      case 'gegnerwahl': this.showGegner(); break;
+      case 'gegner': S.gegner = +v; this.store.save(); this.showGegner(); break;
+      case 'gstaerke': S.gegnerStaerke = v; this.store.save(); this.showGegner(); break;
+      case 'gstart': S.gegnerStart = v; this.store.save(); this.showGegner(); break;
+      case 'gschilder': S.gegnerSchilder = S.gegnerSchilder === false; this.store.save(); this.showGegner(); break;
+      case 'gaufhol': S.aufholhilfe = !S.aufholhilfe; this.store.save(); this.showGegner(); break;
       case 'trklib': this.showLibrary(); break;
       case 'trkpick': this.fileInput.click(); break;
       case 'trkplay': A.playImported(v); break;
@@ -798,8 +850,10 @@ export class UI {
     const best = res.easy ? this.timesHtml(res.list, true) : res.ab ? '<div class="prev">A/B-Vergleich (Link-Zusatz) – keine Bestzeit</div>' : res.isBest ? '<div class="rec">🏆 Neue Bestzeit!</div>' : (res.prev ? `<div class="prev">Bestzeit ${fmtTime(res.prev)} (${(res.time - res.prev >= 0 ? '+' : '') + (res.time - res.prev).toFixed(2).replace('.', ',')} s)</div>` : '');
     // n28 Deko: Zeit springt herein, Glanz läuft einmal darüber (Bestzeit golden); ?deko=0 und „Bewegung reduzieren“ ohne
     const dk = new URLSearchParams(location.search).get('deko') !== '0' ? ` deko${res.isBest && !res.ab && !res.easy ? ' gold' : ''}` : '';
-    $('#result').innerHTML = `<div class="card${dk}"><h2>🏁 Ziel!</h2>${res.easy ? '<div class="ryour">Deine Zeit</div>' : ''}
-      <div class="rtime">${fmtTime(res.time)}</div>${pen}${best}
+    // n34: mit Gegnern Platz in der Überschrift und Zieltabelle (Feld abgeschlossen: Übrige hochgerechnet)
+    const GS = this.a && this.a.gegnerStand ? this.a.gegnerStand() : null, gMe = GS ? GS.find((e) => e.spieler) : null;
+    $('#result').innerHTML = `<div class="card${dk}"><h2>🏁 ${gMe ? (gMe.platz === 1 ? '🏆 Sieg!' : `Platz ${gMe.platz} von ${GS.length}`) : 'Ziel!'}</h2>${res.easy ? '<div class="ryour">Deine Zeit</div>' : ''}
+      <div class="rtime">${fmtTime(res.time)}</div>${pen}${best}${GS ? this.gegnerTabelle(GS) + (res.easy ? '' : '<div class="hint">Bestzeiten-Liste „mit Gegnern“</div>') : ''}
       <div class="rmeta">${A.icon} ${A.name} · ${race.wreckOn ? '💥 Totalschaden an' : 'Totalschaden aus'} · ${race.extrasOn ? `Extras: 🦘 ${race.used.hop ? '✓' : '–'} 🔥 ${race.used.nitro ? '✓' : '–'}` : 'ohne Extras'} · ${env.meta.name} (${env.meta.key}) · Crashs ${race.crashes}${race.rewinds ? ' · Rückspulen ' + race.rewinds : ''}</div>
       <div class="row"><button class="big go" data-a="retry">🔁 Nochmal</button><button data-a="replay">📼 Replay</button>${race.film ? '<button data-a="cine">🎬 Highlights</button>' : ''}</div>
       <div class="row">${race.film && clipMime() ? (this.lastClip ? `<button data-a="clipshare">📤 Video (${(this.lastClip.blob.size / 1e6).toFixed(1).replace('.', ',')} MB)</button>` : '<button data-a="cliprec">🎥 Als Video</button>') : ''}<button data-a="next">🎲 Neue Strecke</button><button data-a="menu">☰ Menü</button></div></div>`;
