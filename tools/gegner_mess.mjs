@@ -43,8 +43,17 @@ export function rennen(env, apTime, opt) {
   const cpu = process.cpuUsage(c0);
   const crashGrund = {};
   for (const e of F.events) if (e.type === 'gegnerCrash') crashGrund[e.reason] = (crashGrund[e.reason] || 0) + 1;
+  // Stöße (Ereignisse > 1,5 m/s) in Looping/Röhre/Korkenzieher/Schanze (Linienpunkt am Kontakt: nächster Gegner)
+  let stossStunt = 0, stossAlle = 0;
+  for (const e of F.events) {
+    if (e.type !== 'stoss') continue;
+    stossAlle++;
+    let best = null, bd = 1e9;
+    for (const g of F.fahrer) { const d = Math.hypot(g.car.pos.x - e.p[0], g.car.pos.z - e.p[2]); if (d < bd) { bd = d; best = g; } }
+    if (best && F.M.muss[best.idx()]) stossStunt++;
+  }
   return {
-    t, stoesse: F.stoesse, crashGrund, msJeAutoSek: (cpu.user + cpu.system) / 1000 / Math.max(1, F.fahrer.length) / Math.max(1, t),
+    t, stoesse: F.stoesse, crashGrund, stossAlle, stossStunt, msJeAutoSek: (cpu.user + cpu.system) / 1000 / Math.max(1, F.fahrer.length) / Math.max(1, t),
     g: F.fahrer.map((g) => ({ id: g.id, name: g.info.name, ch: g.info.charakter, fertig: g.fertig, zeit: g.zeit, crashes: g.crashes, strafen: g.strafen, fehler: g.fehler.length, nan: !Number.isFinite(g.car.pos.x + g.car.pos.y + g.car.pos.z) })),
   };
 }
@@ -106,6 +115,7 @@ function zusammenfassen(rows) {
       m[st] = mittel(fz); quote[st].push(m[st] / r.ap);
     }
     if (S.length >= 2 && S.every((st, k) => k === 0 || m[S[k - 1]] > m[st])) reihe++;
+    else if (S.length < 2) reihe = -1;
   }
   console.log(`\n${ok.length} Strecken (Autopilot im Ziel), ${rows.length - ok.length} übersprungen. Gegner im Ziel: ${ziel}/${alle}, NaN: ${nan}`);
   for (const st of S) {
@@ -113,5 +123,7 @@ function zusammenfassen(rows) {
     console.log(`  ${(STAERKEN[st] ? STAERKEN[st].name : st).padEnd(11)} Zeit/Autopilot: Mittel ${(mittel(q) * 100 - 100).toFixed(1)} %, Median ${((q[Math.floor(q.length / 2)] || 0) * 100 - 100).toFixed(1)} %, 10–90 % ${((q[Math.floor(q.length * 0.1)] || 0) * 100 - 100).toFixed(1)} … ${((q[Math.floor(q.length * 0.9)] || 0) * 100 - 100).toFixed(1)} %; Crashs ${crashes[st]}`);
   }
   if (S.includes('profi')) { const q = quote.profi; console.log(`  Profi innerhalb ± 5 % des Autopiloten: ${q.filter((x) => Math.abs(x - 1) <= 0.05).length}/${q.length}`); }
-  console.log(`  Reihenfolge ${S.join(' > ')} (langsamer → schneller) auf ${reihe}/${ok.length} Strecken; Crash-Gründe ${JSON.stringify(gruende)}`);
+  console.log(`  ${reihe >= 0 ? `Reihenfolge ${S.join(' > ')} (langsamer → schneller) auf ${reihe}/${ok.length} Strecken; ` : ''}Crash-Gründe ${JSON.stringify(gruende)}`);
+  let sa = 0, ss = 0; for (const r of ok) for (const st of S) if (r.st[st]) { sa += r.st[st].stossAlle || 0; ss += r.st[st].stossStunt || 0; }
+  console.log(`  Stöße > 1,5 m/s: ${sa}, davon in Looping/Röhre/Korkenzieher/Schanze ${ss}`);
 }

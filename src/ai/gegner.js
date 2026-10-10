@@ -53,7 +53,10 @@ export const FAHRER = [
 export const SCHIENE = { weg: 170, nah: 150, k: 0.9, verlustPatzer: 3.5, verlustSpaet: 0.8, pCrash: 0.5 };
 // Verkehr: vorausschauen (m Fortschritt), Breite eines Autos mit Rand (m, Mitte zu Mitte), Zone ohne Überholen vor und
 // hinter Looping/Röhre/Korkenzieher/Sprung/Zickzack (m), Rand zur Fahrbahn-/Spurgrenze (m)
-export const VERKEHR = { blick: 45, breite: 2.3, vorStunt: 70, nachStunt: 25, rand: 1.15, neben: 5.5, folgeK: 1.2, folgeMin: 7 };
+export const VERKEHR = { blick: 45, breite: 2.3, vorStunt: 70, nachStunt: 25, rand: 1.15, neben: 5.5, folgeK: 1.2, folgeMin: 7, engVoraus: 100 };
+// Abstand vor Looping/Röhre/Korkenzieher/Schanze (Brief: „Gegner halten dort Abstand“): ab vor m davor folgt man mit
+// mindestens min m + t s × Tempo – in der Anfahrt selbst (Tempo-Faktor 1) gibt es keinen Deckel mehr, der Abstand muss vorher stehen
+export const STUNT_ABSTAND = { vor: 220, min: 22, t: 0.55 };
 // Streuung: neues Ziel alle 1,5 … 4 s, Seitenversatz folgt mit höchstens 0,6 m/s
 export const STREU = { tMin: 1.5, tMax: 4, v: 0.6 };
 // Tempo-Faktor ab MUSS_RAMPE[0] m vor Looping/Röhre/Korkenzieher/Schanze weich bis 1 bei [1] m davor, danach über [2] m zurück
@@ -124,7 +127,8 @@ export function hash01(seed, k) {
 // nachStunt m dahinter); muss: dort braucht das Auto das volle Profil-Tempo (Looping/Röhre/Korkenzieher: Anpressdruck,
 // Schanze: Tempo-Fenster; Zickzack nicht – langsamer geht dort immer); nahe: 0 … 1 (Tempo-Faktor wird zu 1: in muss und
 // MUSS_RAMPE m davor/danach); haft: Bodenhaftung aus
-// (wie haftOffAt); lo/hi: Seitengrenzen für den Versatz (Ideallinie, kleinste Breite der nächsten 30 m)
+// (wie haftOffAt); lo/hi: Seitengrenzen für den Versatz (Ideallinie, kleinste Breite der nächsten VERKEHR.engVoraus m – mit 30 m
+// kam ein Auto nach dem Überholen bei 70 m/s nicht rechtzeitig vor der Autobahn-Verengung zurück: 3 Aufpralle auf 16 Strecken)
 export function streckenMasken(env) {
   const T = env.track, L = T.line, I = env.ideal || L, n = L.n;
   const zig = zigMask(T);
@@ -157,12 +161,12 @@ export function streckenMasken(env) {
     const a = Math.max(0, Math.min(1, (R[0] - mu.vor[i]) / (R[0] - R[1]))), b = Math.max(0, Math.min(1, 1 - mu.nach[i] / R[2]));
     nahe[i] = Math.max(a, b);
   }
-  // Seitengrenzen relativ zur Ideallinie (blo/bhi: dort bleibt auch die Ideallinie, Spur in Stunts), kleinste der nächsten 30 m
+  // Seitengrenzen relativ zur Ideallinie (blo/bhi: dort bleibt auch die Ideallinie, Spur in Stunts), kleinste der nächsten engVoraus m
   const blo = I.blo || I.lo, bhi = I.bhi || I.hi;
   const lo = new Float32Array(n), hi = new Float32Array(n);
   for (let i = 0; i < n; i++) {
     let a = -1e9, b = 1e9;
-    for (let j = i, acc = 0, g = 0; g < 40 && acc < 30; g++) {
+    for (let j = i, acc = 0, g = 0; g < 200 && acc < VERKEHR.engVoraus; g++) {
       a = Math.max(a, blo[j] + VERKEHR.rand); b = Math.min(b, bhi[j] - VERKEHR.rand);
       const k = j + 1 >= n ? (L.closed ? 1 : -1) : j + 1;
       if (k < 0) break;
@@ -624,8 +628,9 @@ export class GegnerFeld {
           // noch nicht daneben: beim Spurwechsel nicht auffahren
           if (Math.abs(vor.lat - me.lat) < V.breite) vCap = Math.max(0, vor.v + (dpMin - V.folgeMin * 0.6) * 1.5);
         } else {
-          // folgen: Abstand halten (Wunsch: folgeMin m + abstand s × Tempo)
-          const want = V.folgeMin + Math.max(0, me.v) * C.abstand;
+          // folgen: Abstand halten (Wunsch: folgeMin m + abstand s × Tempo; vor Looping/Röhre/Schanze mehr)
+          let want = V.folgeMin + Math.max(0, me.v) * C.abstand;
+          if (M.mussVor[i] < STUNT_ABSTAND.vor) want = Math.max(want, STUNT_ABSTAND.min + Math.max(0, me.v) * STUNT_ABSTAND.t);
           vCap = Math.max(0, vor.v + (dpMin - want) * V.folgeK);
         }
       }
