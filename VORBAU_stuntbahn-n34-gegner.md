@@ -59,7 +59,7 @@ Auto-Sekunde** (rog17, ~60× billiger). Feld 5 Gegner nach den Verkehrs-Fixes: S
   → Gegner spulen mit), Zieleinlauf, `NACHLAUF` 10 s, `abschliessen()` (Hochrechnung), `stand(race)`, `ausweichen(race)`,
   Aufzeichnung (`aufnahme()`), Aufholhilfe ±5 % (Option).
 
-**Geprüft (Node)**: `tests/node/test_gegner.mjs` (~65 Prüfungen, ~20 s mit 2 Strecken): Optionen/URL, Fahrerliste,
+**Geprüft (Node)**: `tests/node/test_gegner.mjs` (69 Prüfungen, ~28 s mit 2 Strecken): Optionen/URL, Fahrerliste,
 Rangliste/Zeitnahme/Abstände, Raster ohne Überlapp auf der Fahrbahn, Masken = `haftOffAt`, Hochrechnung ± 8 %,
 3 Stärken × 3 Gegner im Ziel + Reihenfolge, Profi ± 5 %, deterministisch, Schiene ± 3 %, 30 Wechsel Schiene ↔ Physik ohne
 Crash, Aufzeichnung, Rückspulen, Spieler-Rennen mit Raster/Zieltabelle/Hochrechnung, Leicht weicht aus, Feld mit Schaden,
@@ -136,7 +136,7 @@ Rauch ab 70 %, Fahrfolgen (ab 60 % Ziehen bis 0,05 rad + Leistung bis × 0,75, 1
 `?schaden=fahrt` + Original + Totalschaden), kompakter Zustand 3 + 8 Byte je Delle (n35), Rückspul-Verlauf (Rückspulen
 mit Uhr spult Schaden mit; Reset repariert nicht; neues Rennen = repariert), Gegner gleich (Dellen nur nah).
 Haken: `car.onTreffer` (Karosserie-Treffer, Physik unverändert), `race.schadenFolgen` (null = aus).
-**Geprüft**: `tests/node/test_schaden.mjs` (32: Deckel über alle 27 534 Goblin-Punkte nach 40 Treffern, Normalen gegen
+**Geprüft**: `tests/node/test_schaden.mjs` (31: Deckel über alle 27 534 Goblin-Punkte nach 40 Treffern, Normalen gegen
 Differenzen, Packen ± 4 mm, Teile, Fahrfolgen, Trümmer, Wand-Crash, Haken ändert Physik nicht, Rückspulen mit/ohne Uhr),
 `tests/node/test_schaden_gfx.mjs` (9, echte Goblin-Geometrie: 35 687 Dreiecke vollständig zerlegt, Spiegel ab,
 Rückspulen, Trümmer, Dellen in Häppchen). Dellen-Rechnung über mehrere Bilder verteilt (`DELLEN_BUDGET` 1 ms je Bild;
@@ -174,9 +174,19 @@ Gegner auch beim Autopilot-Start der Szenen.
   nicht angefasst.
 - `tests/node/run_all.mjs`: + test_autoauto, test_gegner, test_gegner_gfx, test_schaden, test_schaden_gfx.
 
-## Bestands-Tests auf rog17
-Siehe Abschnitt „Tests“ am Ende (Stand beim Abschluss). `test_hindernisse` (n33) bricht auf Windows nach 43 OK an einem
-`c:`-Import ab – **auf der Basis 169a0f3 identisch** (Windows-Pfad, nicht n34; am Mac prüfen).
+## Tests auf rog17 (Abschluss)
+- **n34 neu, alle grün:** test_autoauto 25, test_gegner 69 (inkl. „Gegner Aus“ bitgleich zur Basis), test_gegner_gfx 16,
+  test_schaden 31, test_schaden_gfx 9 – alle in `run_all.mjs`.
+- **Bestand grün** (einzeln, ≤ 110 s je Test): test_reset, test_extras, test_free_steer, test_tilt, test_cockpit,
+  test_zielshow, test_kinoreplay, test_wetter, test_zeit, test_drift, test_mittel3, test_roehre_buckel, test_leicht_zeiten,
+  test_sammlung, test_sprung, test_haftung, test_wiese, test_gkraft, test_quality_blur, test_autopilot, test_fahrgefuehl,
+  test_alte_codes (249/249), test_loop_gate, test_trk_parser, test_trk_import, test_generator, test_strecken3d,
+  test_leicht3d, test_verify_batch.
+- **Nicht vollständig gelaufen:** test_assists und test_generator3d (> 110 s Zeitlimit der Leicht-Spur; test_assists bis dahin
+  29 OK, 0 FAIL). `test_hindernisse` (n33) bricht auf Windows nach 43 OK an einem `c:`-Import ab – **auf der Basis 169a0f3
+  identisch** (Windows-Pfad, nicht n34; am Mac prüfen). Die schon vor n34 auf rog17 roten Tests (test_lod, test_hdr,
+  test_detail, test_gelaende, test_kulissen, test_kulissen2, test_stuntgroesse) nicht erneut gelaufen – n34 ändert dort nichts
+  (Gegner/Schaden aus = bitgleich).
 
 ## Hinweise für den Heavy-Job
 - **Service-Worker-Liste** (`sw.js`, `tools/update_sw.py`): neue Dateien `src/ai/gegner.js`, `src/game/rennfeld.js`,
