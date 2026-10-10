@@ -171,6 +171,7 @@ for (const S of strecken) {
   const F = new GegnerFeld(env, { anzahl: 1, staerke: 'locker', seed: 7, assist: 'easy', startplatz: 'hinten' });
   F.spielerAufstellen(race);
   race.step(DT, { steer: 0, throttle: 0, brake: 0 }); F.step(DT, race);
+  race.state = 'running';
   // Gegner 15 m vor den Spieler auf die Ideallinie setzen (gerade Stelle ohne Stunt suchen)
   const M = F.M, I = env.ideal, L = env.track.line;
   let i = race.ap.tr.idx; for (let g = 0; g < L.n && (M.kein[i] || M.kein[(i + 8) % L.n] || M.hi[i] - M.lo[i] < 6); g++) i = (i + 1) % L.n;
@@ -179,8 +180,13 @@ for (const S of strecken) {
   race.tracker.reset(i); race.ap.tr.reset(i);
   const g = F.fahrer[0];
   g.car.place([I.px[j], I.py[j], I.pz[j]], [I.tx[j], I.ty[j], I.tz[j]], [I.nx[j], I.ny[j], I.nz[j]], 15); g.ap.tr.reset(j); g.zustand = 'fahrt';
-  const off = F.ausweichen(race);
+  let A = null; for (let k = 0; k < 240; k++) A = F.ausweichen(race, DT);   // Versatz folgt weich (2 s)
+  const off = A.versatz;
   ok(Math.abs(off) >= 2.2 && off >= M.lo[i] && off <= M.hi[i], `Leicht: Gegner voraus → Ausweich-Versatz ${off.toFixed(2)} m (innerhalb ${M.lo[i].toFixed(1)} … ${M.hi[i].toFixed(1)})`);
+  // kein Platz (Grenzen eng): Abstand halten statt auffahren
+  const Z0 = new Float32Array(L.n), M2 = { ...M, lo: Z0, hi: Z0, loW: [Z0, Z0, Z0], hiW: [Z0, Z0, Z0] }; F.M = M2;
+  const B = F.ausweichen(race, DT); F.M = M;
+  ok(Number.isFinite(B.vCap) && B.vCap < 25, `Leicht ohne Platz: Abstand halten (Tempo-Deckel ${B.vCap.toFixed(1)} m/s hinter dem Gegner mit 15 m/s)`);
 }
 ok(hash01(5, 3) === hash01(5, 3) && hash01(5, 3) !== hash01(5, 4), 'hash01 deterministisch');
 // 12b. Feld mit Schadensmodell: Stöße beschädigen beide Autos (Spieler über spielerSchaden), Rückspulen spult den Schaden mit

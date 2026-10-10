@@ -55,6 +55,19 @@ export const SCHIENE = { weg: 170, nah: 150, k: 0.9, verlustPatzer: 3.5, verlust
 // Verkehr: vorausschauen (m Fortschritt), Breite eines Autos mit Rand (m, Mitte zu Mitte), Zone ohne Überholen vor und
 // hinter Looping/Röhre/Korkenzieher/Sprung/Zickzack (m), Rand zur Fahrbahn-/Spurgrenze (m)
 export const VERKEHR = { blick: 45, breite: 2.3, vorStunt: 70, nachStunt: 25, rand: 1.15, neben: 5.5, folgeK: 1.2, folgeMin: 7, engVoraus: 100 };
+// Seitengrenzen je Tempo: unter v[0] m/s die nächsten 30 m, unter v[1] 60 m, sonst 100 m (ENG_FENSTER) – für Überhol-
+// Entscheidung und Begrenzung des Versatzes (bei Tempo früh zurück vor einer Verengung; feste 100 m ließen nur auf 5–19 % der
+// Strecke Platz zum Überholen, Leicht blieb hinter langsamen Gegnern hängen)
+export const ENG_FENSTER = [30, 60, 100], ENG_V = [25, 50];
+// min = kleinstes Fenster. Gegner: immer 100 m (GEGNER_FENSTER; tempoabhängig gab es im 5er-Feld auf 16 Strecken 11–12 statt 6
+// Crashs – mehr Seit-an-Seit), der Leicht-Spieler tempoabhängig (mit 100 m blieb er hinter langsamen Gegnern hängen)
+export const GEGNER_FENSTER = 2;
+export function grenzen(M, i, v, min = 0) { const k = Math.max(min, v < ENG_V[0] ? 0 : v < ENG_V[1] ? 1 : 2); return [M.loW[k][i], M.hiW[k][i]]; }
+// Leicht (Spieler): Ausweich-Versatz folgt mit höchstens seitV m/s, Folge-Abstand abstand s (wie ein sauberer Gegner)
+export const LEICHT_AUSWEICHEN = { seitV: 2.2, abstand: 0.5, luecke: 2.6 };
+// Auf Leicht machen Gegner Platz, wenn der Spieler von hinten (bis hinten m) mindestens dv m/s schneller kommt – Leicht lässt
+// das Auto mit „Hände weg“ im ±3,5-m-Band treiben und fährt einen Ausweich-Versatz kaum (Probe: Spieler blieb hängen)
+export const PLATZ_MACHEN = { hinten: 28, dv: 2, luecke: 2.8 };
 // Abstand vor Looping/Röhre/Korkenzieher/Schanze (Brief: „Gegner halten dort Abstand“): ab vor m davor folgt man mit
 // mindestens min m + t s × Tempo – in der Anfahrt selbst (Tempo-Faktor 1) gibt es keinen Deckel mehr, der Abstand muss vorher stehen
 export const STUNT_ABSTAND = { vor: 220, min: 22, t: 0.55 };
@@ -162,21 +175,26 @@ export function streckenMasken(env) {
     const a = Math.max(0, Math.min(1, (R[0] - mu.vor[i]) / (R[0] - R[1]))), b = Math.max(0, Math.min(1, 1 - mu.nach[i] / R[2]));
     nahe[i] = Math.max(a, b);
   }
-  // Seitengrenzen relativ zur Ideallinie (blo/bhi: dort bleibt auch die Ideallinie, Spur in Stunts), kleinste der nächsten engVoraus m
+  // Seitengrenzen relativ zur Ideallinie (blo/bhi: dort bleibt auch die Ideallinie, Spur in Stunts), kleinste der nächsten
+  // ENG_FENSTER m (loW/hiW je Fenster; lo/hi = 100 m)
   const blo = I.blo || I.lo, bhi = I.bhi || I.hi;
-  const lo = new Float32Array(n), hi = new Float32Array(n);
+  const loW = ENG_FENSTER.map(() => new Float32Array(n)), hiW = ENG_FENSTER.map(() => new Float32Array(n));
   for (let i = 0; i < n; i++) {
-    let a = -1e9, b = 1e9;
-    for (let j = i, acc = 0, g = 0; g < 200 && acc < VERKEHR.engVoraus; g++) {
+    let a = -1e9, b = 1e9, w = 0;
+    for (let j = i, acc = 0, g = 0; g < 200 && w < ENG_FENSTER.length; g++) {
       a = Math.max(a, blo[j] + VERKEHR.rand); b = Math.min(b, bhi[j] - VERKEHR.rand);
       const k = j + 1 >= n ? (L.closed ? 1 : -1) : j + 1;
+      if (k >= 0) acc += Math.max(0, L.s[k] - L.s[j]);
+      while (w < ENG_FENSTER.length && (acc >= ENG_FENSTER[w] || k < 0)) {
+        const m = a > b ? (a + b) / 2 : null;
+        loW[w][i] = Math.min(0, m ?? a); hiW[w][i] = Math.max(0, m ?? b); w++;
+      }
       if (k < 0) break;
-      acc += Math.max(0, L.s[k] - L.s[j]); j = k;
+      j = k;
     }
-    if (a > b) a = b = (a + b) / 2;
-    lo[i] = Math.min(0, a); hi[i] = Math.max(0, b);
+    for (; w < ENG_FENSTER.length; w++) { const m = a > b ? (a + b) / 2 : null; loW[w][i] = Math.min(0, m ?? a); hiW[w][i] = Math.max(0, m ?? b); }
   }
-  return { stunt, kein, haft, nahe, muss, mussVor: mu.vor, lo, hi, vor };
+  return { stunt, kein, haft, nahe, muss, mussVor: mu.vor, lo: loW[2], hi: hiW[2], loW, hiW, vor };
 }
 
 // Tempo-Profil eines Gegners: vt × Faktor außerhalb der Stunts, in Stunt-Nähe weich bis 1 (nahe). Danach Rückwärtslauf:
@@ -437,7 +455,8 @@ export class GegnerFahrer {
     const tx = I.px[j] - I.px[i], ty = I.py[j] - I.py[i], tz = I.pz[j] - I.pz[i], tl = Math.hypot(tx, ty, tz) || 1;
     const u = ((car.pos.x - I.px[i]) * tx + (car.pos.y - I.py[i]) * ty + (car.pos.z - I.pz[i]) * tz) / tl;
     this.sch.s = I.s[i] + Math.max(0, Math.min(I.s[j] - I.s[i], u));
-    this.versatz = Math.max(this.feld.M.lo[i], Math.min(this.feld.M.hi[i], this.latJetzt()));
+    const [lo, hi] = grenzen(this.feld.M, i, this.sch.v, GEGNER_FENSTER);
+    this.versatz = Math.max(lo, Math.min(hi, this.latJetzt()));
     this.modus = 'schiene';
     this.schienePose();
     return true;
@@ -621,7 +640,7 @@ export class GegnerFeld {
         if (dp > 0 && dp < V.blick && Math.abs(a.lat - me.lat) < V.breite && dp < dpMin) { dpMin = dp; vor = a; }
       }
       if (vor) {
-        const lo = M.lo[i], hi = M.hi[i];
+        const [lo, hi] = grenzen(M, i, Math.max(0, me.v), GEGNER_FENSTER);
         const links = vor.lat - C.luecke, rechts = vor.lat + C.luecke;
         const okL = links >= lo - C.mut, okR = rechts <= hi + C.mut;
         const darf = !M.kein[i] && !M.kein[vor.idx] && !vor.crash;
@@ -636,6 +655,18 @@ export class GegnerFeld {
           let want = V.folgeMin + Math.max(0, me.v) * C.abstand;
           if (M.mussVor[i] < STUNT_ABSTAND.vor) want = Math.max(want, STUNT_ABSTAND.min + Math.max(0, me.v) * STUNT_ABSTAND.t);
           vCap = Math.max(0, vor.v + (dpMin - want) * V.folgeK);
+        }
+      }
+      // Leicht: dem schnelleren Spieler von hinten Platz machen (zur Seite, auf der er nicht fährt)
+      if (this.opt.assist === 'easy' && !M.kein[i]) {
+        const sp = autos.find((a) => a.spieler && !a.crash);
+        if (sp) {
+          const dp = me.p - sp.p;
+          if (dp > 0 && dp < PLATZ_MACHEN.hinten && sp.v > me.v + PLATZ_MACHEN.dv && Math.abs(sp.lat - me.lat) < V.breite + 0.5) {
+            const [plo, phi] = grenzen(M, i, Math.max(0, me.v), GEGNER_FENSTER);
+            const r = sp.lat + PLATZ_MACHEN.luecke, l = sp.lat - PLATZ_MACHEN.luecke;
+            ziel = me.lat >= sp.lat ? (r <= phi ? r : l >= plo ? l : ziel) : (l >= plo ? l : r <= phi ? r : ziel);
+          }
         }
       }
       // daneben (Fortschritt ± neben m, seitlich enger als die Breite): zur eigenen Seite ausweichen
@@ -659,7 +690,8 @@ export class GegnerFeld {
     // in Looping/Röhre/Schanze und ihrer Anfahrt kein Folge-Deckel: dort braucht jedes Auto sein Profil-Tempo (hinter einem
     // Vordermann zu langsam an der Lippe → Sprung zu kurz). Den Abstand stellt das Folgen davor her.
     if (M.nahe[i] > 0 && !g.fertig) vCap = Infinity;
-    ziel = Math.max(M.lo[i], Math.min(M.hi[i], ziel));
+    const [glo, ghi] = grenzen(M, i, Math.max(0, me.v), GEGNER_FENSTER);
+    ziel = Math.max(glo, Math.min(ghi, ziel));
     // in Stunt-Spuren (Looping/Röhre) kein Versatz – dort ist die Spur so schmal wie die Ideallinie
     if (M.stunt[i]) ziel = 0;
     const vmax = (M.kein[i] && !M.stunt[i] ? 1.2 : C.seitV) * dt;
@@ -733,25 +765,45 @@ export class GegnerFeld {
     return abstaende(rangliste(e), zn, this.uhr);
   }
 
-  // Leicht-Mitlenken weicht Gegnern aus (Spieler): Seitenversatz (m) zur Ideallinie für race.ap.avoid – 0 ohne Auto voraus,
-  // im Stunt und in der Zone ohne Überholen
-  ausweichen(race) {
-    const M = this.M, i = race.ap.tr.idx, V = VERKEHR;
-    if (M.kein[i] || race.state !== 'running') return 0;
-    const I = this.I, c = race.car.pos;
-    const lat = (c.x - I.px[i]) * I.bx[i] + (c.y - I.py[i]) * I.by[i] + (c.z - I.pz[i]) * I.bz[i];
-    const p = race.tracker.progress();
-    let vor = null, dpMin = Infinity;
-    for (const g of this.fahrer) {
-      if (g.zustand === 'start') continue;
-      const dp = g.fortschritt() - p, gl = g.modus === 'schiene' ? g.versatz : g.latJetzt();
-      if (dp > -2 && dp < V.blick && Math.abs(gl - lat) < V.breite && dp < dpMin) { dpMin = dp; vor = { lat: gl }; }
+  // Leicht-Mitlenken weicht Gegnern aus (Spieler, Fahrhilfe fair): { versatz (m zur Ideallinie, für race.ap.avoid), vCap (m/s,
+  // für race.ap.vCap) }. Auto voraus mit seitlicher Überdeckung: vorbei, wenn Platz ist (Entscheidung mit 100 m Vorschau, nicht
+  // in der Zone ohne Überholen), sonst Abstand halten wie ein sauberer Gegner (nicht in der Anfahrt von Looping/Schanze –
+  // dort braucht das Auto sein Profil-Tempo). Versatz folgt weich (LEICHT_AUSWEICHEN.seitV), ohne Auto voraus zurück auf 0.
+  ausweichen(race, dt = 1 / 120) {
+    const M = this.M, i = race.ap.tr.idx, V = VERKEHR, W = LEICHT_AUSWEICHEN;
+    let ziel = 0, vCap = Infinity;
+    if (race.state === 'running' && !M.stunt[i]) {
+      const I = this.I, c = race.car.pos, v = Math.max(0, race.car.fwdSpeed());
+      const lat = (c.x - I.px[i]) * I.bx[i] + (c.y - I.py[i]) * I.by[i] + (c.z - I.pz[i]) * I.bz[i];
+      const p = race.tracker.progress();
+      let vor = null, dpMin = Infinity;
+      for (const g of this.fahrer) {
+        if (g.zustand === 'start') continue;
+        const dp = g.fortschritt() - p, gl = g.modus === 'schiene' ? g.versatz : g.latJetzt();
+        if (dp > -2 && dp < V.blick && Math.abs(gl - lat) < V.breite && dp < dpMin) { dpMin = dp; vor = { lat: gl, v: g.zustand === 'crash' ? 0 : g.tempo(), idx: g.idx(), crash: g.zustand === 'crash' }; }
+      }
+      if (vor) {
+        const links = vor.lat - W.luecke, rechts = vor.lat + W.luecke;
+        const [blo, bhi] = grenzen(M, i, v);
+        const okL = links >= blo, okR = rechts <= bhi;
+        if (!M.kein[i] && !M.kein[vor.idx] && (okL || okR)) {
+          ziel = okL && okR ? (lat <= vor.lat ? links : rechts) : okL ? links : rechts;
+          if (Math.abs(vor.lat - lat) < V.breite) vCap = Math.max(0, vor.v + (dpMin - V.folgeMin * 0.6) * 1.5);
+        } else {
+          let want = V.folgeMin + v * W.abstand;
+          if (M.mussVor[i] < STUNT_ABSTAND.vor) want = Math.max(want, STUNT_ABSTAND.min + v * STUNT_ABSTAND.t);
+          vCap = Math.max(0, vor.v + (dpMin - want) * V.folgeK);
+        }
+        // gecrashter Gegner: wird gleich zurückgesetzt – nicht auf 0 abbremsen (sonst „Festgefahren“), nur langsam vorbei
+        if (vor.crash) vCap = Math.max(vCap, 8);
+        if (M.nahe[i] > 0) vCap = Infinity;
+      }
+      const [glo, ghi] = grenzen(M, i, v);
+      ziel = Math.max(glo, Math.min(ghi, ziel));
     }
-    if (!vor) return 0;
-    const links = vor.lat - 2.6, rechts = vor.lat + 2.6;
-    const okL = links >= M.lo[i], okR = rechts <= M.hi[i];
-    if (!okL && !okR) return 0;
-    const ziel = okL && okR ? (lat <= vor.lat ? links : rechts) : okL ? links : rechts;
-    return ziel;
+    const d = W.seitV * dt;
+    this.spAvoid = (this.spAvoid || 0) + Math.max(-d, Math.min(d, ziel - (this.spAvoid || 0)));
+    if (race.state !== 'running') this.spAvoid = 0;
+    return { versatz: this.spAvoid, vCap };
   }
 }

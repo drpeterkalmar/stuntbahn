@@ -946,7 +946,8 @@ function schadenSchritt() {
 const gegnerTon = { t: -1 };
 function gegnerSchritt() {
   gegner.step(DT, race);
-  race.ap.avoid = race.assistKey === 'easy' ? gegner.ausweichen(race) : 0;
+  if (race.assistKey === 'easy') { const A = gegner.ausweichen(race, DT); race.ap.avoid = A.versatz; race.ap.vCap = A.vCap; }
+  else { race.ap.avoid = 0; if (race.state === 'running') race.ap.vCap = Infinity; }
   for (const e of gegner.events) {
     if (e.type !== 'stoss') continue;
     if (e.spieler && !e.crash && e.t - gegnerTon.t > 0.25) { gegnerTon.t = e.t; sound.event({ type: 'crash', imp: e.v, v: 0 }); }
