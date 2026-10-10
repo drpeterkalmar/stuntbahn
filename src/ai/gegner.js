@@ -318,13 +318,14 @@ export class GegnerFahrer {
     if (this.aktiv && p > this.aktiv.bis) this.aktiv = null;
     while (this.fe < E.length && p > E[this.fe].bis) this.fe++;
     if (!this.aktiv && this.fe < E.length && p >= E[this.fe].p) {
-      this.aktiv = E[this.fe++]; this.aktivGebremst = false;
+      this.aktiv = E[this.fe++]; this.aktivGebremst = false; this.aktivBezahlt = false;
       // auf der Schiene kostet ein Fehler pauschal Zeit (Physik: Crash + Reset bzw. Verbremser)
       // (Patzer: mit Anteil pCrash ein Crash + Reset, sonst nur ein Verbremser – Anteil aus der Physik-Messung)
       if (this.modus === 'schiene') {
         const patzer = this.aktiv.art === 'patzer', crash = patzer && hash01(this.info.seed, 1000 + this.fe) < SCHIENE.pCrash;
         this.sch.stand += crash ? SCHIENE.verlustCrash : patzer ? SCHIENE.verlustPatzer : SCHIENE.verlustSpaet;
         if (crash) { this.crashes++; this.sch.vNach = 15; if (!this.feld.wreckOn) this.strafen += PENALTY; }
+        this.aktivBezahlt = true;   // wechselt das Auto vor „bis“ in die Physik, wirkt der Fehler dort nicht noch einmal
       }
     }
   }
@@ -340,19 +341,20 @@ export class GegnerFahrer {
     }
     ap.shift = this.versatz;
     ap.vCap = this.vCap;
-    const patzer = this.aktiv && this.aktiv.art === 'patzer' ? this.aktiv.k : 1;
+    const F_ = this.aktivBezahlt ? null : this.aktiv;
+    const patzer = F_ && F_.art === 'patzer' ? F_.k : 1;
     ap.speedScale = this.tempoMod * patzer;
     const c = ap.control(car);
     const idx = ap.tr.idx;
     let thr = c.throttle, brk = c.brake;
     // Brems-Reaktion: verlangt das Profil Bremsen, erst nach reaktion s (bei „zu spät gebremst“ länger) – bis dahin Gas weg
-    const reaktion = this.S.reaktion + (this.aktiv && this.aktiv.art === 'spaet' ? this.aktiv.extra : 0);
+    const reaktion = this.S.reaktion + (F_ && F_.art === 'spaet' ? F_.extra : 0);
     if (brk > 0.05) {
       this.loesT = 0;
       if (!this.bremst) {
         this.bremsT += dt;
         if (this.bremsT < reaktion) { brk = 0; thr = 0; }
-        else { this.bremst = true; if (this.aktiv && this.aktiv.art === 'spaet' && !this.aktivGebremst) { this.aktivGebremst = true; this.panikT = this.aktiv.panik; } }
+        else { this.bremst = true; if (F_ && F_.art === 'spaet' && !this.aktivGebremst) { this.aktivGebremst = true; this.panikT = F_.panik; } }
       }
     } else if (this.bremst) { this.loesT += dt; if (this.loesT > 0.2) { this.bremst = false; this.bremsT = 0; } }
     else this.bremsT = 0;
@@ -508,14 +510,14 @@ export class GegnerFahrer {
     return {
       s: this.car.snapshot(), idx: this.ap.tr.idx, lap: this.ap.tr.lap, sch: { ...this.sch }, modus: this.modus, zustand: this.zustand,
       crashT: this.crashT, crash: this.car.crash, versatz: this.versatz, strafen: this.strafen, crashes: this.crashes, fe: this.fe, aktiv: this.aktiv,
-      fertig: this.fertig, zeit: this.zeit, failS: this.failS, failN: this.failN,
+      fertig: this.fertig, zeit: this.zeit, failS: this.failS, failN: this.failN, aktivGebremst: this.aktivGebremst, aktivBezahlt: this.aktivBezahlt,
     };
   }
   laden(z) {
     this.car.restore(z.s); this.car.crash = z.crash;
     this.ap.tr.reset(z.idx); this.ap.tr.lap = z.lap;
     Object.assign(this.sch, z.sch);
-    Object.assign(this, { modus: z.modus, zustand: z.zustand, crashT: z.crashT, versatz: z.versatz, strafen: z.strafen, crashes: z.crashes, fe: z.fe, aktiv: z.aktiv, fertig: z.fertig, zeit: z.zeit, failS: z.failS, failN: z.failN });
+    Object.assign(this, { modus: z.modus, zustand: z.zustand, crashT: z.crashT, versatz: z.versatz, strafen: z.strafen, crashes: z.crashes, fe: z.fe, aktiv: z.aktiv, fertig: z.fertig, zeit: z.zeit, failS: z.failS, failN: z.failN, aktivGebremst: !!z.aktivGebremst, aktivBezahlt: !!z.aktivBezahlt });
     this.bremst = false; this.bremsT = 0; this.panikT = 0; this.prev = null; this.stuckT = 0; this.offT = 0; this.stuckP = this.fortschritt();
   }
 }
