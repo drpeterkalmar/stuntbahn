@@ -21,7 +21,11 @@ const feld = GO.anzahl ? new GegnerFeld(env, { anzahl: GO.anzahl, staerke: GO.st
 if (feld) feld.spielerAufstellen(race);                           // Spieler auf seinen Rasterplatz (vor dem Countdown)
 // je Physikschritt, NACH dem Schritt des Spielers:
 race.step(dt, input);
-if (feld) { feld.step(dt, race); race.ap.avoid = assist === 'easy' ? feld.ausweichen(race) : 0; }
+if (feld) {
+  feld.step(dt, race);
+  // Leicht (Fahrhilfe fair): Seitenversatz + Abstand halten hinter Gegnern, an denen es nicht vorbeigeht
+  if (assist === 'easy') { const A = feld.ausweichen(race, dt); race.ap.avoid = A.versatz; race.ap.vCap = A.vCap; }
+}
 // HUD (4 Hz): feld.stand(race) → [{ platz, name, nummer, farbe, zeit, vor, hinter, spieler, hochgerechnet }]
 // Ziel: feld läuft nach dem Spieler höchstens NACHLAUF = 10 s weiter, dann feld.abschliessen() (Rest hochgerechnet)
 // Replay: feld.fahrer.map((g) => g.aufnahme()) → { hz: 15, frames, data } (Format des Geisterautos, 8 Floats je Bild)
@@ -37,8 +41,10 @@ Ohne `race` (Server, Messung, KI gegen KI): `feld.step(dt, null, sichtPunkt)`.
 - **Profil der Stunts** (`gegnerProfil`): in Looping/Röhre/Schanze immer volles Profil-Tempo (sonst zu kurz/zu langsam),
   davor Rückwärtslauf mit der Volllast-Beschleunigung, damit das langsamere Auto die Stunt-Anfahrt schafft.
 - **Persönlichkeit** (`CHARAKTERE`): Folge-Abstand, seitlicher Abstand beim Überholen, Wechsel-Tempo, Mut.
-- **Verkehr** (`VERKEHR`, `STUNT_ABSTAND`): Auto voraus mit seitlicher Überdeckung → Überholen per Seitenversatz (innerhalb
-  der Spur-Grenzen 100 m voraus) oder Folgen (Tempo-Deckel); vor Stunts ab 220 m mehr Abstand, im Stunt kein Überholen.
+- **Verkehr** (`VERKEHR`, `STUNT_ABSTAND`, `ENG_FENSTER`): Auto voraus mit seitlicher Überdeckung → Überholen per
+  Seitenversatz (innerhalb der Spur-Grenzen 100 m voraus) oder Folgen (Tempo-Deckel); vor Stunts ab 220 m mehr Abstand, im
+  Stunt kein Überholen. Spieler-Hilfe (Leicht): tempoabhängige Grenzen 30/60/100 m; Gegner machen auf Leicht Platz
+  (`PLATZ_MACHEN`).
 - **Fehler-Plan** (`fehlerPlan`): je Seed vorab festgelegt (Rückspulen-fest, netz-tauglich: nur der Seed muss übertragen werden).
 - **Schiene** (`SCHIENE`): außer Sicht (> 170 m, zurück < 150 m) fährt der Gegner das Profil ohne Raycasts; 60× billiger,
   Zeit im Mittel +0,45 % zur Physik (60 Strecken). Fehler kosten dort pauschal Zeit (`verlustPatzer/Spaet`, `pCrash`).

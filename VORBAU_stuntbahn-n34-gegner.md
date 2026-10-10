@@ -173,6 +173,18 @@ Gegner auch beim Autopilot-Start der Szenen.
 Siehe Abschnitt „Tests“ am Ende (Stand beim Abschluss). `test_hindernisse` (n33) bricht auf Windows nach 43 OK an einem
 `c:`-Import ab – **auf der Basis 169a0f3 identisch** (Windows-Pfad, nicht n34; am Mac prüfen).
 
+## Hinweise für den Heavy-Job
+- **Service-Worker-Liste** (`sw.js`, `tools/update_sw.py`): neue Dateien `src/ai/gegner.js`, `src/game/rennfeld.js`,
+  `src/physics/autoauto.js`, `src/physics/schaden.js`, `src/gfx/gegnervis.js`, `src/gfx/schadenvis.js` müssen in den
+  Offline-Cache (Versionsnummer/Cache-Busting macht der Heavy-Job).
+- `tests/out/n34/*.json` (Mess-Rohdaten) liegen nur auf rog17 (ignoriert); Tabellen oben sind daraus.
+- README-Entwurf (zum Einfügen):
+  > **KI-Gegner (n34):** Im Menü „🏁 Gegner“ 1, 3 oder 5 Gegner zuschalten (Stärke Locker/Ebenbürtig/Profi, Startplatz,
+  > Namen-Schilder, Aufholhilfe). Gegner fahren mit derselben Physik, machen Fehler, überholen nicht in Loopings und
+  > halten Abstand vor Stunts; Berührungen sind auf Leicht sanft, auf Original hart. Rennen mit Gegnern zählen in eine eigene
+  > Bestzeiten-Liste. Link: `?gegner=3&staerke=profi`. **Schaden** (Optionen): Beulen, abfallende Teile, Rauch – auf
+  > Original mit Totalschaden auch mit Fahrfolgen (`?schaden=optik|fahrt`). Technik: `GEGNER.md`.
+
 ## Nicht in diesem Vorbau
 Browser-Abnahme, Screenshots/Collagen, Perf-Messung, Versionsnummer/SW-Cache, Bericht `GEGNER_BERICHT.md`, README-Abschnitt
 (Entwurf: Port-Notiz `GEGNER.md` liegt bei), Asset-Download (Decals).
