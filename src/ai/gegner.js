@@ -20,13 +20,14 @@ export const GEGNER_MAX = 5;
 // Stärke-Profile. tempo = Faktor auf das Profil-Tempo außerhalb der Stunts (Stunts selbst immer mit Profil-Tempo, sonst
 // Sprung zu kurz/Looping zu langsam), reaktion = s bis zum Bremsen, wenn das Profil Bremsen verlangt (vorher Gas weg),
 // streu = Linien-Streuung (m, langsames Rauschen um die Ideallinie), pSpaet = Anteil der Bremszonen mit „zu spät
-// gebremst“ (Reaktion + spaet s), pPatzer = Anteil der Stunts mit „verpatzt“ (Anfahrt zu langsam oder zu schnell),
+// gebremst“ (Reaktion + spaet s, danach panik s Vollbremsung – ohne die war spätes, hartes Bremsen sogar minimal schneller),
+// pPatzer = Anteil der Stunts mit „verpatzt“ (Anfahrt zu langsam oder zu schnell),
 // start = Startplatz des Spielers bei 'auto' (Locker: hinten – man fährt durchs Feld nach vorn).
 // Startwerte, abgestimmt mit tools/gegner_mess.mjs (Ziel: Locker > Ebenbürtig > Profi, Profi ≈ Autopilot ± 5 %).
 export const STAERKEN = {
-  locker: { name: 'Locker', tempo: 0.58, reaktion: 0.35, streu: 1.2, pSpaet: 0.08, spaet: [0.4, 0.8], pPatzer: 0.12, start: 'hinten' },
-  ebenbuertig: { name: 'Ebenbürtig', tempo: 0.76, reaktion: 0.2, streu: 0.7, pSpaet: 0.04, spaet: [0.3, 0.6], pPatzer: 0.05, start: 'mitte' },
-  profi: { name: 'Profi', tempo: 0.975, reaktion: 0.08, streu: 0.3, pSpaet: 0.01, spaet: [0.2, 0.4], pPatzer: 0.01, start: 'mitte' },
+  locker: { name: 'Locker', tempo: 0.58, reaktion: 0.35, streu: 1.2, pSpaet: 0.08, spaet: [0.4, 0.8], panik: [0.4, 0.7], pPatzer: 0.12, start: 'hinten' },
+  ebenbuertig: { name: 'Ebenbürtig', tempo: 0.76, reaktion: 0.2, streu: 0.7, pSpaet: 0.04, spaet: [0.3, 0.6], panik: [0.3, 0.5], pPatzer: 0.05, start: 'mitte' },
+  profi: { name: 'Profi', tempo: 0.975, reaktion: 0.08, streu: 0.3, pSpaet: 0.01, spaet: [0.2, 0.4], panik: [0.2, 0.3], pPatzer: 0.01, start: 'mitte' },
 };
 export const STAERKE_STD = 'ebenbuertig';
 // Persönlichkeit: abstand = Folge-Abstand (s) hinter einem Auto, das man nicht überholen kann/darf, luecke = seitlicher
@@ -49,9 +50,11 @@ export const FAHRER = [
 ];
 // Schiene außerhalb der Sicht: weg ab so viel m Abstand zum Spieler (bzw. zur Kamera), zurück zur Physik unter nah m
 // (Hysterese). k = Beschleunigungs-Anteil (Physik-Autopilot erreicht das Volllast-Beschleunigen nicht ganz – Wert aus
-// dem Vergleich Schiene ↔ Physik in tools/gegner_mess.mjs, Startwert). verlustPatzer/verlustSpaet: Zeit (s), die ein
-// Fehler auf der Schiene kostet (Physik: Crash + Reset bzw. Verbremser).
-export const SCHIENE = { weg: 170, nah: 150, k: 0.9, verlustPatzer: 3.5, verlustSpaet: 0.8, pCrash: 0.5 };
+// dem Vergleich Schiene ↔ Physik in tools/gegner_mess.mjs, Startwert). Fehler auf der Schiene: das Auto steht genau so viele s
+// (verlustCrash bei einem Patzer mit Crash, Anteil pCrash; verlustPatzer ohne Crash; verlustSpaet beim Verbremser) – Werte aus
+// der Physik-Messung (tools/gegner_fehler.mjs, 30 Strecken Locker: Patzer → Crash 5/24 = 21 %, Verbremser ~0 s; Schiene ↔ Physik
+// mit Fehlern +1,1 % / −0,1 % je 15 Strecken, ohne Fehler +0,45 %)
+export const SCHIENE = { weg: 170, nah: 150, k: 0.9, verlustCrash: 4.5, verlustPatzer: 1.6, verlustSpaet: 0.2, pCrash: 0.2 };
 // Verkehr: vorausschauen (m Fortschritt), Breite eines Autos mit Rand (m, Mitte zu Mitte), Zone ohne Überholen vor und
 // hinter Looping/Röhre/Korkenzieher/Sprung/Zickzack (m), Rand zur Fahrbahn-/Spurgrenze (m)
 export const VERKEHR = { blick: 45, breite: 2.3, vorStunt: 70, nachStunt: 25, rand: 1.15, neben: 5.5, folgeK: 1.2, folgeMin: 7, engVoraus: 100 };
@@ -230,7 +233,7 @@ export function fehlerPlan(env, M, P, staerke, seed) {
     for (let j = i; j < n && L.s[j] - L.s[i] < 100; j++) vmin = Math.min(vmin, P.vt[j]);
     if (vmin > v * 0.8 || L.s[i] - last < 120) continue;
     last = L.s[i];
-    if (r() < S.pSpaet) out.push({ p: L.s[i], art: 'spaet', extra: S.spaet[0] + r() * (S.spaet[1] - S.spaet[0]), bis: L.s[i] + 80 });
+    if (r() < S.pSpaet) out.push({ p: L.s[i], art: 'spaet', extra: S.spaet[0] + r() * (S.spaet[1] - S.spaet[0]), panik: S.panik[0] + r() * (S.panik[1] - S.panik[0]), bis: L.s[i] + 80 });
   }
   // Stunts: Anfang jeder Stunt-Zone
   for (let i = 1; i < n; i++) {
@@ -258,7 +261,7 @@ export class GegnerFahrer {
     this.modus = 'physik';       // physik · schiene
     this.sch = { s: 0, idx: 0, lap: 0, v: 0, stand: 0 };
     this.versatz = 0; this.streuZiel = 0; this.vCap = Infinity; this.tempoMod = 1;
-    this.bremst = false; this.bremsT = 0; this.loesT = 0;
+    this.bremst = false; this.bremsT = 0; this.loesT = 0; this.panikT = 0; this.aktivGebremst = false;
     this.crashT = 0; this.crashes = 0; this.strafen = 0; this.failS = -1e9; this.failN = 0;
     this.offT = 0; this.stuckP = -1e9; this.stuckT = 0;
     this.fertig = false; this.zeit = null; this.hochgerechnet = false; this.finT = 0; this.finV = 0;
@@ -315,13 +318,13 @@ export class GegnerFahrer {
     if (this.aktiv && p > this.aktiv.bis) this.aktiv = null;
     while (this.fe < E.length && p > E[this.fe].bis) this.fe++;
     if (!this.aktiv && this.fe < E.length && p >= E[this.fe].p) {
-      this.aktiv = E[this.fe++];
+      this.aktiv = E[this.fe++]; this.aktivGebremst = false;
       // auf der Schiene kostet ein Fehler pauschal Zeit (Physik: Crash + Reset bzw. Verbremser)
       // (Patzer: mit Anteil pCrash ein Crash + Reset, sonst nur ein Verbremser – Anteil aus der Physik-Messung)
       if (this.modus === 'schiene') {
-        const crash = this.aktiv.art === 'patzer' && hash01(this.info.seed, 1000 + this.fe) < SCHIENE.pCrash;
-        this.sch.stand += crash ? SCHIENE.verlustPatzer : SCHIENE.verlustSpaet;
-        if (crash) { this.crashes++; if (!this.feld.wreckOn) this.strafen += PENALTY; }
+        const patzer = this.aktiv.art === 'patzer', crash = patzer && hash01(this.info.seed, 1000 + this.fe) < SCHIENE.pCrash;
+        this.sch.stand += crash ? SCHIENE.verlustCrash : patzer ? SCHIENE.verlustPatzer : SCHIENE.verlustSpaet;
+        if (crash) { this.crashes++; this.sch.vNach = 15; if (!this.feld.wreckOn) this.strafen += PENALTY; }
       }
     }
   }
@@ -346,9 +349,15 @@ export class GegnerFahrer {
     const reaktion = this.S.reaktion + (this.aktiv && this.aktiv.art === 'spaet' ? this.aktiv.extra : 0);
     if (brk > 0.05) {
       this.loesT = 0;
-      if (!this.bremst) { this.bremsT += dt; if (this.bremsT < reaktion) { brk = 0; thr = 0; } else this.bremst = true; }
+      if (!this.bremst) {
+        this.bremsT += dt;
+        if (this.bremsT < reaktion) { brk = 0; thr = 0; }
+        else { this.bremst = true; if (this.aktiv && this.aktiv.art === 'spaet' && !this.aktivGebremst) { this.aktivGebremst = true; this.panikT = this.aktiv.panik; } }
+      }
     } else if (this.bremst) { this.loesT += dt; if (this.loesT > 0.2) { this.bremst = false; this.bremsT = 0; } }
     else this.bremsT = 0;
+    // Verbremser: nach dem verspäteten Einsatz kurz voll in die Eisen (Panik), Gas weg
+    if (this.panikT > 0) { this.panikT -= dt; brk = 1; thr = 0; }
     car.input.steer = c.steer; car.input.throttle = thr; car.input.brake = brk; car.input.hold = this.fertig; car.input.hand = 0;
     car.surfaceKind = L.loop[idx] || L.tube[idx] ? 1 : 0;
     car.haftOff = !!M.haft[idx];
@@ -407,7 +416,7 @@ export class GegnerFahrer {
     const v = Math.min(this.P.vt[j] || 10, 26) * 0.95;
     this.car.place([I.px[j], I.py[j], I.pz[j]], [I.tx[j], I.ty[j], I.tz[j]], [I.nx[j], I.ny[j], I.nz[j]], v);
     this.ap.tr.reset(j); this.ap.tr.lap = lap;
-    this.versatz = 0; this.aktiv = null; this.bremst = false; this.bremsT = 0;
+    this.versatz = 0; this.aktiv = null; this.bremst = false; this.bremsT = 0; this.panikT = 0;
     this.offT = 0; this.stuckT = 0; this.stuckP = fortschritt(L, j, lap);
     this.zustand = this.fertig ? 'ziel' : 'fahrt';
     this.prev = null;
@@ -418,8 +427,9 @@ export class GegnerFahrer {
   // Pose über car.place (keine Raycasts) – so übernimmt die Physik beim Zurückwechseln Lage und Tempo direkt.
   schrittSchiene(dt, F) {
     const I = F.I, Sc = this.sch, n = I.n;
-    if (Sc.stand > 0) { Sc.stand -= dt; Sc.v = Math.max(0, Sc.v - 30 * dt); }
-    else {
+    // Fehler: genau stand s anhalten (Lage bleibt, Tempo danach wie vorher bzw. nach einem Crash Reset-Tempo)
+    if (Sc.stand > 0) { Sc.stand -= dt; if (Sc.stand <= 0 && Sc.vNach != null) { Sc.v = Math.min(Sc.v, Sc.vNach); Sc.vNach = null; } this.schienePose(); return; }
+    {
       const i1 = Math.min(n - 1, Sc.idx + 1);
       const u = I.s[i1] > I.s[Sc.idx] ? Math.max(0, Math.min(1, (Sc.s - I.s[Sc.idx]) / (I.s[i1] - I.s[Sc.idx]))) : 0;
       let vMax = (this.P.vt[Sc.idx] + (this.P.vt[i1] - this.P.vt[Sc.idx]) * u) * this.tempoMod;
@@ -506,7 +516,7 @@ export class GegnerFahrer {
     this.ap.tr.reset(z.idx); this.ap.tr.lap = z.lap;
     Object.assign(this.sch, z.sch);
     Object.assign(this, { modus: z.modus, zustand: z.zustand, crashT: z.crashT, versatz: z.versatz, strafen: z.strafen, crashes: z.crashes, fe: z.fe, aktiv: z.aktiv, fertig: z.fertig, zeit: z.zeit, failS: z.failS, failN: z.failN });
-    this.bremst = false; this.bremsT = 0; this.prev = null; this.stuckT = 0; this.offT = 0; this.stuckP = this.fortschritt();
+    this.bremst = false; this.bremsT = 0; this.panikT = 0; this.prev = null; this.stuckT = 0; this.offT = 0; this.stuckP = this.fortschritt();
   }
 }
 
