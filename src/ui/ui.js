@@ -21,6 +21,7 @@ import { GView } from './gmeter.js';
 import { G_ON } from '../core/gforce.js';
 import { STAERKEN, GEGNER_ANZAHLEN, gegnerOptionen } from '../ai/gegner.js';   // n34 KI-Gegner
 import { STARTPLAETZE } from '../game/rennfeld.js';
+import { SCHADEN_MODI, schadenModus } from '../physics/schaden.js';   // n34-Nachtrag
 
 const $ = (s, r = document) => r.querySelector(s);
 const h = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
@@ -426,6 +427,7 @@ export class UI {
       case 'gstart': S.gegnerStart = v; this.store.save(); this.showGegner(); break;
       case 'gschilder': S.gegnerSchilder = S.gegnerSchilder === false; this.store.save(); this.showGegner(); break;
       case 'gaufhol': S.aufholhilfe = !S.aufholhilfe; this.store.save(); this.showGegner(); break;
+      case 'schaden': S.schaden = v; this.store.save(); this.showSettings(); break;   // n34-Nachtrag, gilt ab dem nächsten Rennen
       case 'trklib': this.showLibrary(); break;
       case 'trkpick': this.fileInput.click(); break;
       case 'trkplay': A.playImported(v); break;
@@ -652,6 +654,9 @@ export class UI {
         ? '<b>An:</b> Crash heißt Wrack wie im Original (Leicht/Mittel: danach 3 s zurückgespult).'
         : `<b>Aus</b> (empfohlen): Crash → sofort zurück auf die Fahrbahn vor dem Stunt, mit Schwung, <b>+${PENALTY} s</b> Zeitstrafe.`}
       Gilt für alle Fahrhilfen; Bestzeiten und Geisterautos werden getrennt gezählt.</p>
+      <div class="lbl">Schaden</div>
+      <div class="seg" data-g="schaden">${Object.entries(SCHADEN_MODI).map(([k, n]) => `<button data-a="schaden" data-v="${k}" class="${schadenModus(location.search, S) === k ? 'on' : ''}">${n}</button>`).join('')}</div>
+      <p class="hint">${{ aus: '<b>Aus:</b> Autos bleiben heil.', optik: '<b>Nur Optik:</b> Beulen an der Aufprallstelle, Spiegel, Stoßstangen, Heckkante und Haube können abfallen, ab starkem Schaden raucht der Motor. Aufs Fahren wirkt sich das nicht aus.', fahrt: '<b>Mit Fahrfolgen:</b> wie Nur Optik; auf <b>Original</b> mit 💥 Totalschaden zieht ein schwer beschädigtes Auto zur Seite und hat weniger Leistung, bei 100 % ist es ein Wrack. Sonst nur Optik.' }[schadenModus(location.search, S)]} Zurückspulen spult den Schaden mit, ein Reset auf die Fahrbahn repariert nichts – erst ein neues Rennen.</p>
       <div class="lbl">Ideallinie</div>
       ${this.lineSeg()}
       <p class="hint">${S.assist === 'original'

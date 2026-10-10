@@ -183,6 +183,26 @@ for (const S of strecken) {
   ok(Math.abs(off) >= 2.2 && off >= M.lo[i] && off <= M.hi[i], `Leicht: Gegner voraus → Ausweich-Versatz ${off.toFixed(2)} m (innerhalb ${M.lo[i].toFixed(1)} … ${M.hi[i].toFixed(1)})`);
 }
 ok(hash01(5, 3) === hash01(5, 3) && hash01(5, 3) !== hash01(5, 4), 'hash01 deterministisch');
+// 12b. Feld mit Schadensmodell: Stöße beschädigen beide Autos (Spieler über spielerSchaden), Rückspulen spult den Schaden mit
+{
+  const { SchadenAuto } = await import('../../src/physics/schaden.js');
+  const S = strecken[0], env = S.env;
+  const race = new Race(env, { assist: 'original', autopilot: true, countdown: 0.2, wreck: true });
+  const F = new GegnerFeld(env, { anzahl: 5, staerke: 'locker', seed: 7, assist: 'original', startplatz: 'hinten', schaden: true, wreckOn: true });
+  const SP = new SchadenAuto(race.car); F.spielerSchaden = SP;
+  F.spielerAufstellen(race);
+  let stossT = null;
+  for (let t = 0; t < 40 && !(stossT != null && t > stossT + 2); t += DT) {
+    race.step(DT, { steer: 0, throttle: 0, brake: 0 }); F.step(DT, race); SP.schritt(F.uhr);
+    if (stossT == null && (SP.S.dellen.length || F.fahrer.some((g) => g.schaden.S.dellen.length))) stossT = t;
+  }
+  const beschaedigt = F.fahrer.filter((g) => g.schaden.S.dellen.length).length + (SP.S.dellen.length ? 1 : 0);
+  ok(F.fahrer.every((g) => g.schaden) && beschaedigt >= 1, `Schaden im Feld: ${beschaedigt} Autos mit Dellen nach ${stossT != null ? stossT.toFixed(1) : '–'} s (Stöße ${F.stoesse})`);
+  const g = F.fahrer.find((x) => x.schaden.S.dellen.length) || F.fahrer[0];
+  const vorher = g.schaden.verlauf.bei(Math.max(0, (stossT ?? 1) - 0.5)).dellen.length;
+  F.zurueck(Math.max(0, (stossT ?? 1) - 0.5));
+  ok(g.schaden.S.dellen.length === vorher, `Rückspulen vor den ersten Stoß: Dellen ${g.schaden.S.dellen.length} (wie damals ${vorher})`);
+}
 // 13. Gegner Aus = bitgleich zum Stand vor n34 (Aufzeichnung + Zeit, Autopilot und gescripteter Spieler, 3 Fahrhilfen)
 {
   const ref = JSON.parse(fs.readFileSync(new URL('./data/gegner_aus_ref.json', import.meta.url), 'utf8'));

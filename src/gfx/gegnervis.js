@@ -6,6 +6,10 @@
 import * as THREE from 'three';
 import { makeCar } from './carmesh.js';
 import { GEGNER_MAX } from '../ai/gegner.js';
+import { schadenZeigen, SCHADEN_NAH as DELLEN_NAH } from './schadenvis.js';   // n34-Nachtrag Schadensmodell
+import { neuerSchaden } from '../physics/schaden.js';
+const HEIL = neuerSchaden();
+let heilV = 0;
 
 export const SCHATTEN_NAH = 60;          // m: weiter weg werfen Gegner keinen Echtzeit-Schatten (Kontaktschatten bleibt)
 export const SCHILD = { hoch: 1.95, weit: 260, nah: 6, breite: 2.6, min: 1.1, max: 7, k: 0.03 };   // m; Größe wächst mit dem Abstand
@@ -32,6 +36,7 @@ export class GegnerVis {
   constructor(scene) {
     this.scene = scene; this.autos = []; this.aktiv = 0; this.schilder = true; this.lods = null;
     this.prev = [];   // Lage vor dem letzten Physikschritt je Gegner (Interpolation)
+    this.truemmer = null;   // gfx/schadenvis.js TruemmerVis (main.js), für abfallende Teile
   }
   // Autos bauen/umfärben für die Fahrer des Felds (async beim ersten Mal; danach sofort)
   async bereit(infos, lods = null) {
@@ -53,6 +58,8 @@ export class GegnerVis {
       if (A.key !== key) { if (A.tag.material.map) A.tag.material.map.dispose(); A.tag.material.map = schildTextur(g.nummer, g.name, g.farbe); A.tag.material.needsUpdate = true; A.key = key; }
     });
     this.aktiv = Math.min(infos.length, this.autos.length);
+    // neues Rennen: Schaden-Darstellung zurück auf heil
+    for (const A of this.autos) if (A.car.schadenVis) schadenZeigen(A.car, HEIL, 'heil' + ++heilV);
     for (let i = this.aktiv; i < this.autos.length; i++) { this.autos[i].car.root.visible = false; this.autos[i].tag.visible = false; }
     this.prev.length = 0;
   }
@@ -84,6 +91,13 @@ export class GegnerVis {
       pose.air = c.onGround === 0 && !c.surfaceKind && !c.crash;
       A.car.root.visible = true;
       A.car.sync(c, 1, pose);
+      // Schaden: Teile immer, Dellen nur nah (dort dann LOD 0)
+      A.dellen = false;
+      if (g.schaden) {
+        const nah = camera.position.distanceTo(A.car.root.position) < DELLEN_NAH;
+        for (const k of schadenZeigen(A.car, g.schaden.S, g.schaden.version, nah)) if (this.truemmer) this.truemmer.wirf(A.car, k, c, g.nummer * 31 + k);
+        A.dellen = nah && g.schaden.S.dellen.length > 0;
+      }
       this.nachbereiten(A, camera, g.zustand === 'crash');
     }
   }
@@ -100,13 +114,20 @@ export class GegnerVis {
       A.car.root.position.set(d[o] + (d[p] - d[o]) * w, d[o + 1] + (d[p + 1] - d[o + 1]) * w, d[o + 2] + (d[p + 2] - d[o + 2]) * w);
       A.car.root.quaternion.copy(qa);
       A.car.root.visible = true;
+      // Schaden zur Replay-Zeit (Verlauf), Dellen nur nah
+      A.dellen = false;
+      if (D.schaden) {
+        const k = D.schaden.verlauf.index(t), nah = camera.position.distanceTo(A.car.root.position) < DELLEN_NAH;
+        schadenZeigen(A.car, D.schaden.verlauf.bei(t, A.sTmp || (A.sTmp = neuerSchaden())), 'r' + k, nah);
+        A.dellen = nah && A.sTmp.dellen.length > 0;
+      }
       this.nachbereiten(A, camera, (d[o + 7] & 1) === 1);
     }
   }
   // LOD, Schatten nur nah, Namensschild
   nachbereiten(A, camera, crash) {
     const r = A.car.root;
-    A.car.updateLod(camera, { min: 1 });   // Gegner nie mit dem vollen Heldenmodell (Dreiecke): ab Mittel-LOD
+    A.car.updateLod(camera, { min: A.dellen ? 0 : 1 });   // Gegner ab Mittel-LOD; nah mit Dellen voll (Dellen nur auf LOD 0)
     const dist = camera.position.distanceTo(r.position);
     const nah = dist < SCHATTEN_NAH;
     if (nah !== A.schatten) { A.schatten = nah; r.traverse((o) => { if (o.isMesh && !o.userData.fx) o.castShadow = nah; }); }

@@ -12,6 +12,7 @@ import { Autopilot } from './autopilot.js';
 import { haftOffAt, zigMask, PENALTY, RESET_DELAY, OFF, FALL } from '../game/race.js';
 import { stoss, HAERTE, HAERTE_JE_STUFE } from '../physics/autoauto.js';
 import { startRaster, spielerSlot, rangliste, Zeitnahme, abstaende, restzeit, fortschritt, zielFortschritt } from '../game/rennfeld.js';
+import { SchadenAuto } from '../physics/schaden.js';
 
 // ---------- Einstellungen ----------
 export const GEGNER_ANZAHLEN = [0, 1, 3, 5];   // Menü „🏁 Gegner“: Aus · 1 · 3 · 5 (URL ?gegner= nimmt 0 … 5)
@@ -248,6 +249,8 @@ export class GegnerFahrer {
     this.prev = null;            // Lage nach dem letzten Schritt (Swept-Test)
     this.rec = new Float32Array(REC.stride * 64); this.recN = 0;
     this.zn = null;
+    // Schadensmodell (n34-Nachtrag, Option ?schaden=): nur Optik bei Gegnern (Fahrfolgen nur für den Spieler auf Original)
+    this.schaden = feld.opt.schaden ? new SchadenAuto(this.car) : null;
   }
 
   // auf den Rasterplatz stellen (Fahrbahnpunkt mit Seitenversatz, im Stand)
@@ -285,6 +288,7 @@ export class GegnerFahrer {
     if (!this.fertig && this.fortschritt() >= F.ziel) this.insZiel(F);
     if (this.fertig) this.finT += dt;
     this.zn.melde(this.fortschritt(), F.uhr);
+    if (this.schaden) this.schaden.schritt(F.uhr);
   }
 
   // Fehler-Plan: aktiver Fehler zwischen p und bis (Runde 0; Rennen sind eine Runde)
@@ -468,7 +472,7 @@ export class GegnerFahrer {
     }
   }
   // Aufzeichnung im Format des Geisterautos (game/ghost.js): { hz, frames, data } – Zeit 0 = Start („Los!“)
-  aufnahme() { return { hz: REC.hz, frames: this.recN, data: this.rec.subarray(0, this.recN * REC.stride), name: this.info.name, farbe: this.info.farbe, nummer: this.nummer }; }
+  aufnahme() { return { hz: REC.hz, frames: this.recN, data: this.rec.subarray(0, this.recN * REC.stride), name: this.info.name, farbe: this.info.farbe, nummer: this.nummer, schaden: this.schaden }; }
 
   // Zustand fürs Rückspulen (Totalschaden an: Uhr läuft mit zurück)
   sichern() {
@@ -490,7 +494,7 @@ export class GegnerFahrer {
 // ---------- das ganze Feld ----------
 // env = { track, world, ideal, prof }. opt: { anzahl, staerke, seed, startplatz, wreckOn, assist ('easy'|'medium'|'original'
 // → Härte der Kollision), aufholhilfe, schiene ('auto'|'nie'|'immer'), kollision (Standard an), fehler (Standard an; aus = ohne
-// Fehler-Plan, für Messungen) }.
+// Fehler-Plan, für Messungen), schaden (Schadensmodell je Gegner, Standard aus) }. spielerSchaden: SchadenAuto des Spielers.
 // Ablauf je Physikschritt (nach race.step): feld.step(dt, race). Ohne race (Node-Messung): feld.step(dt, null, sicht).
 export class GegnerFeld {
   constructor(env, opt = {}) {
@@ -685,6 +689,8 @@ export class GegnerFeld {
       if (!r) continue;
       this.stoesse++;
       if (r.vn > 1.5) this.ereignis({ type: 'stoss', v: r.vn, p: r.p, n: r.n, spieler: !!(A.spieler || B.spieler), crash: r.crash });
+      // Schaden: Stoß für beide Autos (A: Außen-Normale n, B: −n); Spieler über spielerSchaden (main.js)
+      for (const [X, sg] of [[A, 1], [B, -1]]) { const SA = X.g ? X.g.schaden : X.spieler ? this.spielerSchaden : null; if (SA) SA.stoss(r, sg); }
       for (const X of [A, B]) if (X.g && X.car.crash && X.g.zustand !== 'crash') X.g.crash(this);
     }
     for (const g of this.fahrer) g.prev = g.modus === 'physik' ? { ...g.car.pos } : null;
@@ -698,7 +704,7 @@ export class GegnerFeld {
     if (k < 0 || !this.snaps.length) return;
     const sn = this.snaps[k];
     this.snaps.length = k + 1;
-    this.fahrer.forEach((g, i) => { g.laden(sn.g[i]); g.zn.zurueck(sn.uhr); g.recN = Math.min(g.recN, Math.floor(sn.uhr * REC.hz + 1e-6) + 1); });
+    this.fahrer.forEach((g, i) => { g.laden(sn.g[i]); g.zn.zurueck(sn.uhr); g.recN = Math.min(g.recN, Math.floor(sn.uhr * REC.hz + 1e-6) + 1); if (g.schaden) g.schaden.zurueck(sn.uhr); });
     if (this.spielerZn) this.spielerZn.zurueck(sn.uhr);
     this.uhr = sn.uhr;
   }

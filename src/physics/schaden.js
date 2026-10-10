@@ -206,7 +206,8 @@ export function inAuto(car, wx, wy, wz, punkt = true) {
 export class SchadenVerlauf {
   constructor() { this.st = [{ t: -1e9, z: packen(neuerSchaden()) }]; }
   merke(t, S) { while (this.st.length > 1 && this.st[this.st.length - 1].t > t) this.st.pop(); this.st.push({ t, z: packen(S) }); if (this.st.length > 400) this.st.splice(1, 1); }
-  bei(t, S = neuerSchaden()) { let k = this.st.length - 1; while (k > 0 && this.st[k].t > t) k--; return entpacken(this.st[k].z, S); }
+  index(t) { let k = this.st.length - 1; while (k > 0 && this.st[k].t > t) k--; return k; }
+  bei(t, S = neuerSchaden()) { return entpacken(this.st[this.index(t)].z, S); }
 }
 
 // Trümmer (abgefallene Teile): Starrkörper light – Wurf, Drehung, Aufprall auf Boden/Strecke (world.ray), Reibung; nach
