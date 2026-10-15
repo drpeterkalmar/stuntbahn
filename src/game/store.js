@@ -31,7 +31,7 @@ const STUNT_RESET = 26;
 const TUBE_RESET = 29;
 export const IMPORTED_KEY = /^(trk-|sam-|demo-)/;
 // n26: ?stunt=1 (Stunt-Bauwerke wie bis n25) bzw. jeder andere Stunt-Maßstab als der Standard
-const AB_PARAMS = [['auto', 'alt'], ['grip', '1'], ['mgrip', '1'], ['m', 'n16'], ['m', 'n23'], ['antrieb', null], ['breit', 'alt'], ['wiese', 'alt'], ['haft', 'alt'], ['schanze', 'alt'], ['welt', null], ['stunt', null], ['air', null], ['lip', null], ['roehre', 'glatt']];
+const AB_PARAMS = [['auto', 'alt'], ['grip', '1'], ['mgrip', '1'], ['m', 'n16'], ['m', 'n23'], ['antrieb', null], ['breit', 'alt'], ['wiese', 'alt'], ['haft', 'alt'], ['schanze', 'alt'], ['welt', null], ['stunt', null], ['air', null], ['lip', null], ['roehre', 'glatt'], ['cd', 'runde'], ['cdh', null], ['cdn', null]];
 const AB_SCALE = { welt: WORLD_SCALE_DEFAULT, stunt: STUNT_SCALE_DEFAULT };
 export function abMode(search = globalThis.location ? globalThis.location.search : '') {
   if (!search) return false;

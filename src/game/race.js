@@ -5,7 +5,7 @@ import { Car, CAR_DEF, driveAccel, aeroLoad } from '../physics/car.js';
 import { G } from '../physics/air.js';
 import { Autopilot, Tracker } from '../ai/autopilot.js';
 import { WORLD_SCALE, ROAD_HW, TILE, MAT, WIESE } from '../track/defs.js';
-import { HOP, NITRO, NITRO_TOTAL, nitroLevel, hopModel, hopHeightAt } from '../physics/extras.js';
+import { HOP, NITRO, NITRO_TOTAL, nitroLevel, hopModel, hopHeightAt, COOLDOWN } from '../physics/extras.js';
 import { BrakeWarn } from './warn.js';
 import { JumpAssist } from './jumpassist.js';
 import { showKmhMs } from '../core/showspeed.js';
@@ -199,6 +199,10 @@ export class Race {
     this.extrasOn = opts.extras !== false;
     this.autoExtras = !!opts.autoExtras;
     this.charges = { hop: this.extrasOn ? 1 : 0, nitro: this.extrasOn ? 1 : 0 };
+    // seit 15.10.2026 unbegrenzt mit Abklingzeit (COOLDOWN in extras.js): cd = Rest-Sekunden bis wieder bereit
+    // (Nitro zählt erst nach dem Ende der Wirkung); COOLDOWN.on = false (?cd=runde) = alte Regel je 1 pro Runde
+    this.cdMode = COOLDOWN.on;
+    this.cd = { hop: 0, nitro: 0 };
     this.used = { hop: 0, nitro: 0 };
     this.want = { hop: false, nitro: false };
     this.nitroT = -1;       // s seit dem Zünden (< 0: aus)
@@ -415,10 +419,11 @@ export class Race {
     } else if ((L.closed && this.tracker.lap >= 1 && ti >= this.startIdx) || (!L.closed && ti >= L.n - 2)) {
       this.finish();
     }
-    // Start/Ziel überfahren (neue Runde): Extras wieder voll – nicht ansparen, höchstens je 1
+    // Start/Ziel überfahren (neue Runde): Extras wieder voll – nicht ansparen, höchstens je 1 (nur alte Regel ?cd=runde;
+    // sonst lädt die Abklingzeit nach)
     if (this.tracker.lap > this.chargeLap) {
       this.chargeLap = this.tracker.lap;
-      if (this.extrasOn && this.state === 'running' && (!this.charges.hop || !this.charges.nitro)) {
+      if (this.extrasOn && !this.cdMode && this.state === 'running' && (!this.charges.hop || !this.charges.nitro)) {
         this.charges.hop = 1; this.charges.nitro = 1; this.emit('refill');
       }
     }
@@ -463,7 +468,7 @@ export class Race {
     this.snapT += dt;
     if (this.snapT >= 0.1) {
       this.snapT = 0;
-      this.snaps.push({ s: car.snapshot(), time: this.time, cp: this.cpNext, lap: this.tracker.lap, idx: ti, recLen: this.rec.length, apIdx: this.ap.tr.idx, ch: { ...this.charges } });
+      this.snaps.push({ s: car.snapshot(), time: this.time, cp: this.cpNext, lap: this.tracker.lap, idx: ti, recLen: this.rec.length, apIdx: this.ap.tr.idx, ch: { ...this.charges }, cd: { ...this.cd } });
       if (this.snaps.length > 80) this.snaps.shift();
     }
     this.record(dt);
@@ -1044,6 +1049,7 @@ export class Race {
       // Totalschaden an: Uhr und Aufzeichnung zurück – dann auch die Extras wie damals
       this.time = sn.time; this.rec.length = Math.min(this.rec.length, sn.recLen);
       if (sn.ch) Object.assign(this.charges, sn.ch);
+      if (sn.cd) Object.assign(this.cd, sn.cd);
       const fr = this.recFrames();
       this.xev = this.xev.filter((e) => e.f < fr);
       this.crashLog = this.crashLog.filter((e) => e.f < fr);
@@ -1078,6 +1084,14 @@ export class Race {
     if (this.nitroT >= 0) { this.nitroT += dt; if (this.nitroT >= NITRO_TOTAL) this.stopNitro(); }
     car.boost = this.nitroT >= 0 ? nitroLevel(this.nitroT) : 0;
     if (!this.extrasOn) { this.want.hop = this.want.nitro = false; return; }
+    // Abklingzeit: wieder bereit → Ladung 1 (Nitro zählt erst nach dem Ende der Wirkung)
+    if (this.cdMode) {
+      for (const k of ['hop', 'nitro']) {
+        if (this.charges[k] >= 1 || (k === 'nitro' && this.nitroT >= 0)) continue;
+        this.cd[k] -= dt;
+        if (this.cd[k] <= 0) { this.cd[k] = 0; this.charges[k] = 1; this.emit('xready', { k }); }
+      }
+    }
     // Leicht + „Extras automatisch“: nur, solange die Hilfe lenkt (nicht während der Spieler frei fährt)
     if (this.autoExtras && this.assist.autoSpeed && !this.autopilotOnly && !this.manual && this.own < 0.05 && !this.back) this.autoUse(idx);
     if (this.want.nitro) { this.want.nitro = false; this.fireNitro(); }
@@ -1086,8 +1100,8 @@ export class Race {
     if (this.hopChkT <= 0) { this.hopChkT = 0.1; this.hopState = this.hopBlock(idx); }
   }
   fireNitro() {
-    if (this.charges.nitro < 1) { this.emit('xdenied', { k: 'nitro', why: 'empty' }); return; }
-    this.charges.nitro = 0; this.used.nitro++;
+    if (this.charges.nitro < 1) { this.emit('xdenied', { k: 'nitro', why: this.cdMode ? 'cool' : 'empty', left: this.nitroT >= 0 ? NITRO_TOTAL - this.nitroT + this.cd.nitro : this.cd.nitro }); return; }
+    this.charges.nitro = 0; this.used.nitro++; this.cd.nitro = COOLDOWN.nitro;
     this.nitroT = 0;
     this.xev.push({ f: this.recFrames(), k: 'nitro' });
     this.nitroLog.push([this.time, this.time + NITRO_TOTAL]);
@@ -1103,19 +1117,19 @@ export class Race {
   }
   fireHop(idx) {
     const why = this.hopBlock(idx);
-    if (why) { this.emit('xdenied', { k: 'hop', why }); return; }
+    if (why) { this.emit('xdenied', { k: 'hop', why, left: this.cd.hop }); return; }
     this.car.hop(hopModel().lift);
-    this.charges.hop = 0; this.used.hop++;
+    this.charges.hop = 0; this.used.hop++; this.cd.hop = COOLDOWN.hop;
     this.hopState = 'air';
     this.xev.push({ f: this.recFrames(), k: 'hop' });
     this.emit('hop');
   }
-  // Warum geht der Hüpfer gerade nicht? null = geht. 'off' Option aus, 'empty' verbraucht, 'wait' kein Rennen,
+  // Warum geht der Hüpfer gerade nicht? null = geht. 'off' Option aus, 'empty' verbraucht (alte Regel), 'cool' lädt nach, 'wait' kein Rennen,
   // 'air' kein Bodenkontakt, 'lock' Looping/Röhre/Korkenzieher/Schanze (darin oder in Reichweite des Fluges),
   // 'tilt' Fahrbahn zu schräg, 'roof' Brücke/Decke über der Flugbahn
   hopBlock(idx) {
     if (!this.extrasOn) return 'off';
-    if (this.charges.hop < 1) return 'empty';
+    if (this.charges.hop < 1) return this.cdMode ? 'cool' : 'empty';
     const car = this.car;
     if (this.state !== 'running' || car.crash) return 'wait';
     if (car.onGround < HOP.minGround || car.hopUp) return 'air';
@@ -1261,10 +1275,14 @@ export class Race {
     }
     return true;
   }
-  // Anzeige: { hop: null | Sperrgrund, nitro: 'ok' | 'on' | 'empty' | 'off', left: Rest der Wirkung 0 … 1 }
+  // Anzeige: { hop: null | Sperrgrund, nitro: 'ok' | 'on' | 'cool' | 'empty' | 'off', left: Rest der Wirkung 0 … 1,
+  // ph/pn: Ladefortschritt der Abklingzeit 0 … 1 (1 = bereit) }
   xstate() {
-    const nitro = !this.extrasOn ? 'off' : this.nitroT >= 0 ? 'on' : this.charges.nitro ? 'ok' : 'empty';
-    return { hop: this.extrasOn ? (this.charges.hop ? this.hopState : 'empty') : 'off', nitro, left: this.nitroT >= 0 ? 1 - this.nitroT / NITRO_TOTAL : 0, boost: this.car.boost };
+    const empty = this.cdMode ? 'cool' : 'empty';
+    const nitro = !this.extrasOn ? 'off' : this.nitroT >= 0 ? 'on' : this.charges.nitro ? 'ok' : empty;
+    const prog = (k) => this.charges[k] ? 1 : COOLDOWN[k] > 0 ? Math.min(1, Math.max(0, 1 - this.cd[k] / COOLDOWN[k])) : 1;
+    return { hop: this.extrasOn ? (this.charges.hop ? this.hopState : empty) : 'off', nitro, left: this.nitroT >= 0 ? 1 - this.nitroT / NITRO_TOTAL : 0, boost: this.car.boost,
+      ph: prog('hop'), pn: this.nitroT >= 0 ? 0 : prog('nitro'), sh: this.charges.hop ? 0 : this.cd.hop, sn: this.charges.nitro ? 0 : this.cd.nitro };
   }
 
   requestRewind() {

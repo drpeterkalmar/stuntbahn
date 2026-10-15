@@ -48,7 +48,10 @@ spielbar am Handy (quer oder hochkant), mit Gamepad oder Tastatur. Als App insta
   Instrumente bzw. Tempo digital im HUD (Details: `BEDIENUNG_BERICHT.md`).
 - **Replay** der letzten Fahrt mit Verfolger-, Cockpit-, Hubschrauber-, Strecken- und Stoßstangenkamera (Stoßstange seit
   29.09.2026 vor der Frontschürze, freie Sicht ohne Karosserie-Striche).
-- **Extras je Runde (seit 28.09.2026): 1× Hüpfer 🦘 und 1× Nitro 🔥**, an Start/Ziel wieder voll. Hüpfer: ~3,5 m hoch aus der
+- **Extras unbegrenzt mit Abklingzeit (seit 15.10.2026; vorher 28.09.–15.10. je 1 pro Runde): Hüpfer 🦘 und Nitro 🔥 so oft
+  du willst** – nach jedem Einsatz füllt sich am Knopf ein Ring: Hüpfer 3 s ab Absprung (~1 s nach der Landung wieder
+  bereit), Nitro 5 s nach dem Ausbrennen (Zünden alle ~8,7 s). Regler: `?cdh=` / `?cdn=` (Sekunden), `?cd=runde` = alte
+  Regel (je 1 pro Runde, an Start/Ziel wieder voll); A/B-Links werten nicht. Hüpfer: ~3,5 m hoch aus der
   Fahrt, Auto bleibt waagrecht, nur mit Bodenkontakt, in Looping/Röhre/Korkenzieher und an Schanzen gesperrt. Nitro: 3 s
   +70–80 % Beschleunigung (Vmax ~700 statt 586 km/h), dann 0,7 s weich zurück, mit Flammen, Tempo-Streifen, weiterem
   Sichtfeld und Fauchen. Auf Leicht nutzt der Autopilot sie auf Wunsch selbst („Extras automatisch“). Abschaltbar
@@ -68,6 +71,15 @@ spielbar am Handy (quer oder hochkant), mit Gamepad oder Tastatur. Als App insta
   und Bauernhöfe in der Ferne, Wald am Bergkranz, wandernde Wolkenschatten, Wasser mit Wellen. Keine Kollision, immer mit
   Abstand zu jeder Fahrbahn (auch Hochstraßen/Rampen), nie im Wasser. Dosiert nach Grafikstufe; ruckelt es, blendet die
   Automatik (nach der Unschärfe) zuerst Gras/Büsche/Wolkenschatten aus. `?deko=aus` (bis n29 `?deko=0`) / `?wolken=0` zum Vergleich.
+
+## 🔥 Hüpfer & Nitro unbegrenzt mit Abklingzeit (seit 15.10.2026)
+
+Peter: „unlimitierte Nitros und Sprünge mit Cooldown“. Statt je 1× pro Runde gehen 🦘 und 🔥 jetzt beliebig oft; nach jedem
+Einsatz lädt der Knopf nach (Ring füllt sich in der Knopffarbe, Symbol gedämpft; bereit = Knopf leuchtet kurz auf). Hüpfer 3 s
+ab Absprung, Nitro 5 s nach dem Ausbrennen. Wer zu früh drückt, sieht „lädt nach – noch N s“. Sperren des Hüpfers (Looping,
+Röhre, Korkenzieher, Schanze, Decke, Schräglage, Luft) bleiben. Leicht mit „Extras automatisch“ nutzt die Abklingzeit mit.
+Werte in `src/physics/extras.js` (`COOLDOWN`), Regler `?cdh=`, `?cdn=`, `?cd=runde` (alte Regel). Bestzeiten-Listen
+bleiben (mit Extras wird man jetzt meist schneller). Test: `tests/node/test_extras.mjs` Abschnitt B2.
 
 ## 🌧️🌙 Wetter, Abend/Nacht, schönere Kulissen und Zuschauer (seit 09.10.2026, n32)
 - Peter: „Regen- und Schneewetter (fürs Erste nur Kosmetik), mehr und schönere Kulissen und Zuschauer“ + Nachtmodus.

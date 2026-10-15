@@ -7,7 +7,7 @@ import { Replay } from '../../src/game/replay.js';
 import { parseTrk } from '../../src/track/trk.js';
 import { trkToLayout } from '../../src/track/trkimport.js';
 import { SHOWCASE, showcaseBytes } from '../../src/track/showcase.js';
-import { NITRO, NITRO_TOTAL, nitroLevel, hopModel } from '../../src/physics/extras.js';
+import { NITRO, NITRO_TOTAL, nitroLevel, hopModel, COOLDOWN, setCooldown } from '../../src/physics/extras.js';
 import { hopRun, accelAt, runFor, vmax } from '../../tools/extras_measure.mjs';
 import { easyLap } from '../../tools/extras_batch.mjs';
 import { daySeed } from '../../src/core/util.js';
@@ -72,20 +72,50 @@ console.log('--- B: Ladungen ---');
   run(0.3);
   const vy = race.car.v.y;
   race.requestHop(); run(DT * 2);
-  check(events(race, 'hop').length === 1 && Math.abs(race.car.v.y - vy) < 3 && events(race, 'xdenied').some((e) => e.k === 'hop' && e.why === 'empty'), `zweiter Hüpfer-Druck wirkungslos (Scheitel des ersten ${f2(apex - y0)} m, Neigung höchstens ${f2(tilt)}°)`);
+  check(events(race, 'hop').length === 1 && Math.abs(race.car.v.y - vy) < 3 && events(race, 'xdenied').some((e) => e.k === 'hop' && e.why === 'cool'), `zweiter Hüpfer-Druck in der Abklingzeit wirkungslos (Scheitel des ersten ${f2(apex - y0)} m, Neigung höchstens ${f2(tilt)}°)`);
   race.requestNitro(); run(0.05);
   check(race.charges.nitro === 0 && race.nitroT > 0 && events(race, 'nitro').length === 1, 'Nitro gezündet → Ladung 0, Wirkung läuft');
   const tBefore = race.nitroT;
   race.requestNitro(); run(0.05);
-  check(events(race, 'nitro').length === 1 && race.nitroT > tBefore && events(race, 'xdenied').some((e) => e.k === 'nitro' && e.why === 'empty'), 'zweiter Nitro-Druck wirkungslos (verbraucht, Wirkung nicht neu gestartet)');
+  check(events(race, 'nitro').length === 1 && race.nitroT > tBefore && events(race, 'xdenied').some((e) => e.k === 'nitro' && e.why === 'cool'), 'zweiter Nitro-Druck während der Wirkung wirkungslos (Wirkung nicht neu gestartet)');
   run(NITRO_TOTAL);
   check(race.car.boost === 0 && race.nitroT < 0, `Nitro nach ${NITRO_TOTAL} s aus`);
   check(race.crashes === 0, 'dabei kein Crash');
 }
 
-console.log('--- C: an Start/Ziel wieder voll ---');
+console.log('--- B2: unbegrenzt mit Abklingzeit (Peter 15.10.2026) ---');
 {
+  check(COOLDOWN.on && COOLDOWN.hop === 3 && COOLDOWN.nitro === 5, `Standard: Abklingzeit an, Hüpfer ${COOLDOWN.hop} s, Nitro ${COOLDOWN.nitro} s nach dem Ausbrennen`);
   const { race, run } = raceAt(demo);
+  run(1.2);
+  race.requestNitro(); run(0.05);
+  check(race.charges.nitro === 0 && race.xstate().nitro === 'on', 'Nitro 1 gezündet');
+  run(NITRO_TOTAL + COOLDOWN.nitro - 0.3);
+  check(race.charges.nitro === 0 && race.xstate().nitro === 'cool' && race.xstate().pn > 0.85 && race.xstate().pn < 1, `kurz vor Ende der Abklingzeit noch nicht bereit (Ring ${Math.round(race.xstate().pn * 100)} %)`);
+  run(0.4);
+  check(race.charges.nitro === 1 && race.xstate().nitro === 'ok' && events(race, 'xready').some((e) => e.k === 'nitro'), 'nach Wirkung + Abklingzeit wieder bereit, Ereignis „xready“');
+  race.requestNitro(); run(0.05);
+  check(events(race, 'nitro').length === 2 && race.used.nitro === 2, 'zweiter Nitro in derselben Runde gezündet');
+  run(NITRO_TOTAL + COOLDOWN.nitro + 0.1); race.requestNitro(); run(0.05);
+  check(events(race, 'nitro').length === 3 && race.tracker.lap === 0, `dritter Nitro, immer noch Runde 1 (unbegrenzt)`);
+  // Hüpfer: Abklingzeit ab Absprung
+  const { race: r2, run: run2 } = raceAt(demo);
+  run2(1.2);
+  r2.requestHop(); run2(DT * 2);
+  check(r2.used.hop === 1 && r2.xstate().hop === 'cool', 'Hüpfer 1, Knopf lädt nach');
+  run2(COOLDOWN.hop + 0.1);
+  check(r2.charges.hop === 1 && r2.car.onGround >= 2, `nach ${COOLDOWN.hop} s wieder bereit und gelandet`);
+  r2.hopChkT = 0; run2(DT * 2);
+  if (r2.hopBlock(r2.ap.tr.idx) === null) { r2.requestHop(); run2(DT * 2); }
+  check(r2.used.hop === 2, 'zweiter Hüpfer ausgelöst');
+  check(r2.crashes === 0 && race.crashes === 0, 'dabei kein Crash');
+}
+
+console.log('--- C: alte Regel (?cd=runde): an Start/Ziel wieder voll ---');
+{
+  setCooldown({ on: false });
+  const { race, run } = raceAt(demo);
+  setCooldown({ on: true });
   run(1);
   race.requestHop(); race.requestNitro(); run(0.1);
   check(race.charges.hop === 0 && race.charges.nitro === 0, 'beide verbraucht');

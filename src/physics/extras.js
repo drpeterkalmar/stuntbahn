@@ -30,6 +30,24 @@ export function nitroLevel(t) {
 }
 export const NITRO_TOTAL = NITRO.dur + NITRO.fade;
 
+// Abklingzeit (Peter 15.10.2026: „unlimitierte Nitros und Sprünge mit Cooldown“) – ersetzt „je 1 pro Runde, an
+// Start/Ziel wieder voll“ (28.09.–15.10.2026). Hüpfer: COOLDOWN.hop s ab dem Absprung (Flug ~2 s → ~1 s nach der
+// Landung wieder bereit). Nitro: COOLDOWN.nitro s ab dem ENDE der Wirkung (Zünden alle ~NITRO_TOTAL + nitro s).
+// URL: ?cdh=… / ?cdn=… (Sekunden), ?cd=runde = alte Regel (je 1 pro Runde).
+function urlCd(k) {
+  const s = globalThis.location && globalThis.location.search;
+  if (!s) return null;
+  const v = new URLSearchParams(s).get(k);
+  return v == null || v === '' ? null : v;
+}
+const clampCd = (v, d) => { const x = parseFloat(v); return Number.isFinite(x) ? Math.min(60, Math.max(0, x)) : d; };
+export const COOLDOWN = {
+  on: urlCd('cd') !== 'runde',      // false = alte Regel: je 1 pro Runde, an Start/Ziel wieder voll
+  hop: clampCd(urlCd('cdh'), 3),    // s ab Absprung
+  nitro: clampCd(urlCd('cdn'), 5),  // s ab Ende der Nitro-Wirkung
+};
+export function setCooldown(o) { Object.assign(COOLDOWN, o); }
+
 // Senkrechter Flug des Hüpfers ab Absprung-Tempo v0 (m/s), integriert wie die Physik (120 Hz, Luft-Schwerkraft
 // mit Verzögerung/Einblendung, ohne Luftwiderstand senkrecht): { t: [], y: [] } bis zur Rückkehr auf y = 0.
 export function hopFlight(v0, dt = 1 / 120) {

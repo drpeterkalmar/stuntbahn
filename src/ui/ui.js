@@ -5,7 +5,7 @@ import { DIFFS } from '../track/generator.js';
 import { PAINTS } from '../gfx/carmesh.js';
 import { PIECES } from '../track/pieces.js';
 import { LINE_LEVELS } from '../gfx/lineviz.js';
-import { NITRO } from '../physics/extras.js';
+import { NITRO, COOLDOWN } from '../physics/extras.js';
 import { BLUR_LEVELS } from '../gfx/post.js';
 import { parseTrk } from '../track/trk.js';
 import { trkToLayout } from '../track/trkimport.js';
@@ -577,7 +577,7 @@ export class UI {
       <div class="lbl">Extras</div>
       <div class="row">${onoff('extras', '🦘🔥 Hüpfer & Nitro')}${S.extras ? onoff('autoExtras', '🤖 Extras automatisch (Leicht)') : ''}</div>
       <p class="hint">${S.extras
-        ? `Je Runde <b>1× Hüpfer</b> (🦘, ~3,5 m hoch, nur mit Bodenkontakt, nicht in Looping/Röhre/Korkenzieher/an Schanzen) und <b>1× Nitro</b> (🔥, ${NITRO.dur} s kräftiger Schub). An Start/Ziel wieder voll. <span class="desk">Leertaste / Shift oder N, </span>Gamepad B / RB.${S.autoExtras ? ' Auf <b>Leicht</b> zündet der Autopilot den Nitro auf der längsten Geraden und hüpft nur, wo es sicher ist (über Bodenwellen) – du kannst jederzeit selbst drücken.' : ''}`
+        ? `${COOLDOWN.on ? `<b>Hüpfer</b> (🦘, ~3,5 m hoch, nur mit Bodenkontakt, nicht in Looping/Röhre/Korkenzieher/an Schanzen) und <b>Nitro</b> (🔥, ${NITRO.dur} s kräftiger Schub) so oft du willst – nach jedem Einsatz lädt der Knopf kurz nach (Hüpfer ${COOLDOWN.hop} s, Nitro ${COOLDOWN.nitro} s nach dem Ausbrennen).` : `Je Runde <b>1× Hüpfer</b> (🦘, ~3,5 m hoch, nur mit Bodenkontakt, nicht in Looping/Röhre/Korkenzieher/an Schanzen) und <b>1× Nitro</b> (🔥, ${NITRO.dur} s kräftiger Schub). An Start/Ziel wieder voll.`} <span class="desk">Leertaste / Shift oder N, </span>Gamepad B / RB.${S.autoExtras ? ' Auf <b>Leicht</b> zündet der Autopilot den Nitro auf der längsten Geraden und hüpft nur, wo es sicher ist (über Bodenwellen) – du kannst jederzeit selbst drücken.' : ''}`
         : '<b>Aus:</b> ohne Hüpfer und Nitro wie im Original. Bestzeiten mit und ohne Extras werden getrennt gezählt.'}</p>
       <div class="lbl">Autopilot-Fahrstil (Leicht)</div>
       ${this.fahrstilSeg()}
@@ -618,7 +618,7 @@ export class UI {
       <p><i>Mittel/Original</i>: links ◀ ▶ lenken, rechts GAS und BREMSE (hochkant alle unten in einer Reihe). Bremse im Stand = Rückwärtsgang.</p>
       <p><b>Tastatur:</b> Pfeile oder WASD (bremsen: Pfeil runter/S), <b>Leertaste</b> Hüpfer, <b>Shift</b> oder <b>N</b> Nitro, <b>R</b> zurückspulen, <b>C</b> Kamera (Verfolger, Cockpit, Hubschrauber, Stoßstange, Strecke), <b>L</b> Ideallinie ein/aus, <b>Esc</b> Pause.</p>
       <p><b>Gamepad:</b> linker Stick lenken, RT/A Gas, LT/X Bremse, <b>B</b> Hüpfer, <b>RB</b> Nitro, Y zurückspulen, LB Kamera, Back Ideallinie, Start Pause.</p>
-      <p><b>Extras 🦘 🔥</b> (je 1 pro Runde, an Start/Ziel wieder voll): <b>Hüpfer</b> – das Auto springt aus der Fahrt ~3,5 m hoch und bleibt dabei waagrecht; nur mit Bodenkontakt, in Looping, Röhre, Korkenzieher und an Schanzen gesperrt (Knopf ausgegraut). <b>Nitro</b> – ${NITRO.dur} s lang deutlich mehr Schub (+70–80 % Beschleunigung, bis ~700 km/h), danach sanft zurück. Handy: runde Knöpfe über den Daumen (links 🦘, rechts 🔥). Abschaltbar in den Optionen.</p>
+      <p><b>Extras 🦘 🔥</b> (${COOLDOWN.on ? `unbegrenzt, nach jedem Einsatz lädt der Knopf nach – Ring füllt sich: Hüpfer ${COOLDOWN.hop} s, Nitro ${COOLDOWN.nitro} s nach dem Ausbrennen` : 'je 1 pro Runde, an Start/Ziel wieder voll'}): <b>Hüpfer</b> – das Auto springt aus der Fahrt ~3,5 m hoch und bleibt dabei waagrecht; nur mit Bodenkontakt, in Looping, Röhre, Korkenzieher und an Schanzen gesperrt (Knopf ausgegraut). <b>Nitro</b> – ${NITRO.dur} s lang deutlich mehr Schub (+70–80 % Beschleunigung, bis ~700 km/h), danach sanft zurück. Handy: runde Knöpfe über den Daumen (links 🦘, rechts 🔥). Abschaltbar in den Optionen.</p>
       <p><b>Tacho & G-Kräfte:</b> Der Tacho ist ein <i>Show-Tacho</i> – langsame Tempi zeigt er größer (echte 40 km/h stehen als ~${Math.round(showKmh(40))}), ab 250 km/h zeigt er genau. Auf der Wiese (echt höchstens 30 km/h) steht deshalb ~${Math.round(showKmh(30) / 5) * 5}. Das G-Meter (Cockpit, Replay, Highlights) zeigt die Kräfte aufs Auto: Punkt = Kurve/Bremsen/Gas, Zahl = gesamt, „max“ = Spitze der Runde.</p>
       <p><b>Crash:</b> Standardmäßig kein Totalschaden – das Auto steht sofort wieder auf der Fahrbahn vor dem Stunt, mit Schwung, und du bekommst <b>+${PENALTY} s</b> auf die Zeit. Klappt ein Stunt mehrmals nicht, wirst du dahinter gesetzt (auch dann je +${PENALTY} s). Wer es hart mag: Optionen → <b>💥 Totalschaden</b> (Wrack wie im Original).</p>
       <p><b>⏪ Zurückspulen</b> (Leicht/Mittel): 3 s zurück, um einen Crash zu vermeiden. Ohne Totalschaden läuft die Uhr dabei weiter – es kostet die Zeit, die du neu fährst, aber keine Strafe.</p>
@@ -684,16 +684,19 @@ export class UI {
       $('#hud .gear').textContent = race.car.fwdSpeed() < -0.5 ? 'R' : race.car.gear;
       $('#hud .cp').textContent = race.cps.length ? `CP ${Math.min(race.cpNext, race.cps.length)}/${race.cps.length}` : '';
     }
-    // Extras-Knöpfe: voll / verbraucht (grau) / gerade gesperrt (grau) / Nitro brennt (Ring = Restzeit)
+    // Extras-Knöpfe: bereit / lädt nach (Ring füllt sich, seit 15.10.) / verbraucht (alte Regel, grau) / gerade gesperrt
+    // (grau) / Nitro brennt (Ring = Restzeit)
     const X = race.xstate();
-    const hs = X.hop === 'off' ? 'off' : X.hop === 'empty' ? 'empty' : X.hop && X.hop !== 'wait' ? 'lock' : 'ok';
-    const key = hs + '|' + X.nitro + '|' + (X.nitro === 'on' ? Math.round(X.left * 40) : 0);
+    const hs = X.hop === 'off' ? 'off' : X.hop === 'empty' ? 'empty' : X.hop === 'cool' ? 'cool' : X.hop && X.hop !== 'wait' ? 'lock' : 'ok';
+    const key = hs + '|' + X.nitro + '|' + (X.nitro === 'on' ? Math.round(X.left * 40) : 0) + '|' + (hs === 'cool' ? Math.round(X.ph * 40) + ':' + Math.ceil(X.sh) : 0) + '|' + (X.nitro === 'cool' ? Math.round(X.pn * 40) + ':' + Math.ceil(X.sn) : 0);
     if (key !== this._x) {
       this._x = key;
       const H = $('#hud .xb.hop'), N = $('#hud .xb.nitro');
       H.className = 'xb hop ' + hs + (H.classList.contains('glow') ? ' glow' : '') + (H.classList.contains('press') ? ' press' : '');
       N.className = 'xb nitro ' + X.nitro + (N.classList.contains('glow') ? ' glow' : '') + (N.classList.contains('press') ? ' press' : '');
-      N.style.setProperty('--p', X.nitro === 'on' ? X.left.toFixed(3) : '0');
+      N.style.setProperty('--p', X.nitro === 'on' ? X.left.toFixed(3) : X.nitro === 'cool' ? X.pn.toFixed(3) : '0');
+      H.style.setProperty('--p', hs === 'cool' ? X.ph.toFixed(3) : '0');
+      H.dataset.s = hs === 'cool' ? Math.max(1, Math.ceil(X.sh)) : ''; N.dataset.s = X.nitro === 'cool' ? Math.max(1, Math.ceil(X.sn)) : '';
       H.setAttribute('aria-disabled', hs === 'ok' ? 'false' : 'true');
       N.setAttribute('aria-disabled', X.nitro === 'ok' ? 'false' : 'true');
     }
@@ -720,9 +723,15 @@ export class UI {
       this.toast('🦘 🔥 wieder voll');
       for (const b of document.querySelectorAll('#hud .xb')) { b.classList.remove('glow'); void b.offsetWidth; b.classList.add('glow'); }
       clearTimeout(this._gt); this._gt = setTimeout(() => { for (const b of document.querySelectorAll('#hud .xb')) b.classList.remove('glow'); this._x = null; }, 1300);
+    } else if (e.type === 'xready') {
+      // Abklingzeit vorbei: nur der eine Knopf leuchtet kurz auf (kein Text, kommt oft)
+      const b = $('#hud .xb.' + e.k);
+      if (b) { b.classList.remove('glow'); void b.offsetWidth; b.classList.add('glow'); clearTimeout(b._gt); b._gt = setTimeout(() => { b.classList.remove('glow'); this._x = null; }, 1300); }
     } else if (e.type === 'xdenied') {
+      const sec = e.left > 0 ? ` – noch ${Math.max(1, Math.ceil(e.left))} s` : '';
       const T = {
         empty: e.k === 'hop' ? '🦘 Hüpfer verbraucht – an Start/Ziel wieder voll' : '🔥 Nitro verbraucht – an Start/Ziel wieder voll',
+        cool: e.k === 'hop' ? `🦘 Hüpfer lädt nach${sec}` : `🔥 Nitro lädt nach${sec}`,
         lock: '🦘 Nicht in Looping, Röhre, Korkenzieher oder an der Schanze', air: '🦘 Hüpfer nur mit Bodenkontakt', roof: '🦘 Zu wenig Platz nach oben', tilt: '🦘 Fahrbahn zu schräg',
       };
       if (T[e.why]) this.toast(T[e.why], 1600);
@@ -794,7 +803,7 @@ export class UI {
     const dk = new URLSearchParams(location.search).get('deko') !== '0' ? ` deko${res.isBest && !res.ab && !res.easy ? ' gold' : ''}` : '';
     $('#result').innerHTML = `<div class="card${dk}"><h2>🏁 Ziel!</h2>${res.easy ? '<div class="ryour">Deine Zeit</div>' : ''}
       <div class="rtime">${fmtTime(res.time)}</div>${pen}${best}
-      <div class="rmeta">${A.icon} ${A.name} · ${race.wreckOn ? '💥 Totalschaden an' : 'Totalschaden aus'} · ${race.extrasOn ? `Extras: 🦘 ${race.used.hop ? '✓' : '–'} 🔥 ${race.used.nitro ? '✓' : '–'}` : 'ohne Extras'} · ${env.meta.name} (${env.meta.key}) · Crashs ${race.crashes}${race.rewinds ? ' · Rückspulen ' + race.rewinds : ''}</div>
+      <div class="rmeta">${A.icon} ${A.name} · ${race.wreckOn ? '💥 Totalschaden an' : 'Totalschaden aus'} · ${race.extrasOn ? (race.cdMode ? `Extras: 🦘 ${race.used.hop}× 🔥 ${race.used.nitro}×` : `Extras: 🦘 ${race.used.hop ? '✓' : '–'} 🔥 ${race.used.nitro ? '✓' : '–'}`) : 'ohne Extras'} · ${env.meta.name} (${env.meta.key}) · Crashs ${race.crashes}${race.rewinds ? ' · Rückspulen ' + race.rewinds : ''}</div>
       <div class="row"><button class="big go" data-a="retry">🔁 Nochmal</button><button data-a="replay">📼 Replay</button>${race.film ? '<button data-a="cine">🎬 Highlights</button>' : ''}</div>
       <div class="row">${race.film && clipMime() ? (this.lastClip ? `<button data-a="clipshare">📤 Video (${(this.lastClip.blob.size / 1e6).toFixed(1).replace('.', ',')} MB)</button>` : '<button data-a="cliprec">🎥 Als Video</button>') : ''}<button data-a="next">🎲 Neue Strecke</button><button data-a="menu">☰ Menü</button></div></div>`;
     this.show('result');
