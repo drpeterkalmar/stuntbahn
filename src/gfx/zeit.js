@@ -8,6 +8,7 @@
 //  - Scheinwerfer am Auto: ein echtes SpotLight (main.js), zwei Leuchtpunkte vorn.
 // „Tag“ setzt alle Uniforms auf 0 → Bild wie bis n31/Wetter.
 import * as THREE from 'three';
+import { TUNNEL_LOOK, tunnelLaeufe, portale } from '../track/tunnel.js';
 import { zeitSonne } from '../track/zeit.js';
 
 export const zeitUniforms = {
@@ -218,6 +219,15 @@ export function planNachtLichter(track, plan, gy, themeId) {
     const p = plan.portal;
     pool(p.x, p.z, 34, KALT, 1.2);
     for (const s of [-1, 1]) { glow(p.x + p.tz * s * 9, p.y + 10.6, p.z - p.tx * s * 9, 2.2, KALT, 6); refl.push([p.x + p.tz * s * 9, p.y + 10.6, p.z - p.tx * s * 9, 0.6]); }
+  }
+  // n33: Tunnel-Portale angestrahlt (zwei Strahler über der Öffnung, Lichtfläche auf Wand und Zufahrt)
+  if (TUNNEL_LOOK.an) for (const p of portale(tunnelLaeufe(track), true)) {
+    pool(p.x + p.ox * 9, p.z + p.oz * 9, 22, KALT, 1.0);
+    for (const sg of [-1, 1]) {
+      const r = sg * p.R.tw * 0.75, x = p.x + p.ox * 1.4 + p.R.B[0] * r, z = p.z + p.oz * 1.4 + p.R.B[1] * r;
+      glow(x, p.y + p.Yt - 0.9, z, 1.5, KALT, 5);
+      refl.push([x, p.y + p.Yt - 0.9, z, 0.5]);
+    }
   }
   // Tribünen: Lampenreihe am Dach (bzw. oben an der Rückwand), warmes Licht auf Sitzreihen und Vorplatz
   for (const st of P.stand || []) {

@@ -72,6 +72,22 @@ spielbar am Handy (quer oder hochkant), mit Gamepad oder Tastatur. Als App insta
   Abstand zu jeder Fahrbahn (auch Hochstraßen/Rampen), nie im Wasser. Dosiert nach Grafikstufe; ruckelt es, blendet die
   Automatik (nach der Unschärfe) zuerst Gras/Büsche/Wolkenschatten aus. `?deko=aus` (bis n29 `?deko=0`) / `?wolken=0` zum Vergleich.
 
+## 🚇 Tunnel sehen aus wie Tunnel (seit 18.10.2026, n33 Etappe 0)
+Peter 09.10.: „Tunneleinfahrt sieht aus wie eine Wand“. Ursache: Das Gelände ist ein Höhenfeld im 5-m-Raster – am Portal
+sprang es zwischen zwei Rasterpunkten von der Zufahrt auf den Hügel und lag als schräge Felsfläche quer in der Öffnung.
+- **Öffnung frei:** Um jedes Gelände-Portal ersetzt ein feineres Netz die Rasterzellen (vor der Wand Einschnitt unter der
+  Fahrbahn, dahinter Hügel über dem Gewölbe, dazwischen ein Schlitz hinter der Portalwand). Ränder exakt wie die
+  Nachbarzellen (keine Risse), ~1 400 Punkte je Portal.
+- **Portal als Bauwerk:** neue helle Beton-Stirnwand vor der alten (Kollision unverändert), Wandstärke an der Bogenkante,
+  dunklerer Rand an der Öffnung, Gesims oben, gelb-schwarze Warnstreifen an den Leibungen.
+- **Innen dunkel:** Himmels-/Umgebungslicht 20 %, Sonne aus, weicher Verlauf über 11 m hinter dem Portal; Leuchtbänder
+  an der Decke alle 12 m (leuchten in den Bloom), Lichtpfützen darunter; Nebel im Tunnel fast aus; Lack und Cockpit
+  spiegeln im Tunnel weniger Himmel. Nachts: Portal von zwei Strahlern angeleuchtet. Auch die .TRK-Kastentunnel sind
+  innen dunkel mit Leuchten.
+- Nur Optik: Strecke, Physik, Kollision, Bestzeiten unverändert. **A/B:** `?tunnelalt=1` = alter Look.
+  Code nur auf Strecken mit Tunnel (sonst gleiche Shader wie vorher).
+- Test: `node tests/node/test_tunnel.mjs`, Fotos: `python3 tests/tunnel_shots.py hoch wueste,alpen,stadt "" neu 1000 3`.
+
 ## 🔥 Hüpfer & Nitro unbegrenzt mit Abklingzeit (seit 15.10.2026)
 
 Peter: „unlimitierte Nitros und Sprünge mit Cooldown“. Statt je 1× pro Runde gehen 🦘 und 🔥 jetzt beliebig oft; nach jedem

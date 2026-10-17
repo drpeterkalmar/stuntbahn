@@ -1,0 +1,225 @@
+{
+ "datum": "2026-10-18T01:33:01",
+ "stand": "n33_tunnel2",
+ "modus": "ab",
+ "runden": 3,
+ "varianten": [
+  {
+   "name": "vorher",
+   "wurzel": "/Users/wohnzimmer/dev/stuntbahn_vorher_n33",
+   "zusatz": ""
+  },
+  {
+   "name": "nachher",
+   "wurzel": "/Users/wohnzimmer/dev/stuntbahn",
+   "zusatz": ""
+  }
+ ],
+ "profil": {
+  "drossel": 4,
+  "dpr": 2.6,
+  "sek": 10,
+  "start": "open",
+  "vsync": false
+ },
+ "szenen": {
+  "rennen_standard": {
+   "hoch": {
+    "vorher": {
+     "p50": 5.8,
+     "p95": 9.7,
+     "fps": 152.1,
+     "calls": 84,
+     "tris": 251843,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      7.9,
+      15.1,
+      9.7
+     ],
+     "fehler": []
+    },
+    "nachher": {
+     "p50": 5.9,
+     "p95": 8.9,
+     "fps": 166,
+     "calls": 84,
+     "tris": 256741,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      9.1,
+      8.8,
+      8.9
+     ],
+     "fehler": []
+    }
+   },
+   "quer": {
+    "vorher": {
+     "p50": 5.6,
+     "p95": 11.6,
+     "fps": 146.5,
+     "calls": 98,
+     "tris": 259274,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      11.6,
+      9,
+      16.6
+     ],
+     "fehler": []
+    },
+    "nachher": {
+     "p50": 6,
+     "p95": 10.2,
+     "fps": 152.3,
+     "calls": 99,
+     "tris": 264325,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      10.2,
+      8.8,
+      10.7
+     ],
+     "fehler": []
+    }
+   }
+  },
+  "tunnel_kino": {
+   "hoch": {
+    "vorher": {
+     "p50": 9.5,
+     "p95": 30.7,
+     "fps": 88.3,
+     "calls": 91,
+     "tris": 352089,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      32.8,
+      30.7,
+      30.1
+     ],
+     "fehler": []
+    },
+    "nachher": {
+     "p50": 9.5,
+     "p95": 29.4,
+     "fps": 89.2,
+     "calls": 92,
+     "tris": 362026,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      18.6,
+      29.4,
+      30
+     ],
+     "fehler": []
+    }
+   },
+   "quer": {
+    "vorher": {
+     "p50": 9,
+     "p95": 25.2,
+     "fps": 97.9,
+     "calls": 96,
+     "tris": 355331,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      25.2,
+      22.9,
+      31.8
+     ],
+     "fehler": []
+    },
+    "nachher": {
+     "p50": 8.8,
+     "p95": 17.4,
+     "fps": 101.4,
+     "calls": 96,
+     "tris": 365266,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      31.2,
+      17.2,
+      17.4
+     ],
+     "fehler": []
+    }
+   }
+  },
+  "tunnel_standard": {
+   "hoch": {
+    "vorher": {
+     "p50": 3.9,
+     "p95": 8.2,
+     "fps": 221.9,
+     "calls": 74,
+     "tris": 245785,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      8.2,
+      8.3,
+      8.1
+     ],
+     "fehler": []
+    },
+    "nachher": {
+     "p50": 4,
+     "p95": 8.1,
+     "fps": 223.8,
+     "calls": 75,
+     "tris": 250885,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      7.9,
+      8.6,
+      8.1
+     ],
+     "fehler": []
+    }
+   },
+   "quer": {
+    "vorher": {
+     "p50": 4.1,
+     "p95": 8.5,
+     "fps": 209.8,
+     "calls": 79,
+     "tris": 249027,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      10.4,
+      8.5,
+      7.9
+     ],
+     "fehler": []
+    },
+    "nachher": {
+     "p50": 3.9,
+     "p95": 7.8,
+     "fps": 227.7,
+     "calls": 80,
+     "tris": 254127,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      7.4,
+      7.9,
+      7.8
+     ],
+     "fehler": []
+    }
+   }
+  }
+ }
+}

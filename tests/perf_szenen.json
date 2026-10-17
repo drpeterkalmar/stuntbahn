@@ -1,5 +1,5 @@
 {
- "_kommentar": "Stuntbahn-Szenen für tests/perf_gate.py (n30). Grafikstufe fest per ?q= (Autopilot pausiert), außer rennen_autopilot. ?startprobe=0: keine Kurzmessung beim Laden (auf main ohne Wirkung). n31: info liefert die GPU-Zeit je Bild, wenn gemessen wird (Autopilot oder ?gpumess=1). Looping: Galerie-Strecke, Auto kopfüber im ersten Looping, Spiel angehalten (Bild wird weiter jedes Mal gezeichnet). Vor jeder Szene (außer start_kino/rennen_autopilot) wird gewartet, bis die gebackene Vertex-AO fertig ist (n30; auf main ohne Wirkung) – start_kino misst die ersten 10 s nach dem Laden mit allem, was dort anfällt.",
+ "_kommentar": "Stuntbahn-Szenen für tests/perf_gate.py (n30). Grafikstufe fest per ?q= (Autopilot pausiert), außer rennen_autopilot. ?startprobe=0: keine Kurzmessung beim Laden (auf main ohne Wirkung). n31: info liefert die GPU-Zeit je Bild, wenn gemessen wird (Autopilot oder ?gpumess=1). Looping: Galerie-Strecke, Auto kopfüber im ersten Looping, Spiel angehalten (Bild wird weiter jedes Mal gezeichnet). Vor jeder Szene (außer start_kino/rennen_autopilot) wird gewartet, bis die gebackene Vertex-AO fertig ist (n30; auf main ohne Wirkung) – start_kino misst die ersten 10 s nach dem Laden mit allem, was dort anfällt. n33: tunnel_kino/tunnel_standard – Auto steht mitten im Tunnel der Strecke 4711-3-g (Verfolger, Spiel angehalten).",
  "bereit": "window.__app && window.__app.ready && window.__app.frames > 3",
  "init": "window.__noKino = true; window.__noShow = true",
  "info": "() => { const i = __game.renderer.info, g = __game.quality.gpu; return { calls: i.render.calls, tris: i.render.triangles, tex: i.memory.textures, gpu: g ? g.ms : null }; }",
@@ -169,6 +169,46 @@
     "__game.cam('chase')",
     {
      "warte": 3
+    }
+   ]
+  },
+  {
+   "name": "tunnel_kino",
+   "query": "?nosw&q=2&startprobe=0&seed=4711&d=3&g=1",
+   "schritte": [
+    {
+     "bis": "(() => { const v = __game.info().vao; return !v || v.fertig; })()",
+     "max": 120
+    },
+    "__game.setAssist('easy'); __game.store.settings.fahrstil = 'sauber'",
+    "__game.start({ autopilot: true })",
+    "__game.cam('chase')",
+    {
+     "warte": 1
+    },
+    "(() => { const g = __game; g.freeze(true); g.teleport(488, 20); g.sim(0.3); g.cam('chase'); return 1; })()",
+    {
+     "warte": 2
+    }
+   ]
+  },
+  {
+   "name": "tunnel_standard",
+   "query": "?nosw&q=1&startprobe=0&seed=4711&d=3&g=1",
+   "schritte": [
+    {
+     "bis": "(() => { const v = __game.info().vao; return !v || v.fertig; })()",
+     "max": 120
+    },
+    "__game.setAssist('easy'); __game.store.settings.fahrstil = 'sauber'",
+    "__game.start({ autopilot: true })",
+    "__game.cam('chase')",
+    {
+     "warte": 1
+    },
+    "(() => { const g = __game; g.freeze(true); g.teleport(488, 20); g.sim(0.3); g.cam('chase'); return 1; })()",
+    {
+     "warte": 2
     }
    ]
   }

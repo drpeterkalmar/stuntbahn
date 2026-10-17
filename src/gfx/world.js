@@ -7,6 +7,7 @@ import { buildTrees, buildBackdrop, buildSea } from './kulisse.js';
 import { farLift } from '../track/themes.js';
 import { buildJumpMarks } from './jumpdeck.js';
 import { bakeVertexAOSchritte } from '../track/vao.js';
+import { TUNNEL_LOOK, tunnelLaeufe, tunnelAttr, portalGelaende, portalFront } from '../track/tunnel.js';
 
 const STATIC_LAYER = 1;
 
@@ -86,6 +87,26 @@ export function buildWorld(track, M, opts = {}) {
     add(mesh, b.mat !== MAT.ROAD && b.mat !== MAT.KERB);
     stats.tris += b.idx.length / 3; stats.meshes++;
   }
+  // n33 Tunnel: Maske/Lage je Eckpunkt (Shader dunkelt innen ab, Leuchtbänder, Lichtpfützen – gfx/tunnel.js), neue Portal-Front
+  const tl = TUNNEL_LOOK.an ? tunnelLaeufe(track) : [];
+  if (tl.length) {
+    const at = tunnelAttr(root.userData.trk.map(([b]) => b), tl);
+    root.userData.trk.forEach(([, mesh], k) => { if (at[k]) mesh.geometry.setAttribute('aTun', new THREE.BufferAttribute(at[k], 4)); });
+    const pf = portalFront(tl);
+    if (pf.idx.length && M.portal) {
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.Float32BufferAttribute(pf.pos, 3));
+      g.setAttribute('normal', new THREE.Float32BufferAttribute(pf.nrm, 3));
+      g.setAttribute('uv', new THREE.Float32BufferAttribute(pf.uv, 2));
+      g.setAttribute('color', new THREE.Float32BufferAttribute(pf.col, 3));
+      g.setIndex(pf.idx);
+      g.computeBoundingSphere();
+      const mesh = new THREE.Mesh(g, M.portal);
+      mesh.name = 'tunnel-portal';
+      add(mesh, true);
+      stats.tris += pf.idx.length / 3; stats.meshes++;
+    }
+  }
   // Schanzen: gelb-schwarze Absprung-/Lande-Markierung (n24, reine Optik)
   { const jm = buildJumpMarks(track); if (jm) { add(jm, false); stats.meshes++; } }
   // Gelände: Nahraster aus dem Physik-Höhenfeld (identisch), Fernring grob. Adaptiv (track/terrgrid.js):
@@ -102,7 +123,7 @@ export function buildWorld(track, M, opts = {}) {
       if (fine[bj * nb + bi]) { for (let j = bj * TB; j <= (bj + 1) * TB; j++) for (let i = bi * TB; i <= (bi + 1) * TB; i++) want(i, j); }
       else { want(bi * TB, bj * TB); want((bi + 1) * TB, bj * TB); want(bi * TB, (bj + 1) * TB); want((bi + 1) * TB, (bj + 1) * TB); }
     }
-    const pos = new Float32Array(nv * 3), uv = new Float32Array(nv * 2);
+    let pos = new Float32Array(nv * 3), uv = new Float32Array(nv * 2);
     for (let k = 0; k < nx * nx; k++) {
       const v = used[k];
       if (v < 0) continue;
@@ -115,9 +136,18 @@ export function buildWorld(track, M, opts = {}) {
       const a = used[j0 * nx + i0], b = used[j0 * nx + i0 + s], c = used[(j0 + s) * nx + i0], d = used[(j0 + s) * nx + i0 + s];
       idx.push(a, c, b, b, c, d);
     };
+    // n33: Rasterzellen an den Gelände-Portalen durch ein feines Netz ersetzen (Öffnung frei, track/tunnel.js)
+    const pg = tl.length ? portalGelaende(T, tl, HH) : null;
     for (let bj = 0; bj < nb; bj++) for (let bi = 0; bi < nb; bi++) {
-      if (fine[bj * nb + bi]) { for (let j = bj * TB; j < (bj + 1) * TB; j++) for (let i = bi * TB; i < (bi + 1) * TB; i++) quad(i, j, 1); }
+      if (fine[bj * nb + bi]) { for (let j = bj * TB; j < (bj + 1) * TB; j++) for (let i = bi * TB; i < (bi + 1) * TB; i++) if (!pg || !pg.skip.has(j * nx + i)) quad(i, j, 1); }
       else quad(bi * TB, bj * TB, TB);
+    }
+    if (pg && pg.n) {
+      const p2 = new Float32Array((nv + pg.n) * 3), u2 = new Float32Array((nv + pg.n) * 2);
+      p2.set(pos); p2.set(pg.pos, nv * 3); u2.set(uv); u2.set(pg.uv, nv * 2);
+      for (const k of pg.idx) idx.push(k + nv);
+      pos = p2; uv = u2; nv += pg.n;
+      stats.portalVerts = pg.n;
     }
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.BufferAttribute(pos, 3));

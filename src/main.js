@@ -2,7 +2,8 @@
 // Debug-API window.__game für Headless-Tests.
 import * as THREE from 'three';
 import { BUILD } from './build.js';
-import { makeMaterials, shadowUniforms, preloadKtx2, themeUniforms, vaoUniforms } from './gfx/materials.js';
+import { makeMaterials, shadowUniforms, preloadKtx2, themeUniforms, vaoUniforms, tunnelShader } from './gfx/materials.js';
+import { TUNNEL_LOOK, tunnelLaeufe, maskeAm } from './track/tunnel.js';
 import { makeSky, sunDirFromUV, bakeStaticShadow } from './gfx/env.js';
 import { ThemeManager } from './gfx/themes.js';
 import { themeFor, THEMES, THEME_IDS } from './track/themes.js';
@@ -60,6 +61,7 @@ const VBUILD = BUILD + WORLD_TAG + STUNT_TAG + TUBE_TAG + '@r29';   // n26: ?stu
 
 const DT = 1 / 120;
 const params = new URLSearchParams(location.search);
+if (params.get('tunnelalt') === '1') TUNNEL_LOOK.an = false;   // n33: Tunnel im alten Look (A/B, nur Optik)
 const app = window.__app = { frames: 0, build: BUILD, ready: false, errors: window.__errors || [] };
 
 // ---------- Renderer ----------
@@ -366,10 +368,23 @@ function zeitAnwenden() {
   if (headGlow) headGlow.visible = on;
   if (brakeLights) brakeLights.nacht = L.lights;
   if (cockpit) cockpit.envK = L.cockpit;
+  zeitCockpitK = L.cockpit;
   nachtAufbauen();
   if (env.nacht) { env.nacht.glow.visible = on; env.nacht.kette.visible = on && L.ketten > 0; if (env.nacht.lat) env.nacht.lat.visible = on; }
   if (env.birds) env.birds.visible = L.id !== 'nacht';
   schattenNeu();
+}
+// n33: Auto im Tunnel – Himmelsspiegelung/Umgebungslicht von Lack und Cockpit mit der Tunnel-Maske absenken (weich, ~0,3 s)
+let zeitCockpitK = 1, tunK = 0, tunMats = null;
+function tunnelAuto(pose, dt) {
+  const tl = env && env.track && tunnelShader.an ? tunnelLaeufe(env.track) : null;
+  const ziel = tl && tl.length ? maskeAm(tl, pose.pos.x, pose.pos.y, pose.pos.z) : 0;
+  if (ziel === 0 && tunK === 0) return;
+  tunK += (ziel - tunK) * Math.min(1, (dt || 0.016) * 7);
+  if (tunK < 0.002 && ziel === 0) tunK = 0;
+  if (!tunMats) { tunMats = []; carVis.root.traverse((o) => { if (o.isMesh && !o.userData.fx) for (const m of [].concat(o.material)) if (m.isMeshStandardMaterial && !tunMats.some((q) => q.m === m)) tunMats.push({ m, e: m.envMapIntensity }); }); }
+  for (const q of tunMats) q.m.envMapIntensity = q.e * (1 - 0.72 * tunK);
+  if (cockpit) cockpit.envK = zeitCockpitK * (1 - 0.6 * tunK);
 }
 function setZeit(v) {
   store.settings.zeit = parseZeit(v) || 'auto'; store.save(); URL_ZEIT = null;
@@ -551,6 +566,9 @@ async function loadTrack(layout, meta = {}, pre = null) {
   // n30: Lack-Spiegelung zeigt nur die großen Flächen (Strecke, Gelände, Wasser, Kulisse, Bäume, Tribünen, Zäune, Banner)
   if (reflex) worldGroup.traverse((o) => { if ((o.isMesh || o.isInstancedMesh) && REFLEX_OBJ.test(o.name)) o.layers.enable(REFLEX_LAYER); });
   scene.add(worldGroup);
+  // n33: Tunnel-Shader-Code nur auf Strecken mit Tunnel (beim Wechsel einmal neu übersetzen)
+  { const on = TUNNEL_LOOK.an && tunnelLaeufe(track).length > 0;
+    if (tunnelShader.an !== on) { tunnelShader.an = on; if (M) for (const v of Object.values(M)) (Array.isArray(v) ? v : [v]).forEach((x) => { if (x && x.isMaterial) x.needsUpdate = true; }); } }
   await placeParkedCars(track);
   bakeStaticShadow(renderer, scene, sun.userData.dir, track.bounds, quality.staticShadowSize());
   env.bakedDir = sun.userData.dir.clone(); env.worldReady = true;
@@ -1090,6 +1108,7 @@ function render(rdt) {
     sun.position.copy(sun.target.position).addScaledVector(sun.userData.dir, 60);
     sun.target.updateMatrixWorld();
   }
+  if (pose) tunnelAuto(pose, rdt);
   if (carVis.contact && kino && !kino.stages.contact) carVis.contact.visible = false;   // ?kl=-contact
   carVis.setNitro(boost, frozen || (replay && replay.paused) ? 0 : rdt);
   // Grafik „Einfach“ (keine Bewegungsunschärfe): dezente Tempo-Streifen am Rand ab ~260 km/h

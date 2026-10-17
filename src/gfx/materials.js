@@ -574,6 +574,10 @@ export function makeMaterials(renderer, q = {}) {
     if (Array.isArray(m)) m.forEach(patchStaticShadow); else patchStaticShadow(m);
   }
   for (const v of Object.values(MAT)) if (M[v] && !Array.isArray(M[v])) patchVertexAO(M[v]);   // n30: Strecken-Materialien
+  for (const v of Object.values(MAT)) if (M[v] && !Array.isArray(M[v])) patchTunnel(M[v]);     // n33: Tunnel innen dunkel + Leuchten
+  // n33: neue Portal-Stirnwand der Gelände-Tunnel (track/tunnel.js portalFront): heller Beton, Vertex-Farben (Rand, Warnstreifen)
+  M.portal = new THREE.MeshStandardMaterial({ ...set('concrete', 1 / 3), vertexColors: true, roughness: 1, metalness: 0, color: lin(6.5, 6.5, 6.5), aoMapIntensity: 0.5 });
+  patchStaticShadow(M.portal); patchVertexAO(M.portal);
   patchSnowCover(M[MAT.PAINT]);   // n32 Wetter: Schnee auf Dächern, Tribünen, Hütten, Höfen (Vertexfarben-Bauten)
   return M;
 }
@@ -601,6 +605,58 @@ export function patchVertexAO(mat) {
       }`);
   };
   fn.tag = 'vao';
+  addPatch(mat, fn);
+  return mat;
+}
+
+// n33 Tunnel-Einfahrt (Nachtrag 09.10.): Attribut „aTun“ der Strecken-Batches (track/tunnel.js tunnelAttr: Maske 0 … 1, Weg ab
+// Lauf-Anfang, quer, Höhe minus Decke). Innen: Himmels-/Umgebungslicht auf tunAmb, Sonne aus (fällt nur am Portal ein Stück
+// hinein), Leuchten in zwei Reihen (Lichtpfützen darunter, Bänder an der Decke leuchten für den Bloom), Nebel innen fast aus.
+// Code nur, wenn die Strecke einen Tunnel hat (tunnelShader.an, main.js) – sonst bleibt das Programm wie vorher.
+export const tunnelShader = { an: false };
+export const tunnelUniforms = {
+  tunAmb: { value: 0.2 },
+  tunL: { value: new THREE.Vector4(12, 2.6, 2.6, 1.7) },   // Abstand, Reihe quer, Breite der Pfütze (σ, m), Stärke
+  tunCol: { value: new THREE.Vector3(1.0, 0.93, 0.8) },    // warmweiß
+  tunBand: { value: 5.5 },                                  // Leuchtdichte der Bänder (HDR → Bloom)
+};
+export function patchTunnel(mat) {
+  mat.defaultAttributeValues = { ...(mat.defaultAttributeValues || {}), aTun: [0, 0, 0, 0] };
+  const fn = (sh) => {
+    if (!tunnelShader.an) return;
+    Object.assign(sh.uniforms, tunnelUniforms);
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', '#include <common>\nattribute vec4 aTun;\nvarying vec4 vTun;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvTun = aTun;');
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', '#include <common>\nvarying vec4 vTun;\nuniform float tunAmb, tunBand;\nuniform vec4 tunL;\nuniform vec3 tunCol;')
+      .replace('#include <aomap_fragment>', `#include <aomap_fragment>
+      if ( vTun.x > 0.0005 ) {
+        float tm = vTun.x;
+        reflectedLight.indirectDiffuse *= 1.0 - tm * ( 1.0 - tunAmb );
+        reflectedLight.indirectSpecular *= 1.0 - tm * ( 1.0 - tunAmb );
+        reflectedLight.directDiffuse *= 1.0 - tm * 0.9;
+        reflectedLight.directSpecular *= 1.0 - tm * 0.9;
+        float ds = ( fract( vTun.y / tunL.x ) - 0.5 ) * tunL.x;
+        float d1 = vTun.z - tunL.y, d2 = vTun.z + tunL.y, q = 0.5 / ( tunL.z * tunL.z );
+        float lam = exp( -ds * ds * q ) * ( exp( -d1 * d1 * q ) + exp( -d2 * d2 * q ) );
+        float lk = min( 1.0, tm * 4.0 );
+        lam *= mix( 0.3, 1.0, smoothstep( -0.6, -3.5, vTun.w ) );   // Leuchten strahlen nach unten: Decke neben der Leuchte bleibt dunkler
+        reflectedLight.directDiffuse += BRDF_Lambert( diffuseColor.rgb ) * tunCol * ( 0.18 + lam ) * tunL.w * lk;
+        float band = ( 1.0 - smoothstep( 1.3, 1.5, abs( ds ) ) ) * ( ( 1.0 - smoothstep( 0.16, 0.24, abs( d1 ) ) ) + ( 1.0 - smoothstep( 0.16, 0.24, abs( d2 ) ) ) ) * step( -0.4, vTun.w );
+        totalEmissiveRadiance += tunCol * band * tunBand * lk;
+      }`)
+      .replace('#include <fog_fragment>', `#ifdef USE_FOG
+        #ifdef FOG_EXP2
+          float fogFactor = 1.0 - exp( - fogDensity * fogDensity * vFogDepth * vFogDepth );
+        #else
+          float fogFactor = smoothstep( fogNear, fogFar, vFogDepth );
+        #endif
+        fogFactor *= 1.0 - 0.85 * vTun.x;
+        gl_FragColor.rgb = mix( gl_FragColor.rgb, fogColor, fogFactor );
+      #endif`);
+  };
+  fn.tag = () => (tunnelShader.an ? 'tun' : '');
   addPatch(mat, fn);
   return mat;
 }
