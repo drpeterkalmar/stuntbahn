@@ -8,8 +8,8 @@ import { TUNNEL_LOOK, tunnelLaeufe, maskeAm } from './track/tunnel.js';
 import { makeSky, sunDirFromUV, bakeStaticShadow } from './gfx/env.js';
 import { ThemeManager } from './gfx/themes.js';
 import { themeFor, THEMES, THEME_IDS } from './track/themes.js';
-import { wetterFor, parseWetter, wetterLook } from './track/wetter.js';
-import { zeitFor, parseZeit, zeitLook } from './track/zeit.js';
+import { wetterFor, parseWetter, wetterLook, WETTER, WETTER_IDS } from './track/wetter.js';
+import { zeitFor, parseZeit, zeitLook, ZEIT, ZEIT_IDS } from './track/zeit.js';
 import { zeitUniforms, zeitShader, glowUniforms, glowMesh, planNachtLichter, backeLichtKarte, reflNaechste } from './gfx/zeit.js';
 import { Scheibe } from './gfx/scheibe.js';
 import { kulisse2Uniforms, ampelAus, kulisse2Tick } from './gfx/kulisse2.js';
@@ -633,6 +633,7 @@ const onlineApp = {
   beschreibe: () => (env ? streckeBeschreiben(env, importedBytes) : null),
   look: () => ({ thema: env && env.theme, wetter: env && env.wetter, zeit: env && env.zeit }),
   ladeStrecke: (d, look) => ladeOnlineStrecke(d, look),
+  wendeLook: (look) => wendeOnlineLook(look),
   startOnline: (spiel) => startOnlineRace(spiel),
   zumMenue: () => { if (mode !== 'menu') toMenu(); },
   anzeige: (art, d) => onlineAnzeige(art, d),
@@ -645,6 +646,8 @@ async function onlineLaden() {
   onl = new OnlineSpiel(onlineApp, { verbinde: (code) => N.verbinden(code, netzOpt) });
   onlA = new OnlineAnsicht(ui, onl, {
     menueStrecke: () => (env ? env.meta.name : null), setAssist,
+    lookOptionen: onlineLookOptionen,
+    setzeLook: (art, wert) => (ONLINE_LOOK = null, art === 'thema' ? setTheme(wert) : art === 'wetter' ? setWetter(wert) : art === 'zeit' ? setZeit(wert) : null),
     zeigeMenue: () => { if (mode === 'menu') ui.showMenu(env); else toMenu(); },
     zurueck: () => { if (mode === 'race') toMenu(); else ui.showMenu(env); },
     verlassen: () => { ONLINE_LOOK = null; if (mode === 'race') toMenu(); else ui.showMenu(env); },
@@ -656,6 +659,26 @@ function onlineAnzeige(art, d) {
   // Zieltabelle: sofort, außer die eigene Zielshow läuft noch (endShow zeigt sie dann)
   if (art === 'ergebnis' && mode === 'race' && onlR && !show && !cine) { onlA.zeigeErgebnis(); return; }
   onlA.aktualisieren(art, d);
+}
+// Gastgeber-Lobby: Auswahllisten Landschaft/Wetter/Tageszeit (Einstellung wie im Menü; „passend“ zeigt, was gerade gilt)
+function onlineLookOptionen() {
+  const S = store.settings, liste = (tab, ids, auto) => [['auto', `🎯 Passend${auto && tab[auto] ? ` (${tab[auto].icon} ${tab[auto].name})` : ''}`], ...ids.map((id) => [id, `${tab[id].icon} ${tab[id].name}`])];
+  return {
+    thema: { wert: S.theme && THEMES[S.theme] ? S.theme : 'auto', liste: liste(THEMES, THEME_IDS, env && env.theme) },
+    wetter: { wert: S.wetter && WETTER[S.wetter] ? S.wetter : 'auto', liste: liste(WETTER, WETTER_IDS, env && env.wetter) },
+    zeit: { wert: S.zeit && ZEIT[S.zeit] ? S.zeit : 'auto', liste: liste(ZEIT, ZEIT_IDS, env && env.zeit) },
+  };
+}
+// Gast: Gastgeber hat das Aussehen geändert (gleiche Strecke) – Welt nur bei anderer Landschaft neu, sonst Wetter/Zeit
+async function wendeOnlineLook(look) {
+  ONLINE_LOOK = look || null;
+  if (!env || mode !== 'menu') return;
+  if (look && look.thema && THEMES[look.thema] && look.thema !== env.theme) {
+    ui.loading(0.5, 'Landschaft …');
+    await new Promise((r) => setTimeout(r, 20));
+    await loadTrack(env.layout, env.meta, { track: env.track, world: env.world, ideal: env.ideal, prof: env.prof });
+    ui.loading(1);
+  } else wendeWetter();
 }
 async function ladeOnlineStrecke(d, look) {
   if (mode !== 'menu') toMenu();

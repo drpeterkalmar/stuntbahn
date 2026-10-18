@@ -1,9 +1,9 @@
-// Online-Menü (n35, Grundgerüst ohne Feinschliff): „👥 Online“ → Name + Raum erstellen / Beitreten per Code; Lobby mit
+// Online-Menü (n35): „👥 Online“ → Name + Raum erstellen / Beitreten per Code; Lobby mit
 // Raumcode (vorlesbar), Teilen-Link (Web-Share am Handy, sonst Kopieren), QR-Code, Mitgliederliste (Stufe, Bereit,
 // Gastgeber, Ping, wackelt, Strecke geladen), Gastgeber: Strecke aus dem Menü übernehmen, KI auffüllen + Stärke, Start;
 // alle: Fahrhilfe, Bereit; Zieltabelle mit Revanche. Die HTML-Bausteine sind reine Funktionen (Node-Test
 // tests/node/test_online_ui.mjs), OnlineAnsicht verdrahtet sie mit ui.js (sheet, toast, data-a-Aktionen „on…“).
-// Browser-Abnahme (Layout hoch/quer, Handy-Tastatur, Teilen) macht der Heavy-Job.
+// Im Browser abgenommen: tests/test_online_ui.py (hoch/quer, zwei Pages).
 import { fmtTime } from '../core/util.js';
 import { ASSISTS } from '../game/race.js';
 import { STAERKEN } from '../ai/gegner.js';
@@ -41,34 +41,51 @@ export function mitgliederHtml(z) {
       <td>${!m.strecke && !m.host ? '<span title="lädt die Strecke">⏳</span>' : m.bereit ? '✅' : '⬜'}</td></tr>`).join('')}</table>`;
 }
 
+// Landschaft/Wetter/Tageszeit des Gastgebers (nur Optik, geht an alle): native Auswahllisten (Handy: System-Auswahl);
+// opt.look = { thema|wetter|zeit: { wert, liste: [[id, Text]] } } aus main.js (die Listen kennt nur das Spiel)
+function lookHtml(look) {
+  if (!look) return '';
+  const sel = (art, lbl) => look[art] ? `<label class="onsel"><span>${lbl}</span><select data-onlook="${art}" aria-label="${lbl}">${look[art].liste.map(([k, n]) => `<option value="${esc(k)}"${k === look[art].wert ? ' selected' : ''}>${esc(n)}</option>`).join('')}</select></label>` : '';
+  return `<div class="lbl">Aussehen (für alle)</div><div class="onlook">${sel('thema', 'Landschaft')}${sel('wetter', 'Wetter')}${sel('zeit', 'Tageszeit')}</div>`;
+}
+
+// Lobby: links Raumcode + QR + Teilen (quer als eigene Spalte), rechts Mitglieder, Hauptknopf (Start/Bereit) gleich darunter,
+// dann Fahrhilfe und (Gastgeber) Strecke, Aussehen, KI
 export function lobbyHtml(z, opt = {}) {
   const E = z.einst || {}, frei = Math.max(0, ONLINE.maxAutos - z.mitglieder.length);
   const ich = z.mitglieder.find((m) => m.ich) || {};
   const qr = opt.qr !== false ? `<div class="onqr" aria-label="QR-Code zum Beitreten">${opt.qrSvg || qrSvg(z.link)}</div>` : '';
+  const haupt = z.gastgeber
+    ? `<button class="big go${z.start && z.start.ok ? '' : ' aus'}" data-a="onstart" ${z.start && z.start.ok ? '' : `title="${esc(z.start && z.start.grund)}"`}>▶ Rennen starten</button>
+      ${z.start && !z.start.ok ? `<div class="hint">${esc(z.start.grund)}</div>` : ''}`
+    : `<button class="big${ich.bereit ? ' on' : ' go'}" data-a="onbereit">${ich.bereit ? '✅ Bereit – warte auf Start' : '✋ Bereit'}</button>`;
   const host = z.gastgeber ? `
       <div class="lbl">Strecke</div>
       <div class="onstr">${esc(E.streckeName || 'keine')}${opt.menueStrecke && opt.menueStrecke !== E.streckeName ? `<button data-a="onstrecke">↻ „${esc(opt.menueStrecke)}“ nehmen</button>` : ''}</div>
       <div class="row"><button data-a="onmenue">🗺️ Andere Strecke im Menü wählen</button></div>
+      ${lookHtml(opt.look)}
       <div class="lbl">KI-Gegner auffüllen</div>
       <div class="seg">${[0, 1, 2, 3, 4, 5].filter((n) => n <= frei).map((n) => `<button data-a="onki" data-v="${n}" class="${(E.ki | 0) === n ? 'on' : ''}">${n ? n : 'Aus'}</button>`).join('')}</div>
-      ${(E.ki | 0) > 0 ? `<div class="seg">${Object.entries(STAERKEN).map(([k, S]) => `<button data-a="onstaerke" data-v="${k}" class="${E.staerke === k ? 'on' : ''}">${S.name}</button>`).join('')}</div>` : ''}
-      <button class="big go${z.start && z.start.ok ? '' : ' aus'}" data-a="onstart" ${z.start && z.start.ok ? '' : `title="${esc(z.start && z.start.grund)}"`}>▶ Rennen starten</button>
-      ${z.start && !z.start.ok ? `<div class="hint">${esc(z.start.grund)}</div>` : ''}`
+      ${(E.ki | 0) > 0 ? `<div class="seg">${Object.entries(STAERKEN).map(([k, S]) => `<button data-a="onstaerke" data-v="${k}" class="${E.staerke === k ? 'on' : ''}">${S.name}</button>`).join('')}</div>` : ''}`
     : `
       <div class="lbl">Strecke</div><div class="onstr">${esc(E.streckeName || '…')}${z.laedt ? ' ⏳ lädt …' : z.geladen && z.geladen === E.strecke ? ' ✓' : ''}</div>
-      ${E.ki ? `<div class="hint">+ ${E.ki} KI-Gegner (${esc(STAERKEN[E.staerke] ? STAERKEN[E.staerke].name : '')})</div>` : ''}
-      <button class="big${ich.bereit ? ' on' : ' go'}" data-a="onbereit">${ich.bereit ? '✅ Bereit – warte auf Start' : '✋ Bereit'}</button>`;
-  return `<div class="onl">
-    <div class="oncode">Raum <b>${esc(z.vorlesbar)}</b></div>
-    ${qr}
-    <div class="row"><button data-a="onteilen">📤 Link teilen</button><button data-a="onkopie">📋 Kopieren</button></div>
-    ${mitgliederHtml(z)}
-    <div class="lbl">Deine Fahrhilfe</div>
-    <div class="seg">${Object.entries(ASSISTS).map(([k, A]) => `<button data-a="onstufe" data-v="${k}" class="${ich.stufe === k ? 'on' : ''}">${A.icon} ${A.name}</button>`).join('')}</div>
-    ${host}
-    ${z.wartet ? '<div class="hint">Rennen läuft – du fährst beim nächsten mit.</div>' : ''}
-    ${(z.hinweise || []).map((h) => `<div class="onhin">${esc(h)}</div>`).join('')}
-    <div class="row"><button data-a="onverlassen">🚪 Raum verlassen</button></div>
+      ${E.ki ? `<div class="hint">+ ${E.ki} KI-Gegner (${esc(STAERKEN[E.staerke] ? STAERKEN[E.staerke].name : '')})</div>` : ''}`;
+  return `<div class="onl onlobby">
+    <div class="onlinks">
+      <div class="oncode">Raum <b>${esc(z.vorlesbar)}</b></div>
+      ${qr}
+      <div class="row"><button data-a="onteilen">📤 Link teilen</button><button data-a="onkopie">📋 Kopieren</button></div>
+    </div>
+    <div class="onrechts">
+      ${mitgliederHtml(z)}
+      ${z.wartet ? '<div class="hint">Rennen läuft – du fährst beim nächsten mit.</div>' : ''}
+      ${(z.hinweise || []).map((h) => `<div class="onhin">${esc(h)}</div>`).join('')}
+      ${haupt}
+      <div class="lbl">Deine Fahrhilfe</div>
+      <div class="seg">${Object.entries(ASSISTS).map(([k, A]) => `<button data-a="onstufe" data-v="${k}" class="${ich.stufe === k ? 'on' : ''}">${A.icon} ${A.name}</button>`).join('')}</div>
+      ${host}
+      <div class="row"><button data-a="onverlassen">🚪 Raum verlassen</button></div>
+    </div>
   </div>`;
 }
 
@@ -89,14 +106,18 @@ export function ergebnisHtml(z, E, ichSid) {
 // Verdrahtung mit ui.js. spiel: game/onlinespiel.js; ui: UI (sheet, toast, show, store); app: Aktionen aus main.js
 // ({ menueStrecke(), zeigeMenue() })
 export class OnlineAnsicht {
-  constructor(ui, spiel, app = {}) { this.ui = ui; this.spiel = spiel; this.app = app; this.ansicht = null; }
+  constructor(ui, spiel, app = {}) {
+    this.ui = ui; this.spiel = spiel; this.app = app; this.ansicht = null;
+    // Auswahllisten (Aussehen) melden sich per change – ein Klick-Handler mit preventDefault würde sie nicht aufklappen lassen
+    if (typeof document !== 'undefined') document.addEventListener('change', (e) => { const t = e.target; if (t && t.dataset && t.dataset.onlook) this.action('onlook', t.dataset.onlook + ':' + t.value); });
+  }
   offen() { return this.ui.screen === 'sheet' && !!this.ansicht; }
   zeigeStart(code = codeAusUrl() || '') { this.ansicht = 'start'; this.ui.sheet('👥 Online', startHtml(this.spiel.name() === 'Gast' ? '' : this.spiel.name(), code, this.spiel.app.store.online || [])); }
   zeigeLobby() {
     const z = this.spiel.zustand();
     if (!z.aktiv) return this.zeigeStart();
     this.ansicht = 'lobby';
-    this.ui.sheet(`👥 Lobby`, lobbyHtml(z, { menueStrecke: this.app.menueStrecke ? this.app.menueStrecke() : null }), 'onzurueck');
+    this.ui.sheet(`👥 Lobby`, lobbyHtml(z, { menueStrecke: this.app.menueStrecke ? this.app.menueStrecke() : null, look: z.gastgeber && this.app.lookOptionen ? this.app.lookOptionen() : null }), 'onzurueck');
   }
   zeigeErgebnis() { const z = this.spiel.zustand(); if (!z.aktiv) return; this.ansicht = 'ergebnis'; this.ui.sheet('🏁 Ergebnis', ergebnisHtml(z, z.phase === 'ergebnis' ? z.ergebnis : null, z.ich), 'onzurueck'); }
   // Spiel meldet Änderung: offene Ansicht neu zeichnen (Eingabefelder nicht überschreiben, solange getippt wird)
@@ -126,6 +147,7 @@ export class OnlineAnsicht {
       case 'onki': S.setzeKi(+v); break;
       case 'onstaerke': S.setzeKi(S.zustand().einst.ki, v); break;
       case 'onstrecke': S.waehleAktuelleStrecke(); break;
+      case 'onlook': { const [art, wert] = String(v).split(':'); if (this.app.setzeLook) await this.app.setzeLook(art, wert); S.lookGeaendert(); this.zeigeLobby(); break; }
       case 'onmenue': this.ansicht = null; if (this.app.zeigeMenue) this.app.zeigeMenue(); this.ui.toast('Strecke wählen, dann „👥 Lobby“ → übernehmen', 3200); break;
       case 'onstart': if (!S.starten()) this.zeigeLobby(); else { this.ansicht = null; this.ui.toast('Start!', 1200); } break;
       case 'onrevanche': S.revanche(); break;

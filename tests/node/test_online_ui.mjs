@@ -23,6 +23,10 @@ const z = {
 const h = lobbyHtml(z, { menueStrecke: 'Andere Bahn' });
 ok(has(h, 'Raum <b>QR-ST</b>', '<svg', 'data-a="onteilen"', 'data-a="onkopie"', '👑 Peter', 'Ben &lt;b&gt;', '73 ms', '⚠️', '⏳', '🟢', '🔴'), 'Lobby: Code vorlesbar, QR, Teilen/Kopieren, Gastgeber-Krone, Ping, wackelt, lädt, Stufen-Symbole, Namen escaped');
 ok(has(h, 'data-a="onki" data-v="3"') && !h.includes('data-v="4" class') && has(h, 'data-a="onstaerke"', 'class="big go aus"', 'warte auf „Bereit“ von Ben', '„Andere Bahn“ nehmen'), 'Gastgeber: KI bis 3 (3 Menschen + 3 = 6 Autos), Stärke, Start gesperrt mit Grund, Menü-Strecke übernehmen');
+const look = { thema: { wert: 'auto', liste: [['auto', '🎯 Passend'], ['wueste', '🏜️ Wüste']] }, wetter: { wert: 'regen', liste: [['auto', '🎯 Passend'], ['regen', '🌧️ Regen']] }, zeit: { wert: 'auto', liste: [['auto', '🎯 Passend']] } };
+const hl = lobbyHtml(z, { look });
+ok(has(hl, 'data-onlook="thema"', 'data-onlook="wetter"', 'data-onlook="zeit"', '<option value="regen" selected>', 'Aussehen (für alle)') && hl.indexOf('data-a="onstart"') < hl.indexOf('data-a="onstufe"'), 'Gastgeber: Landschaft/Wetter/Tageszeit als Auswahl, Start-Knopf über den Einstellungen');
+ok(!lobbyHtml(z, {}).includes('data-onlook') && has(h, 'class="onlinks"', 'class="onrechts"'), 'ohne Look-Listen keine Auswahl; Spalten links/rechts');
 const g = lobbyHtml({ ...z, gastgeber: false, ich: 'b', mitglieder: z.mitglieder.map((m) => ({ ...m, ich: m.sid === 'b' })), laedt: true }, { qr: false });
 ok(has(g, 'data-a="onbereit"', '✋ Bereit', '⏳ lädt', '+ 2 KI-Gegner (Profi)') && !g.includes('data-a="onstart"') && !g.includes('<svg'), 'Gast: Bereit-Knopf, Strecke lädt, KI-Info, kein Start');
 const E = [{ id: 'b', platz: 1, name: 'Ben', zeit: 61.2 }, { id: 'a', platz: 2, name: 'Peter', zeit: 62.71 }, { id: 'ki-g1', platz: 3, name: 'Rita', zeit: 70, ki: true, daten: { hoch: true } }, { id: 'c', platz: 4, name: 'Cleo', zeit: null, weg: true }];

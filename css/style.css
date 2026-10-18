@@ -461,7 +461,7 @@ body[data-orient="hoch"] #cine .cskip { top: auto; bottom: max(16px, calc(var(--
 @keyframes rglow { 0%, 100% { text-shadow: none; transform: scale(1); } 50% { text-shadow: 0 0 18px #ffb02a; transform: scale(1.06); } }
 @keyframes rfade { 0% { opacity: 0; transform: translateY(-6px); } 100% { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { #result .card.deko .rtime, #result .card.deko .rec, #result .card.deko h2 { animation: none; } #result .card.deko .rtime { background-position: 50% 0; } }
-/* n35 Online-Menü (Grundgerüst; Feinschliff nach Browser-Abnahme) */
+/* n35 Online-Menü */
 .onl { display: flex; flex-direction: column; gap: 10px; }
 .onl p { margin: 0; line-height: 1.4; }
 .onlab { display: flex; flex-direction: column; gap: 4px; font-weight: 600; }
@@ -476,3 +476,19 @@ body[data-orient="hoch"] #cine .cskip { top: auto; bottom: max(16px, calc(var(--
 .onhin { font-size: 14px; background: #ffffff12; border-radius: 10px; padding: 6px 10px; }
 .onlist td:nth-child(3), .onlist td:nth-child(5) { text-align: center; width: 2em; }
 button.big.aus { opacity: .5; }
+.onlinks, .onrechts { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.onlook { display: flex; flex-direction: column; gap: 6px; }
+.onsel { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+.onsel span { flex: 0 0 6.5em; opacity: .8; }
+.onsel select { flex: 1 1 auto; min-width: 0; min-height: 48px; font: inherit; font-size: 16px; padding: 8px 10px; border-radius: 12px; border: 1px solid #ffffff33; background: #0d1117; color: #f3f4f6; touch-action: manipulation; }
+/* quer (Handy): Lobby zweispaltig – links Code/QR/Teilen (bleibt stehen), rechts Mitglieder, Start/Bereit, Einstellungen */
+@media (orientation: landscape) and (max-height: 600px) {
+  #sheet .sheetc:has(.onlobby) { width: min(860px, 96vw); }
+  .onlobby { display: grid; grid-template-columns: minmax(150px, 34%) 1fr; gap: 14px; align-items: start; }
+  .onlobby .onlinks { position: sticky; top: 0; }
+  .onlobby .onlinks { gap: 8px; }
+  .onlobby .oncode { font-size: 13px; }
+  .onlobby .oncode b { font-size: 28px; }
+  .onlobby .onqr { width: min(27vh, 112px); }
+  .onlobby .onlinks .row > button { min-width: 0; padding: 8px 6px; font-size: 14px; }
+}

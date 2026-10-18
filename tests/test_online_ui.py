@@ -67,6 +67,14 @@ with Server() as srv, sync_playwright() as pw:
     A.evaluate("__game.online.aktion('onki', '2')")
     ok(warte(A, f"{ZUSTAND}.start.ok", 10), 'Start frei (B bereit, Strecke geladen)')
     A.evaluate("__game.online.ansicht.zeigeLobby()"); time.sleep(0.4)
+    # Aussehen: Gastgeber stellt Wetter „Regen“ in der Lobby ein (Auswahlliste) → Gast bekommt es auf derselben Strecke
+    A.select_option('select[data-onlook=wetter]', 'regen')
+    ok(warte(A, "__game.env.wetter === 'regen'", 10) and warte(B, "__game.env.wetter === 'regen'", 20), 'Wetter „Regen“ aus der Lobby beim Gastgeber und beim Gast')
+    ok(warte(A, "!!document.querySelector('select[data-onlook=wetter]')", 5), 'Lobby nach der Änderung wieder offen')
+    sm = A.evaluate("Math.round(document.querySelector('[data-a=onstart]').getBoundingClientRect().bottom) <= innerHeight")
+    ok(sm, 'Start-Knopf quer ohne Scrollen sichtbar')
+    small = [b for b in s.small_buttons() if b['y'] >= 0 and b['y'] < 400]
+    ok(not small, f'Lobby-Knöpfe ≥ 48 px {small[:4]}')
     s.shot('lobby_gastgeber_quer', 'n35')
     A.set_viewport_size({'width': 412, 'height': 915}); time.sleep(0.6); s.shot('lobby_gastgeber_hoch', 'n35'); A.set_viewport_size({'width': 915, 'height': 412})
     B.evaluate("__game.online.ansicht.zeigeLobby()"); time.sleep(0.4); B.screenshot(path='tests/shots/n35/lobby_gast_quer.png')
@@ -74,15 +82,19 @@ with Server() as srv, sync_playwright() as pw:
     A.evaluate("__game.online.aktion('onstart')")
     ok(warte(A, "__game.race && __game.race.online", 15) and warte(B, "__game.race && __game.race.online", 15), 'beide im Online-Rennen')
     for P in (A, B): P.evaluate("__game.race.autopilotOnly = true")
-    time.sleep(1.0); s.shot('startaufstellung_quer', 'n35')
-    # „Los!“: Zeitpunkt in Sitzungszeit auf beiden Seiten (Abstand der wahren Zeit kann man in einem Browser direkt vergleichen)
-    los = {}
-    t0 = time.time()
-    while time.time() - t0 < 15 and len(los) < 2:
-        for n, P in (('A', A), ('B', B)):
-            if n not in los and P.evaluate("__game.race.state !== 'countdown'"): los[n] = time.time()
-        time.sleep(0.01)
-    ok(len(los) == 2 and abs(los['A'] - los['B']) < 0.08, f'„Los!“ auf beiden Seiten {abs(los.get("A", 0) - los.get("B", 9)) * 1000:.0f} ms auseinander (Messung grob, 10-ms-Raster; Grenze ±50 ms)')
+    time.sleep(1.0); s.shot('startaufstellung_quer', 'n35'); B.screenshot(path='tests/shots/n35/startaufstellung_gast_quer.png')
+    B.set_viewport_size({'width': 412, 'height': 915}); time.sleep(0.5); B.screenshot(path='tests/shots/n35/startaufstellung_gast_hoch.png'); B.set_viewport_size({'width': 915, 'height': 412})
+    # „Los!“: beide Seiten im selben Browser teilen die Systemuhr (performance.timeOrigin + now) – (1) Soll-Zeitpunkt aus der
+    # abgeglichenen Sitzungsuhr (Uhr-Fehler), (2) tatsächlicher Wechsel countdown → running, per rAF auf der Seite gemessen
+    SOLL = "(() => { const R = __game.online.rennen; return performance.timeOrigin + performance.now() + (R.startAt - R.S.zeit) / 1; })()"
+    WECHSEL = "(() => { window.__los = null; const f = () => { if (__game.race.state !== 'countdown') window.__los = performance.timeOrigin + performance.now(); else requestAnimationFrame(f); }; requestAnimationFrame(f); })()"
+    for P in (A, B): P.evaluate(WECHSEL)
+    sA = [A.evaluate(SOLL) for _ in range(5)]; sB = [B.evaluate(SOLL) for _ in range(5)]
+    dsoll = abs(sum(sA) / 5 - sum(sB) / 5)
+    ok(dsoll < 50, f'„Los!“-Soll nach Sitzungsuhr auf beiden Seiten {dsoll:.1f} ms auseinander (Grenze ±50 ms)')
+    ok(warte(A, "window.__los", 15, 0.05) and warte(B, "window.__los", 15, 0.05), 'beide fahren los')
+    dlos = abs(A.evaluate("window.__los") - B.evaluate("window.__los"))
+    ok(dlos < 50, f'„Los!“ tatsächlich (Bildwechsel) {dlos:.0f} ms auseinander (Grenze ±50 ms, inkl. Bildraster)')
     time.sleep(6)
     fremd = B.evaluate("(() => { const R = __game.online.rennen; return [...R.autos.values()].map((X) => ({ ki: X.ki, ok: X.auto.gueltig, x: X.auto.pos.x })); })()")
     ok(sum(1 for f in fremd if f['ok']) == 3 and sum(1 for f in fremd if f['ki']) == 2, f'B sieht Peter + 2 KI ({fremd})')
@@ -90,6 +102,7 @@ with Server() as srv, sync_playwright() as pw:
     ok(hud.startswith('Platz ') and '/4' in hud, f'HUD B: „{hud}“')
     ok(A.evaluate("__game.gegnerVis.aktiv") == 3 and B.evaluate("__game.gegnerVis.aktiv") == 3, 'je 3 fremde Autos dargestellt (GegnerVis)')
     s.shot('zweikampf_quer', 'n35'); B.screenshot(path='tests/shots/n35/zweikampf_gast_quer.png')
+    time.sleep(3); A.set_viewport_size({'width': 412, 'height': 915}); time.sleep(0.6); s.shot('zweikampf_hoch', 'n35'); A.set_viewport_size({'width': 915, 'height': 412})
     # --- Ziel ---
     ok(warte(A, f"{ZUSTAND}.phase === 'ergebnis'", 240, 1) and warte(B, f"{ZUSTAND}.phase === 'ergebnis'", 20), 'Zieltabelle auf beiden')
     tab = lambda P: P.evaluate(f"JSON.stringify({ZUSTAND}.ergebnis.map((e) => [e.platz, e.name, e.zeit]))")

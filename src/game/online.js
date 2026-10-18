@@ -66,12 +66,14 @@ export function schildName(info) {
 
 // Fremdes Auto als kinematischer Körper (Schnittstelle wie physics/car.js für autoauto.stoss mit festB und für
 // gfx/gegnervis.js sync): Lage aus dem Netz, Räder für die Optik nachgebildet.
+// Einfederung im Stand (wie Car.place): Räder sitzen sichtbar richtig in den Radkästen
+const SACK = CAR_DEF.mass * 9.81 / 4 / CAR_DEF.k;
 export class FremdAuto {
   constructor() {
     this.pos = { x: 0, y: -1000, z: 0 }; this.q = { x: 0, y: 0, z: 0, w: 1 }; this.v = { x: 0, y: 0, z: 0 }; this.w = { x: 0, y: 0, z: 0 };
     this.frame = { r: { x: 1, y: 0, z: 0 }, u: { x: 0, y: 1, z: 0 }, f: { x: 0, y: 0, z: -1 } };
     this.def = CAR_DEF;
-    this.wheels = CAR_DEF.wheels.map((w) => ({ front: w.front, comp: CAR_DEF.rest * 0.35, contact: true, spin: 0, steer: 0 }));
+    this.wheels = CAR_DEF.wheels.map((w) => ({ front: w.front, comp: SACK, contact: true, spin: 0, steer: 0 }));
     this.onGround = 4; this.surfaceKind = 0; this.crash = null; this.boost = 0;
     this.fort = 0; this.flags = {}; this.sprung = 0; this.geistBis = 0; this.gueltig = false; this.art = 'leer';
     this.lastImpact = 0;
@@ -96,7 +98,7 @@ export class FremdAuto {
     this.onGround = luft ? 0 : 4;
     rahmen(this.q, this.frame);
     const vF = this.v.x * this.frame.f.x + this.v.y * this.frame.f.y + this.v.z * this.frame.f.z;
-    for (const w of this.wheels) { w.steer = w.front ? (o.lenk || 0) : 0; w.spin += (vF / CAR_DEF.wheelR) * dt; w.contact = !luft; w.comp = luft ? 0.02 : CAR_DEF.rest * 0.35; }
+    for (const w of this.wheels) { w.steer = w.front ? (o.lenk || 0) : 0; w.spin += (vF / CAR_DEF.wheelR) * dt; w.contact = !luft; w.comp = luft ? 0.02 : SACK; }
     this.gueltig = true;
   }
   geist(jetztS) { return !this.gueltig || jetztS < this.geistBis || !!this.flags.geist || !!this.flags.crash || this.art === 'halt'; }

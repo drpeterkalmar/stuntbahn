@@ -24,6 +24,12 @@ hashed = list(files)
 for dp, dn, fn in os.walk(os.path.join(ROOT, 'assets', 'themes')):
     for f in sorted(fn):
         if not f.startswith('.'): hashed.append(os.path.relpath(os.path.join(dp, f), ROOT))
+# n35: vendor/ (Trystero, nur für Online geladen) ebenfalls nicht vorab, aber in den Hash – sonst bliebe nach einem
+# Bibliotheks-Update die alte Fassung im Cache der laufenden Version
+for d in ['vendor']:
+    for dp, dn, fn in os.walk(os.path.join(ROOT, d)):
+        for f in sorted(fn):
+            if not f.startswith('.'): hashed.append(os.path.relpath(os.path.join(dp, f), ROOT))
 hashed = sorted(set(hashed))
 h = hashlib.sha256()
 for f in hashed:

@@ -6,6 +6,7 @@
 //   app.beschreibe()               aktuelle Strecke als Daten (game/onlinestrecke.js beschreibe)
 //   app.ladeStrecke(desc, look)    Promise: Strecke aus Daten bauen (Gast), look = { thema, wetter, zeit }
 //   app.look()                     { thema, wetter, zeit } der aktuellen Strecke (Gastgeber)
+//   app.wendeLook(look)            Gast: neues Aussehen auf die schon geladene Strecke (optional)
 //   app.startOnline(spiel)         Online-Rennen starten (main.js baut Race, ruft spiel.rennenBauen(race))
 //   app.zumMenue()                 zurück ins Menü (Rennen abbrechen)
 //   app.anzeige(art, daten)        Hinweis/Ansicht aktualisieren ('lobby', 'hinweis', 'ergebnis', 'status')
@@ -18,6 +19,8 @@ import { streckenKennung } from './onlinestrecke.js';
 import { GAME_SPEED_STD } from './race.js';
 
 export const SPIEL = { neuVerbindenAb: 4000, namenLaenge: 16 };
+
+const lookKey = (l) => (l ? `${l.thema || ''}|${l.wetter || ''}|${l.zeit || ''}` : '');
 
 export class OnlineSpiel {
   constructor(app, opt = {}) {
@@ -101,6 +104,8 @@ export class OnlineSpiel {
     this._streckeSenden();
     return true;
   }
+  // Gastgeber hat Landschaft/Wetter/Tageszeit geändert (nur Optik): neuer Look für alle, Strecke bleibt
+  lookGeaendert() { if (this.S && this.S.istGastgeber && this.app.look) this.S.setzeEinstellungen({ look: this.app.look() }); }
   setzeKi(n, staerke) { if (this.S && this.S.istGastgeber) this.S.setzeEinstellungen({ ki: Math.max(0, Math.min(5, n | 0)), ...(staerke ? { staerke } : {}) }); }
   // alle bereit (Gastgeber zählt immer als bereit) und alle mit der Strecke?
   startKlar() {
@@ -168,14 +173,21 @@ export class OnlineSpiel {
       this.S.melden('brauche', { kennung: k }, this.S._pidVon(this.S.lobby.host));
     }
     this._ladeFallsNoetig();
+    // gleiche Strecke, neues Aussehen vom Gastgeber → nur die Optik nachziehen (nicht im Rennen)
+    const look = this.S.lobby.einst.look;
+    if (look && k && this.geladen === k && !this.laedt && this.lookAn !== lookKey(look) && this.S.lobby.phase !== 'rennen' && this.app.wendeLook) {
+      this.lookAn = lookKey(look);
+      Promise.resolve(this.app.wendeLook(look)).then(() => this.app.anzeige('lobby'));
+    }
   }
   async _ladeFallsNoetig() {
     const k = this.S && this.S.lobby.einst.strecke;
     if (!k || !this.strecke || streckenKennung(this.strecke) !== k || this.geladen === k || this.laedt === k) return;
     this.laedt = k;
     try {
-      await this.app.ladeStrecke(this.strecke, this.S.lobby.einst.look || {});
-      this.geladen = k;
+      const look = this.S.lobby.einst.look || {};
+      await this.app.ladeStrecke(this.strecke, look);
+      this.geladen = k; this.lookAn = lookKey(look);
       if (this.S) this.S.setzeInfo({ geladen: k });
     } catch (e) {
       this.hinweis('Strecke ließ sich nicht laden: ' + (e && e.message ? e.message : e), 0);

@@ -38,7 +38,9 @@ export function codeAusUrl(search = globalThis.location ? globalThis.location.se
 export function teilenLink(code, href = globalThis.location ? globalThis.location.href : 'https://example.org/') {
   const u = new URL(href);
   u.hash = '';
-  for (const k of [...u.searchParams.keys()]) if (k === 'raum') u.searchParams.delete(k);
+  // kurzer Link (kleiner QR-Code): nur Netz-Regler (Tests: ?netz=bc …) und nosw bleiben, alles andere (Strecke, Gegner, …)
+  // bestimmt ohnehin der Gastgeber
+  for (const k of [...u.searchParams.keys()]) if (!k.startsWith('netz') && k !== 'nosw') u.searchParams.delete(k);
   u.searchParams.set('raum', code);
   return u.toString();
 }

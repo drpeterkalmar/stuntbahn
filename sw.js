@@ -1,5 +1,5 @@
 // Service-Worker: offline spielbar, Cache-Busting über Inhalts-Hash (tools/update_sw.py)
-const VERSION = '5e1bb81051';
+const VERSION = 'e667063a51';
 const CACHE = 'stuntbahn-' + VERSION;
 const ASSETS = [
   './',
@@ -79,6 +79,10 @@ const ASSETS = [
   'src/game/input.js',
   'src/game/jumpassist.js',
   'src/game/lohn.js',
+  'src/game/online.js',
+  'src/game/onlineprobe.js',
+  'src/game/onlinespiel.js',
+  'src/game/onlinestrecke.js',
   'src/game/race.js',
   'src/game/rennfeld.js',
   'src/game/replay.js',
@@ -124,6 +128,15 @@ const ASSETS = [
   'src/gfx/world.js',
   'src/gfx/zeit.js',
   'src/main.js',
+  'src/net/bc.js',
+  'src/net/code.js',
+  'src/net/fake.js',
+  'src/net/index.js',
+  'src/net/paket.js',
+  'src/net/puffer.js',
+  'src/net/sitzung.js',
+  'src/net/trystero.js',
+  'src/net/uhr.js',
   'src/physics/air.js',
   'src/physics/arcade.js',
   'src/physics/autoauto.js',
@@ -165,6 +178,8 @@ const ASSETS = [
   'src/ui/cliprec.js',
   'src/ui/gmeter.js',
   'src/ui/minimap.js',
+  'src/ui/online.js',
+  'src/ui/qr.js',
   'src/ui/ui.js'
 ];
 self.addEventListener('install', (e) => {

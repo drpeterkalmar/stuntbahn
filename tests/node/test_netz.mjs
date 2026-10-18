@@ -19,7 +19,9 @@ const f1 = (x) => (Math.round(x * 10) / 10).toFixed(1);
   ok(normalisieren(' ab-cd ') === 'ABCD' && normalisieren('abc de') === 'ABCDE' && normalisieren('AB0D') === null && normalisieren('ABC') === null && normalisieren('ABCDEF') === null && normalisieren(null) === null, 'Eingabe säubern (klein, Leerzeichen, Bindestrich; 0 und Länge abgelehnt)');
   ok(codeAusUrl('?raum=wxyz&x=1') === 'WXYZ' && codeAusUrl('?x=1') === null && codeAusUrl('?raum=W0YZ') === null, 'Code aus ?raum=');
   const L = teilenLink('QRST', 'https://drpeterkalmar.github.io/stuntbahn/?raum=AAAA&gegner=3#x');
-  ok(L === 'https://drpeterkalmar.github.io/stuntbahn/?gegner=3&raum=QRST', 'Teilen-Link ersetzt alten Raum, ohne #: ' + L);
+  ok(L === 'https://drpeterkalmar.github.io/stuntbahn/?raum=QRST', 'Teilen-Link kurz (nur ?raum=), ersetzt alten Raum, ohne #: ' + L);
+  const L2 = teilenLink('QRST', 'http://127.0.0.1:8000/index.html?nosw&seed=4&netz=bc&netzlag=25&raum=AAAA');
+  ok(L2 === 'http://127.0.0.1:8000/index.html?nosw=&netz=bc&netzlag=25&raum=QRST', 'Test-Link behält Netz-Regler und nosw: ' + L2);
   ok(vorlesbar('ABCD') === 'AB-CD' && vorlesbar('ABCDE') === 'ABC-DE', 'vorlesbar AB-CD');
 }
 
