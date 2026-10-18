@@ -147,6 +147,14 @@ body:not([data-touch="none"]) #hud .xb kbd { display: none; }
 #hud .xb.nitro.cool { background: conic-gradient(#c8641ed9 calc(var(--p, 0) * 360deg), rgba(8, 10, 14, .86) 0); }
 #hud .xb.cool::after { content: attr(data-s); position: absolute; right: 2px; bottom: 0; min-width: 18px; padding: 1px 4px; border-radius: 9px;
   background: rgba(8, 10, 14, .85); color: #fff; font: 800 13px/1.1 system-ui, sans-serif; text-align: center; pointer-events: none; }
+/* n38 Vorrat aus Stunts: goldener Außenring (Anteil einer ganzen Ladezeit), voll = leuchtet */
+#hud .xb.nitro.bank::before { content: ''; position: absolute; inset: -7px; border-radius: 50%; pointer-events: none;
+  background: conic-gradient(#ffd34a calc(var(--b, 0) * 360deg), #ffffff1f 0);
+  -webkit-mask: radial-gradient(circle, transparent 58%, #000 60%); mask: radial-gradient(circle, transparent 58%, #000 60%); }
+#hud .xb.nitro.full::before { box-shadow: 0 0 12px #ffd34acc; }
+#stuntpop em { display: block; font-style: normal; font-size: clamp(13px, 2.6vw, 18px); font-weight: 800; color: #ffc46a; text-shadow: 0 1px 3px #000, 0 0 10px #000c; }
+#stuntpop.calm span { color: #fff3b0; }
+.rstunt { color: #9fe8ff; }
 #hud .xb.nitro.on { border-color: #ffd08a; background: conic-gradient(#ff7a1acc calc(var(--p, 0) * 360deg), rgba(12, 16, 22, .72) 0); box-shadow: 0 0 18px #ff7a1a99; }
 /* Auffüllen an Start/Ziel: kurz aufleuchten */
 #hud .xb.glow { filter: none; opacity: 1; animation: xglow 1.2s ease-out; }

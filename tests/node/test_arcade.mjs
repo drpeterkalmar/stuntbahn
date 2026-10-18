@@ -6,6 +6,10 @@ const { STUNT, scoreJump, chainFactor, chainWindow, halves, StuntTracker, stuntT
 const { Race, ASSISTS } = await import('../../src/game/race.js');
 const { Car, CAR_DEF } = await import('../../src/physics/car.js');
 const { MAT } = await import('../../src/track/defs.js');
+// n38: die n37-Formel (A, B) mit ausgeschaltetem Stunt-Lohn prüfen (lohn.js LOHN_AUS); die n38-Formel prüft test_lohn.mjs
+const { LOHN, LOHN_AUS, setLohn } = await import('../../src/game/lohn.js');
+const LOHN_STD = { ...LOHN };
+setLohn(LOHN_AUS);
 let fails = 0;
 const check = (c, msg) => { console.log(`${c ? 'OK  ' : 'FAIL'} ${msg}`); if (!c) fails++; };
 const DT = 1 / 120;
@@ -51,6 +55,7 @@ console.log('--- B: Tracker auf der Ebene ---');
   check(c.car.crash || (c.res && c.res.landing === 'crash'), `Original: halber Salto ohne Gegenhalten → Crash (${c.car.crash && c.car.crash.reason})`);
 }
 
+setLohn(LOHN_STD);
 console.log('--- C: Physik-Regler ---');
 {
   check(ARCADE.on === true, 'Arcade-Physik ist Standard (Node ohne URL)');

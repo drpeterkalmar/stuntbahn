@@ -84,6 +84,9 @@ console.log('--- B: Ladungen ---');
 }
 
 console.log('--- B2: unbegrenzt mit Abklingzeit (Peter 15.10.2026) ---');
+// (n38: hier nur die Abklingzeit selbst – ohne Stunt-Lohn, der sie über Stunts verkürzt; den prüft test_lohn.mjs)
+const { LOHN, setLohn } = await import('../../src/game/lohn.js');
+const tank0 = LOHN.tank; setLohn({ tank: 0 });
 {
   check(COOLDOWN.on && COOLDOWN.hop === 3 && COOLDOWN.nitro === 5, `Standard: Abklingzeit an, Hüpfer ${COOLDOWN.hop} s, Nitro ${COOLDOWN.nitro} s nach dem Ausbrennen`);
   const { race, run } = raceAt(demo);
@@ -110,6 +113,8 @@ console.log('--- B2: unbegrenzt mit Abklingzeit (Peter 15.10.2026) ---');
   check(r2.used.hop === 2, 'zweiter Hüpfer ausgelöst');
   check(r2.crashes === 0 && race.crashes === 0, 'dabei kein Crash');
 }
+
+setLohn({ tank: tank0 });
 
 console.log('--- C: alte Regel (?cd=runde): an Start/Ziel wieder voll ---');
 {

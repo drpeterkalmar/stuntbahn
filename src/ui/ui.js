@@ -8,6 +8,7 @@ import { LINE_LEVELS } from '../gfx/lineviz.js';
 import { NITRO, COOLDOWN } from '../physics/extras.js';
 import { ARCADE } from '../physics/arcade.js';
 import { stuntText } from '../game/stunts.js';
+import { LOHN } from '../game/lohn.js';
 import { BLUR_LEVELS } from '../gfx/post.js';
 import { parseTrk } from '../track/trk.js';
 import { trkToLayout } from '../track/trkimport.js';
@@ -212,7 +213,10 @@ export class UI {
     // n33: neue Hindernisse – einmal Bescheid sagen (neue Zufallsstrecken mit „h“ im Code, alte Codes und Bestzeiten bleiben)
     const arcNote = !!this.store.arcadeNote;
     if (arcNote) { this.store.arcadeNote = 0; setTimeout(() => this.toast('🤸 Neues Arcade-Fahrgefühl: Saltos und Schrauben in der Luft (Mittel: Gas/Bremse/Lenken antippen), Wände streifen statt Crash – Mittel- und Original-Bestzeiten starten neu', 6000), 600); }
-    if (this.store.hindNote) { this.store.hindNote = 0; setTimeout(() => this.toast('🚧 Neue Hindernisse: Zickzack-Barriere, Röhre mit Wand (über Kopf!), Spiralen-Hochstraße – neue Zufallsstrecken haben ein „h“ im Code, alte Codes und Bestzeiten bleiben', 5500), 600 + (medNote ? 4600 : 0) + (stuntNote ? 5000 : 0) + (tubeNote ? 5000 : 0) + (arcNote ? 6200 : 0)); }
+    // n38: Stunts laden Nitro nach – Mittel-/Original-Bestzeiten einmalig neu (nur, wer schon gespielt hat)
+    const lohnNote = !!this.store.lohnNote;
+    if (lohnNote) { this.store.lohnNote = 0; setTimeout(() => this.toast('🔥 Stunts laden jetzt Nitro nach (Sprünge, Saltos, Loopings, Ketten) – Mittel- und Original-Bestzeiten starten neu', 6000), 600 + (arcNote ? 6200 : 0)); }
+    if (this.store.hindNote) { this.store.hindNote = 0; setTimeout(() => this.toast('🚧 Neue Hindernisse: Zickzack-Barriere, Röhre mit Wand (über Kopf!), Spiralen-Hochstraße – neue Zufallsstrecken haben ein „h“ im Code, alte Codes und Bestzeiten bleiben', 5500), 600 + (medNote ? 4600 : 0) + (stuntNote ? 5000 : 0) + (tubeNote ? 5000 : 0) + (arcNote ? 6200 : 0) + (lohnNote ? 6200 : 0)); }
     const S = this.store.settings, m = env.meta, lay = env.layout;
     const stunts = {};
     for (const p of lay.pieces) { const t = p.g === 'gorge' ? 'gorge' : p.g === 'drop' ? 'drop' : { tr_bankC: 'bank', cliff2: 'cliff', slope4: 'slope3', tr_corkud: 'spiral', zigzag2: 'zigzag' }[p.type] || p.type; if (ICON[t] && (t !== 'straight')) stunts[t] = (stunts[t] || 0) + 1; }
@@ -588,7 +592,7 @@ export class UI {
       <div class="lbl">Extras</div>
       <div class="row">${onoff('extras', '🦘🔥 Hüpfer & Nitro')}${S.extras ? onoff('autoExtras', '🤖 Extras automatisch (Leicht)') : ''}</div>
       <p class="hint">${S.extras
-        ? `${COOLDOWN.on ? `<b>Hüpfer</b> (🦘, ~3,5 m hoch, nur mit Bodenkontakt, nicht in Looping/Röhre/Korkenzieher/an Schanzen) und <b>Nitro</b> (🔥, ${NITRO.dur} s kräftiger Schub) so oft du willst – nach jedem Einsatz lädt der Knopf kurz nach (Hüpfer ${COOLDOWN.hop} s, Nitro ${COOLDOWN.nitro} s nach dem Ausbrennen).` : `Je Runde <b>1× Hüpfer</b> (🦘, ~3,5 m hoch, nur mit Bodenkontakt, nicht in Looping/Röhre/Korkenzieher/an Schanzen) und <b>1× Nitro</b> (🔥, ${NITRO.dur} s kräftiger Schub). An Start/Ziel wieder voll.`} <span class="desk">Leertaste / Shift oder N, </span>Gamepad B / RB.${S.autoExtras ? ' Auf <b>Leicht</b> zündet der Autopilot den Nitro auf der längsten Geraden und hüpft nur, wo es sicher ist (über Bodenwellen) – du kannst jederzeit selbst drücken.' : ''}`
+        ? `${COOLDOWN.on ? `<b>Hüpfer</b> (🦘, ~3,5 m hoch, nur mit Bodenkontakt, nicht in Looping/Röhre/Korkenzieher/an Schanzen) und <b>Nitro</b> (🔥, ${NITRO.dur} s kräftiger Schub) so oft du willst – nach jedem Einsatz lädt der Knopf kurz nach (Hüpfer ${COOLDOWN.hop} s, Nitro ${COOLDOWN.nitro} s nach dem Ausbrennen).` : `Je Runde <b>1× Hüpfer</b> (🦘, ~3,5 m hoch, nur mit Bodenkontakt, nicht in Looping/Röhre/Korkenzieher/an Schanzen) und <b>1× Nitro</b> (🔥, ${NITRO.dur} s kräftiger Schub). An Start/Ziel wieder voll.`} <span class="desk">Leertaste / Shift oder N, </span>Gamepad B / RB.${S.autoExtras ? ' Auf <b>Leicht</b> zündet der Autopilot den Nitro ' + (LOHN.tank && COOLDOWN.on ? 'auf jeder lohnenden Geraden, sobald er bereit ist,' : 'auf der längsten Geraden') + ' und hüpft nur, wo es sicher ist (über Bodenwellen) – du kannst jederzeit selbst drücken.' : ''}`
         : '<b>Aus:</b> ohne Hüpfer und Nitro wie im Original. Bestzeiten mit und ohne Extras werden getrennt gezählt.'}</p>
       <div class="lbl">Autopilot-Fahrstil (Leicht)</div>
       ${this.fahrstilSeg()}
@@ -628,7 +632,7 @@ export class UI {
       <p><b>Mittel:</b> Du lenkst selbst – kein Zug zur Ideallinie. Das Auto hat mehr Bodenhaftung als auf Original, rutscht aber, wenn du zu schnell in die Kurve fährst. Im Looping und in der Röhre hält eine Spurhilfe die Fahrbahnmitte (oben „Looping – Spurhilfe“); deutliches Lenken schaltet sie sofort ab. Seit 04.10.2026 beschleunigt das Auto auf Mittel sanfter (Gas baut sich kurz auf, ab ~210 km/h auf dem Tacho geht es nur noch zäh weiter) – so bleibt es kontrollierbar. Vor einer Schanze steht oben das passende Absprung-Tempo (grün = passt); in der Luft zieht eine dezente Sprung-Hilfe die Landung Richtung Landerampe.</p>
       <p><i>Mittel/Original</i>: links ◀ ▶ lenken, rechts GAS und BREMSE (hochkant alle unten in einer Reihe). Bremse im Stand = Rückwärtsgang.</p>
       <p><b>🤸 Stunts in der Luft</b> (Mittel und Original, seit 18.10.2026)${ARCADE.on ? '' : ' – mit <code>?physik=alt</code> aus'}: <b>Gas</b> = Salto vorwärts, <b>Bremse</b> = Salto rückwärts, <b>◀ ▶</b> = Schraube. Was du beim Absprung schon drückst, zählt erst, wenn du es einmal loslässt – wer mit Vollgas über die Schanze fährt, fliegt ganz normal. <b>Mittel:</b> kurz <b>antippen</b> = ein ganzer Salto bzw. eine ganze Schraube (nochmal tippen = noch eine), nur wenn die Flugzeit reicht (sonst „zu spät“); die Landehilfe richtet das Auto danach aus. <b>Original:</b> <b>halten</b> = drehen, loslassen = der Schwung bleibt – Gegenrichtung fängt ab, du landest selbst. Gamepad: linker Stick vor/zurück nickt. Wände streifen kostet nur etwas Tempo, frontal einschlagen bleibt ein Crash. Landen auf dem Dach oder auf der Seite = Crash.</p>
-      <p><b>★ Stunt-Punkte</b> (nur Anzeige, die Bestzeit zählt weiter nach Zeit): 1 Punkt je 0,1 s Luft (ab 0,5 s), je halbem Salto 15, je halber Schraube 20, je halbem Dreher 10; ohne Drehung die Hälfte. Saubere Landung (alle Räder auf einmal, gerade) ×1,25. Springst du kurz nach der Landung wieder ab, wächst die <b>Kette</b> (×1,2 … ×2). Crash-Landung: halbe Punkte, Kette vorbei. Dieselbe Figur am selben Sprung in der nächsten Runde zählt halb.</p>
+      <p><b>★ Stunt-Punkte</b>: 1 Punkt je 0,1 s Luft (ab 0,5 s), je halbem Salto 15, je halber Schraube 20, je halbem Dreher 10${LOHN.stuntpkt ? '; Hüpfer ohne Drehung zählen halb. <b>Bauwerke</b> zählen auch: Looping ~42, Korkenzieher ~48, Röhre ~28 (je nach Tempo)' : '; ohne Drehung die Hälfte'}. Saubere Landung (alle Räder auf einmal, gerade) ×1,25${LOHN.landung ? `, <b>ruhige Hand</b> (zusätzlich ${String(LOHN.calmT).replace('.', ',')} s vor dem Aufsetzen nichts mehr verändert an Lenken, Gas, Bremse) ×${String(LOHN.calm).replace('.', ',')}` : ''}. Folgt der nächste Stunt kurz danach, wächst die <b>Kette</b> (×1,2 … ×2)${LOHN.stuntpkt ? '; Hüpfer zählen dafür nicht' : ''}. Crash-Landung: halbe Punkte, Kette vorbei. Dieselbe Figur am selben Sprung in der nächsten Runde zählt halb.${LOHN.tank && COOLDOWN.on ? ` <b>🔥 Stunts laden Nitro nach:</b> ${LOHN.tank} Punkte = eine ganze Nitro-Ladezeit. Lädt der Nitro gerade, ist er entsprechend früher bereit; ist er schon bereit, füllt sich ein Vorrat (goldener Ring um den Knopf), der beim nächsten Zünden die Ladezeit verkürzt – Vorrat voll = nach dem Ausbrennen sofort wieder bereit. Nitro zünden verlängert eine laufende Kette um ${LOHN.nitroWin} s.` : ' Die Bestzeit zählt nach Zeit.'}</p>
       <p><b>Tastatur:</b> Pfeile oder WASD (bremsen: Pfeil runter/S), <b>Leertaste</b> Hüpfer, <b>Shift</b> oder <b>N</b> Nitro, <b>R</b> zurückspulen, <b>C</b> Kamera (Verfolger, Cockpit, Hubschrauber, Stoßstange, Strecke), <b>L</b> Ideallinie ein/aus, <b>Esc</b> Pause.</p>
       <p><b>Gamepad:</b> linker Stick lenken (in der Luft vor/zurück = nicken), RT/A Gas, LT/X Bremse, <b>B</b> Hüpfer, <b>RB</b> Nitro, Y zurückspulen, LB Kamera, Back Ideallinie, Start Pause.</p>
       <p><b>Extras 🦘 🔥</b> (${COOLDOWN.on ? `unbegrenzt, nach jedem Einsatz lädt der Knopf nach – Ring füllt sich: Hüpfer ${COOLDOWN.hop} s, Nitro ${COOLDOWN.nitro} s nach dem Ausbrennen` : 'je 1 pro Runde, an Start/Ziel wieder voll'}): <b>Hüpfer</b> – das Auto springt aus der Fahrt ~3,5 m hoch und bleibt dabei waagrecht; nur mit Bodenkontakt, in Looping, Röhre, Korkenzieher und an Schanzen gesperrt (Knopf ausgegraut). <b>Nitro</b> – ${NITRO.dur} s lang deutlich mehr Schub (+70–80 % Beschleunigung, bis ~700 km/h), danach sanft zurück. Handy: runde Knöpfe über den Daumen (links 🦘, rechts 🔥). Abschaltbar in den Optionen.</p>
@@ -702,12 +706,13 @@ export class UI {
     // (grau) / Nitro brennt (Ring = Restzeit)
     const X = race.xstate();
     const hs = X.hop === 'off' ? 'off' : X.hop === 'empty' ? 'empty' : X.hop === 'cool' ? 'cool' : X.hop && X.hop !== 'wait' ? 'lock' : 'ok';
-    const key = hs + '|' + X.nitro + '|' + (X.nitro === 'on' ? Math.round(X.left * 40) : 0) + '|' + (hs === 'cool' ? Math.round(X.ph * 40) + ':' + Math.ceil(X.sh) : 0) + '|' + (X.nitro === 'cool' ? Math.round(X.pn * 40) + ':' + Math.ceil(X.sn) : 0);
+    const key = hs + '|' + X.nitro + '|' + (X.nitro === 'on' ? Math.round(X.left * 40) : 0) + '|' + (hs === 'cool' ? Math.round(X.ph * 40) + ':' + Math.ceil(X.sh) : 0) + '|' + (X.nitro === 'cool' ? Math.round(X.pn * 40) + ':' + Math.ceil(X.sn) : 0) + '|' + Math.round((X.bank || 0) * 40);
     if (key !== this._x) {
       this._x = key;
       const H = $('#hud .xb.hop'), N = $('#hud .xb.nitro');
       H.className = 'xb hop ' + hs + (H.classList.contains('glow') ? ' glow' : '') + (H.classList.contains('press') ? ' press' : '');
-      N.className = 'xb nitro ' + X.nitro + (N.classList.contains('glow') ? ' glow' : '') + (N.classList.contains('press') ? ' press' : '');
+      N.className = 'xb nitro ' + X.nitro + (X.bank > 0.004 ? ' bank' : '') + (X.bank >= 0.999 ? ' full' : '') + (N.classList.contains('glow') ? ' glow' : '') + (N.classList.contains('press') ? ' press' : '');
+      N.style.setProperty('--b', (X.bank || 0).toFixed(3));   // n38: Vorrat aus Stunts (goldener Außenring)
       N.style.setProperty('--p', X.nitro === 'on' ? X.left.toFixed(3) : X.nitro === 'cool' ? X.pn.toFixed(3) : '0');
       H.style.setProperty('--p', hs === 'cool' ? X.ph.toFixed(3) : '0');
       H.dataset.s = hs === 'cool' ? Math.max(1, Math.ceil(X.sh)) : ''; N.dataset.s = X.nitro === 'cool' ? Math.max(1, Math.ceil(X.sn)) : '';
@@ -750,7 +755,10 @@ export class UI {
     else if (e.type === 'stunt') {
       // n37: abgerechneter Sprung – Figur, Luftzeit/Landung/Kette, Punkte (2,2 s)
       const T = stuntText(e), P = $('#stuntpop');
-      P.className = 'show ' + (e.landing || ''); P.innerHTML = `<b>${T.head}</b><span>${T.sub}</span><i>${T.pts}</i>`;
+      // n38: was der Stunt dem Nitro gebracht hat
+      const sec = (e.nitroSec || 0).toFixed(1).replace('.', ',');
+      const nx = e.nitroNow ? '🔥 Nitro sofort bereit!' : e.nitroSec >= 0.05 ? (e.nitroFull ? '🔥 Nitro-Vorrat voll' : race.charges.nitro || race.nitroT >= 0 ? `🔥 +${sec} s Nitro-Vorrat` : `🔥 lädt ${sec} s schneller`) : '';
+      P.className = 'show ' + (e.landing || '') + (e.calm ? ' calm' : ''); P.innerHTML = `<b>${T.head}</b><span>${T.sub}</span><i>${T.pts}</i>${nx ? `<em>${nx}</em>` : ''}`;
       this._lv = 'x'; clearTimeout(this._spT); this._spT = setTimeout(() => { if (!P.classList.contains('live')) P.className = ''; }, 2200);
     } else if (e.type === 'trickno') this.toast(e.axis === 'p' ? '🤸 Zu spät für einen Salto' : '🤸 Zu spät für eine Schraube', 1100);
     else if (e.type === 'refill') {
@@ -838,6 +846,7 @@ export class UI {
     $('#result').innerHTML = `<div class="card${dk}"><h2>🏁 Ziel!</h2>${res.easy ? '<div class="ryour">Deine Zeit</div>' : ''}
       <div class="rtime">${fmtTime(res.time)}</div>${pen}${best}
       <div class="rmeta">${A.icon} ${A.name} · ${race.wreckOn ? '💥 Totalschaden an' : 'Totalschaden aus'} · ${race.extrasOn ? (race.cdMode ? `Extras: 🦘 ${race.used.hop}× 🔥 ${race.used.nitro}×` : `Extras: 🦘 ${race.used.hop ? '✓' : '–'} 🔥 ${race.used.nitro ? '✓' : '–'}`) : 'ohne Extras'} · ${env.meta.name} (${env.meta.key}) · Crashs ${race.crashes}${race.rewinds ? ' · Rückspulen ' + race.rewinds : ''}</div>
+      ${race.stunts && race.stunts.total ? `<div class="rmeta rstunt">★ ${race.stunts.total} Stunt-Punkte · ${race.stunts.n} Stunt${race.stunts.n > 1 ? 's' : ''}${race.stunts.maxLinks > 1 ? ` · längste Kette ${race.stunts.maxLinks}` : ''}${race.lohn && race.lohn.sec >= 0.1 ? ` · 🔥 Nitro ${race.lohn.sec.toFixed(1).replace('.', ',')} s früher bereit` : ''}</div>` : ''}
       <div class="row"><button class="big go" data-a="retry">🔁 Nochmal</button><button data-a="replay">📼 Replay</button>${race.film ? '<button data-a="cine">🎬 Highlights</button>' : ''}</div>
       <div class="row">${race.film && clipMime() ? (this.lastClip ? `<button data-a="clipshare">📤 Video (${(this.lastClip.blob.size / 1e6).toFixed(1).replace('.', ',')} MB)</button>` : '<button data-a="cliprec">🎥 Als Video</button>') : ''}<button data-a="next">🎲 Neue Strecke</button><button data-a="menu">☰ Menü</button></div></div>`;
     this.show('result');

@@ -137,7 +137,7 @@ console.log('--- E: ?roehre=glatt und .TRK ---');
 console.log('--- F: Bestzeiten, A/B, HUD ---');
 {
   mem.clear();
-  mem.set('stuntbahn.v1', JSON.stringify({ settings: {}, reset: 21, medReset: 24, stuntReset: 26, arcadeReset: 37, best: { '4711-3|original+reset@x': { time: 50 }, '4711-3-g|medium+reset@x': { time: 60 }, 'sam-012|original+reset@x': { time: 70 }, 'trk-abc|medium+reset@x': { time: 80 }, 'demo-rundkurs|original+reset@x': { time: 90 } }, ghostIndex: ['4711-3|original+reset@x', 'sam-012|original+reset@x'] }));
+  mem.set('stuntbahn.v1', JSON.stringify({ settings: {}, reset: 21, medReset: 24, stuntReset: 26, arcadeReset: 37, lohnReset: 38, best: { '4711-3|original+reset@x': { time: 50 }, '4711-3-g|medium+reset@x': { time: 60 }, 'sam-012|original+reset@x': { time: 70 }, 'trk-abc|medium+reset@x': { time: 80 }, 'demo-rundkurs|original+reset@x': { time: 90 } }, ghostIndex: ['4711-3|original+reset@x', 'sam-012|original+reset@x'] }));
   mem.set('stuntbahn.ghost.4711-3|original+reset@x', 'AAAA'); mem.set('stuntbahn.ghost.sam-012|original+reset@x', 'BBBB');
   let S = new Store();
   check(Object.keys(S.best).sort().join(',') === 'demo-rundkurs|original+reset@x,sam-012|original+reset@x,trk-abc|medium+reset@x' && !mem.has('stuntbahn.ghost.4711-3|original+reset@x') && mem.has('stuntbahn.ghost.sam-012|original+reset@x') && S.tubeNote === 2 && !S.stuntNote,

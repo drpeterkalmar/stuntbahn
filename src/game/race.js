@@ -13,7 +13,8 @@ import { computeProfile } from '../ai/profile.js';
 import { DriftCtl, BRACHIAL } from '../ai/drift.js';
 import { ZIEL } from './zielshow.js';
 import { ARCADE, arcadeAssist } from '../physics/arcade.js';
-import { StuntTracker } from './stunts.js';
+import { StuntTracker, bauKinds } from './stunts.js';
+import { LOHN, cooldownGain, creditNitro } from './lohn.js';
 
 // Mittel (n16, Peter 29.09.2026: „Mittlere Schwierigkeit mehr Bodenhaftung und kein Magnet zur Ideallinie“): kein
 // Lenkzug zur Linie mehr (steerPull bis n15 0,28, im Stunt stuntPull 0,6), dafür mehr Reifenhaftung (grip, Faktor auf
@@ -230,6 +231,10 @@ export class Race {
     // n37 Stunt-Wertung (nur Anzeige; nicht in der reinen Autopilot-Fahrt): Ereignis 'stunt' je abgerechnetem Sprung
     this.stunts = new StuntTracker();
     this.jumpK = 0;
+    // n38 Stunt-Lohn (lohn.js): Punkte verkürzen die Nitro-Abklingzeit; nbank = Vorrat (s), lohn = Bilanz fürs Ergebnis/Messungen
+    this.bauK = bauKinds(env);
+    this.nbank = 0;
+    this.lohn = { pts: 0, sec: 0, n: 0, hop: 0, now: 0 };
     this.place(this.startIdx - (opts.startBack ?? 1));
     this.chargeLap = this.tracker.lap;
   }
@@ -478,8 +483,8 @@ export class Race {
     // Fortschritt / Checkpoints / Ziel
     let ti = this.tracker.update(car.pos.x, car.pos.y, car.pos.z);
     if (!this.autopilotOnly) {
-      const sr = this.stunts.step(dt, car, { piece: L.piece[ti], lap: this.tracker.lap, loop: L.loop[ti] || L.tube[ti] });
-      if (sr) this.emit('stunt', sr);
+      const sr = this.stunts.step(dt, car, { piece: L.piece[ti], lap: this.tracker.lap, loop: L.loop[ti] || L.tube[ti], bau: this.bauK[ti], inp: input });
+      if (sr) { this.lohnStunt(sr); this.emit('stunt', sr); }
     }
     // Sprung-Hilfe (Mittel n24): im Flug über eine Schanze dezent Richtung Landerampe (game/jumpassist.js)
     this.jumpK = A.jumpPull && !this.autopilotOnly ? this.jumpAssist.step(dt, car, this.env.track, ti) : 0;
@@ -555,7 +560,7 @@ export class Race {
     this.snapT += dt;
     if (this.snapT >= 0.1) {
       this.snapT = 0;
-      this.snaps.push({ s: car.snapshot(), time: this.time, cp: this.cpNext, lap: this.tracker.lap, idx: ti, recLen: this.rec.length, apIdx: this.ap.tr.idx, ch: { ...this.charges }, cd: { ...this.cd } });
+      this.snaps.push({ s: car.snapshot(), time: this.time, cp: this.cpNext, lap: this.tracker.lap, idx: ti, recLen: this.rec.length, apIdx: this.ap.tr.idx, ch: { ...this.charges }, cd: { ...this.cd }, nb: this.nbank });
       if (this.snaps.length > 80) this.snaps.shift();
     }
     this.record(dt);
@@ -1034,7 +1039,7 @@ export class Race {
 
   onCrash() {
     this.crashes++;
-    if (!this.autopilotOnly) { const sr = this.stunts.crash(this.car); if (sr) this.emit('stunt', sr); }
+    if (!this.autopilotOnly) { const sr = this.stunts.crash(this.car); if (sr) { this.lohnStunt(sr); this.emit('stunt', sr); } }
     // Schwere fürs Crash-Geräusch (n16): Aufprall-Tempo senkrecht zur Wand/zum Boden bzw. Fahrtempo
     const ci = this.car.crash.info, sev = { v: +this.car.speed().toFixed(1), imp: ci && ci.vn ? -ci.vn : 0 };
     this.crashT = 0;
@@ -1155,6 +1160,7 @@ export class Race {
       this.time = sn.time; this.rec.length = Math.min(this.rec.length, sn.recLen);
       if (sn.ch) Object.assign(this.charges, sn.ch);
       if (sn.cd) Object.assign(this.cd, sn.cd);
+      if (sn.nb != null) this.nbank = sn.nb;
       const fr = this.recFrames();
       this.xev = this.xev.filter((e) => e.f < fr);
       this.crashLog = this.crashLog.filter((e) => e.f < fr);
@@ -1204,9 +1210,29 @@ export class Race {
     this.hopChkT -= dt;
     if (this.hopChkT <= 0) { this.hopChkT = 0.1; this.hopState = this.hopBlock(idx); }
   }
+  // n38 Stunt-Lohn: abgerechneter Stunt r (Ereignis 'stunt') → Nitro-Abklingzeit verkürzen bzw. Vorrat (lohn.js). Crash-Landungen
+  // zahlen nicht ein; Hüpfer zählen je weiterem Hüpfer innerhalb von hopWin s nur halb so viel (Dauer-Hüpfen lohnt nicht).
+  // Schreibt ins Ergebnis r: nitroSec (gutgeschrieben, s), nitroNow (dadurch jetzt bereit), nitroFull (Vorrat voll)
+  lohnStunt(r) {
+    if (!LOHN.tank || !this.extrasOn || !this.cdMode || r.landing === 'crash' || !(COOLDOWN.nitro > 0)) return;
+    let pts = r.pts;
+    if (r.hop) { this.hopPay = (this.hopPay || []).filter((t) => this.time - t < LOHN.hopWin); pts *= LOHN.hopPay * Math.pow(0.5, this.hopPay.length); this.hopPay.push(this.time); }
+    const sec = cooldownGain(pts, COOLDOWN.nitro);
+    if (!(sec > 0)) return;
+    const ready = this.charges.nitro >= 1, full = COOLDOWN.nitro;
+    const x = creditNitro({ ready, cd: this.cd.nitro, bank: this.nbank }, sec, full);
+    this.cd.nitro = x.cd; this.nbank = x.bank;
+    r.nitroSec = x.used + x.stored; r.nitroNow = !ready && this.nitroT < 0 && x.cd <= 0; r.nitroFull = x.bank >= full - 1e-6;
+    const B = this.lohn;
+    B.pts += pts; B.sec += r.nitroSec; B.n++; if (r.hop) B.hop += r.nitroSec; if (r.nitroNow) B.now++;
+    if (r.nitroSec > 0) this.emit('xgain', { k: 'nitro', sec: r.nitroSec, now: r.nitroNow, full: r.nitroFull, bank: x.bank / full });
+  }
   fireNitro() {
     if (this.charges.nitro < 1) { this.emit('xdenied', { k: 'nitro', why: this.cdMode ? 'cool' : 'empty', left: this.nitroT >= 0 ? NITRO_TOTAL - this.nitroT + this.cd.nitro : this.cd.nitro }); return; }
-    this.charges.nitro = 0; this.used.nitro++; this.cd.nitro = COOLDOWN.nitro;
+    this.charges.nitro = 0; this.used.nitro++;
+    // n38: Vorrat aus Stunts gleich abziehen (voll = nach dem Ausbrennen sofort wieder bereit); Kettenfenster + nitroWin s
+    this.cd.nitro = Math.max(0, COOLDOWN.nitro - this.nbank); this.nbank = 0;
+    if (LOHN.nitroWin) this.stunts.extend(LOHN.nitroWin);
     this.nitroT = 0;
     this.xev.push({ f: this.recFrames(), k: 'nitro' });
     this.nitroLog.push([this.time, this.time + NITRO_TOTAL]);
@@ -1276,7 +1302,9 @@ export class Race {
     const P = this.xplan || (this.xplan = this.planExtras());
     const car = this.car;
     if (this.tracker.lap >= 1 && this.cpNext >= this.cps.length) return;   // Zieleinfahrt: lohnt nicht mehr
-    if (this.charges.nitro && P.nitro && this.nitroT < 0 && car.onGround >= 2 && this.inRange(idx, P.nitro.i0, P.nitro.i1)) { this.want.nitro = true; this.autoNitro = true; }
+    // n38 (Stunt-Lohn an): auf jeder lohnenden Geraden, sobald bereit – bis n37 nur auf der längsten
+    const spots = LOHN.tank && this.cdMode ? P.spots : P.nitro ? [P.nitro] : [];
+    if (this.charges.nitro && spots.length && this.nitroT < 0 && car.onGround >= 2 && spots.some((S) => this.inRange(idx, S.i0, S.i1))) { this.want.nitro = true; this.autoNitro = true; }
     // Brachial (n25): Nitro schon am Ausgang eines Drifts, wenn die geplante Gerade gleich danach beginnt (bis nitroLead m)
     else if (this.brachial && this.charges.nitro && P.nitro && this.nitroT < 0 && car.onGround >= 3 && this.drift.endT != null && car.time - this.drift.endT < 0.3) {
       const L = this.env.track.line;
@@ -1321,6 +1349,7 @@ export class Race {
       return g;
     };
     let best = -1, bk = -1;
+    const cand = [];
     for (let k = 0; k + 1 < ord.length; k += 2) {
       // nur in voller Fahrt (ab 54 km/h), wo das Auto beschleunigt – also auf einer Geraden, nicht beim stehenden
       // Start (dort brächte er ~0,25 s mehr, Peter wünscht ihn aber auf der Geraden; selbst zünden geht immer)
@@ -1328,13 +1357,19 @@ export class Race {
       // das schmale Band der Hilfe auf der Flanke mehr, als der Schub brachte)
       if (vb[k] < 15 || vb[k] > P.vt[ord[k]] - 1 || stunt(ord[k]) || Math.abs(L.by[ord[k]]) > 0.12) continue;
       const g = gain(k);
+      if (g > 0.05) cand.push([g, k]);
       if (g > best) { best = g; bk = k; }
     }
+    const spotAt = (k0, g) => { let k = k0; while (k + 1 < ord.length && L.s[ord[k + 1]] - L.s[ord[k0]] <= 15 && L.s[ord[k + 1]] >= L.s[ord[k0]]) k++; return { i0: ord[k0], i1: ord[k], gain: g }; };
     let nitro = null;
-    if (bk >= 0 && best > 0.02) {
-      let k = bk;
-      while (k + 1 < ord.length && L.s[ord[k + 1]] - L.s[ord[bk]] <= 15 && L.s[ord[k + 1]] >= L.s[ord[bk]]) k++;
-      nitro = { i0: ord[bk], i1: ord[k], gain: best };
+    if (bk >= 0 && best > 0.02) nitro = spotAt(bk, best);
+    // n38: weitere lohnende Stellen (Zeitgewinn > 0,05 s), mindestens 200 m auseinander, die besten zuerst
+    const spots = nitro ? [nitro] : [];
+    cand.sort((a, b) => b[0] - a[0]);
+    for (const [g, k] of cand) {
+      if (spots.length >= LOHN.autoSpots) break;
+      const s0 = L.s[ord[k]];
+      if (spots.every((S) => { const d = Math.abs(L.s[S.i0] - s0); return Math.min(d, L.closed ? L.total - d : d) >= 200; })) spots.push(spotAt(k, g));
     }
     // Bodenwellen (Generator-Baustein, drei Wellen mittig im Feld): Absprung so, dass die Landung hinter den
     // Wellen liegt – frühestens 150 m, spätestens 3 m vor der ersten Welle (die Flugweite prüft hopSafe)
@@ -1352,7 +1387,7 @@ export class Race {
       }
       if (i0 >= 0) hops.push({ i0, i1, sb, sEnd: sb + 15 });
     });
-    return { nitro, hops };
+    return { nitro, hops, spots };
   }
   // Automatischer Hüpfer sicher? Zusätzlich zu hopBlock: Tempo 10–60 m/s, die Landung liegt hinter den Wellen,
   // gerade Fahrbahn über die ganze Flugstrecke + 25 m, kein Sprung, keine Engstelle, und ab den Wellen bis zur
@@ -1387,7 +1422,8 @@ export class Race {
     const nitro = !this.extrasOn ? 'off' : this.nitroT >= 0 ? 'on' : this.charges.nitro ? 'ok' : empty;
     const prog = (k) => this.charges[k] ? 1 : COOLDOWN[k] > 0 ? Math.min(1, Math.max(0, 1 - this.cd[k] / COOLDOWN[k])) : 1;
     return { hop: this.extrasOn ? (this.charges.hop ? this.hopState : empty) : 'off', nitro, left: this.nitroT >= 0 ? 1 - this.nitroT / NITRO_TOTAL : 0, boost: this.car.boost,
-      ph: prog('hop'), pn: this.nitroT >= 0 ? 0 : prog('nitro'), sh: this.charges.hop ? 0 : this.cd.hop, sn: this.charges.nitro ? 0 : this.cd.nitro };
+      ph: prog('hop'), pn: this.nitroT >= 0 ? 0 : prog('nitro'), sh: this.charges.hop ? 0 : this.cd.hop, sn: this.charges.nitro ? 0 : this.cd.nitro,
+      bank: COOLDOWN.nitro > 0 ? Math.min(1, this.nbank / COOLDOWN.nitro) : 0 };   // n38: Vorrat aus Stunts 0 … 1
   }
 
   requestRewind() {

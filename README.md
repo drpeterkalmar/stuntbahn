@@ -72,6 +72,27 @@ spielbar am Handy (quer oder hochkant), mit Gamepad oder Tastatur. Als App insta
   Abstand zu jeder Fahrbahn (auch Hochstraßen/Rampen), nie im Wasser. Dosiert nach Grafikstufe; ruckelt es, blendet die
   Automatik (nach der Unschärfe) zuerst Gras/Büsche/Wolkenschatten aus. `?deko=aus` (bis n29 `?deko=0`) / `?wolken=0` zum Vergleich.
 
+## 🔥 Stunts laden Nitro nach: Stunt-Kette, ruhige Hand, Bauwerke (seit 18.10.2026, n38, Version 0.7.1)
+Stunts sind im Rennen jetzt etwas wert. Die Stunt-Wertung ist inspiriert von klassischen Arcade-Racern (Clean-Room nach dem
+Vorlagen-Datenblatt, eigene Zahlen, per Messung abgestimmt). Messungen und Handy-Test: `N38_VORLAGEN_BERICHT.md`.
+- **Stunts verkürzen die Nitro-Ladezeit:** 60 Stunt-Punkte = eine ganze Ladezeit (5 s). Lädt der Nitro gerade, ist er früher
+  bereit („🔥 lädt 2,5 s schneller“ bzw. „🔥 Nitro sofort bereit!“). Ist er schon bereit, füllt sich ein **Vorrat** (goldener
+  Ring um den 🔥-Knopf), der beim nächsten Zünden die Ladezeit verkürzt. Ist der Vorrat voll, ist der Nitro nach dem Ausbrennen
+  sofort wieder bereit. Crash-Landungen und Hüpfer zahlen nichts ein (Dauer-Hüpfen lohnt nicht).
+- **Bauwerke zählen als Stunt:** Looping ~42, Korkenzieher ~48, Wendel ~36, Röhre ~28, Röhre mit Wand ~50, Zickzack ~16
+  (je nach Tempo), Steilwand/Halfpipe nach Zeit. Eine gerade Schanze ohne Drehung zählt nicht mehr halb (2,6 s sauber = 33).
+- **Landestufe „ruhige Hand“:** sauber gelandet und 1 s vor dem Aufsetzen nichts mehr an Lenken/Gas/Bremse verändert → ×1,5
+  (sonst sauber ×1,25).
+- **Stunt-Kette:** Fenster 12 s (vorher 6 s), Nitro zünden verlängert eine laufende Kette um 1 s; Hüpfer sind kein Kettenglied.
+- **Leicht** („Extras automatisch“): Der Autopilot zündet den Nitro auf jeder lohnenden Geraden, sobald er bereit ist (bis zu 6
+  Stellen je Runde; vorher nur auf der längsten), ~2,5 % schneller, weiter ohne Crash.
+- Ergebnis-Karte: „★ Stunt-Punkte · Stunts · längste Kette · 🔥 Nitro … s früher bereit“.
+- **Bestzeiten Mittel/Original starten einmalig neu** (Hinweis im Menü), Leicht-Zeiten bleiben.
+- **Regler (A/B, werten nicht):** `?tank=<Punkte>` (0 = nur Ladezeit wie bisher), `?kette=<s>` (0 = keine Kette, 6 = n37),
+  `?stuntpkt=0` (Wertung wie n37: nur Sprünge, ohne Drehung halb), `?landung=0` (ohne „ruhige Hand“). Alle aus =
+  Stand n37 bitgleich (`tests/node/n38_ref.mjs`).
+- Tests: `tests/node/test_lohn.mjs`, `tests/lohn_shots.py`. Messung: `tools/lohn_mess.mjs` (Profi-Mittel, Dauer-Hüpfer, Leicht).
+
 ## 🤸 Arcade-Stunt-Fahrgefühl: Saltos, Schrauben, Wände schrammen (seit 18.10.2026, n37, Version 0.7.0)
 Peter 10.10.: „Ich würde ein gutes, bereits reverse-engineertes Rennspiel verwenden – nicht das Stunts-Fahrgefühl.“ Vorbild
 sind die klassischen Arcade-Stunt-Racer der späten 90er. Mechanik und Zahlen kommen als Designwissen aus `ARCADE_FEEL.md`
@@ -498,6 +519,9 @@ node tests/node/test_assists.mjs          # Fahrhilfen mit simulierten Spielern
 node tests/node/test_arcade.mjs           # n37: Stunt-Formel, Tracker, Luftsteuerung, Wand, Wiedereinstieg, ?physik=alt bitgleich n36, Bestzeiten
 node tools/arcade_mess.mjs                # n37: Datenblatt-Größen alt/neu (0–100, Vmax, Kurven, Sprünge, Stunts, Luft, Landung, Wand)
 node tools/arcade_quote.mjs 8             # n37: Leicht + Mensch-Bots auf 72 Zufallsstrecken, alt gegen neu
+node tests/node/test_lohn.mjs             # n38: Stunt-Lohn (Nitro-Ladezeit, Vorrat, Bauwerke, ruhige Hand, Kette), Regler aus = n37 bitgleich
+node tools/lohn_mess.mjs 3                # n38: Messgrößen des Vorlagen-Datenblatts (Abklingzeit je Runde, Kette, Hüpfer, Zeit) aus/an
+python3 tests/lohn_shots.py quer|hoch     # n38: Salto lädt Nitro, Vorrats-Ring, Ergebnis-Karte (Bilder tests/shots/n38)
 python3 tests/arcade_shots.py quer        # n37: Salto/Schraube im Browser mit Tastatur, Bildfolgen → tests/arcade_collage.py
 node tests/node/test_reset.mjs            # Crash in Looping/Sprung/Wand: Reset +5 s bzw. Wrack; nie Endlosschleife
 node tests/node/test_free_steer.mjs       # Leicht: Spieler-Vorrang, weiche Rückführung, Abkürz-Regel, Stunt-Ansage
