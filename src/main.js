@@ -673,14 +673,24 @@ async function ladeOnlineStrecke(d, look) {
   }
   throw new Error('unbekannte Strecken-Art ' + d.art);
 }
+// Mess-Probe (Mess-Gate, ein Gerät): ?onlineprobe=N → __game.start() fährt ein Online-Rennen gegen N Attrappen im selben Tab
+// (game/onlineprobe.js; tests/perf_szenen_online.json)
+const PROBE_N = params.has('onlineprobe') ? Math.max(1, Math.min(3, +params.get('onlineprobe') || 3)) : 0;
+async function startOnlineProbe(opts = {}) {
+  const { OnlineProbe } = await import('./game/onlineprobe.js');
+  if (onl && onl.verlassen) onl.verlassen();
+  onl = new OnlineProbe(PROBE_N, { tempo: gameSpeed(store.settings.assist) });
+  startOnlineRace(onl, { autopilot: !!opts.autopilot });
+  app.online = { ...app.online, probe: PROBE_N };
+}
 // Online-Rennen: Totalschaden aus, gemeinsames Spieltempo, kein Geist, KI rechnet nur der Gastgeber (→ gegner = sein Feld)
-function startOnlineRace(spiel) {
+function startOnlineRace(spiel, opt = {}) {
   replay = null;
   quitShow();
   if (cine) { cine = null; ui.hideCine(); }
   if (fx) fx.reset();
   const S = store.settings, L = spiel.S.lobby;
-  race = new Race(env, { assist: S.assist, wreck: false, autopilot: false, extras: S.extras, autoExtras: S.autoExtras, brakeHelp: S.brakeHelp, fahrstil: FAHRSTIL_URL || S.fahrstil || 'brachial', seed: ((L.einst.seed || 1) + L.rennId) >>> 0, countdown: 1e9, splitRef: null });
+  race = new Race(env, { assist: S.assist, wreck: false, autopilot: !!opt.autopilot, extras: S.extras, autoExtras: S.autoExtras, brakeHelp: S.brakeHelp, fahrstil: FAHRSTIL_URL || S.fahrstil || 'brachial', seed: ((L.einst.seed || 1) + L.rennId) >>> 0, countdown: 1e9, splitRef: null });
   race.online = true;
   timeScale = L.einst.tempo || GAME_SPEED_STD;
   lookSchalten(false);
@@ -722,6 +732,7 @@ function onlineNachFrame() {
 }
 
 function startRace(opts = {}) {
+  if (PROBE_N) { startOnlineProbe(opts).catch((e) => console.error('Online-Probe', e)); return; }   // n35 Mess-Probe
   replay = null;
   quitShow();
   if (cine) { cine = null; ui.hideCine(); }

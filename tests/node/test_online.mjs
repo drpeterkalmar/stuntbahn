@@ -8,6 +8,7 @@ import { generate } from '../../src/track/generator.js';
 import { verifySync, prepare } from '../../src/track/verify.js';
 import { SHOWCASE, showcaseBytes } from '../../src/track/showcase.js';
 import { beschreibe, streckenKennung, ausB64 } from '../../src/game/onlinestrecke.js';
+import { OnlineProbe, probeAnzahl } from '../../src/game/onlineprobe.js';
 import { Race } from '../../src/game/race.js';
 import { Car } from '../../src/physics/car.js';
 import { stoss, HAERTE } from '../../src/physics/autoauto.js';
@@ -141,6 +142,17 @@ for (const [lat, jit, verl] of [[0, 0, 0], [75, 30, 0.05]]) {
   lauf(N, [B], V.apTime * 1.6 + 60, () => B.ergebnis);
   const t = (B.ergebnis || []).map((e) => e.id + (e.weg ? '(weg)' : e.zeit != null ? ' ' + e.zeit.toFixed(1) : '')).join(', ');
   ok(B.ergebnis && B.ergebnis[0].id === 'sid-b' && B.ergebnis.some((e) => e.id === 'sid-a' && e.weg), `Ben fährt allein zu Ende, Tabelle: ${t}`);
+}
+
+// ---------- Mess-Probe (?onlineprobe=3, ein Gerät): Online-Pfad gegen 3 Attrappen ----------
+{
+  let now = 0;
+  const P = new OnlineProbe(3, { tempo: 1, jetzt: () => now });
+  const race = new Race(env, { assist: 'medium', autopilot: true, countdown: 1e9 });
+  const O = P.rennenBauen(env, race);
+  for (let k = 0; k < 120 * 25; k++) { now += 1000 / 120; P.takt(); O.frame(); race.step(DT, {}); O.schritt(DT); O.nachFrame(race.events.splice(0)); O.events.length = 0; }
+  const A = [...O.autos.values()];
+  ok(race.state === 'running' && A.length === 3 && A.every((X) => X.auto.gueltig && X.auto.fort > 100) && O.stand().length === 4 && probeAnzahl('?onlineprobe=3') === 3 && probeAnzahl('') === 0, `Mess-Probe: 3 Attrappen über den Online-Pfad (Fortschritt ${A.map((X) => X.auto.fort.toFixed(0)).join('/')} m), Rangliste mit 4`);
 }
 
 console.log(bad ? `${bad} FEHLER` : 'alle Online-Rennen-Tests OK');

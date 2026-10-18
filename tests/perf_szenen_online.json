@@ -1,0 +1,131 @@
+{
+ "_kommentar": "n35 Online: Szenen für tests/perf_gate.py (A/B-Modus). Gate (Brief): Online mit 4 Autos höchstens +15 % p95 gegenüber Solo. Ein Gerät, ein Browser: ?onlineprobe=3 fährt gegen 3 Attrappen im selben Tab (game/onlineprobe.js) – ganzer Online-Pfad (Sitzung, Pakete 25 Hz, Uhr, Puffer, Vorausrechnen, Darstellung, Kollision, Rangliste) PLUS die KI-Physik der Attrappen; ?gegner=3 = dieselbe KI-Physik ohne Netz (n34). Online-Anteil ≈ on3 − g3; Gate gegen solo (obere Schranke, echte Mitspieler rechnen ihre Physik selbst). Wegen der Sitzungsuhr KEIN __game.sim – mitte_* wartet 25 s echt. Aufruf (Heavy-Job, Mac, EIN Browser): python3 tests/perf_gate.py --szenen tests/perf_szenen_online.json --stand n35_online --ab solo= --ab g3=&gegner=3 --ab on3=&onlineprobe=3 --runden 3. VORBAU: nicht ausgeführt.",
+ "bereit": "window.__app && window.__app.ready && window.__app.frames > 3",
+ "init": "window.__noKino = true; window.__noShow = true",
+ "info": "() => { const i = __game.renderer.info, g = __game.quality.gpu; return { calls: i.render.calls, tris: i.render.triangles, tex: i.memory.textures, gpu: g ? g.ms : null }; }",
+ "zusatz": "() => { const O = __game.online && __game.online.rennen, G = __game.gegner; return { ...__game.info(), online: O ? { fremde: O.autos.size, gueltig: [...O.autos.values()].filter((X) => X.auto.gueltig).length, verzug: [...__game.online.spiel.S.fremde.values()].map((f) => Math.round(f.puffer.verzug)), bytes: __game.online.spiel.S.statistik.bytesRaus } : null, gegner: G ? { n: G.fahrer.length } : null }; }",
+ "ladeQuery": "?nosw&seed=4711&d=3&g=1",
+ "ladeNachlauf": 4,
+ "szenen": [
+  {
+   "name": "start_kino",
+   "query": "?nosw&q=2&startprobe=0&seed=4711&d=3&g=1",
+   "schritte": [
+    {
+     "bis": "(() => { const v = __game.info().vao; return !v || v.fertig; })()",
+     "max": 120
+    },
+    "__game.setAssist('medium'); __game.store.settings.fahrstil = 'sauber'",
+    "__game.start({ autopilot: true })",
+    "__game.cam('chase')",
+    {
+     "bis": "__game.race && __game.race.state === 'running'",
+     "max": 30
+    },
+    {
+     "warte": 1.5
+    }
+   ]
+  },
+  {
+   "name": "mitte_kino",
+   "query": "?nosw&q=2&startprobe=0&seed=4711&d=3&g=1",
+   "schritte": [
+    {
+     "bis": "(() => { const v = __game.info().vao; return !v || v.fertig; })()",
+     "max": 120
+    },
+    "__game.setAssist('medium'); __game.store.settings.fahrstil = 'sauber'",
+    "__game.start({ autopilot: true })",
+    "__game.cam('chase')",
+    {
+     "bis": "__game.race && __game.race.state === 'running'",
+     "max": 30
+    },
+    {
+     "warte": 25
+    }
+   ]
+  },
+  {
+   "name": "start_standard",
+   "query": "?nosw&q=1&startprobe=0&seed=4711&d=3&g=1",
+   "schritte": [
+    {
+     "bis": "(() => { const v = __game.info().vao; return !v || v.fertig; })()",
+     "max": 120
+    },
+    "__game.setAssist('medium'); __game.store.settings.fahrstil = 'sauber'",
+    "__game.start({ autopilot: true })",
+    "__game.cam('chase')",
+    {
+     "bis": "__game.race && __game.race.state === 'running'",
+     "max": 30
+    },
+    {
+     "warte": 1.5
+    }
+   ]
+  },
+  {
+   "name": "mitte_standard",
+   "query": "?nosw&q=1&startprobe=0&seed=4711&d=3&g=1",
+   "schritte": [
+    {
+     "bis": "(() => { const v = __game.info().vao; return !v || v.fertig; })()",
+     "max": 120
+    },
+    "__game.setAssist('medium'); __game.store.settings.fahrstil = 'sauber'",
+    "__game.start({ autopilot: true })",
+    "__game.cam('chase')",
+    {
+     "bis": "__game.race && __game.race.state === 'running'",
+     "max": 30
+    },
+    {
+     "warte": 25
+    }
+   ]
+  },
+  {
+   "name": "start_einfach",
+   "query": "?nosw&q=0&startprobe=0&seed=4711&d=3&g=1",
+   "schritte": [
+    {
+     "bis": "(() => { const v = __game.info().vao; return !v || v.fertig; })()",
+     "max": 120
+    },
+    "__game.setAssist('medium'); __game.store.settings.fahrstil = 'sauber'",
+    "__game.start({ autopilot: true })",
+    "__game.cam('chase')",
+    {
+     "bis": "__game.race && __game.race.state === 'running'",
+     "max": 30
+    },
+    {
+     "warte": 1.5
+    }
+   ]
+  },
+  {
+   "name": "mitte_einfach",
+   "query": "?nosw&q=0&startprobe=0&seed=4711&d=3&g=1",
+   "schritte": [
+    {
+     "bis": "(() => { const v = __game.info().vao; return !v || v.fertig; })()",
+     "max": 120
+    },
+    "__game.setAssist('medium'); __game.store.settings.fahrstil = 'sauber'",
+    "__game.start({ autopilot: true })",
+    "__game.cam('chase')",
+    {
+     "bis": "__game.race && __game.race.state === 'running'",
+     "max": 30
+    },
+    {
+     "warte": 25
+    }
+   ]
+  }
+ ]
+}
