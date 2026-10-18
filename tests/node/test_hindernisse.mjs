@@ -214,7 +214,7 @@ console.log('--- G: HUD, Highlights, Grafik, Menü ---');
   check(mz && mz.geometry.index.count >= 2 * ZIGZAG.n * 6 && mw && mw.geometry.index.count >= 3 * 15, `Warnstreifen als Dreiecke (Zickzack ${mz && mz.geometry.index.count / 3}, Wand ${mw && mw.geometry.index.count / 3})`);
   // Menü-Hinweis einmal für bisherige Spieler, nicht für neue; Bestzeiten bleiben
   mem.clear();
-  mem.set('stuntbahn.v1', JSON.stringify({ settings: {}, reset: 21, medReset: 24, stuntReset: 26, tubeReset: 29, best: { '4711-3|original+reset@x': { time: 50 } } }));
+  mem.set('stuntbahn.v1', JSON.stringify({ settings: {}, reset: 21, medReset: 24, stuntReset: 26, tubeReset: 29, arcadeReset: 37, best: { '4711-3|original+reset@x': { time: 50 } } }));
   let S = new Store();
   const first = S.hindNote; S = new Store();
   mem.clear(); const S0 = new Store();

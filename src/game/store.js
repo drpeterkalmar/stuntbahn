@@ -32,6 +32,9 @@ const TUBE_RESET = 29;
 // n33: neue Hindernisse (Generator-Version 2) – die neuen Zufallsstrecken haben eigene Codes („h“), alte Codes behalten Layout
 // und Bestzeiten; kein Löschen, nur einmal ein Hinweis im Menü (HIND_NOTE)
 const HIND_NOTE = 33;
+// n37: Arcade-Fahrgefühl (Luftsteuerung, Wände schrammen, schnellerer Mittel-Antrieb) – Mittel- und Original-Zeiten nicht mit
+// n36 vergleichbar → einmalig deren Bestzeiten und Geister löschen (ARCADE_RESET, idempotent, Hinweis im Menü), Leicht bleibt
+const ARCADE_RESET = 37;
 export const IMPORTED_KEY = /^(trk-|sam-|demo-)/;
 // n26: ?stunt=1 (Stunt-Bauwerke wie bis n25) bzw. jeder andere Stunt-Maßstab als der Standard
 const AB_PARAMS = [['auto', 'alt'], ['grip', '1'], ['mgrip', '1'], ['m', 'n16'], ['m', 'n23'], ['antrieb', null], ['breit', 'alt'], ['wiese', 'alt'], ['haft', 'alt'], ['schanze', 'alt'], ['welt', null], ['stunt', null], ['air', null], ['lip', null], ['roehre', 'glatt'], ['cd', 'runde'], ['cdh', null], ['cdn', null],
@@ -69,6 +72,8 @@ export class Store {
     if (this.stuntReset < STUNT_RESET) { this.stuntNote = this.clearBests(null, (k) => !IMPORTED_KEY.test(k)); this.stuntReset = STUNT_RESET; this.save(); }
     this.tubeReset = d.tubeReset || 0;
     if (this.tubeReset < TUBE_RESET) { this.tubeNote = this.clearBests(null, (k) => !IMPORTED_KEY.test(k)); this.tubeReset = TUBE_RESET; this.save(); }
+    this.arcadeReset = d.arcadeReset || 0;
+    if (this.arcadeReset < ARCADE_RESET) { this.arcadeNote = this.clearBests('medium') + this.clearBests('original') + (d.settings ? 0.5 : 0); this.arcadeReset = ARCADE_RESET; this.save(); }
     this.hindSeen = d.hindSeen || 0;
     if (this.hindSeen < HIND_NOTE && GEN_V === 2) { this.hindNote = d.settings ? 1 : 0; this.hindSeen = HIND_NOTE; this.save(); }   // neu installiert: kein Hinweis
     // Streckenart (n22): flach / Hochstraße (n19, „3D“) / Gelände (Standard ab n22). Bisher nur der Schalter „flach“:
@@ -109,7 +114,7 @@ export class Store {
     try { localStorage.setItem(KEY + '.verified', JSON.stringify(this.verified)); } catch { /* voll */ }
   }
   save() {
-    try { localStorage.setItem(KEY, JSON.stringify({ settings: this.settings, best: this.best, ghostIndex: this.ghostIndex, times: this.times, timesMig: this.timesMig, reset: this.reset, medReset: this.medReset, stuntReset: this.stuntReset, tubeReset: this.tubeReset, hindSeen: this.hindSeen })); } catch { /* voll */ }
+    try { localStorage.setItem(KEY, JSON.stringify({ settings: this.settings, best: this.best, ghostIndex: this.ghostIndex, times: this.times, timesMig: this.timesMig, reset: this.reset, medReset: this.medReset, stuntReset: this.stuntReset, tubeReset: this.tubeReset, hindSeen: this.hindSeen, arcadeReset: this.arcadeReset })); } catch { /* voll */ }
   }
   // Leicht: letzte Zeiten dieser Strecke (neueste zuerst, nicht nach Zeit sortiert)
   timesFor(key) { return this.times[key] || []; }

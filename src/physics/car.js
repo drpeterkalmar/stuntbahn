@@ -749,8 +749,20 @@ export class Car {
   // Landehilfe Mittel: erst hold s nach der letzten Luft-Eingabe und nur nahe am Ziel (land.ang) – zu schief bleibt schief
   _landHelp(dt) {
     if (this.airIdle < ARCADE.luft.hold && !this.landSoon) return;
-    const Ld = ARCADE.land;
-    this._alignTo(this._airTarget(), dt, Ld.k, Ld.acc, Ld.ang);
+    const Ld = ARCADE.land, T = this._airTarget();
+    if (!this._alignTo(T, dt, Ld.k, Ld.acc, Ld.ang)) return;
+    // dazu die Nase (waagrecht um Ziel-Oben) in die Flugrichtung drehen – nach einer Schraube steht das Auto sonst schräg zur
+    // Bahn und rutscht nach dem Aufsetzen quer (gemessen: 195 → 77 km/h)
+    const F = this.frame, w = this.w, v = this.v;
+    const vt = v.x * T[0] + v.y * T[1] + v.z * T[2], hx = v.x - T[0] * vt, hy = v.y - T[1] * vt, hz = v.z - T[2] * vt, hl = Math.hypot(hx, hy, hz);
+    const ft = F.f.x * T[0] + F.f.y * T[1] + F.f.z * T[2], fx = F.f.x - T[0] * ft, fy = F.f.y - T[1] * ft, fz = F.f.z - T[2] * ft, fl = Math.hypot(fx, fy, fz);
+    if (hl < 3 || fl < 0.3) return;
+    // Winkel von f nach h um T (Vorzeichen über (f × h) · T)
+    const cx = fy * hz - fz * hy, cy = fz * hx - fx * hz, cz = fx * hy - fy * hx;
+    const yaw = Math.atan2((cx * T[0] + cy * T[1] + cz * T[2]) / (fl * hl), (fx * hx + fy * hy + fz * hz) / (fl * hl));
+    const want = Math.max(-3, Math.min(3, Ld.k * yaw)), cur = w.x * T[0] + w.y * T[1] + w.z * T[2];
+    const m = Ld.acc * dt, d = Math.max(-m, Math.min(m, want - cur));
+    w.x += T[0] * d; w.y += T[1] * d; w.z += T[2] * d;
   }
   // Fläche in Flugrichtung innerhalb von land.pre s (+ 1,5 m) oder bis 1,5 m unter dem Wagen?
   _landingSoon(world) {

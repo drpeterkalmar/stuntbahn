@@ -27,7 +27,8 @@ const num = (k, lo, hi) => { if (!q) return null; const v = q.get(k); return v !
 const gripUrl = q && q.get('grip') !== '1' ? num('grip', 0.5, 2) : null;
 
 export const ARCADE = {
-  on: !(q && q.get('physik') === 'alt'),
+  // (Node: Umgebung STUNT_PHYSIK=alt, für Messungen mit den bisherigen Werkzeugen)
+  on: !((q && q.get('physik') === 'alt') || (globalThis.process && globalThis.process.env && globalThis.process.env.STUNT_PHYSIK === 'alt')),
   luft: {
     k: num('luft', 0, 3) ?? 1,   // Stärke (Faktor auf Drehraten und Drehbeschleunigung)
     pitch: 4.6,       // rad/s größte Nickrate (~265°/s): Salto in ~1,5 s
@@ -76,7 +77,7 @@ export const ARCADE = {
     up: 0.5,          // |Normale · Auto-Oben| darunter = Wand (sonst Boden/Rampe: wie bis n36)
   },
   boden: {
-    steerSpeed: 4.8,  // rad/s Lenkgeschwindigkeit (bis n36 3)
+    steerSpeed: 3.8,  // rad/s Lenkgeschwindigkeit (bis n36 3; 4,8 gemessen: Handy-Bot mit groben Lenkstufen 141 statt 110 Crashs)
     // Mittel: Antrieb × maxDrive (n24: 0,7), ab vSoft weicher, 0 bei vTop (n24: 100 / 350 km/h) → 0–100 2,5 statt 3,1 s, darüber
     // wie n24 (Höchsttempo ~260 km/h): mit mehr Durchzug (vSoft 120, vTop 400: 296 km/h) flogen Vollgas-Bots an 4–7 von 24
     // Schanzen hinter die Landerampe (Peter n24: „Sprünge gehen zu weit“)

@@ -46,3 +46,7 @@ tests/shots/technik/*
 !tests/shots/n32/
 tests/shots/n32/*
 !tests/shots/n32/*.jpg
+# n37 Arcade: nur die Bildfolgen-Collagen für den Bericht
+!tests/shots/n37/
+tests/shots/n37/*
+!tests/shots/n37/*.jpg

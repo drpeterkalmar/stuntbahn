@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { Tracker } from '../ai/autopilot.js';
 import { ROAD_HW, WORLD_SCALE } from '../track/defs.js';
 import { tunnelLaeufe, roehreKamera } from '../track/tunnel.js';
+import { ARCADE } from '../physics/arcade.js';
 
 const V = () => new THREE.Vector3();
 export const CAM_MODES = ['chase', 'cockpit', 'far', 'bumper', 'track'];
@@ -200,6 +201,14 @@ export class CameraRig {
         const k = DRIFT_CAM.k * q * q * (3 - 2 * q);
         if (k > 0.001) fT = (this._fb || (this._fb = V())).copy(f).lerp(d, k).normalize();
       }
+    }
+    // n37 Arcade: im Flug folgt der Verfolger (auch Hubschrauber) der Flugrichtung waagrecht statt der Nase – bei Saltos und
+    // Schrauben dreht die Kamera nicht mit, die Figur bleibt lesbar (Vorbild: Blick entlang der Flugbahn, Welt-Oben)
+    if (ARCADE.on && this.airK > 0.01 && !crashed && (this.mode === 'chase' || this.mode === 'far') && P.vel) {
+      const d = this._av || (this._av = V());
+      d.set(P.vel.x, 0, P.vel.z);
+      const l = d.length();
+      if (l > 3) { d.multiplyScalar(1 / l); fT = (this._fa || (this._fa = V())).copy(fT).lerp(d, this.airK).normalize(); }
     }
     // Im Crash: Richtung von vor dem Unfall halten (Kamera dreht nicht mit dem Wrack), nur Oben → Welt
     if (!crashed) this.fwd.lerp(fT, kf).normalize();

@@ -6,6 +6,8 @@ import { PAINTS } from '../gfx/carmesh.js';
 import { PIECES } from '../track/pieces.js';
 import { LINE_LEVELS } from '../gfx/lineviz.js';
 import { NITRO, COOLDOWN } from '../physics/extras.js';
+import { ARCADE } from '../physics/arcade.js';
+import { stuntText } from '../game/stunts.js';
 import { BLUR_LEVELS } from '../gfx/post.js';
 import { parseTrk } from '../track/trk.js';
 import { trkToLayout } from '../track/trkimport.js';
@@ -59,7 +61,8 @@ export class UI {
       <div id="loading" class="screen show"><div class="logo">STUNT<b>BAHN</b></div><div class="bar"><i></i></div><p>Laden …</p></div>
       <div id="menu" class="screen"></div>
       <div id="hud">
-        <div class="tl"><div class="time">0:00,00</div><div class="pen"></div><div class="best"></div></div>
+        <div class="tl"><div class="time">0:00,00</div><div class="pen"></div><div class="best"></div><div class="sp"></div></div>
+        <div id="stuntpop"></div>
         <div class="tc"><div class="cp"></div></div>
         <div class="hint2" aria-live="polite"></div>
         <div class="tr"><div class="rbs">
@@ -207,7 +210,9 @@ export class UI {
     const tubeNote = !!this.store.tubeNote;
     if (tubeNote) { this.store.tubeNote = 0; setTimeout(() => this.toast('🕳️ Die Röhre hat jetzt einen Buckel in der Mitte – Bestzeiten der Zufallsstrecken starten neu, Sammlung und .TRK bleiben', 5000), 600 + (medNote ? 4600 : 0) + (stuntNote ? 5000 : 0)); }
     // n33: neue Hindernisse – einmal Bescheid sagen (neue Zufallsstrecken mit „h“ im Code, alte Codes und Bestzeiten bleiben)
-    if (this.store.hindNote) { this.store.hindNote = 0; setTimeout(() => this.toast('🚧 Neue Hindernisse: Zickzack-Barriere, Röhre mit Wand (über Kopf!), Spiralen-Hochstraße – neue Zufallsstrecken haben ein „h“ im Code, alte Codes und Bestzeiten bleiben', 5500), 600 + (medNote ? 4600 : 0) + (stuntNote ? 5000 : 0) + (tubeNote ? 5000 : 0)); }
+    const arcNote = !!this.store.arcadeNote;
+    if (arcNote) { this.store.arcadeNote = 0; setTimeout(() => this.toast('🤸 Neues Arcade-Fahrgefühl: Saltos und Schrauben in der Luft (Mittel: Gas/Bremse/Lenken antippen), Wände streifen statt Crash – Mittel- und Original-Bestzeiten starten neu', 6000), 600); }
+    if (this.store.hindNote) { this.store.hindNote = 0; setTimeout(() => this.toast('🚧 Neue Hindernisse: Zickzack-Barriere, Röhre mit Wand (über Kopf!), Spiralen-Hochstraße – neue Zufallsstrecken haben ein „h“ im Code, alte Codes und Bestzeiten bleiben', 5500), 600 + (medNote ? 4600 : 0) + (stuntNote ? 5000 : 0) + (tubeNote ? 5000 : 0) + (arcNote ? 6200 : 0)); }
     const S = this.store.settings, m = env.meta, lay = env.layout;
     const stunts = {};
     for (const p of lay.pieces) { const t = p.g === 'gorge' ? 'gorge' : p.g === 'drop' ? 'drop' : { tr_bankC: 'bank', cliff2: 'cliff', slope4: 'slope3', tr_corkud: 'spiral', zigzag2: 'zigzag' }[p.type] || p.type; if (ICON[t] && (t !== 'straight')) stunts[t] = (stunts[t] || 0) + 1; }
@@ -622,8 +627,10 @@ export class UI {
       <p><b>Autopilot-Fahrstil</b> (Optionen bzw. Pause): <b>🔥 Brachial</b> (Standard) – der Autopilot fährt am Limit, driftet quer mit Qualm durch die Kurven, ab und zu ein Beinahe-Dreher oder ein Ausritt ins Gras; er lenkt dabei selbst, dein Lenken schiebt mit, gehalten übernimmst du. <b>🧼 Sauber</b> – wie bisher: mit Reserve, du lenkst in Kurven etwas mit.</p>
       <p><b>Mittel:</b> Du lenkst selbst – kein Zug zur Ideallinie. Das Auto hat mehr Bodenhaftung als auf Original, rutscht aber, wenn du zu schnell in die Kurve fährst. Im Looping und in der Röhre hält eine Spurhilfe die Fahrbahnmitte (oben „Looping – Spurhilfe“); deutliches Lenken schaltet sie sofort ab. Seit 04.10.2026 beschleunigt das Auto auf Mittel sanfter (Gas baut sich kurz auf, ab ~210 km/h auf dem Tacho geht es nur noch zäh weiter) – so bleibt es kontrollierbar. Vor einer Schanze steht oben das passende Absprung-Tempo (grün = passt); in der Luft zieht eine dezente Sprung-Hilfe die Landung Richtung Landerampe.</p>
       <p><i>Mittel/Original</i>: links ◀ ▶ lenken, rechts GAS und BREMSE (hochkant alle unten in einer Reihe). Bremse im Stand = Rückwärtsgang.</p>
+      <p><b>🤸 Stunts in der Luft</b> (Mittel und Original, seit 18.10.2026)${ARCADE.on ? '' : ' – mit <code>?physik=alt</code> aus'}: <b>Gas</b> = Salto vorwärts, <b>Bremse</b> = Salto rückwärts, <b>◀ ▶</b> = Schraube. Was du beim Absprung schon drückst, zählt erst, wenn du es einmal loslässt – wer mit Vollgas über die Schanze fährt, fliegt ganz normal. <b>Mittel:</b> kurz <b>antippen</b> = ein ganzer Salto bzw. eine ganze Schraube (nochmal tippen = noch eine), nur wenn die Flugzeit reicht (sonst „zu spät“); die Landehilfe richtet das Auto danach aus. <b>Original:</b> <b>halten</b> = drehen, loslassen = der Schwung bleibt – Gegenrichtung fängt ab, du landest selbst. Gamepad: linker Stick vor/zurück nickt. Wände streifen kostet nur etwas Tempo, frontal einschlagen bleibt ein Crash. Landen auf dem Dach oder auf der Seite = Crash.</p>
+      <p><b>★ Stunt-Punkte</b> (nur Anzeige, die Bestzeit zählt weiter nach Zeit): 1 Punkt je 0,1 s Luft (ab 0,5 s), je halbem Salto 15, je halber Schraube 20, je halbem Dreher 10; ohne Drehung die Hälfte. Saubere Landung (alle Räder auf einmal, gerade) ×1,25. Springst du kurz nach der Landung wieder ab, wächst die <b>Kette</b> (×1,2 … ×2). Crash-Landung: halbe Punkte, Kette vorbei. Dieselbe Figur am selben Sprung in der nächsten Runde zählt halb.</p>
       <p><b>Tastatur:</b> Pfeile oder WASD (bremsen: Pfeil runter/S), <b>Leertaste</b> Hüpfer, <b>Shift</b> oder <b>N</b> Nitro, <b>R</b> zurückspulen, <b>C</b> Kamera (Verfolger, Cockpit, Hubschrauber, Stoßstange, Strecke), <b>L</b> Ideallinie ein/aus, <b>Esc</b> Pause.</p>
-      <p><b>Gamepad:</b> linker Stick lenken, RT/A Gas, LT/X Bremse, <b>B</b> Hüpfer, <b>RB</b> Nitro, Y zurückspulen, LB Kamera, Back Ideallinie, Start Pause.</p>
+      <p><b>Gamepad:</b> linker Stick lenken (in der Luft vor/zurück = nicken), RT/A Gas, LT/X Bremse, <b>B</b> Hüpfer, <b>RB</b> Nitro, Y zurückspulen, LB Kamera, Back Ideallinie, Start Pause.</p>
       <p><b>Extras 🦘 🔥</b> (${COOLDOWN.on ? `unbegrenzt, nach jedem Einsatz lädt der Knopf nach – Ring füllt sich: Hüpfer ${COOLDOWN.hop} s, Nitro ${COOLDOWN.nitro} s nach dem Ausbrennen` : 'je 1 pro Runde, an Start/Ziel wieder voll'}): <b>Hüpfer</b> – das Auto springt aus der Fahrt ~3,5 m hoch und bleibt dabei waagrecht; nur mit Bodenkontakt, in Looping, Röhre, Korkenzieher und an Schanzen gesperrt (Knopf ausgegraut). <b>Nitro</b> – ${NITRO.dur} s lang deutlich mehr Schub (+70–80 % Beschleunigung, bis ~700 km/h), danach sanft zurück. Handy: runde Knöpfe über den Daumen (links 🦘, rechts 🔥). Abschaltbar in den Optionen.</p>
       <p><b>Tacho & G-Kräfte:</b> Der Tacho ist ein <i>Show-Tacho</i> – langsame Tempi zeigt er größer (echte 40 km/h stehen als ~${Math.round(showKmh(40))}), ab 250 km/h zeigt er genau. Auf der Wiese (echt höchstens 30 km/h) steht deshalb ~${Math.round(showKmh(30) / 5) * 5}. Das G-Meter (Cockpit, Replay, Highlights) zeigt die Kräfte aufs Auto: Punkt = Kurve/Bremsen/Gas, Zahl = gesamt, „max“ = Spitze der Runde.</p>
       <p><b>Crash:</b> Standardmäßig kein Totalschaden – das Auto steht sofort wieder auf der Fahrbahn vor dem Stunt, mit Schwung, und du bekommst <b>+${PENALTY} s</b> auf die Zeit. Klappt ein Stunt mehrmals nicht, wirst du dahinter gesetzt (auch dann je +${PENALTY} s). Wer es hart mag: Optionen → <b>💥 Totalschaden</b> (Wrack wie im Original).</p>
@@ -657,6 +664,7 @@ export class UI {
     this.lineChanged();
     this.hudBest(race, env);
     $('#hud .pen').textContent = '';
+    $('#hud .sp').textContent = ''; this._sp = 0; this._lv = ''; $('#stuntpop').className = '';
     this._pen = 0;
     this._x = null;
     $('#hud').classList.toggle('noextras', !race.extrasOn);
@@ -685,9 +693,9 @@ export class UI {
       this._ht = Math.floor(t * 20);
       $('#hud .time').textContent = fmtTime(t);
       // Show-Tacho (n24, core/showspeed.js): langsame Tempi größer, ab 250 km/h echt
-      const kmh = Math.round(Math.abs(showKmhMs(race.car.fwdSpeed())));
+      const kmh = Math.round(Math.abs(showKmhMs(race.car.onGround > 0 ? race.car.fwdSpeed() : race.car.speed())));   // n37: im Flug Bahntempo (Salto)
       $('#hud .speed b').textContent = kmh;
-      $('#hud .gear').textContent = race.car.fwdSpeed() < -0.5 ? 'R' : race.car.gear;
+      $('#hud .gear').textContent = race.car.fwdSpeed() < -0.5 && race.car.onGround > 0 ? 'R' : race.car.gear;   // n37: im Salto nicht „R“
       $('#hud .cp').textContent = race.cps.length ? `CP ${Math.min(race.cpNext, race.cps.length)}/${race.cps.length}` : '';
     }
     // Extras-Knöpfe: bereit / lädt nach (Ring füllt sich, seit 15.10.) / verbraucht (alte Regel, grau) / gerade gesperrt
@@ -705,6 +713,20 @@ export class UI {
       H.dataset.s = hs === 'cool' ? Math.max(1, Math.ceil(X.sh)) : ''; N.dataset.s = X.nitro === 'cool' ? Math.max(1, Math.ceil(X.sn)) : '';
       H.setAttribute('aria-disabled', hs === 'ok' ? 'false' : 'true');
       N.setAttribute('aria-disabled', X.nitro === 'ok' ? 'false' : 'true');
+    }
+    // n37 Stunt-Punkte: Summe unter der Zeit, im Flug live Luftzeit + Drehungen (ab 0,5 s)
+    const ST = race.stunts;
+    if (ST && this._sp !== ST.total) { this._sp = ST.total; $('#hud .sp').textContent = ST.total ? `★ ${ST.total} Stunt-Punkte` : ''; }
+    const lv = ST && ST.live();
+    const lk = lv && lv.t >= 0.5 ? `${Math.floor(lv.t * 10)}|${lv.flips}|${lv.rolls}|${lv.spins}` : '';
+    if (lk !== this._lv) {
+      this._lv = lk;
+      const P = $('#stuntpop');
+      if (lk) {
+        const fig = [[lv.flips, 'Salto'], [lv.rolls, 'Schraube'], [lv.spins, 'Dreher']].filter(([h]) => h).map(([h, n]) => `${h % 2 ? (h > 1 ? (h - 1) / 2 + ' ½' : '½') : h / 2 + '×'} ${n}`).join(' · ');
+        P.className = 'show live'; P.innerHTML = `<b>✈ ${lv.t.toFixed(1).replace('.', ',')} s</b><span>${fig}</span>`;
+        clearTimeout(this._spT);
+      } else if (P.classList.contains('live')) P.className = '';
     }
     if (this._pen !== race.penalties) {
       this._pen = race.penalties;
@@ -725,6 +747,12 @@ export class UI {
     else if (e.type === 'skip') { this.wipe(false); this.toast('⏭ Stelle übersprungen', 1800); }
     else if (e.type === 'shortcut') { this.wipe(false); this.big('Abkürzung ↺<small>zurück an die Stelle, wo du die Strecke verlassen hast</small>', 'crash', 1800); }
     else if (e.type === 'nitro') this.big('🔥 NITRO', 'nitro', 900);
+    else if (e.type === 'stunt') {
+      // n37: abgerechneter Sprung – Figur, Luftzeit/Landung/Kette, Punkte (2,2 s)
+      const T = stuntText(e), P = $('#stuntpop');
+      P.className = 'show ' + (e.landing || ''); P.innerHTML = `<b>${T.head}</b><span>${T.sub}</span><i>${T.pts}</i>`;
+      this._lv = 'x'; clearTimeout(this._spT); this._spT = setTimeout(() => { if (!P.classList.contains('live')) P.className = ''; }, 2200);
+    } else if (e.type === 'trickno') this.toast(e.axis === 'p' ? '🤸 Zu spät für einen Salto' : '🤸 Zu spät für eine Schraube', 1100);
     else if (e.type === 'refill') {
       this.toast('🦘 🔥 wieder voll');
       for (const b of document.querySelectorAll('#hud .xb')) { b.classList.remove('glow'); void b.offsetWidth; b.classList.add('glow'); }

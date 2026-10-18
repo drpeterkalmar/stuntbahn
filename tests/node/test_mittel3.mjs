@@ -121,7 +121,7 @@ console.log('--- E: Schanzen-Hinweis, Bestzeiten, A/B ---');
 mem.clear();
 // (stuntReset 26 / tubeReset 29: die Einmal-Resets der Zufallsstrecken sind hier schon gelaufen – geprüft in
 // test_stuntgroesse.mjs bzw. test_roehre_buckel.mjs)
-mem.set('stuntbahn.v1', JSON.stringify({ settings: { assist: 'medium' }, reset: 21, stuntReset: 26, tubeReset: 29, best: { 'T1|medium+reset@x': { time: 50 }, 'T1|original+reset@x': { time: 55 }, 'T2|medium+wrack': { time: 70 } }, ghostIndex: ['T1|medium+reset@x', 'T1|original+reset@x'] }));
+mem.set('stuntbahn.v1', JSON.stringify({ settings: { assist: 'medium' }, reset: 21, stuntReset: 26, tubeReset: 29, arcadeReset: 37, best: { 'T1|medium+reset@x': { time: 50 }, 'T1|original+reset@x': { time: 55 }, 'T2|medium+wrack': { time: 70 } }, ghostIndex: ['T1|medium+reset@x', 'T1|original+reset@x'] }));
 mem.set('stuntbahn.ghost.T1|medium+reset@x', 'AAAA'); mem.set('stuntbahn.ghost.T1|original+reset@x', 'BBBB');
 let S = new Store();
 check(Object.keys(S.best).join(',') === 'T1|original+reset@x' && !mem.has('stuntbahn.ghost.T1|medium+reset@x') && mem.has('stuntbahn.ghost.T1|original+reset@x') && S.medNote === 2,

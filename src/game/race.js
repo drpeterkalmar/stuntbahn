@@ -13,6 +13,7 @@ import { computeProfile } from '../ai/profile.js';
 import { DriftCtl, BRACHIAL } from '../ai/drift.js';
 import { ZIEL } from './zielshow.js';
 import { ARCADE, arcadeAssist } from '../physics/arcade.js';
+import { StuntTracker } from './stunts.js';
 
 // Mittel (n16, Peter 29.09.2026: „Mittlere Schwierigkeit mehr Bodenhaftung und kein Magnet zur Ideallinie“): kein
 // Lenkzug zur Linie mehr (steerPull bis n15 0,28, im Stunt stuntPull 0,6), dafür mehr Reifenhaftung (grip, Faktor auf
@@ -226,6 +227,8 @@ export class Race {
     this.hopState = null; this.hopChkT = 0;
     this.xplan = null;      // Leicht automatisch: geplante Stellen (lazy)
     this.jumpAssist = new JumpAssist();   // Mittel n24: Sprung-Hilfe (A.jumpPull)
+    // n37 Stunt-Wertung (nur Anzeige; nicht in der reinen Autopilot-Fahrt): Ereignis 'stunt' je abgerechnetem Sprung
+    this.stunts = new StuntTracker();
     this.jumpK = 0;
     this.place(this.startIdx - (opts.startBack ?? 1));
     this.chargeLap = this.tracker.lap;
@@ -474,6 +477,10 @@ export class Race {
     car.step(dt, this.env.world);
     // Fortschritt / Checkpoints / Ziel
     let ti = this.tracker.update(car.pos.x, car.pos.y, car.pos.z);
+    if (!this.autopilotOnly) {
+      const sr = this.stunts.step(dt, car, { piece: L.piece[ti], lap: this.tracker.lap, loop: L.loop[ti] || L.tube[ti] });
+      if (sr) this.emit('stunt', sr);
+    }
     // Sprung-Hilfe (Mittel n24): im Flug über eine Schanze dezent Richtung Landerampe (game/jumpassist.js)
     this.jumpK = A.jumpPull && !this.autopilotOnly ? this.jumpAssist.step(dt, car, this.env.track, ti) : 0;
     // Klar neben der Fahrbahn und am Boden: höchstens alle 0,1 s neu orten (Abkürzung quer übers Gelände)
@@ -1027,6 +1034,7 @@ export class Race {
 
   onCrash() {
     this.crashes++;
+    if (!this.autopilotOnly) { const sr = this.stunts.crash(this.car); if (sr) this.emit('stunt', sr); }
     // Schwere fürs Crash-Geräusch (n16): Aufprall-Tempo senkrecht zur Wand/zum Boden bzw. Fahrtempo
     const ci = this.car.crash.info, sev = { v: +this.car.speed().toFixed(1), imp: ci && ci.vn ? -ci.vn : 0 };
     this.crashT = 0;
@@ -1114,6 +1122,7 @@ export class Race {
   // Nach dem Versetzen: Schnitt fürs Replay merken, Wächter zurücksetzen, weiterfahren
   afterJump() {
     this.stopNitro();
+    this.stunts.reset();
     this.cuts.push({ f: this.recFrames() });
     this.offT = 0; this.stuckT = 0; this.stuckProg = this.tracker.progress(); this.wrongT = 0;
     this.freeReset();
@@ -1135,7 +1144,7 @@ export class Race {
     k = Math.max(0, k);
     const sn = this.snaps[k];
     this.snaps.length = k + 1;
-    this.car.restore(sn.s); this.jumpAssist.reset();
+    this.car.restore(sn.s); this.jumpAssist.reset(); this.stunts.reset();
     this.cpNext = sn.cp;
     this.tracker.lap = sn.lap; this.tracker.reset(sn.idx);
     this.ap.tr.reset(sn.apIdx);

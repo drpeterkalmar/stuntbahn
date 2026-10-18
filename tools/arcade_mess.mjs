@@ -113,12 +113,12 @@ function jump(key, name) {
 function stunt(key, name, fig, turns = 1, tapAt = 0.35) {
   const env = envCache[name] || (envCache[name] = prepare(JUMPS[name]()));
   const r = new Race(env, { assist: key, countdown: 0.05 });
-  let inp = { steer: 0, throttle: 0, brake: 0 }, ang = 0, air = 0, landed = false, tAfter = 0, maxTilt = 0, nNo = 0;
+  let inp = { steer: 0, throttle: 0, brake: 0 }, ang = 0, air = 0, landed = false, tAfter = 0, maxTilt = 0, nNo = 0, vIn = 0, vOut = 0;
   const target = turns * 2 * Math.PI, sgn = fig === 'vor' ? -1 : 1;
   for (let t = 0; t < 40 && !r.car.crash && r.crashes === 0; t += DT) {
     r.step(DT, inp); nNo += r.events.filter((e) => e.type === 'trickno').length; r.events.length = 0;
     const car = r.car, o = r.ap.out, F = car.frame;
-    if (car.onGround > 0 && air < 0.3) { inp = { steer: o.steer, throttle: o.throttle, brake: o.brake }; continue; }
+    if (car.onGround > 0 && air < 0.3) { inp = { steer: o.steer, throttle: o.throttle, brake: o.brake }; vIn = car.speed(); continue; }
     if (car.onGround === 0) {
       air += DT;
       const w = fig === 'schraube' ? car.w.x * F.f.x + car.w.y * F.f.y + car.w.z * F.f.z : car.w.x * F.r.x + car.w.y * F.r.y + car.w.z * F.r.z;
@@ -132,11 +132,12 @@ function stunt(key, name, fig, turns = 1, tapAt = 0.35) {
     } else if (air > 0.3) {
       landed = true; tAfter += DT; inp = { steer: o.steer, throttle: o.throttle, brake: o.brake };
       maxTilt = Math.max(maxTilt, Math.acos(Math.max(-1, Math.min(1, F.u.y))));
+      if (tAfter >= 1 && !vOut) vOut = car.speed();
       if (tAfter > 2) break;
     }
   }
   const no = nNo;
-  return { deg: deg(ang), air, ok: landed && !r.car.crash && !r.crashes, crash: r.car.crash ? r.car.crash.reason : r.crashes ? 'Crash' : '', tilt: deg(maxTilt), no };
+  return { deg: deg(ang), air, ok: landed && !r.car.crash && !r.crashes, crash: r.car.crash ? r.car.crash.reason : r.crashes ? 'Crash' : '', tilt: deg(maxTilt), no, vIn: kmh(vIn), vOut: kmh(vOut) };
 }
 
 // ---- Drehrate in der Luft: 40 m über der Ebene, 30 m/s, 1,5 s voller Ausschlag ----
@@ -258,7 +259,7 @@ for (const v of VARS) {
       R.stunt = {};
       for (const nm of Object.keys(JUMPS)) for (const [fig, n] of [['vor', 1], ['rueck', 1], ['schraube', 1], ['schraube', 2]]) {
         const st = stunt(key, nm, fig, n); R.stunt[`${nm} ${fig} ${n}`] = st;
-        console.log(`${tag}: ${nm} ${fig} ×${n}: ${f1(st.deg, 0)}° in ${f1(st.air, 2)} s → ${st.ok ? 'gelandet' : st.crash || 'nicht gelandet'}${st.no ? ` (${st.no}× zu spät)` : ''}`);
+        console.log(`${tag}: ${nm} ${fig} ×${n}: ${f1(st.deg, 0)}° in ${f1(st.air, 2)} s → ${st.ok ? 'gelandet' : st.crash || 'nicht gelandet'} (${f1(st.vIn, 0)} → ${f1(st.vOut, 0)} km/h)${st.no ? ` (${st.no}× zu spät)` : ''}`);
       }
     }
     if (NUR.includes('luft')) {
