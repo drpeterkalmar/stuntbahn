@@ -107,7 +107,7 @@ export class Sitzung {
   // nur Gastgeber: Zieltabelle jetzt aufstellen (z. B. alle im Ziel oder Spiel bricht ab); rest = [{ id, fortschritt }]
   abschliessen(rest = []) {
     if (!this.istGastgeber || this.lobby.phase !== 'rennen') return;
-    const L = this.lobby, fertig = Object.entries(L.ziel).map(([id, z]) => ({ id, zeit: z.zeit, sz: z.sz, ki: !!z.ki, daten: z.daten }));
+    const L = this.lobby, fertig = Object.entries(L.ziel).map(([id, z]) => ({ id, zeit: z.zeit, sz: z.sz, ki: !!z.ki, daten: z.daten, name: z.daten && z.daten.name }));
     fertig.sort((a, b) => a.zeit - b.zeit || (a.id < b.id ? -1 : 1));
     const offen = rest.filter((r) => !L.ziel[r.id]).sort((a, b) => (b.fortschritt || 0) - (a.fortschritt || 0)).map((r) => ({ id: r.id, zeit: null, fortschritt: r.fortschritt, ki: !!r.ki, name: r.name }));
     // gefahren, aber weder im Ziel noch in `rest` (Verbindung weg) → ausgeschieden

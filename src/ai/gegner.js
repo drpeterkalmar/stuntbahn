@@ -524,6 +524,7 @@ export class GegnerFahrer {
     this.zustand = this.fertig ? 'ziel' : 'fahrt';
     this.prev = null;
     this.geistT = GEIST.t;
+    this.resets = (this.resets || 0) + 1;   // n35: Sprungzähler fürs Netz (keine Interpolation über den Reset)
     F.ereignis({ type: 'gegnerReset', id: this.id });
   }
 
@@ -639,6 +640,9 @@ export class GegnerFahrer {
 // env = { track, world, ideal, prof }. opt: { anzahl, staerke, seed, startplatz, wreckOn, assist ('easy'|'medium'|'original'
 // → Härte der Kollision), aufholhilfe, schiene ('auto'|'nie'|'immer'), kollision (Standard an), fehler (Standard an; aus = ohne
 // Fehler-Plan, für Messungen), schaden (Schadensmodell je Gegner, Standard aus) }. spielerSchaden: SchadenAuto des Spielers.
+// n35 Online (game/online.js): opt.online (kein Mit-Rückspulen, kein Nachlauf-Abschluss), opt.rasterN + opt.plaetze (Raster
+// für alle Autos, Rasterplatz je KI) + opt.spielerPlatz; feld.fremde = fremde Menschen als feste Körper (Verkehr, Kollision,
+// je Physikschritt gesetzt), feld.sichtPunkte = weitere Punkte für die Schiene (Menschen auf anderen Geräten).
 // Ablauf je Physikschritt (nach race.step): feld.step(dt, race). Ohne race (Node-Messung): feld.step(dt, null, sicht).
 export class GegnerFeld {
   constructor(env, opt = {}) {
@@ -654,12 +658,13 @@ export class GegnerFeld {
     this.spielerZn = null; this.spielerZiel = null; this.nachT = 0; this.abgeschlossen = false;
     this.snaps = []; this.snapT = 0; this.rewinds = 0; this.recT = 0;
     this.stoesse = 0; this.spGeistT = 0; this.tick = 0;
-    const raster = this.raster = startRaster(this.L, this.startIdx, this.fahrer.length + 1);
+    this.fremde = []; this.sichtPunkte = null;   // n35 Online
+    const raster = this.raster = startRaster(this.L, this.startIdx, this.opt.rasterN || this.fahrer.length + 1);
     const st = this.opt.startplatz === 'auto' ? (STAERKEN[this.opt.staerke] || STAERKEN[STAERKE_STD]).start : this.opt.startplatz;
-    this.spielerPlatz = spielerSlot(raster.length, st);
+    this.spielerPlatz = this.opt.spielerPlatz ?? spielerSlot(raster.length, st);
     this.p0 = Math.min(...raster.map((r) => fortschritt(this.L, r.idx, r.lapDelta))) - 5;
-    let k = 0;
-    for (let s = 0; s < raster.length; s++) if (s !== this.spielerPlatz) this.fahrer[k++].aufstellen(raster[s]);
+    if (this.opt.plaetze) this.fahrer.forEach((g, k) => g.aufstellen(raster[this.opt.plaetze[k]]));
+    else { let k = 0; for (let s = 0; s < raster.length; s++) if (s !== this.spielerPlatz) this.fahrer[k++].aufstellen(raster[s]); }
   }
 
   // Spieler-Auto auf seinen Rasterplatz (Race nach dem Bau, vor dem Countdown)
@@ -680,6 +685,7 @@ export class GegnerFeld {
   frei(ich, m) {
     const c = ich.car.pos;
     for (const g of this.fahrer) if (g !== ich && Math.abs(g.car.pos.x - c.x) < m && Math.abs(g.car.pos.z - c.z) < m && Math.hypot(g.car.pos.x - c.x, g.car.pos.y - c.y, g.car.pos.z - c.z) < m) return false;
+    for (const f of this.fremde) if (Math.hypot(f.car.pos.x - c.x, f.car.pos.y - c.y, f.car.pos.z - c.z) < m) return false;
     const s = this.spielerCar;
     return !(s && Math.hypot(s.pos.x - c.x, s.pos.y - c.y, s.pos.z - c.z) < m);
   }
@@ -687,6 +693,7 @@ export class GegnerFeld {
   belegt(x, y, z, ich) {
     for (const g of this.fahrer) if (g !== ich && Math.hypot(g.car.pos.x - x, g.car.pos.y - y, g.car.pos.z - z) < 6) return true;
     if (this.spielerCar && Math.hypot(this.spielerCar.pos.x - x, this.spielerCar.pos.y - y, this.spielerCar.pos.z - z) < 6) return true;
+    for (const f of this.fremde) if (Math.hypot(f.car.pos.x - x, f.car.pos.y - y, f.car.pos.z - z) < 6) return true;
     return false;
   }
 
@@ -702,7 +709,7 @@ export class GegnerFeld {
       if (race.rewinds !== this.rewinds) {
         this.spGeistT = GEIST.t;
         this.rewinds = race.rewinds;
-        if (race.wreckOn) this.zurueck(race.time - race.penalties * PENALTY);
+        if (race.wreckOn && !this.opt.online) this.zurueck(race.time - race.penalties * PENALTY);
       }
     }
     if (!this.laeuft) { this.laeuft = true; for (const g of this.fahrer) if (g.zustand === 'start') g.zustand = 'fahrt'; }
@@ -715,7 +722,8 @@ export class GegnerFeld {
     if (race && this.opt.aufholhilfe) this.aufholen(race, dt);
     for (const g of this.fahrer) {
       if (sp && this.opt.schiene !== 'nie') {
-        const d = Math.hypot(g.car.pos.x - sp.x, g.car.pos.y - sp.y, g.car.pos.z - sp.z);
+        let d = Math.hypot(g.car.pos.x - sp.x, g.car.pos.y - sp.y, g.car.pos.z - sp.z);
+        if (this.sichtPunkte) for (const q of this.sichtPunkte) d = Math.min(d, Math.hypot(g.car.pos.x - q.x, g.car.pos.y - q.y, g.car.pos.z - q.z));
         const ds = race ? Math.abs(g.fortschritt() - race.tracker.progress()) : 0;
         if (g.modus === 'physik' && (d > SCHIENE.weg || ds > SCHIENE.weitS || this.opt.schiene === 'immer')) g.zurSchiene();
         else if (g.modus === 'schiene' && d < SCHIENE.nah && ds < SCHIENE.nahS && this.opt.schiene !== 'immer') g.zurPhysik();
@@ -733,7 +741,7 @@ export class GegnerFeld {
       this.spielerZn.melde(race.tracker.progress(), this.uhr);
       if (race.state === 'finished' && this.spielerZiel == null) this.spielerZiel = race.finalTime;
     }
-    if (this.spielerZiel != null && !this.abgeschlossen) {
+    if (this.spielerZiel != null && !this.abgeschlossen && !this.opt.online) {
       this.nachT += dt;
       if (this.nachT >= NACHLAUF || this.fahrer.every((g) => g.fertig)) this.abschliessen();
     }
@@ -759,6 +767,8 @@ export class GegnerFeld {
       const lat = (c.x - I.px[i]) * I.bx[i] + (c.y - I.py[i]) * I.by[i] + (c.z - I.pz[i]) * I.bz[i];
       out.push({ ich: null, spieler: true, p: race.tracker.progress(), lat, v: race.car.fwdSpeed(), idx: i, crash: race.state === 'wreck' || race.state === 'reset' });
     }
+    // n35: fremde Menschen (Online) wie weitere Autos im Verkehr (kein „Platz machen“ – das gilt dem Spieler am Gerät)
+    for (const f of this.fremde) out.push({ ich: null, fremd: true, p: f.p, lat: f.lat, v: f.crash ? 0 : f.v, idx: f.idx, crash: f.crash });
     return out;
   }
 
@@ -888,6 +898,8 @@ export class GegnerFeld {
     for (const g of this.fahrer) if (g.modus === 'physik' && g.zustand !== 'start') list.push({ car: g.car, prev: g.prev, g });
     const spielerAktiv = race && (race.state === 'running' || race.state === 'finished' || race.state === 'wreck');
     if (spielerAktiv) list.push({ car: race.car, prev: this.spielerPrev, spieler: true });
+    // n35: fremde Menschen als feste Körper (ihr Gerät rechnet ihre Reaktion); Spieler ↔ fremd macht game/online.js
+    for (const f of this.fremde) if (!f.geist) list.push({ car: f.car, prev: f.prev, fremd: true });
     // Geist-Phase: Zeit läuft ab, solange kein anderes Auto nah ist
     const nahFrei = (c) => list.some((X) => X.car !== c && Math.hypot(X.car.pos.x - c.pos.x, X.car.pos.y - c.pos.y, X.car.pos.z - c.pos.z) < GEIST.frei);
     for (const X of list) {
@@ -900,7 +912,8 @@ export class GegnerFeld {
     for (let a = 0; a < list.length; a++) for (let b = a + 1; b < list.length; b++) {
       const A = list[a], B = list[b];
       if (A.geist || B.geist) continue;
-      const r = stoss(A.car, B.car, this.haerte, A.prev, B.prev);
+      if ((A.fremd || B.fremd) && (A.fremd || A.spieler) && (B.fremd || B.spieler)) continue;
+      const r = stoss(A.car, B.car, this.haerte, A.prev, B.prev, A.fremd || B.fremd ? { festA: !!A.fremd, festB: !!B.fremd } : undefined);
       if (!r) continue;
       this.stoesse++;
       if (r.vn > 1.5) this.ereignis({ type: 'stoss', v: r.vn, p: r.p, n: r.n, spieler: !!(A.spieler || B.spieler), crash: r.crash });
