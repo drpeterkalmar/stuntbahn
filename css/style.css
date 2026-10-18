@@ -102,6 +102,10 @@ button.go { background: linear-gradient(180deg, #ff7a36, #e24e10); border-color:
 #big { position: absolute; top: 30%; left: 50%; transform: translate(-50%, -50%) scale(.9); font-size: clamp(34px, 8vw, 72px); font-weight: 900; font-style: italic; text-align: center; text-shadow: 0 4px 10px #000c; opacity: 0; transition: opacity .15s, transform .15s; pointer-events: none; }
 #big.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
 #big small { display: block; font-size: .42em; font-style: normal; opacity: .9; }
+#big .dt { display: block; font-size: 1.7em; font-style: italic; text-shadow: 0 2px 8px #000e; } #big .dt.fast { color: #6cc8ff; } #big .dt.slow { color: #ff6a5a; }   /* n38 Zwischenzeit */
+.splits { margin: 6px auto 2px; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+.splits th, .splits td { padding: 1px 7px; text-align: right; } .splits th { opacity: .7; font-weight: 600; }
+.splits td.fast { color: #6cc8ff; font-weight: 800; } .splits td.slow { color: #ff7a6a; font-weight: 800; }
 #big.go { color: #7dff7a; } #big.crash { color: #ff7a5a; font-size: clamp(26px, 5vw, 48px); } #big.cp { color: #ffd23d; font-size: clamp(26px, 5vw, 46px); }
 #big.pen { color: #ffcf3d; font-size: clamp(44px, 10vw, 92px); } #big.pen small { color: #ffb49a; font-size: .38em; font-style: italic; }
 #wipe { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .35s ease-out; background: radial-gradient(ellipse at 50% 45%, #fffdf4 0%, #e4f0ff 55%, #9fb6d4 100%); }

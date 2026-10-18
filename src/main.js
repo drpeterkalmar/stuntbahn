@@ -601,7 +601,8 @@ function startRace(opts = {}) {
   if (fx) fx.reset();
   const S = store.settings;
   // Fahrstil des Autopiloten auf Leicht (n25): Einstellung bzw. ?fahrstil=; Zufall für die Show-Momente je Rennen neu
-  race = new Race(env, { assist: S.assist, wreck: S.wreck, autopilot: !!opts.autopilot, extras: S.extras, autoExtras: S.autoExtras, brakeHelp: S.brakeHelp, fahrstil: FAHRSTIL_URL || S.fahrstil || 'brachial', seed: opts.seed ?? ((Math.random() * 1e9) >>> 0) });
+  race = new Race(env, { assist: S.assist, wreck: S.wreck, autopilot: !!opts.autopilot, extras: S.extras, autoExtras: S.autoExtras, brakeHelp: S.brakeHelp, fahrstil: FAHRSTIL_URL || S.fahrstil || 'brachial', seed: opts.seed ?? ((Math.random() * 1e9) >>> 0),
+    splitRef: opts.autopilot ? null : store.splitRef(env.meta.key, S.assist, !!S.wreck, S.extras !== false) });   // n38 Zwischenzeiten
   timeScale = gameSpeed(S.assist);
   // Sammlung: „zuletzt gefahren“ / „noch nie gefahren“
   if (env.meta.sam) { S.samPlayed = { ...(S.samPlayed || {}), [env.meta.key]: Date.now() }; store.save(); }
@@ -893,7 +894,7 @@ function handleEvents() {
     // Auto versetzt (Reset/Überspringen/Rückspulen): Kamera neu ansetzen, keine Zwischenbild-Interpolation
     if (e.type === 'reset' || e.type === 'skip' || e.type === 'rewind') { rig.init = false; prevPose = null; blurCut = true; }
     if (e.type === 'finish') {
-      const res = store.submit(env.meta.key, race.assistKey, race.wreckOn, race.finalTime, race.assistKey === 'easy' ? null : race.ghostRec(), { ...env.meta, penalties: race.penalties, extras: race.extrasOn, nitro: race.nitroLog });
+      const res = store.submit(env.meta.key, race.assistKey, race.wreckOn, race.finalTime, race.assistKey === 'easy' ? null : race.ghostRec(), { ...env.meta, penalties: race.penalties, extras: race.extrasOn, nitro: race.nitroLog, splits: race.autopilotOnly ? null : race.splits });
       ui.lastRace = race; ui.lastRes = res;
       startShow(res);
     }

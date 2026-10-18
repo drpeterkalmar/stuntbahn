@@ -1,7 +1,7 @@
 // n38 Stunt-Lohn (src/game/lohn.js): reine Funktionen (Gutschrift auf die Nitro-Abklingzeit, Wertung n38: Bauwerke, ruhige Hand,
 // Hüpfer), Rennlogik (Abklingzeit kürzer, Vorrat, voll = sofort bereit, Crash/Hüpfer zahlen nicht), Tracker (ruhige Hand, Looping
 // als Kettenglied), Leicht-Automatik auf mehreren Geraden, alle Regler aus = Stand n37 bitgleich, Messgrößen, Bestzeiten einmalig neu.
-const { LOHN, LOHN_AUS, setLohn, cooldownGain, creditNitro, landBoostStage, landBoostLevel } = await import('../../src/game/lohn.js');
+const { LOHN, LOHN_AUS, setLohn, cooldownGain, creditNitro, landBoostStage, landBoostLevel, splitDelta, sectorDeltas, fmtDelta } = await import('../../src/game/lohn.js');
 const { STUNT, scoreJump, scoreBau, chainWindow, chainFactor, StuntTracker, stuntText, bauKinds } = await import('../../src/game/stunts.js');
 const { Race, ASSISTS } = await import('../../src/game/race.js');
 const { Car, CAR_DEF } = await import('../../src/physics/car.js');
@@ -155,6 +155,26 @@ console.log('--- F2: Landeschub (Etappe 2) ---');
   check(after.length === 2 && after.every((x) => x === 0) && boosts.some((x) => x > 0), `Landeschübe ${boosts.join('/')}, danach zu schnell an der Lippe: ${after.join('/')}`);
 }
 
+console.log('--- F3: Zwischenzeiten (Etappe 3) ---');
+{
+  const ref = { t: 60, sp: [20, 41] };
+  check(Math.abs(splitDelta(19.58, ref, 1) + 0.42) < 1e-9 && Math.abs(splitDelta(60.31, ref) - 0.31) < 1e-9 && splitDelta(10, null, 1) === null && splitDelta(10, { t: 9 }, 1) === null, 'Abstand am Checkpoint und im Ziel, ohne Vergleich null');
+  check(fmtDelta(-0.42) === '−0,42' && fmtDelta(0.311) === '+0,31' && fmtDelta(0.001) === '±0,00' && fmtDelta(null) === '', 'Anzeige −0,42 / +0,31 / ±0,00');
+  const S = sectorDeltas([19.5, 41.2], 59.8, ref);
+  check(S.length === 3 && Math.abs(S[0].d + 0.5) < 1e-9 && Math.abs(S[1].d - 0.7) < 1e-9 && Math.abs(S.reduce((a, x) => a + x.d, 0) - (59.8 - 60)) < 1e-9, 'Abschnitte: Summe der Abstände = Abstand im Ziel');
+  check(sectorDeltas([19.5], 59.8, ref).every((x) => x.d === null), 'andere Zahl Checkpoints: kein Vergleich');
+  // echte Fahrten: Leicht Sauber als Bestfahrt, Leicht Brachial dagegen
+  const drive = (o) => { const r = new Race(v1.env, { assist: 'easy', countdown: 0.05, ...o }); const ev = []; for (let t = 0; t < 150 && r.state !== 'finished'; t += DT) { r.step(DT, { steer: 0, throttle: 0, brake: 0 }); ev.push(...r.events); r.events.length = 0; } return { r, ev }; };
+  const a = drive({ fahrstil: 'sauber' });
+  const refA = { t: a.r.finalTime, sp: [...a.r.splits] };
+  const b = drive({ fahrstil: 'brachial', seed: 5, splitRef: refA });
+  const cpD = b.ev.filter((e) => e.type === 'checkpoint').map((e) => e.d), fin = b.ev.find((e) => e.type === 'finish');
+  const sec = sectorDeltas(b.r.splits, b.r.finalTime, refA), sum = sec.reduce((x, y) => x + y.d, 0);
+  check(a.r.splits.length === a.r.cps.length && cpD.length === b.r.cps.length && cpD.every((d) => Number.isFinite(d)) && Number.isFinite(fin.d), `Checkpoints mit Abstand: ${cpD.map(fmtDelta).join(' ')} · Ziel ${fmtDelta(fin.d)}`);
+  check(Math.abs(sum - fin.d) <= 0.01 && Math.abs(cpD[cpD.length - 1] + sec[sec.length - 1].d - fin.d) <= 0.01, `Messgröße 7: Σ Abschnitte ${fmtDelta(sum)} = Ziel ${fmtDelta(fin.d)} (±0,01 s)`);
+  setLohn({ zwischen: 0 }); check(new Race(v1.env, { splitRef: refA }).splitRef === null, '?zwischen=0: kein Vergleich'); setLohn(STD);
+}
+
 console.log('--- G: alle Regler aus = Stand n37 bitgleich ---');
 {
   const { execFileSync } = await import('child_process');
@@ -192,6 +212,12 @@ console.log('--- I: Bestzeiten einmalig neu, A/B ---');
   S.submit('T1', 'medium', false, 61, new Float32Array(16 * 40), {});
   S = new Store();
   check(S.best['T1|medium+reset@x'] && !S.lohnNote, 'zweites Laden löscht nichts mehr');
+  // Zwischenzeiten speichern + Vergleichsfahrt
+  S.submit('T2', 'medium', false, 50, new Float32Array(16 * 40), { splits: [10.1234, 30] });
+  check(S.best['T2|medium+reset@x'].sp.join() === '10.123,30' && S.splitRef('T2', 'medium', false, true).t === 50 && S.splitRef('T2', 'original', false, true) === null, 'Bestzeit speichert Zwischenzeiten, Vergleich nur in derselben Wertung');
+  S.submit('T3', 'easy', false, 70, null, { splits: [30, 50] }); S.submit('T3', 'easy', false, 65, null, { splits: [28, 47] }); S.submit('T3', 'easy', false, 80, null, {});
+  check(S.splitRef('T3', 'easy', false, true).t === 65, 'Leicht: schnellste der letzten Zeiten mit Zwischenzeiten');
+  S.ab = true; check(S.splitRef('T2', 'medium', false, true) === null, 'A/B-Link: kein Vergleich'); S.ab = undefined;
   check(abMode('?tank=0') && abMode('?tank=60') && abMode('?kette=6') && abMode('?stuntpkt=0') && abMode('?landung=0') && !abMode('?seed=1'), 'A/B werten nicht: ?tank, ?kette, ?stuntpkt, ?landung');
 }
 

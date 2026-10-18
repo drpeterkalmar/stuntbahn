@@ -131,7 +131,9 @@ export class Store {
   submit(key, assist, wreck, time, rec, meta = {}) {
     // Leicht: keine Wertung, kein Geist – nur die Zeit mit Datum vorne in die Liste
     if (assist === 'easy') {
-      const L = [{ t: time, d: new Date().toISOString().slice(0, 10), pen: meta.penalties || 0, x: meta.extras !== false ? 1 : 0, w: wreck ? 1 : 0 }, ...this.timesFor(key)].slice(0, TIMES_MAX);
+      const e = { t: time, d: new Date().toISOString().slice(0, 10), pen: meta.penalties || 0, x: meta.extras !== false ? 1 : 0, w: wreck ? 1 : 0 };
+      if (meta.splits && meta.splits.length) e.sp = meta.splits.map((x) => +x.toFixed(3));   // n38 Zwischenzeiten
+      const L = [e, ...this.timesFor(key)].slice(0, TIMES_MAX);
       this.times[key] = L;
       this.save();
       return { easy: true, isBest: false, prev: null, time, list: L };
@@ -145,10 +147,22 @@ export class Store {
       this.best[k] = { time, date: new Date().toISOString().slice(0, 10), name: meta.name || '', pen: meta.penalties || 0 };
       // Nitro-Zeiten (Rennuhr) für die Flammen des Geisterautos
       if (meta.nitro && meta.nitro.length) this.best[k].nx = meta.nitro.map(([a, b]) => [+a.toFixed(2), +b.toFixed(2)]);
+      if (meta.splits && meta.splits.length) this.best[k].sp = meta.splits.map((x) => +x.toFixed(3));   // n38 Zwischenzeiten
       this.saveGhost(k, rec);
     }
     this.save();
     return { isBest, prev: prev ? prev.time : null, time };
+  }
+  // n38 Zwischenzeiten: Vergleichsfahrt { t, sp } – Bestzeit derselben Wertung; Leicht: die schnellste der letzten Zeiten mit
+  // gleicher Einstellung (Extras, Totalschaden), die Zwischenzeiten hat. A/B-Link: kein Vergleich. null = keine (alte Bestzeit)
+  splitRef(key, assist, wreck = this.settings.wreck, extras = this.settings.extras) {
+    if (this.ab ?? AB) return null;
+    if (assist === 'easy') {
+      const L = this.timesFor(key).filter((e) => e.sp && e.sp.length && !!e.x === !!extras && !!e.w === !!wreck).sort((a, b) => a.t - b.t);
+      return L.length ? { t: L[0].t, sp: L[0].sp } : null;
+    }
+    const b = this.bestFor(key, assist, wreck, extras);
+    return b && b.sp && b.sp.length ? { t: b.time, sp: b.sp } : null;
   }
   saveGhost(k, rec) {
     // 15 Hz, Position f32 + Quaternion i16 + Tempo i16 → base64

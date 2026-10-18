@@ -22,6 +22,9 @@
 //               in tonOut s zurück + kurzer Bass-Schlag. ?luftton=0 = aus.
 //   schweif   – (Etappe 2) in der Luft (ab 0,5 s) zieht das Auto einen Schweif: hell = „ruhige Hand“ noch drin, matt = nur noch
 //               „sauber“. ?schweif=0 = aus.
+//   zwischen  – (Etappe 3) Zwischenzeiten: an jedem Checkpoint der Abstand zur Bestfahrt derselben Wertung (blau schneller, rot
+//               langsamer), im Ziel eine Tabelle je Abschnitt; die Zwischenzeiten werden mit der Bestzeit gespeichert (Leicht: mit
+//               den letzten Zeiten, Vergleich mit der schnellsten davon). ?zwischen=0 = keine Anzeige.
 const q = globalThis.location && globalThis.location.search ? new URLSearchParams(globalThis.location.search) : null;
 const num = (k, lo, hi) => { if (!q) return null; const v = q.get(k); return v !== null && v !== '' && Number.isFinite(+v) ? Math.max(lo, Math.min(hi, +v)) : null; };
 // Node: Umgebung STUNT_N38=alt = alle Regler aus (Messungen gegen den Stand n37)
@@ -43,6 +46,7 @@ export const LOHN = {
   luftton: num('luftton', 0, 1) ?? 1,
   tonAb: 0.5, tonHz: 1200, tonIn: 0.3, tonOut: 0.08,
   schweif: num('schweif', 0, 1) ?? 1,
+  zwischen: num('zwischen', 0, 1) ?? 1,
   autoSpots: 6,     // Leicht automatisch: höchstens so viele Nitro-Stellen je Runde
   hopChain: 0,      // Hüpfer zählen nicht als Kettenglied (n37: 1)
   hopPay: 0,        // Anteil, den ein Hüpfer-Stunt in die Abklingzeit einzahlt (Messgröße 6: Dauer-Hüpfen < 15 % der Einnahmen)
@@ -55,7 +59,7 @@ export const LOHN = {
   },
 };
 // Stand n37: alle Regler aus
-export const LOHN_AUS = { tank: 0, kette: 6, nitroWin: 0, stuntpkt: 0, landung: 0, hopChain: 1, landeschub: 0, luftton: 0, schweif: 0 };
+export const LOHN_AUS = { tank: 0, kette: 6, nitroWin: 0, stuntpkt: 0, landung: 0, hopChain: 1, landeschub: 0, luftton: 0, schweif: 0, zwischen: 0 };
 export function setLohn(o) { Object.assign(LOHN, o); }
 if (ALT) setLohn(LOHN_AUS);
 
@@ -84,4 +88,29 @@ export function landBoostLevel(t, dur) {
   if (t < dur) return 1;
   const u = (t - dur) / LOHN.schubFade;
   return u >= 1 ? 0 : 0.5 + 0.5 * Math.cos(Math.PI * u);
+}
+
+// Zwischenzeiten (Etappe 3). ref = { t (Endzeit), sp: [Rennzeit an CP 1, 2, …] } der Bestfahrt. Abstand am n-ten Checkpoint
+// (1 …) bzw. im Ziel (n = null): Rennzeit − Bestfahrt (negativ = schneller) oder null ohne Vergleich
+export function splitDelta(t, ref, n = null) {
+  if (!ref) return null;
+  const r = n == null ? ref.t : ref.sp && ref.sp[n - 1];
+  return Number.isFinite(r) ? t - r : null;
+}
+// Abschnitte: je Checkpoint und das Stück bis ins Ziel { t (Abschnittszeit), d (gegen den Abschnitt der Bestfahrt, null ohne) };
+// Summe der d = Abstand im Ziel (Messgröße 7)
+export function sectorDeltas(splits, final, ref) {
+  const cur = [...splits, final], rr = ref ? [...(ref.sp || []), ref.t] : null, out = [];
+  for (let i = 0; i < cur.length; i++) {
+    const t = cur[i] - (i ? cur[i - 1] : 0);
+    const ok = rr && rr.length === cur.length && rr.every(Number.isFinite);
+    out.push({ t, d: ok ? t - (rr[i] - (i ? rr[i - 1] : 0)) : null });
+  }
+  return out;
+}
+// „−0,42“ / „+0,31“ / „±0,00“
+export function fmtDelta(d) {
+  if (d == null || !Number.isFinite(d)) return '';
+  const a = Math.abs(d).toFixed(2).replace('.', ',');
+  return Math.abs(d) < 0.005 ? '±' + a : (d < 0 ? '−' : '+') + a;
 }

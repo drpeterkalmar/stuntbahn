@@ -8,7 +8,7 @@ import { LINE_LEVELS } from '../gfx/lineviz.js';
 import { NITRO, COOLDOWN } from '../physics/extras.js';
 import { ARCADE } from '../physics/arcade.js';
 import { stuntText } from '../game/stunts.js';
-import { LOHN } from '../game/lohn.js';
+import { LOHN, fmtDelta, sectorDeltas } from '../game/lohn.js';
 import { BLUR_LEVELS } from '../gfx/post.js';
 import { parseTrk } from '../track/trk.js';
 import { trkToLayout } from '../track/trkimport.js';
@@ -744,7 +744,14 @@ export class UI {
   }
   event(e, race) {
     if (e.type === 'go') this.big('LOS!', 'go', 800);
-    else if (e.type === 'checkpoint') this.big(`Checkpoint ${e.n}/${e.of}<small>${fmtTime(e.t)}</small>`, 'cp', 1100);
+    else if (e.type === 'checkpoint') {
+      // n38 Zwischenzeit: Abstand zur Bestfahrt (blau schneller, rot langsamer), Banner etwas länger
+      const dd = e.d != null && LOHN.zwischen ? `<b class="dt ${e.d < 0 ? 'fast' : 'slow'}">${fmtDelta(e.d)}</b>` : '';
+      // Stunt-Anzeige (darüber) weg, solange das Banner steht – sie liegen sonst übereinander
+      const P = $('#stuntpop'); if (P.classList.contains('show') && !P.classList.contains('live')) P.className = '';
+      this.big(`Checkpoint ${e.n}/${e.of}<small>${fmtTime(e.t)}${dd}</small>`, 'cp', dd ? 1600 : 1100);
+      this._cpUntil = performance.now() + (dd ? 1600 : 1100);
+    }
     else if (e.type === 'crash' && e.penalty) { this.big(`+${e.penalty} s<small>💥 ${e.reason}</small>`, 'pen', 1600); this.wipe(true); }
     else if (e.type === 'crash') this.big(`💥 ${e.reason}`, 'crash', 1400);
     else if (e.type === 'rewind') { this.toast(e.keepClock ? '⏪ Zurückgespult – Uhr läuft weiter' : '⏪ Zurückgespult'); if (e.keepClock) this.flash(); }
@@ -758,10 +765,14 @@ export class UI {
       // n38: was der Stunt dem Nitro gebracht hat
       const sec = (e.nitroSec || 0).toFixed(1).replace('.', ',');
       const nx = e.nitroNow ? '🔥 Nitro sofort bereit!' : e.nitroSec >= 0.05 ? (e.nitroFull ? '🔥 Nitro-Vorrat voll' : race.charges.nitro || race.nitroT >= 0 ? `🔥 +${sec} s Nitro-Vorrat` : `🔥 lädt ${sec} s schneller`) : '';
-      const sb = e.schub ? `🚀 Landeschub${e.schub > 1 ? ' ' + '▮'.repeat(e.schub) : ''}` : '';   // n38 Etappe 2
+      const sb = e.schub ? `🚀 Landeschub${e.schub > 1 ? ' ×' + e.schub : ''}` : '';   // n38 Etappe 2 (Stufe)
       const ex = [nx, sb].filter(Boolean).join(' · ');
-      P.className = 'show ' + (e.landing || '') + (e.calm ? ' calm' : ''); P.innerHTML = `<b>${T.head}</b><span>${T.sub}</span><i>${T.pts}</i>${ex ? `<em>${ex}</em>` : ''}`;
-      this._lv = 'x'; clearTimeout(this._spT); this._spT = setTimeout(() => { if (!P.classList.contains('live')) P.className = ''; }, 2200);
+      const html = `<b>${T.head}</b><span>${T.sub}</span><i>${T.pts}</i>${ex ? `<em>${ex}</em>` : ''}`, cls = 'show ' + (e.landing || '') + (e.calm ? ' calm' : '');
+      // steht gerade ein Checkpoint-Banner, erst danach zeigen (n38)
+      const wait = Math.max(0, (this._cpUntil || 0) - performance.now());
+      this._lv = 'x'; clearTimeout(this._spT); clearTimeout(this._spW);
+      const show = () => { P.className = cls; P.innerHTML = html; this._spT = setTimeout(() => { if (!P.classList.contains('live')) P.className = ''; }, 2200); };
+      if (wait > 0) this._spW = setTimeout(show, wait); else show();
     } else if (e.type === 'trickno') this.toast(e.axis === 'p' ? '🤸 Zu spät für einen Salto' : '🤸 Zu spät für eine Schraube', 1100);
     else if (e.type === 'refill') {
       this.toast('🦘 🔥 wieder voll');
@@ -848,10 +859,22 @@ export class UI {
     $('#result').innerHTML = `<div class="card${dk}"><h2>🏁 Ziel!</h2>${res.easy ? '<div class="ryour">Deine Zeit</div>' : ''}
       <div class="rtime">${fmtTime(res.time)}</div>${pen}${best}
       <div class="rmeta">${A.icon} ${A.name} · ${race.wreckOn ? '💥 Totalschaden an' : 'Totalschaden aus'} · ${race.extrasOn ? (race.cdMode ? `Extras: 🦘 ${race.used.hop}× 🔥 ${race.used.nitro}×` : `Extras: 🦘 ${race.used.hop ? '✓' : '–'} 🔥 ${race.used.nitro ? '✓' : '–'}`) : 'ohne Extras'} · ${env.meta.name} (${env.meta.key}) · Crashs ${race.crashes}${race.rewinds ? ' · Rückspulen ' + race.rewinds : ''}</div>
-      ${race.stunts && race.stunts.total ? `<div class="rmeta rstunt">★ ${race.stunts.total} Stunt-Punkte · ${race.stunts.n} Stunt${race.stunts.n > 1 ? 's' : ''}${race.stunts.maxLinks > 1 ? ` · längste Kette ${race.stunts.maxLinks}` : ''}${race.lohn && race.lohn.sec >= 0.1 ? ` · 🔥 Nitro ${race.lohn.sec.toFixed(1).replace('.', ',')} s früher bereit` : ''}</div>` : ''}
       <div class="row"><button class="big go" data-a="retry">🔁 Nochmal</button><button data-a="replay">📼 Replay</button>${race.film ? '<button data-a="cine">🎬 Highlights</button>' : ''}</div>
-      <div class="row">${race.film && clipMime() ? (this.lastClip ? `<button data-a="clipshare">📤 Video (${(this.lastClip.blob.size / 1e6).toFixed(1).replace('.', ',')} MB)</button>` : '<button data-a="cliprec">🎥 Als Video</button>') : ''}<button data-a="next">🎲 Neue Strecke</button><button data-a="menu">☰ Menü</button></div></div>`;
+      <div class="row">${race.film && clipMime() ? (this.lastClip ? `<button data-a="clipshare">📤 Video (${(this.lastClip.blob.size / 1e6).toFixed(1).replace('.', ',')} MB)</button>` : '<button data-a="cliprec">🎥 Als Video</button>') : ''}<button data-a="next">🎲 Neue Strecke</button><button data-a="menu">☰ Menü</button></div>
+      ${this.splitTable(race)}
+      ${race.stunts && race.stunts.total ? `<div class="rmeta rstunt">★ ${race.stunts.total} Stunt-Punkte · ${race.stunts.n} Stunt${race.stunts.n > 1 ? 's' : ''}${race.stunts.maxLinks > 1 ? ` · längste Kette ${race.stunts.maxLinks}` : ''}${race.lohn && race.lohn.sec >= 0.1 ? ` · 🔥 Nitro ${race.lohn.sec.toFixed(1).replace('.', ',')} s früher bereit` : ''}</div>` : ''}</div>`;
     this.show('result');
+  }
+  // n38 Zwischenzeiten im Ziel: je Abschnitt (bis CP 1, CP 2, …, Ziel) die Zeit und der Abstand zum selben Abschnitt der
+  // Bestfahrt; nur mit Vergleichsfahrt (alte Bestzeiten ohne Zwischenzeiten: nichts)
+  splitTable(race) {
+    if (!LOHN.zwischen || !race.splitRef || race.splits.length !== race.cps.length || !race.cps.length) return '';
+    const S = sectorDeltas(race.splits, race.finalTime, race.splitRef);
+    if (S.some((x) => x.d == null)) return '';
+    const head = S.map((_, i) => `<th>${i < S.length - 1 ? 'CP ' + (i + 1) : 'Ziel'}</th>`).join('');
+    const tt = S.map((x) => `<td>${x.t.toFixed(2).replace('.', ',')}</td>`).join('');
+    const dd = S.map((x) => `<td class="${x.d < -0.005 ? 'fast' : x.d > 0.005 ? 'slow' : ''}">${fmtDelta(x.d)}</td>`).join('');
+    return `<table class="splits"><tr><th></th>${head}</tr><tr><th>Abschnitt</th>${tt}</tr><tr><th>zur Bestfahrt</th>${dd}</tr></table>`;
   }
   showReplay(replay) {
     this.replay = replay;

@@ -14,7 +14,7 @@ import { DriftCtl, BRACHIAL } from '../ai/drift.js';
 import { ZIEL } from './zielshow.js';
 import { ARCADE, arcadeAssist } from '../physics/arcade.js';
 import { StuntTracker, bauKinds } from './stunts.js';
-import { LOHN, cooldownGain, creditNitro, landBoostStage, landBoostLevel } from './lohn.js';
+import { LOHN, cooldownGain, creditNitro, landBoostStage, landBoostLevel, splitDelta } from './lohn.js';
 
 // Mittel (n16, Peter 29.09.2026: „Mittlere Schwierigkeit mehr Bodenhaftung und kein Magnet zur Ideallinie“): kein
 // Lenkzug zur Linie mehr (steerPull bis n15 0,28, im Stunt stuntPull 0,6), dafür mehr Reifenhaftung (grip, Faktor auf
@@ -235,6 +235,9 @@ export class Race {
     this.bauK = bauKinds(env);
     this.nbank = 0;
     this.lohn = { pts: 0, sec: 0, n: 0, hop: 0, now: 0 };
+    // n38 Etappe 3 Zwischenzeiten: Rennzeit an jedem Checkpoint; splitRef = Bestfahrt { t, sp } derselben Wertung (main.js/store)
+    this.splits = [];
+    this.splitRef = opts.splitRef && LOHN.zwischen ? opts.splitRef : null;
     this.place(this.startIdx - (opts.startBack ?? 1));
     this.chargeLap = this.tracker.lap;
   }
@@ -251,7 +254,7 @@ export class Race {
 
   emit(type, data = {}) { this.events.push({ type, t: this.time, ...data }); }
 
-  setAssist(key) { this.assistKey = key; this.assist = ASSISTS[key]; this.assistChanged = true; }
+  setAssist(key) { this.assistKey = key; this.assist = ASSISTS[key]; this.assistChanged = true; this.splitRef = null; }   // andere Wertung: kein Vergleich
 
   // Fahrhilfen der Stufe aufs Auto (je Physikschritt; auch für Node-Messungen). Reine Autopilot-Fahrt: alles aus, auch die
   // Arcade-Physik (n37) – Prüffahrt und Generator rechnen wie bis n36 (alte Codes bitgleich)
@@ -506,7 +509,11 @@ export class Race {
     if (this.checkShortcut(dt, prog, ti, jumped)) return;
     if (this.cpNext < this.cps.length) {
       const ci = this.cps[this.cpNext];
-      if (this.passed(ci, ti)) { this.cpNext++; this.emit('checkpoint', { n: this.cpNext, of: this.cps.length }); }
+      if (this.passed(ci, ti)) {
+        this.cpNext++;
+        this.splits.length = this.cpNext - 1; this.splits.push(this.time);
+        this.emit('checkpoint', { n: this.cpNext, of: this.cps.length, d: splitDelta(this.time, this.splitRef, this.cpNext) });
+      }
     } else if ((L.closed && this.tracker.lap >= 1 && ti >= this.startIdx) || (!L.closed && ti >= L.n - 2)) {
       this.finish();
     }
@@ -920,7 +927,8 @@ export class Race {
     this.finV = Math.max(0, this.car.fwdSpeed());
     this.ap.shift = 0; this.ap.extra = 0; this.ap.P = this.env.prof;
     this.spinPlan = this.planSpin();
-    this.emit('finish', { time: this.time });
+    this.splits.length = Math.min(this.splits.length, this.cps.length);
+    this.emit('finish', { time: this.time, d: splitDelta(this.time, this.splitRef) });
   }
 
   // ---------- Auslaufen nach dem Ziel (n27) ----------

@@ -94,6 +94,21 @@ with Server() as srv, sync_playwright() as pw:
         s.shot(f'{lay}_ziel', 'n38')
         print(lay, 'ziel', repr(txt), 'Fehler', s.errors[:5], flush=True)
         if 'Stunt-Punkte' not in txt or 'früher bereit' not in txt: fails.append(f'{lay} ziel: Ergebniszeile fehlt ({txt!r})')
+        # n38 Etappe 3: zweite Fahrt (Brachial) gegen die erste – Checkpoint-Banner mit Abstand, Ziel-Tabelle
+        s.ev("__game.start({})")
+        cp = ''
+        for k in range(300):
+            r = s.ev("__game.sim(0.25)")
+            h = s.ev("document.querySelector('#big').innerHTML")
+            if 'class="dt' in h and not cp:
+                cp = s.ev("document.querySelector('#big').innerText"); s.frames(3); time.sleep(0.2); s.shot(f'{lay}_zwischen_cp', 'n38')
+            if r['state'] == 'finished': break
+        s.frames(10); time.sleep(1.5)
+        tab = s.ev("(document.querySelector('#result .splits') || {}).innerText || ''")
+        s.shot(f'{lay}_zwischen_ziel', 'n38')
+        print(lay, 'zwischen', repr(cp), repr(tab), 'Fehler', s.errors[:5], flush=True)
+        if not cp or not any(c in cp for c in '−+±'): fails.append(f'{lay} zwischen: kein Abstand am Checkpoint ({cp!r})')
+        if 'zur Bestfahrt' not in tab or 'Ziel' not in tab: fails.append(f'{lay} zwischen: keine Ziel-Tabelle ({tab!r})')
         if s.errors: fails.append(f'{lay} ziel: Seitenfehler {s.errors[:3]}')
         s.close()
 print('FEHLER' if fails else 'OK', fails)

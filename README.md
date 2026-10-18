@@ -72,7 +72,7 @@ spielbar am Handy (quer oder hochkant), mit Gamepad oder Tastatur. Als App insta
   Abstand zu jeder Fahrbahn (auch Hochstraßen/Rampen), nie im Wasser. Dosiert nach Grafikstufe; ruckelt es, blendet die
   Automatik (nach der Unschärfe) zuerst Gras/Büsche/Wolkenschatten aus. `?deko=aus` (bis n29 `?deko=0`) / `?wolken=0` zum Vergleich.
 
-## 🔥 Stunts laden Nitro nach: Stunt-Kette, ruhige Hand, Bauwerke, Landeschub (seit 18.10.2026, n38, Version 0.7.2)
+## 🔥 Stunts laden Nitro nach: Stunt-Kette, ruhige Hand, Bauwerke, Landeschub, Zwischenzeiten (seit 18.10.2026, n38, Version 0.7.3)
 Stunts sind im Rennen jetzt etwas wert. Die Stunt-Wertung ist inspiriert von klassischen Arcade-Racern (Clean-Room nach dem
 Vorlagen-Datenblatt, eigene Zahlen, per Messung abgestimmt). Messungen und Handy-Test: `N38_VORLAGEN_BERICHT.md`.
 - **Stunts verkürzen die Nitro-Ladezeit:** 60 Stunt-Punkte = eine ganze Ladezeit (5 s). Lädt der Nitro gerade, ist er früher
@@ -92,11 +92,15 @@ Vorlagen-Datenblatt, eigene Zahlen, per Messung abgestimmt). Messungen und Handy
 - **Ton in der Luft:** ab 0,5 s Flug wird alles dumpf (Tiefpass 1,2 kHz), bei der Landung sofort wieder voll + kurzer Bass-Schlag.
 - **Schweif in der Luft:** zwei Kondensstreifen an den hinteren Ecken – **gold** = „ruhige Hand“ ist noch drin, **blass** = nur
   noch „sauber“.
-- Ergebnis-Karte: „★ Stunt-Punkte · Stunts · längste Kette · 🔥 Nitro … s früher bereit“.
+- **⏱ Zwischenzeiten** (Etappe 3): An jedem Checkpoint steht unter der Zeit der Abstand zu deiner Bestfahrt derselben Wertung
+  (**blau −0,42** = schneller, **rot +0,31** = langsamer). Im Ziel zeigt eine Tabelle je Abschnitt (bis CP 1, CP 2, …, Ziel) Zeit
+  und Abstand; die Abstände ergeben zusammen genau den Abstand im Ziel. Gespeichert wird mit der Bestzeit; Leicht vergleicht
+  mit der schnellsten deiner letzten Zeiten. Alte Bestzeiten ohne Zwischenzeiten zeigen beim ersten Mal noch nichts.
+- Ergebnis-Karte: „★ Stunt-Punkte · Stunts · längste Kette · 🔥 Nitro … s früher bereit“ (unter den Knöpfen).
 - **Bestzeiten Mittel/Original starten einmalig neu** (Hinweis im Menü), Leicht-Zeiten bleiben.
 - **Regler (A/B, werten nicht):** `?tank=<Punkte>` (0 = nur Ladezeit wie bisher), `?kette=<s>` (0 = keine Kette, 6 = n37),
   `?stuntpkt=0` (Wertung wie n37: nur Sprünge, ohne Drehung halb), `?landung=0` (ohne „ruhige Hand“), `?landeschub=0`,
-  `?luftton=0`, `?schweif=0` (die beiden letzten nur Ton/Bild, werten). Alle aus =
+  `?luftton=0`, `?schweif=0`, `?zwischen=0` (die drei letzten nur Ton/Bild/Anzeige, werten). Alle aus =
   Stand n37 bitgleich (`tests/node/n38_ref.mjs`).
 - Tests: `tests/node/test_lohn.mjs`, `tests/lohn_shots.py`. Messung: `tools/lohn_mess.mjs` (Profi-Mittel, Dauer-Hüpfer, Leicht),
   `tools/landeschub_mess.mjs` (Landeschub-Sicherheit auf Sammlungs- und Zufallsstrecken).
