@@ -72,6 +72,38 @@ spielbar am Handy (quer oder hochkant), mit Gamepad oder Tastatur. Als App insta
   Abstand zu jeder Fahrbahn (auch Hochstraßen/Rampen), nie im Wasser. Dosiert nach Grafikstufe; ruckelt es, blendet die
   Automatik (nach der Unschärfe) zuerst Gras/Büsche/Wolkenschatten aus. `?deko=aus` (bis n29 `?deko=0`) / `?wolken=0` zum Vergleich.
 
+## 🤸 Arcade-Stunt-Fahrgefühl: Saltos, Schrauben, Wände schrammen (seit 18.10.2026, n37, Version 0.7.0)
+Peter 10.10.: „Ich würde ein gutes, bereits reverse-engineertes Rennspiel verwenden – nicht das Stunts-Fahrgefühl.“ Vorbild
+sind die klassischen Arcade-Stunt-Racer der späten 90er. Mechanik und Zahlen kommen als Designwissen aus `ARCADE_FEEL.md`
+(Clean-Room, eigene Umsetzung). Messungen, Bildfolgen und Handy-Test: `N37_ARCADE_BERICHT.md`.
+- **Luftsteuerung (Mittel + Original):** **Gas** = Salto vorwärts, **Bremse** = Salto rückwärts, **◀ ▶** = Schraube, Gamepad-Stick
+  vor/zurück nickt.
+  - Was du beim Absprung schon drückst, zählt erst nach dem Loslassen. Mit Vollgas über die Schanze fliegt man ganz normal.
+  - **Mittel:** kurz **antippen** = ein ganzer Salto bzw. eine ganze Schraube (nochmal tippen = noch eine). Das geht nur, wenn
+    die Flugzeit reicht, sonst kommt „zu spät“. Danach richtet die Landehilfe das Auto gerade und in Flugrichtung aus.
+  - **Original:** **halten** = drehen, loslassen = der Schwung bleibt. Gegenhalten und Landen machst du selbst.
+  - Salto 360° in ~1,2 s, Schraube in ~1,0 s, auf der Standard-Schanze (2,6 s Flug) bequem.
+- **Landung:** Crash nur bei wirklich schiefen Landungen, also Dach voran (> 115°) oder 1,2 s auf der Seite liegen (bis n36
+  schon bei jeder Dachberührung). Mittel richtet ein auf der Seite liegendes Auto auf.
+- **Wände schrammen statt stoppen:** kein Rückprall, wenig Reibung, das Auto dreht sich parallel zur Wand. Bei 150 km/h kosten
+  15° nur 6 % Tempo und 30° 18 % (bis n36: ab 15° Crash). Frontal (60°) bleibt ein Crash.
+- **Mittel knackiger:** 0–100 in 2,5 statt 3,1 s, Höchsttempo wie bisher ~260 km/h (mehr Durchzug ließ Vollgas-Fahrer über die
+  Landerampen fliegen). Die Lenkung ist direkter, der Schleuderschutz lässt etwas mehr Rutschen zu, und in der Luft kommt kein
+  „Bremsen!“ mehr.
+- **Kamera:** Im Flug blickt der Verfolger entlang der Flugbahn mit Welt-Oben. Er dreht bei Saltos also nicht mit.
+- **★ Stunt-Punkte** (nur Anzeige, Bestzeiten zählen weiter nach Zeit):
+  - 1 Punkt je 0,1 s Luft (ab 0,5 s); je halbem Salto 15, halber Schraube 20, halbem Dreher 10; ohne Drehung die Hälfte.
+  - Saubere Landung ×1,25. Eine Kette (wieder abspringen innerhalb des Fensters) bringt ×1,2 … ×2.
+  - Crash-Landung gibt die Hälfte. Dieselbe Figur am selben Sprung in der nächsten Runde gibt die Hälfte, ein Hüpfer ×0,6.
+  - Die Anzeige erscheint je Sprung und als Summe unter der Zeit. `src/game/stunts.js` liefert das Ereignis `stunt` für n38.
+- **Crash → weiterfahren:** ≤ 1,5 s auf allen Stufen (mit Totalschaden auf Original jetzt 1,4 statt 2,6 s).
+- **Bestzeiten Mittel/Original starten einmalig neu** (Hinweis im Menü). Leicht-Zeiten bleiben, Leicht fährt wie bisher
+  (Autopilot; Wand und Crash-Schwellen neu). Prüffahrt und Generator bleiben unverändert: Alte Codes sind identisch.
+- **A/B (werten nicht):** `?physik=alt` = Fahrgefühl bis n36 (bitgleich). Regler `?luft=0…3` (Stärke der Luftsteuerung, 0 aus),
+  `?wand=0…2` (0 = Wand wie bis n36), `?grip=0.5…2` (Reifenhaftung Mittel/Original; `?grip=1` bleibt die Abstimmung bis n13).
+- Tests: `tests/node/test_arcade.mjs`, `tests/arcade_shots.py`. Messung: `tools/arcade_mess.mjs` (Datenblatt-Größen alt/neu),
+  `tools/arcade_quote.mjs` (Autopilot und Mensch-Bots auf Zufallsstrecken).
+
 ## 🚧🔄🌀 Original-Stunt-Hindernisse (seit 18.10.2026, n33)
 Peter 08.10.: „Mehr Original-Stunts-Hindernisse: Zickzack-Barriere, Spirale, Röhre mit Wand in der Mitte.“ Details, Messwerte,
 A/B-Links: `HINDERNISSE_BERICHT.md`.
@@ -378,8 +410,8 @@ bleiben (mit Extras wird man jetzt meist schneller). Test: `tests/node/test_extr
 | Stufe | Was hilft |
 |---|---|
 | 🟢 **Leicht** | **Autopilot-Fahrstil (seit 05.10.2026, n25):** Standard **🔥 Brachial** – der Autopilot fährt am Limit, driftet durch die Kurven und lenkt selbst; Tippen schiebt mit, gehaltenes Wegdrücken übernimmt (`DRIFT_BERICHT.md`). **🧼 Sauber** = das Folgende. Gas automatisch (Bremse des Spielers geht vor). **Mitlenken statt Schienen** (seit 29.09.2026): Die Hilfe hält das Auto auf der Fahrbahn und lenkt einen Teil jeder Kurve; die Ideallinie trifft man mit etwas Mitlenken, ohne Lenken driftet das Auto nach außen und wird langsamer (`?lk=0` = alte Schienen, `?lk=0.5` weniger mitlenken). Wer deutlich über den Rand hinaus drückt, hat Vorrang – auch quer durchs Gelände, Loslassen führt weich zurück. Loopings, Röhren, Korkenzieher und Sprünge lenkt das Auto selbst (mit Ansage im HUD), Engstellen und Steilkurven hält es eng auf der Linie. Handy: linke/rechte Bildschirmhälfte halten (oder Neigen). |
-| 🟡 **Mittel** | Du lenkst und bremst selbst. **Seit 05.10.2026 (n24):** sanftere Beschleunigung (0–100 in 3,1 s, Höchsttempo ~264 km/h, Gas-Rampe 0,45 s), Sprung-Hilfe in der Luft bis an den Rand der Landerampe, Schanzen-Hinweis mit Absprung-Tempo (`MITTEL3_BERICHT.md`, `?m=n23` = wie bisher). **Seit 03.10.2026 (n23):** Echtzeit (Spieltempo 1,0 statt 1,25 – die Tacho-Zahl ist das Tempo, das du siehst; Beschleunigung in echten Sekunden wie bisher), Traktionskontrolle, Schleuderschutz (ESP über die Drehrate, kein Zug zur Linie), Haftung ×1,3 (Kurvengrenztempo +30 % gegen Original), Touch-Pfeile mit Lenk-Rampe (tippen = kleine Korrektur), „Bremsen!“ tempoabhängig früher, Kamera schaut bei Tempo weiter voraus. **Dynamische Ideallinie:** das Stück vor dem Auto färbt sich nach deinem Tempo (grün/gelb/orange/rot, dieselbe Rechnung wie „Bremsen!“). Optionen → „Bremshilfe“ Aus / **Hinweis** / Sanft. Kein Zug zur Ideallinie (n16); Spurhilfe im Looping/in der Röhre, Rückspul-Knopf. Messung: `MITTEL2_BERICHT.md`. |
-| 🔴 **Original** | Keine Hilfen – so tricky wie damals. |
+| 🟡 **Mittel** | Du lenkst und bremst selbst. **Seit 18.10.2026 (n37, Arcade):** Tricks in der Luft durch **Antippen** (Gas = Salto vorwärts, Bremse = rückwärts, ◀ ▶ = Schraube; nur wenn die Flugzeit reicht), Landehilfe richtet danach gerade und in Flugrichtung aus, Wände schrammen statt Crash, 0–100 in 2,5 s, direktere Lenkung (`N37_ARCADE_BERICHT.md`, `?physik=alt` = wie bisher). **Seit 05.10.2026 (n24):** sanftere Beschleunigung (0–100 in 3,1 s, Höchsttempo ~264 km/h, Gas-Rampe 0,45 s), Sprung-Hilfe in der Luft bis an den Rand der Landerampe, Schanzen-Hinweis mit Absprung-Tempo (`MITTEL3_BERICHT.md`, `?m=n23` = wie bisher). **Seit 03.10.2026 (n23):** Echtzeit (Spieltempo 1,0 statt 1,25 – die Tacho-Zahl ist das Tempo, das du siehst; Beschleunigung in echten Sekunden wie bisher), Traktionskontrolle, Schleuderschutz (ESP über die Drehrate, kein Zug zur Linie), Haftung ×1,3 (Kurvengrenztempo +30 % gegen Original), Touch-Pfeile mit Lenk-Rampe (tippen = kleine Korrektur), „Bremsen!“ tempoabhängig früher, Kamera schaut bei Tempo weiter voraus. **Dynamische Ideallinie:** das Stück vor dem Auto färbt sich nach deinem Tempo (grün/gelb/orange/rot, dieselbe Rechnung wie „Bremsen!“). Optionen → „Bremshilfe“ Aus / **Hinweis** / Sanft. Kein Zug zur Ideallinie (n16); Spurhilfe im Looping/in der Röhre, Rückspul-Knopf. Messung: `MITTEL2_BERICHT.md`. |
+| 🔴 **Original** | Keine Hilfen – so tricky wie damals. **Seit 18.10.2026 (n37):** dieselbe Arcade-Physik ohne Hilfen: Luftsteuerung voll manuell (halten = drehen, Gegenhalten selbst), keine Landehilfe, Wände schrammen, Crash erst bei Dach voran/Seitenlage. |
 
 Die Fahrhilfe ist jederzeit im Pause-Menü umschaltbar.
 
@@ -408,6 +440,8 @@ zurückgesetzt, an der er die Fahrbahn verlassen hat (Uhr läuft weiter). Ab 18 
 - **Tastatur:** Pfeile/WASD (bremsen ↓/S), **Leertaste Hüpfer**, **Shift oder `N` Nitro**, `R` zurückspulen, `C` Kamera,
   `L` Ideallinie, `Esc` Pause. (Bis 28.09.2026 bremste die Leertaste.)
 - **Gamepad:** linker Stick lenken, RT/A Gas, LT/X Bremse, **B Hüpfer, RB Nitro**, Y zurückspulen, LB Kamera, Back Ideallinie, Start Pause.
+- **In der Luft (n37, Mittel/Original):** Gas = Salto vorwärts, Bremse = Salto rückwärts, Lenken = Schraube, Gamepad-Stick
+  vor/zurück = nicken. Mittel: antippen = ganzer Trick; Original: halten = drehen.
 
 ## Technik
 - three.js r186 als ES-Module mit Import-Map, **kein Build-Schritt**; GitHub Pages; PWA mit Service-Worker
@@ -461,6 +495,10 @@ python3 tests/test_strecken3d_ui.py       # n19: Menü (Code -3d, Karte, Schalte
 python3 tests/strecken3d_shots.py quer    # n19: Galerie-Fotos der neuen Teile (quer|hoch)
 python3 tests/strecken3d_fahrt_shots.py quer  # n19: Fahrt-Fotos (Spirale, Überführung oben/unten, Klippenflug, Steilwand, Karte)
 node tests/node/test_assists.mjs          # Fahrhilfen mit simulierten Spielern
+node tests/node/test_arcade.mjs           # n37: Stunt-Formel, Tracker, Luftsteuerung, Wand, Wiedereinstieg, ?physik=alt bitgleich n36, Bestzeiten
+node tools/arcade_mess.mjs                # n37: Datenblatt-Größen alt/neu (0–100, Vmax, Kurven, Sprünge, Stunts, Luft, Landung, Wand)
+node tools/arcade_quote.mjs 8             # n37: Leicht + Mensch-Bots auf 72 Zufallsstrecken, alt gegen neu
+python3 tests/arcade_shots.py quer        # n37: Salto/Schraube im Browser mit Tastatur, Bildfolgen → tests/arcade_collage.py
 node tests/node/test_reset.mjs            # Crash in Looping/Sprung/Wand: Reset +5 s bzw. Wrack; nie Endlosschleife
 node tests/node/test_free_steer.mjs       # Leicht: Spieler-Vorrang, weiche Rückführung, Abkürz-Regel, Stunt-Ansage
 node tests/node/test_fahrgefuehl.mjs      # Leicht mitlenken, Tempo-Regler, Linienfarben = Pedale, Mittel ohne Zwangsbremse, Haftung, Mittel n16 (Grenztempo, Spurhilfe), Mittel n23 (Grenztempo ≥ +20 %, 0–200 km/h, früherer Hinweis)
