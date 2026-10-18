@@ -71,7 +71,7 @@ Reproduzierbar laden: `python3 tools/fetch_assets.py`, danach `python3 tools/mak
 |---|---|---|
 | `lib/three.*.min.js`, `lib/addons/**` | [three.js](https://threejs.org) r186 | MIT (`lib/THREE_LICENSE.txt`) |
 | `lib/addons/libs/meshopt_decoder.module.js` | [meshoptimizer](https://github.com/zeux/meshoptimizer) (über three.js) | MIT |
-| `vendor/trystero/LICENSE`, `vendor/trystero/core/*.mjs`, `nostr.mjs`, `mqtt.mjs` | [Trystero](https://github.com/dmotz/trystero) 0.26.0 (`@trystero-p2p/core`, `/nostr`, `/mqtt`) – n35 Online-Mehrspieler, wird erst beim Öffnen von „👥 Online“ geladen | MIT (`vendor/trystero/LICENSE`) |
+| `vendor/trystero/LICENSE`, `vendor/trystero/core/*.js`, `nostr.js`, `mqtt.js` | [Trystero](https://github.com/dmotz/trystero) 0.26.0 (`@trystero-p2p/core`, `/nostr`, `/mqtt`) – n35 Online-Mehrspieler, wird erst beim Öffnen von „👥 Online“ geladen | MIT (`vendor/trystero/LICENSE`) |
 | `vendor/trystero/noble-secp256k1.js` | [noble-secp256k1](https://github.com/paulmillr/noble-secp256k1) 3.2.0 (Signaturen für Nostr) | MIT (`vendor/trystero/LICENSE-noble-secp256k1`) |
 | `vendor/trystero/mqtt.esm.js` | [MQTT.js](https://github.com/mqttjs/MQTT.js) 5.16.1 (Ausweich-Partnersuche, nur bei Bedarf geladen) | MIT (`vendor/trystero/LICENSE-mqtt`) |
 

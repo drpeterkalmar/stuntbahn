@@ -34,7 +34,8 @@ bendernostur.duckdns.org:8443, cdn.satellite.earth, relay.piazza.today, nostr.ch
 stun.cloudflare.com; **kein TURN**. Je Peer ein **zuverlässiger, geordneter** Datenkanal (Verlust zeigt sich als
 Verspätung, nicht als Lücke). Verschlüsselt: Verbindungsdaten mit dem Raumcode als Passwort (AES-GCM), Datenkanal DTLS.
 Vendoring: `python3 tools/vendor_trystero.py` (holt per `npm pack`, kein Bundler; nur Paket-Importe auf relative Pfade
-umgeschrieben), `--pruefen` vergleicht Prüfsummen (`vendor/trystero/VERSION.json`). Größe 541 kB, davon MQTT.js 340 kB
+umgeschrieben und `.mjs` → `.js`, damit jeder Server sie als Modul ausliefert), `--pruefen` vergleicht Prüfsummen
+(`vendor/trystero/VERSION.json`). Größe 541 kB, davon MQTT.js 340 kB
 (lädt nur, wenn Nostr nach 6 s niemanden findet).
 
 ## Sitzung

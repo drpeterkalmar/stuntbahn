@@ -1,6 +1,6 @@
-import { decodeBytes, encodeBytes, keys, libName, mkErr, noOp, resetTimer, values } from "./utils.mjs";
-import { pendingDataTimeoutMs } from "./data-limits.mjs";
-import { createMediaIdentityCache } from "./media.mjs";
+import { decodeBytes, encodeBytes, keys, libName, mkErr, noOp, resetTimer, values } from "./utils.js";
+import { pendingDataTimeoutMs } from "./data-limits.js";
+import { createMediaIdentityCache } from "./media.js";
 //#region src/shared-peer.ts
 const roomFrameVersion = 1;
 const roomPresenceFrameVersion = 2;

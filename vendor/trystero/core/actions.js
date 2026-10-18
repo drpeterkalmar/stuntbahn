@@ -1,5 +1,5 @@
-import { all, entries, genId, libName, mkErr, noOp, resetTimer, toError, toErrorMessage } from "./utils.mjs";
-import { createActionWireManager, makeActionError, throwIfAborted } from "./action-wire.mjs";
+import { all, entries, genId, libName, mkErr, noOp, resetTimer, toError, toErrorMessage } from "./utils.js";
+import { createActionWireManager, makeActionError, throwIfAborted } from "./action-wire.js";
 //#region src/actions.ts
 const getEnvelopeRecord = (metadata) => metadata && typeof metadata === "object" && !Array.isArray(metadata) && typeof metadata.r === "string" ? metadata : null;
 const getRequestMetadata = (metadata) => {

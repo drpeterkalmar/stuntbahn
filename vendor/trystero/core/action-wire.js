@@ -1,6 +1,6 @@
-import { all, decodeBytes, encodeBytes, fromJson, libName, mkErr, noOp, resetTimer, toJson } from "./utils.mjs";
-import { maxActionFrameBytes, transferTimeoutMs } from "./data-limits.mjs";
-import { createActionReceiver } from "./action-receiver.mjs";
+import { all, decodeBytes, encodeBytes, fromJson, libName, mkErr, noOp, resetTimer, toJson } from "./utils.js";
+import { maxActionFrameBytes, transferTimeoutMs } from "./data-limits.js";
+import { createActionReceiver } from "./action-receiver.js";
 //#region src/action-wire.ts
 const version = 2;
 const inline = 0;

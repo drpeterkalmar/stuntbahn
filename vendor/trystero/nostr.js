@@ -1,5 +1,5 @@
 import { schnorr } from "./noble-secp256k1.js";
-import { createRelayManager, createTopicStrategy, fromJson, genId, getRelays, hashWith, libName, makeSocket, pauseRelayReconnection, resumeRelayReconnection, selfId, strToNum, toHex, toJson } from "./core/index.mjs";
+import { createRelayManager, createTopicStrategy, fromJson, genId, getRelays, hashWith, libName, makeSocket, pauseRelayReconnection, resumeRelayReconnection, selfId, strToNum, toHex, toJson } from "./core/index.js";
 //#region src/index.ts
 const relayManager = createRelayManager((client) => client.socket);
 const defaultRedundancy = 5;

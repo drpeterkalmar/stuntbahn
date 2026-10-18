@@ -12,7 +12,7 @@
 
 export const APP_ID = 'drpeterkalmar-stuntbahn-n35';
 export const AUSWEICH = { nach: 6000 };
-const PFAD = { nostr: '../../vendor/trystero/nostr.mjs', mqtt: '../../vendor/trystero/mqtt.mjs' };
+const PFAD = { nostr: '../../vendor/trystero/nostr.js', mqtt: '../../vendor/trystero/mqtt.js' };
 
 // code: Raumcode; opt: { strategie: 'auto'|'nostr'|'mqtt'|'beide', module: { nostr, mqtt } (Test), laden(name) }
 export async function trysteroTransport(code, opt = {}) {

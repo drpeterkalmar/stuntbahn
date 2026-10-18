@@ -1,6 +1,6 @@
-import { mkErr, selfId, toJson } from "./utils.mjs";
-import { shouldActivatePassiveRoom } from "./signal-handler.mjs";
-import strategy_default from "./strategy.mjs";
+import { mkErr, selfId, toJson } from "./utils.js";
+import { shouldActivatePassiveRoom } from "./signal-handler.js";
+import strategy_default from "./strategy.js";
 //#region src/topic-strategy.ts
 const defaultSteadyAnnounceIntervalMs = 6e4;
 const requireContext = (context) => {

@@ -7,8 +7,9 @@ let bad = 0;
 const ok = (c, m) => { console.log((c ? 'OK   ' : 'FAIL ') + m); if (!c) bad++; };
 const has = (h, ...t) => t.every((x) => h.includes(x));
 
-const s = startHtml('Pe<ter>', 'ABCD');
-ok(has(s, 'id="onname"', 'value="Pe&lt;ter&gt;"', 'data-a="onerstellen"', 'data-a="onbeitreten"', 'value="ABCD"', 'WLAN probieren'), 'Start: Name (escaped), Raum erstellen, Code-Feld vorbelegt aus ?raum=, WLAN-Hinweis');
+const s = startHtml('Pe<ter>', 'ABCD', [{ k: '11-2', n: 'Heulende Bahn', t: 78.03, p: 1, v: 4, d: '2026-10-18' }]);
+ok(has(s, 'id="onname"', 'value="Pe&lt;ter&gt;"', 'data-a="onerstellen"', 'data-a="onbeitreten"', 'value="ABCD"', 'WLAN probieren', 'Deine letzten Online-Rennen', 'Heulende Bahn', '1./4', '1:18,03'), 'Start: Name (escaped), Raum erstellen, Code-Feld vorbelegt aus ?raum=, WLAN-Hinweis, Liste „Online“');
+ok(!startHtml('', '').includes('letzten Online'), 'ohne Online-Rennen keine leere Liste');
 const z = {
   aktiv: true, code: 'QRST', vorlesbar: 'QR-ST', link: 'https://drpeterkalmar.github.io/stuntbahn/?raum=QRST', gastgeber: true, phase: 'lobby', ich: 'a',
   einst: { ki: 2, staerke: 'profi', streckeName: 'Heulende Wirbelbahn', strecke: 'L1' }, geladen: 'L1', start: { ok: false, grund: 'warte auf „Bereit“ von Ben' },

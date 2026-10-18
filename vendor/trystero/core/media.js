@@ -1,4 +1,4 @@
-import { genId, libName, mkErr } from "./utils.mjs";
+import { genId, libName, mkErr } from "./utils.js";
 //#region src/media.ts
 const toPendingMediaMeta = (value) => {
 	if (value && typeof value === "object" && !Array.isArray(value) && typeof value.k === "string") return {

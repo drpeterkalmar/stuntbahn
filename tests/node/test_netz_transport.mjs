@@ -90,10 +90,10 @@ function fakeStrategie(name, bus) {
 // ---------- vendor/trystero lädt in Node ----------
 {
   const V = JSON.parse(fs.readFileSync(new URL('../../vendor/trystero/VERSION.json', import.meta.url)));
-  const n = await import('../../vendor/trystero/nostr.mjs');
+  const n = await import('../../vendor/trystero/nostr.js');
   ok(V.pins['@trystero-p2p/core'] === '0.26.0' && typeof n.joinRoom === 'function' && typeof n.selfId === 'string' && n.defaultRelayUrls.length === 29, `vendor/trystero 0.26.0 lädt: joinRoom, selfId, ${n.defaultRelayUrls.length} Nostr-Relays`);
   // welche 5 Relays nimmt Trystero für unsere appId? (gleiche Rechnung wie core/utils.mjs getRelays)
-  const u = await import('../../vendor/trystero/core/utils.mjs');
+  const u = await import('../../vendor/trystero/core/utils.js');
   const fuenf = u.shuffle(n.defaultRelayUrls, u.strToNum(APP_ID)).slice(0, 5);
   ok(fuenf.length === 5 && fuenf.every((x) => x.startsWith('wss://')), 'Nostr-Relays für Stuntbahn: ' + fuenf.map((x) => x.slice(6)).join(', '));
 }

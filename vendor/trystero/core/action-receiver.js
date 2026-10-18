@@ -1,5 +1,5 @@
-import { decodeBytes, fromJson, libName, noOp, resetTimer } from "./utils.mjs";
-import { transferTimeoutMs } from "./data-limits.mjs";
+import { decodeBytes, fromJson, libName, noOp, resetTimer } from "./utils.js";
+import { transferTimeoutMs } from "./data-limits.js";
 //#region src/action-receiver.ts
 const maxPendingTransfers = 1024;
 const maxPendingPerPeer = 64;

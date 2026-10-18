@@ -1,5 +1,5 @@
 import mqtt from "./mqtt.esm.js";
-import { createRelayManager, createTopicStrategy, getRelays, selfId, toJson } from "./core/index.mjs";
+import { createRelayManager, createTopicStrategy, getRelays, selfId, toJson } from "./core/index.js";
 //#region src/index.ts
 const defaultRedundancy = 4;
 const relayManager = createRelayManager((client) => client.stream?.socket);

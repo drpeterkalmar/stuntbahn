@@ -1,5 +1,5 @@
-import { all, alloc, candidateType, libName, resetTimer, toError } from "./utils.mjs";
-import { pendingDataTimeoutMs } from "./data-limits.mjs";
+import { all, alloc, candidateType, libName, resetTimer, toError } from "./utils.js";
+import { pendingDataTimeoutMs } from "./data-limits.js";
 //#region src/peer.ts
 const iceTimeout = 15e3;
 const iceCandidateSettleMs = 150;

@@ -13,13 +13,21 @@ import { codeAusUrl } from '../net/code.js';
 
 export const esc = (t) => String(t ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-export function startHtml(name, code = '') {
+// Liste „Online“ (eigene Ergebnisse, zählen nicht in die Solo-Bestzeiten): die letzten n
+export function onlineListeHtml(liste = [], n = 5) {
+  if (!liste.length) return '';
+  const rows = liste.slice(0, n).map((e) => `<tr><td><small>${esc(e.d || '')}</small></td><td>${esc(e.n || e.k || '?')}</td><td>${e.p ? `${e.p}./${e.v}` : ''}</td><td>${e.t != null ? fmtTime(e.t) : '–'}</td></tr>`).join('');
+  return `<div class="lbl">Deine letzten Online-Rennen</div><table class="gtab">${rows}</table>`;
+}
+
+export function startHtml(name, code = '', liste = []) {
   return `<div class="onl">
     <p>Mit Freunden fahren: einer erstellt einen Raum, die anderen treten mit dem Code bei (2–${ONLINE.maxMenschen} Spieler, KI füllt bis ${ONLINE.maxAutos} Autos auf). Ohne Konto, die Autos fahren direkt von Gerät zu Gerät.</p>
     <label class="onlab">Dein Name <input id="onname" maxlength="16" autocomplete="nickname" value="${esc(name)}" placeholder="Name"></label>
     <button class="big go" data-a="onerstellen">➕ Raum erstellen</button>
     <div class="row onjoin"><input id="oncode" maxlength="7" autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="Code, z. B. AB-CD" value="${esc(code)}" aria-label="Raumcode"><button data-a="onbeitreten">➜ Beitreten</button></div>
     <p class="hint">Alle Geräte brauchen Internet. Manche Mobilfunk- oder Firmennetze lassen keine direkte Verbindung zu – dann WLAN probieren.</p>
+    ${onlineListeHtml(liste)}
   </div>`;
 }
 
@@ -83,7 +91,7 @@ export function ergebnisHtml(z, E, ichSid) {
 export class OnlineAnsicht {
   constructor(ui, spiel, app = {}) { this.ui = ui; this.spiel = spiel; this.app = app; this.ansicht = null; }
   offen() { return this.ui.screen === 'sheet' && !!this.ansicht; }
-  zeigeStart(code = codeAusUrl() || '') { this.ansicht = 'start'; this.ui.sheet('👥 Online', startHtml(this.spiel.name() === 'Gast' ? '' : this.spiel.name(), code)); }
+  zeigeStart(code = codeAusUrl() || '') { this.ansicht = 'start'; this.ui.sheet('👥 Online', startHtml(this.spiel.name() === 'Gast' ? '' : this.spiel.name(), code, this.spiel.app.store.online || [])); }
   zeigeLobby() {
     const z = this.spiel.zustand();
     if (!z.aktiv) return this.zeigeStart();

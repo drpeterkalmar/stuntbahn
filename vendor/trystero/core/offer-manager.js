@@ -1,4 +1,4 @@
-import { all, alloc, mkErr, resetTimer } from "./utils.mjs";
+import { all, alloc, mkErr, resetTimer } from "./utils.js";
 //#region src/offer-manager.ts
 const offerLeaseTtlMs = 18e4;
 var OfferManager = class {

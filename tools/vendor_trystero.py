@@ -25,10 +25,12 @@ PINS = {
 }
 # Ersetzungen der Paket-Importe (je Zieldatei relativ)
 UMBAU = {
-    'nostr.mjs': {'@noble/secp256k1': './noble-secp256k1.js', '@trystero-p2p/core': './core/index.mjs'},
-    'mqtt.mjs': {'mqtt': './mqtt.esm.js', '@trystero-p2p/core': './core/index.mjs'},
+    'nostr.js': {'@noble/secp256k1': './noble-secp256k1.js', '@trystero-p2p/core': './core/index.js'},
+    'mqtt.js': {'mqtt': './mqtt.esm.js', '@trystero-p2p/core': './core/index.js'},
 }
 MAP_RE = re.compile(r'\n?//# sourceMappingURL=\S+\s*$')
+# .mjs → .js (jeder Server liefert .js als JavaScript-Modul aus; relative Importe mit umbenennen)
+MJS_RE = re.compile(r'(from\s+["\'])(\.[^"\']*)\.mjs(["\'])')
 
 
 def pack(tmp, name, ver):
@@ -72,8 +74,8 @@ def holen():
                 bare = [m for m in re.findall(r'from\s+["\']([^"\']+)["\']', t) if not m.startswith('.')]
                 if bare:
                     sys.exit(f'core/{f} importiert unerwartet {bare}')
-                schreiben(os.path.join(OUT, 'core', f), MAP_RE.sub('\n', t))
-        for name, ziel in (('@trystero-p2p/nostr', 'nostr.mjs'), ('@trystero-p2p/mqtt', 'mqtt.mjs')):
+                schreiben(os.path.join(OUT, 'core', f[:-4] + '.js'), MJS_RE.sub(r'\1\2.js\3', MAP_RE.sub('\n', t)))
+        for name, ziel in (('@trystero-p2p/nostr', 'nostr.js'), ('@trystero-p2p/mqtt', 'mqtt.js')):
             with open(os.path.join(P[name], 'dist', 'index.mjs'), encoding='utf-8') as h:
                 t = umschreiben(h.read(), UMBAU[ziel])
             bare = [m for m in re.findall(r'from\s+["\']([^"\']+)["\']', t) if not m.startswith('.')]
