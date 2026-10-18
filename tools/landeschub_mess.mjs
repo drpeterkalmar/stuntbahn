@@ -50,10 +50,10 @@ function lipWatch(race) {
     const i = race.tracker.idx;
     if (race.state === 'running' && race.car.onGround > 0) J.forEach((j, k) => {
       const w = P.windows && P.windows[k];
-      if (!w || !w.vmax || j.gen) return;
+      if (!w || !w.vmax) return;   // auch Sammlungs-/Import-Rampen (eigenes Fenster)
       if (W.prev < j.lipIdx && i >= j.lipIdx && i - W.prev < 40) {
         const v = race.car.fwdSpeed(); W.lips++;
-        if (v > w.vmax) { W.over++; if (race.time - W.lbT < 4) { W.overB++; W.maxRel = Math.max(W.maxRel, v / w.vmax); } }
+        if (v > w.vmax) { W.over++; if (race.time - W.lbT < 4) { W.overB++; W.maxRel = Math.max(W.maxRel, v / w.vmax); } if (race.lb && race.car.boost > 0 && race.nitroT < 0) W.overA = (W.overA || 0) + 1; }
       }
     });
     W.prev = i;
@@ -87,9 +87,9 @@ for (const ls of [0, 1]) {
         const hook = (race) => { if (!W || W.race !== race) { W = lipWatch(race); W.race = race; Ws.push(W); } W.step(); };
         const b = runBot(T.v, MEDIUM_N24, f === 'voll' ? 'mensch-voll' : 'mensch-handy', SEEDS, hook);
         const sum = (k) => Ws.reduce((a, w) => a + (w[k] || 0), 0);
-        x = { ok: b.ok, time: b.time, crashes: b.crashes, W: { boosts: sum('boosts'), eff: sum('eff'), lips: sum('lips'), over: sum('over'), overB: sum('overB'), maxRel: Math.max(0, ...Ws.map((w) => w.maxRel)) } };
+        x = { ok: b.ok, time: b.time, crashes: b.crashes, W: { boosts: sum('boosts'), eff: sum('eff'), lips: sum('lips'), over: sum('over'), overB: sum('overB'), overA: sum('overA'), maxRel: Math.max(0, ...Ws.map((w) => w.maxRel)) } };
       } else x = own(T.v, f);
-      A.n++; A.ok += x.ok ? 1 : 0; A.crashes += x.crashes; A.boosts += x.W.boosts; A.eff = (A.eff || 0) + (x.W.eff || 0); A.lips += x.W.lips; A.over += x.W.over; A.overB += x.W.overB; A.maxRel = Math.max(A.maxRel, x.W.maxRel);
+      A.n++; A.ok += x.ok ? 1 : 0; A.crashes += x.crashes; A.boosts += x.W.boosts; A.eff = (A.eff || 0) + (x.W.eff || 0); A.lips += x.W.lips; A.over += x.W.over; A.overB += x.W.overB; A.overA = (A.overA || 0) + (x.W.overA || 0); A.maxRel = Math.max(A.maxRel, x.W.maxRel);
       if (x.ok) A.time[T.name] = x.time;
     }
   }
@@ -97,7 +97,7 @@ for (const ls of [0, 1]) {
 for (const f of FAHRER) {
   const a = out[`${f}-0`], b = out[`${f}-1`];
   let sa = 0, sb = 0, n = 0; for (const k of Object.keys(a.time)) if (b.time[k]) { sa += a.time[k]; sb += b.time[k]; n++; }
-  console.log(`${f.padEnd(6)} ohne: ${a.ok}/${a.n} Ziel, Crashs ${a.crashes}, Lippe zu schnell ${a.over}/${a.lips} · mit: ${b.ok}/${b.n} Ziel, Crashs ${b.crashes}, Landeschübe ${b.boosts} (wirksam Ø ${(b.eff / Math.max(1, b.boosts)).toFixed(2)} s), Lippe zu schnell ${b.over}/${b.lips} (davon ≤ 4 s nach Schub ${b.overB}${b.maxRel ? `, höchstens ×${b.maxRel.toFixed(3)}` : ''}) · Zeit ${((1 - sb / sa) * 100).toFixed(1)} % schneller (${n} Str.)`);
+  console.log(`${f.padEnd(6)} ohne: ${a.ok}/${a.n} Ziel, Crashs ${a.crashes}, Lippe zu schnell ${a.over}/${a.lips} · mit: ${b.ok}/${b.n} Ziel, Crashs ${b.crashes}, Landeschübe ${b.boosts} (wirksam Ø ${(b.eff / Math.max(1, b.boosts)).toFixed(2)} s), Lippe zu schnell ${b.over}/${b.lips} (Schub dabei aktiv ${b.overA || 0}, ≤ 4 s nach Schub ${b.overB}${b.maxRel ? `, höchstens ×${b.maxRel.toFixed(3)}` : ''}) · Zeit ${((1 - sb / sa) * 100).toFixed(1)} % schneller (${n} Str.)`);
 }
 console.log(`${tracks.length} Strecken (${tracks.filter((t) => !/h$/.test(t.name)).length} Sammlung)`);
 if (arg('json')) fs.writeFileSync(arg('json'), JSON.stringify({ tracks: tracks.map((t) => t.name), out }, null, 1));

@@ -1,0 +1,61 @@
+{
+ "datum": "2026-10-18T08:35:12",
+ "stand": "n38_stunt_quer_ab",
+ "modus": "ab",
+ "runden": 3,
+ "varianten": [
+  {
+   "name": "vorher",
+   "wurzel": "/Users/wohnzimmer/dev/stuntbahn_n37vorher",
+   "zusatz": ""
+  },
+  {
+   "name": "nachher",
+   "wurzel": "/Users/wohnzimmer/dev/stuntbahn",
+   "zusatz": "&tank=0&schweif=0"
+  }
+ ],
+ "profil": {
+  "drossel": 4,
+  "dpr": 2.6,
+  "sek": 10,
+  "start": "open",
+  "vsync": false
+ },
+ "szenen": {
+  "stunt_leicht_kino": {
+   "quer": {
+    "vorher": {
+     "p50": 8,
+     "p95": 10.1,
+     "fps": 123,
+     "calls": 112,
+     "tris": 364158,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      10,
+      11,
+      10.1
+     ],
+     "fehler": []
+    },
+    "nachher": {
+     "p50": 7.9,
+     "p95": 10.2,
+     "fps": 123.8,
+     "calls": 112,
+     "tris": 364108,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      10.1,
+      11,
+      10.2
+     ],
+     "fehler": []
+    }
+   }
+  }
+ }
+}

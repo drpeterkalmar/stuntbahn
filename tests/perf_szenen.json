@@ -291,6 +291,22 @@
      "warte": 2
     }
    ]
+  },
+  {
+   "name": "stunt_leicht_kino",
+   "query": "?nosw&q=2&startprobe=0&seed=4711&d=2",
+   "schritte": [
+    {
+     "bis": "(() => { const v = __game.info().vao; return !v || v.fertig; })()",
+     "max": 120
+    },
+    "__game.setAssist('easy'); __game.store.settings.fahrstil = 'sauber'; __game.store.settings.autoExtras = true",
+    "__game.start({})",
+    "__game.cam('chase')",
+    {
+     "warte": 3.2
+    }
+   ]
   }
  ]
 }

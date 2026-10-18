@@ -151,8 +151,8 @@ console.log('--- F2: Landeschub (Etappe 2) ---');
   // Messgröße 5 im Kleinen: Lippen nach einem Schub nie über dem Fenster
   const { execFileSync } = await import('child_process');
   const out = execFileSync(process.execPath, ['tools/landeschub_mess.mjs', '4', '--zufall=2', '--fahrer=profi,voll'], { encoding: 'utf8', maxBuffer: 1e8 });
-  const after = [...out.matchAll(/davon ≤ 4 s nach Schub (\d+)/g)].map((m) => +m[1]), boosts = [...out.matchAll(/Landeschübe (\d+)/g)].map((m) => +m[1]);
-  check(after.length === 2 && after.every((x) => x === 0) && boosts.some((x) => x > 0), `Landeschübe ${boosts.join('/')}, danach zu schnell an der Lippe: ${after.join('/')}`);
+  const after = [...out.matchAll(/Schub dabei aktiv (\d+)/g)].map((m) => +m[1]), boosts = [...out.matchAll(/Landeschübe (\d+)/g)].map((m) => +m[1]);
+  check(after.length === 2 && after.every((x) => x === 0) && boosts.some((x) => x > 0), `Landeschübe ${boosts.join('/')}, zu schnell an der Lippe mit aktivem Schub: ${after.join('/')}`);
 }
 
 console.log('--- F3: Zwischenzeiten (Etappe 3) ---');

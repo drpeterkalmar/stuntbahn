@@ -72,9 +72,11 @@ spielbar am Handy (quer oder hochkant), mit Gamepad oder Tastatur. Als App insta
   Abstand zu jeder Fahrbahn (auch Hochstraßen/Rampen), nie im Wasser. Dosiert nach Grafikstufe; ruckelt es, blendet die
   Automatik (nach der Unschärfe) zuerst Gras/Büsche/Wolkenschatten aus. `?deko=aus` (bis n29 `?deko=0`) / `?wolken=0` zum Vergleich.
 
-## 🔥 Stunts laden Nitro nach: Stunt-Kette, ruhige Hand, Bauwerke, Landeschub, Zwischenzeiten, Drift-Turbo zum Testen (seit 18.10.2026, n38, Version 0.7.4)
+## 🔥 Stunts laden Nitro nach: Stunt-Kette, ruhige Hand, Bauwerke, Landeschub, Zwischenzeiten, Drift-Turbo zum Testen (seit 18.10.2026, n38, Version 0.8.0)
 Stunts sind im Rennen jetzt etwas wert. Die Stunt-Wertung ist inspiriert von klassischen Arcade-Racern (Clean-Room nach dem
-Vorlagen-Datenblatt, eigene Zahlen, per Messung abgestimmt). Messungen und Handy-Test: `N38_VORLAGEN_BERICHT.md`.
+Vorlagen-Datenblatt, eigene Zahlen, per Messung abgestimmt). Messungen (Vorlage-Ziel / vorher / nachher) und Handy-Test:
+`N38_VORLAGEN_BERICHT.md`. Releases: 0.7.1 Stunt-Kette lädt Nitro · 0.7.2 Landeschub, Ton, Schweif · 0.7.3 Zwischenzeiten ·
+0.7.4 Drift-Turbo zum Testen · 0.8.0 Abschluss.
 - **Stunts verkürzen die Nitro-Ladezeit:** 60 Stunt-Punkte = eine ganze Ladezeit (5 s). Lädt der Nitro gerade, ist er früher
   bereit („🔥 lädt 2,5 s schneller“ bzw. „🔥 Nitro sofort bereit!“). Ist er schon bereit, füllt sich ein **Vorrat** (goldener
   Ring um den 🔥-Knopf), der beim nächsten Zünden die Ladezeit verkürzt. Ist der Vorrat voll, ist der Nitro nach dem Ausbrennen
@@ -481,6 +483,8 @@ zurückgesetzt, an der er die Fahrbahn verlassen hat (Uhr läuft weiter). Ab 18 
 - **Gamepad:** linker Stick lenken, RT/A Gas, LT/X Bremse, **B Hüpfer, RB Nitro**, Y zurückspulen, LB Kamera, Back Ideallinie, Start Pause.
 - **In der Luft (n37, Mittel/Original):** Gas = Salto vorwärts, Bremse = Salto rückwärts, Lenken = Schraube, Gamepad-Stick
   vor/zurück = nicken. Mittel: antippen = ganzer Trick; Original: halten = drehen.
+- **Stunts laden Nitro (n38):** Nach dem Trick nichts mehr drücken = „ruhige Hand“ ×1,5 (Schweif gold). Goldener Ring um 🔥 =
+  Nitro-Vorrat aus Stunts. Mit `?driftturbo=1` (zum Testen): im Drift Bremse kurz antippen, wenn der Balken oben links rot ist.
 
 ## Technik
 - three.js r186 als ES-Module mit Import-Map, **kein Build-Schritt**; GitHub Pages; PWA mit Service-Worker

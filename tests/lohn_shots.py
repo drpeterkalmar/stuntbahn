@@ -105,6 +105,7 @@ with Server() as srv, sync_playwright() as pw:
             if r['state'] == 'finished': break
         s.frames(10); time.sleep(1.5)
         tab = s.ev("(document.querySelector('#result .splits') || {}).innerText || ''")
+        s.ev("(() => { const c = document.querySelector('#result .card'); if (c) c.scrollTop = 1e5; })()"); time.sleep(0.3)
         s.shot(f'{lay}_zwischen_ziel', 'n38')
         print(lay, 'zwischen', repr(cp), repr(tab), 'Fehler', s.errors[:5], flush=True)
         if not cp or not any(c in cp for c in '−+±'): fails.append(f'{lay} zwischen: kein Abstand am Checkpoint ({cp!r})')

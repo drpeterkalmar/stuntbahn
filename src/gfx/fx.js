@@ -360,7 +360,7 @@ export class CarFX {
   airTrail(dt, car, live) {
     if (!live || live.t < 0.5) { this.airAcc = 0; return; }
     this.airAcc = (this.airAcc || 0) + dt;
-    if (this.airAcc < 0.016) return;
+    if (this.airAcc < 0.033) return;   // ~30 je s und Seite (Mess-Gate: doppelt so viele kosteten quer ~5 % p95)
     this.airAcc = 0;
     const hell = !!live.calm, sp = Math.hypot(car.v.x, car.v.y, car.v.z) || 1;
     const dx = car.v.x / sp, dy = car.v.y / sp, dz = car.v.z / sp;
@@ -369,7 +369,7 @@ export class CarFX {
       const b = 1.4 + Math.random() * 0.3, q = sg * (1.05 + Math.random() * 0.1);
       this.p.set(car.pos.x - dx * b + rx * q, car.pos.y - dy * b + 0.15 + (Math.random() - 0.5) * 0.1, car.pos.z - dz * b + rz * q);
       this.parts.spawn(this.p, this.v.set(car.v.x * 0.8, car.v.y * 0.8, car.v.z * 0.8),
-        hell ? 0.32 : 0.26, hell ? 0.9 : 0.6, hell ? 0.42 : 0.3, hell ? 0xffe070 : 0xd4e2f2, hell ? 0.85 : 0.5);
+        hell ? 0.42 : 0.34, hell ? 1.0 : 0.7, hell ? 0.42 : 0.3, hell ? 0xffe070 : 0xd4e2f2, hell ? 0.85 : 0.5);
     }
   }
   // pro Frame: Partikel bewegen

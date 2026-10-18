@@ -1,0 +1,61 @@
+{
+ "datum": "2026-10-18T08:29:46",
+ "stand": "n38_stunt_hoch",
+ "modus": "ab",
+ "runden": 3,
+ "varianten": [
+  {
+   "name": "vorher",
+   "wurzel": "/Users/wohnzimmer/dev/stuntbahn_n37vorher",
+   "zusatz": ""
+  },
+  {
+   "name": "nachher",
+   "wurzel": "/Users/wohnzimmer/dev/stuntbahn",
+   "zusatz": ""
+  }
+ ],
+ "profil": {
+  "drossel": 4,
+  "dpr": 2.6,
+  "sek": 10,
+  "start": "open",
+  "vsync": false
+ },
+ "szenen": {
+  "stunt_leicht_kino": {
+   "hoch": {
+    "vorher": {
+     "p50": 8.5,
+     "p95": 10.5,
+     "fps": 115.6,
+     "calls": 108,
+     "tris": 361485,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      10.2,
+      10.6,
+      10.5
+     ],
+     "fehler": []
+    },
+    "nachher": {
+     "p50": 8.5,
+     "p95": 10.7,
+     "fps": 115.2,
+     "calls": 110,
+     "tris": 361882,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      12,
+      10.5,
+      10.7
+     ],
+     "fehler": []
+    }
+   }
+  }
+ }
+}
