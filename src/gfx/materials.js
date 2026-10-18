@@ -639,11 +639,17 @@ export function patchTunnel(mat) {
         reflectedLight.directSpecular *= 1.0 - tm * 0.9;
         float ds = ( fract( vTun.y / tunL.x ) - 0.5 ) * tunL.x;
         float d1 = vTun.z - tunL.y, d2 = vTun.z + tunL.y, q = 0.5 / ( tunL.z * tunL.z );
-        float lam = exp( -ds * ds * q ) * ( exp( -d1 * d1 * q ) + exp( -d2 * d2 * q ) );
-        float lk = min( 1.0, tm * 4.0 );
-        lam *= mix( 0.3, 1.0, smoothstep( -0.6, -3.5, vTun.w ) );   // Leuchten strahlen nach unten: Decke neben der Leuchte bleibt dunkler
+        float lk = min( 1.0, tm * 4.0 ), lam, band;
+        if ( vTun.w > 2.0 ) {
+          // Röhre mit Mittelwand: Lichtringe rund um die Röhre (die Linie rollt durch den ganzen Querschnitt)
+          lam = 1.4 * exp( -ds * ds * q );
+          band = 1.0 - smoothstep( 0.18, 0.28, abs( ds ) );
+        } else {
+          lam = exp( -ds * ds * q ) * ( exp( -d1 * d1 * q ) + exp( -d2 * d2 * q ) );
+          lam *= mix( 0.3, 1.0, smoothstep( -0.6, -3.5, vTun.w ) );   // Leuchten strahlen nach unten: Decke neben der Leuchte bleibt dunkler
+          band = ( 1.0 - smoothstep( 1.3, 1.5, abs( ds ) ) ) * ( ( 1.0 - smoothstep( 0.16, 0.24, abs( d1 ) ) ) + ( 1.0 - smoothstep( 0.16, 0.24, abs( d2 ) ) ) ) * step( -0.4, vTun.w );
+        }
         reflectedLight.directDiffuse += BRDF_Lambert( diffuseColor.rgb ) * tunCol * ( 0.18 + lam ) * tunL.w * lk;
-        float band = ( 1.0 - smoothstep( 1.3, 1.5, abs( ds ) ) ) * ( ( 1.0 - smoothstep( 0.16, 0.24, abs( d1 ) ) ) + ( 1.0 - smoothstep( 0.16, 0.24, abs( d2 ) ) ) ) * step( -0.4, vTun.w );
         totalEmissiveRadiance += tunCol * band * tunBand * lk;
       }`)
       .replace('#include <fog_fragment>', `#ifdef USE_FOG

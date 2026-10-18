@@ -17,11 +17,14 @@
 //     Wandstärke (Laibung, Deckel, Seiten), dunkler Rand an der Öffnung (Vertex-Farbe), gelb-schwarze Warnstreifen an den
 //     Leibungen, Kragen über dem Schlitz.
 //  4. tunnelAttr(…): je Eckpunkt der Strecken-Batches (Maske, Weg ab Portal, quer, Abstand zur Decke) → Shader dunkelt
-//     innen das Himmels-/Umgebungslicht ab, zeichnet Leuchtbänder an die Decke und Lichtpfützen darunter (gfx/tunnel.js).
+//     innen das Himmels-/Umgebungslicht ab, zeichnet Leuchtbänder an die Decke und Lichtpfützen darunter (gfx/materials.js
+//     patchTunnel). Röhre mit Mittelwand (n33 Etappe 3) ebenso, dort Lichtringe rund um die Röhre statt Deckenbändern.
+//  5. roehreKamera(…): Kamera in der Röhre mit Mittelwand auf den Röhrenkreis begrenzen (Verfolger rollt sonst durch die Wand).
 import { ENV } from './gelaende.js';
 import { TUN } from './pieces_gel.js';
 import { ROAD_HW } from './defs.js';
 import { triLerp, TB } from './terrgrid.js';
+import { tubeWallGeom } from './pieces_hind.js';
 
 // Schalter: ?tunnelalt=1 (main.js) bzw. STUNT_TUNNELALT=1 (Node) = alter Look
 export const TUNNEL_LOOK = {
@@ -45,7 +48,7 @@ function deckeGel(r) {
 export function tunnelLaeufe(track) {
   if (track._tunnelLaeufe) return track._tunnelLaeufe;
   const L = track.line, P = track.pieces || [], lay = track.layout || {}, out = [];
-  const lauf = (k0, k1, art, portalIn, portalOut) => {
+  const lauf = (k0, k1, art, portalIn, portalOut, G = null) => {
     // der erste Linienpunkt eines Stücks liegt einen Schritt hinter seiner Einfahrtskante (der Punkt auf der Kante gehört
     // zum Stück davor) → Lauf ab dem Punkt davor, damit t = 0 die Einfahrtskante ist (f = 0 in pieces_gel.js)
     const i0 = P[k0] && P[k0].lineStart != null ? Math.max(0, P[k0].lineStart - 1) : null, i1 = P[k1] && P[k1].lineEnd;
@@ -54,6 +57,14 @@ export function tunnelLaeufe(track) {
     const len = Math.hypot(dx, dz);
     if (len < 8) return;
     dx /= len; dz /= len;
+    // Röhre mit Wand: die Linie rollt durch den Querschnitt → Achse/Boden nur aus Ein- und Ausfahrt
+    if (G) {
+      out.push({
+        art, i0, i1, A: [L.px[i0], L.py[i0], L.pz[i0]], D: [dx, dz], B: [-dz, dx], len, ts: [0, len], ys: [L.py[i0], L.py[i1]],
+        tw: G.b + G.R, H: 2 * G.R, wall: G.R, Rr: G.Rr, fr0: G.fr0, fr1: G.fr1, faceIn: G.fp0, faceOut: len - G.fp0,
+      });
+      return;
+    }
     // nur gerade Läufe (Achse in der Ebene)
     for (let i = i0; i <= i1; i++) if (Math.abs((L.px[i] - L.px[i0]) * -dz + (L.pz[i] - L.pz[i0]) * dx) > 0.35) return;
     const ts = [], ys = [];
@@ -81,6 +92,8 @@ export function tunnelLaeufe(track) {
       lauf(k, e, 'trk', lay.pieces[k].pk !== 'tunnel', lay.pieces[e].nk !== 'tunnel');
     }
   }
+  // n33 Röhre mit Mittelwand (pieces_hind.js): innen dunkel mit Lichtringen, Verfolger-Kamera bleibt im Rohr (gfx/camera.js)
+  if (lay.pieces) for (let k = 0; k < lay.pieces.length; k++) if (lay.pieces[k].type === 'tube_wall') lauf(k, k, 'roehre', true, true, tubeWallGeom(track.stuntScale ?? 1));
   Object.defineProperty(track, '_tunnelLaeufe', { value: out, enumerable: false });
   return out;
 }
@@ -139,7 +152,7 @@ export function tunnelAttr(batches, laeufe) {
         if (t < -0.6 || t > R.len + 0.6 || Math.abs(r) > R.tw + 0.4 || h < -0.8 || h > R.H + 0.6) continue;
         const m = maskeBei(R, t);
         if (!a) a = new Float32Array(nv * 4);
-        const dc = h - (R.art === 'gel' ? deckeGel(r) : R.H);
+        const dc = R.art === 'roehre' ? 5 : h - (R.art === 'gel' ? deckeGel(r) : R.H);   // Röhre: +5 = Lichtringe (Shader)
         a[v * 4] = m; a[v * 4 + 1] = t; a[v * 4 + 2] = r; a[v * 4 + 3] = dc;
       }
     }
@@ -326,4 +339,21 @@ export function portalFront(laeufe) {
     quad([W(oK, -tw - 1.4, kY - kT), W(oK, tw + 1.4, kY - kT), W(oK, tw + 1.4, kY), W(oK, -tw - 1.4, kY)], [-p.ox, 0, -p.oz], [[0, 0], [1, 0], [1, 0.2], [0, 0.2]], [F.rand, F.rand, F.rand, F.rand]);
   }
   return { pos, nrm, uv, col, idx };
+}
+
+// ---------- 5. Kamera in der Röhre mit Mittelwand ----------
+// Punkt p (THREE.Vector3 o. ä., wird geändert): liegt er im Rollen-Teil einer Röhre weiter als Rr − rand von der Achse, wird
+// er auf diesen Abstand zur Achse gezogen. Liefert true, wenn geändert.
+export function roehreKamera(laeufe, p, rand = 1.3) {
+  for (const R of laeufe) {
+    if (R.art !== 'roehre') continue;
+    const [t, r, h] = lageIm(R, p.x, p.y, p.z);
+    if (t < R.faceIn || t > R.faceOut || Math.abs(r) > R.tw + 3 || h < -2 || h > R.H + 3) continue;
+    const dy = h - R.Rr, d = Math.hypot(r, dy), max = R.Rr - rand;
+    if (d <= max) return false;
+    const k = max / d, r2 = r * k, y2 = hoeheAuf(R, t) + R.Rr + dy * k;
+    p.x = R.A[0] + R.D[0] * t + R.B[0] * r2; p.y = y2; p.z = R.A[2] + R.D[1] * t + R.B[1] * r2;
+    return true;
+  }
+  return false;
 }

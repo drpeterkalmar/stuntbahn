@@ -3,6 +3,7 @@
 import * as THREE from 'three';
 import { Tracker } from '../ai/autopilot.js';
 import { ROAD_HW, WORLD_SCALE } from '../track/defs.js';
+import { tunnelLaeufe, roehreKamera } from '../track/tunnel.js';
 
 const V = () => new THREE.Vector3();
 export const CAM_MODES = ['chase', 'cockpit', 'far', 'bumper', 'track'];
@@ -112,6 +113,7 @@ export class CameraRig {
       out.push({ p, s: L.s[i], i });
     }
     this.trackCams = out;
+    this.roehren = tunnelLaeufe(track).filter((R) => R.art === 'roehre');
     this.line = L; this.trk = new Tracker(L); this.trkOk = false;
     this.cork = track.pieces.map((pc) => !!pc && /cork/.test(pc.kind || pc.type || ''));
     this.aimK = 0; this.hiK = 1; this.aimDir = new THREE.Vector3(); this.aimInit = false;
@@ -262,6 +264,8 @@ export class CameraRig {
       this.pos.lerp(want, kp);
       // harte Grenze: die tatsächliche Kameraposition (nach Nachführen) liegt nie hinter einem Bauteil
       if (occ) this.clampFree(occ.o, world);
+      // n33 Röhre mit Mittelwand: in der Rolle nie näher als 1,3 m an die Rohrwand (die Strahlen treffen die Wand erst knapp)
+      if (this.roehren && this.roehren.length) roehreKamera(this.roehren, this.pos);
       cam.position.copy(this.pos);
       if (view === 'chase' && !crashed) {
         const [sy, sx] = this.shakeOffset(dt, P, speed);
@@ -292,6 +296,9 @@ export class CameraRig {
       // Bild. Vor der Nase liegt nichts vom Auto im Blickfeld (auch keine Nitro-Flammen), der Schatten bleibt.
       const B = this.carBox, nose = B ? -B.min.z : 2.3, floor = B ? B.min.y : -0.55;
       this.pos.copy(cp).addScaledVector(f, nose + 0.12).addScaledVector(u, floor + 0.42);
+      // n33 Röhre mit Mittelwand: 0,4 m über der gekrümmten Rohrwand schnitt die Nahebene (weites Sichtfeld) seitlich durch die
+      // Wand → Wiese/Himmel im Bild; dort mindestens 1,3 m von der Wand (Richtung Achse)
+      if (this.roehren && this.roehren.length) roehreKamera(this.roehren, this.pos);
       cam.position.copy(this.pos);
       cam.up.copy(u);
       this.look.copy(this.pos).addScaledVector(f, 10);

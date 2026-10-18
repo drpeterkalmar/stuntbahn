@@ -5,6 +5,8 @@
 //   C  Maske der Strecken-Batches: innen 1, vor dem Portal 0, weicher Verlauf; Fahrbahn, Wände, Decke erfasst
 //   D  Portal-Front: Vorderfläche vor der alten Wand, deckt sie ganz ab, Warnstreifen gelb/schwarz
 //   E  .TRK-Kastentunnel (Sammlung): Läufe gefunden, Maske innen; Bau unverändert (nur Optik, Schalter STUNT_TUNNELALT)
+//   F  Röhre mit Mittelwand (n33 Etappe 3): Lauf mit Röhrenachse, Lichtringe (Attribut w = 5), Maske in der Rolle, Kamera
+//      wird auf den Röhrenkreis begrenzt (Rr − 1,3 m)
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -13,7 +15,7 @@ const { generate } = await import('../../src/track/generator.js');
 const { buildTrack } = await import('../../src/track/build.js');
 const { MAT, ROAD_HW } = await import('../../src/track/defs.js');
 const { triLerp } = await import('../../src/track/terrgrid.js');
-const { TUNNEL_LOOK, tunnelLaeufe, tunnelAttr, portalGelaende, portalFront, portale, lageIm, hoeheAuf, maskeAm, PORTAL_FARBE } = await import('../../src/track/tunnel.js');
+const { TUNNEL_LOOK, tunnelLaeufe, tunnelAttr, portalGelaende, portalFront, portale, lageIm, hoeheAuf, maskeAm, PORTAL_FARBE, roehreKamera } = await import('../../src/track/tunnel.js');
 const { parseTrk, TRK_BYTES } = await import('../../src/track/trk.js');
 const { trkToLayout } = await import('../../src/track/trkimport.js');
 const { tracksOf } = await import('../../src/game/sammlung.js');
@@ -200,6 +202,24 @@ console.log('--- E: .TRK-Kastentunnel ---');
   }
   check(n > 0 && mitLauf === n, `${n} Sammlungs-Strecken mit Tunnel: Läufe erkannt (${mitLauf}/${n})`);
   check(innen === 0 || innen1 === innen, `Fahrlinie in den .TRK-Tunneln (ab 12 m hinter dem Portal): Maske 1 (${innen1}/${innen})`);
+}
+
+console.log('--- F: Röhre mit Mittelwand ---');
+{
+  const t = buildTrack(generate(3194, 3, { gv: 2 }), { treeCount: 0 }), tl = tunnelLaeufe(t), R = tl.find((q) => q.art === 'roehre');
+  check(!!R && Math.abs(R.Rr - 5.6) < 0.01 && R.faceIn === 4, `3194-3-h: Röhren-Lauf erkannt (Radius ${R ? f2(R.Rr) : '-'} m, Portal bei ${R ? R.faceIn : '-'} m)`);
+  const L = t.line; let rolle = 0, rolle1 = 0;
+  for (let i = R.i0; i <= R.i1; i++) { const [tt] = lageIm(R, L.px[i], L.py[i], L.pz[i]); if (tt > Math.max(R.fr0, R.faceIn + TUNNEL_LOOK.rampe) && tt < Math.min(R.fr1, R.faceOut - TUNNEL_LOOK.rampe)) { rolle++; if (maskeAm(tl, L.px[i] + L.nx[i] * 0.5, L.py[i] + L.ny[i] * 0.5, L.pz[i] + L.nz[i] * 0.5) > 0.99) rolle1++; } }
+  check(rolle > 50 && rolle1 === rolle, `Maske 1 an der Fahrlinie in der Rolle ab 11 m hinter den Portalen (auch kopfüber): ${rolle1}/${rolle}`);
+  const at = tunnelAttr(t.batches, tl); let ring = 0;
+  t.batches.forEach((b, k) => { const a = at[k]; if (a) for (let v = 0; v < a.length / 4; v++) if (a[v * 4 + 3] === 5 && a[v * 4] > 0.99) ring++; });
+  check(ring > 200, `Röhren-Wand mit Lichtring-Kennung (${ring} Punkte)`);
+  // Kamera: Punkt 0,2 m vor der Wand → auf Rr − 1,3 gezogen; Punkt nahe der Achse bleibt
+  const tm = (R.fr0 + R.fr1) / 2, ax = (r, h) => ({ x: R.A[0] + R.D[0] * tm + R.B[0] * r, y: hoeheAuf(R, tm) + h, z: R.A[2] + R.D[1] * tm + R.B[1] * r });
+  const p1 = ax(0, 2 * R.Rr - 0.2), p2 = ax(1, R.Rr + 1);
+  const m1 = roehreKamera(tl, p1), m2 = roehreKamera(tl, p2);
+  const d1 = Math.hypot(lageIm(R, p1.x, p1.y, p1.z)[1], lageIm(R, p1.x, p1.y, p1.z)[2] - R.Rr);
+  check(m1 && Math.abs(d1 - (R.Rr - 1.3)) < 1e-6 && !m2, `Kamera an der Decke (0,2 m vor der Wand) → ${f2(d1)} m von der Achse; nahe der Achse unverändert`);
 }
 
 console.log(fails ? `\n${fails} FEHLER` : '\nalles OK');
