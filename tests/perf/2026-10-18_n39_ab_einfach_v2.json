@@ -1,0 +1,128 @@
+{
+ "datum": "2026-10-18T10:24:29",
+ "stand": "n39_ab_einfach_v2",
+ "modus": "ab",
+ "runden": 3,
+ "varianten": [
+  {
+   "name": "vorher",
+   "wurzel": "/Users/wohnzimmer/dev/stuntbahn_vorher_n39",
+   "zusatz": ""
+  },
+  {
+   "name": "nachher",
+   "wurzel": "/Users/wohnzimmer/dev/stuntbahn",
+   "zusatz": ""
+  },
+  {
+   "name": "ohne_karte",
+   "wurzel": "/Users/wohnzimmer/dev/stuntbahn",
+   "zusatz": "&karte=0"
+  }
+ ],
+ "profil": {
+  "drossel": 4,
+  "dpr": 2.6,
+  "sek": 10,
+  "start": "open",
+  "vsync": false
+ },
+ "szenen": {
+  "rennen_einfach": {
+   "hoch": {
+    "vorher": {
+     "p50": 2.7,
+     "p95": 4.2,
+     "fps": 354.1,
+     "calls": 56,
+     "tris": 150624,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      4,
+      4.3,
+      4.2
+     ],
+     "fehler": []
+    },
+    "nachher": {
+     "p50": 2.8,
+     "p95": 4.2,
+     "fps": 347.9,
+     "calls": 57,
+     "tris": 150758,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      4.2,
+      4.2,
+      4.1
+     ],
+     "fehler": []
+    },
+    "ohne_karte": {
+     "p50": 2.6,
+     "p95": 4,
+     "fps": 378.1,
+     "calls": 56,
+     "tris": 150567,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      4,
+      3.9,
+      4.3
+     ],
+     "fehler": []
+    }
+   },
+   "quer": {
+    "vorher": {
+     "p50": 2.9,
+     "p95": 4.3,
+     "fps": 333.8,
+     "calls": 68,
+     "tris": 157442,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      4.2,
+      4.7,
+      4.3
+     ],
+     "fehler": []
+    },
+    "nachher": {
+     "p50": 3.1,
+     "p95": 4.5,
+     "fps": 317.6,
+     "calls": 70,
+     "tris": 157653,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      4.5,
+      4.6,
+      4.5
+     ],
+     "fehler": []
+    },
+    "ohne_karte": {
+     "p50": 2.8,
+     "p95": 4.3,
+     "fps": 342,
+     "calls": 69,
+     "tris": 157516,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      4.2,
+      4.8,
+      4.3
+     ],
+     "fehler": []
+    }
+   }
+  }
+ }
+}

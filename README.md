@@ -72,6 +72,32 @@ spielbar am Handy (quer oder hochkant), mit Gamepad oder Tastatur. Als App insta
   Abstand zu jeder Fahrbahn (auch Hochstraßen/Rampen), nie im Wasser. Dosiert nach Grafikstufe; ruckelt es, blendet die
   Automatik (nach der Unschärfe) zuerst Gras/Büsche/Wolkenschatten aus. `?deko=aus` (bis n29 `?deko=0`) / `?wolken=0` zum Vergleich.
 
+## 🗺️ 3D-Minikarte im Rennen (seit 18.10.2026, n39, Version 0.9.0)
+Peter 10.10.: „Stuntbahn: 3D-Minimap der Strecke.“ Messwerte, Fotos, Regler: `N39_MINIKARTE_BERICHT.md`.
+- **Kleine Karte der ganzen Strecke** in einer Ecke, schräg von oben (42°) als leuchtendes Band mit echten Höhen: Rampen,
+  Brücken über/unter (dunkler Rand, Schatten auf einer dezenten Grundplatte), Loopings und Korkenzieher (orange), Spiralen,
+  Röhren und Tunnel (gestrichelt, halbtransparent), Sprünge als Lücke mit dünnem gepunktetem Bogen. Tief = türkis, hoch =
+  warmweiß. Bei flachen, großen Strecken werden die Höhen in der Karte bis ×3 überhöht, damit man sie sieht.
+- **Inhalt:** dein Auto als **roter Pfeil** in Fahrtrichtung (pulsierend), Start/Ziel kariert, Checkpoints (grün = geschafft,
+  gelber Ring = offen, der nächste gelb pulsierend), der **Abschnitt bis zum nächsten Checkpoint leuchtet gelb** mit Lauflicht,
+  das Geisterauto hellblau. Für Gegner (n34) gibt es schon die Schnittstelle `__game.minikarte.setMarkers([{ pos, farbe }])`.
+- **Ansicht:** Standard **mitdrehend** (Fahrtrichtung oben, folgt weich), Option **Norden oben**. Die ganze Strecke füllt die
+  Karte; sehr große Strecken (Radius > 620 m) zeigt die kleine Karte als Ausschnitt um das Auto. **Antippen** (Desktop: **M**)
+  = groß/klein (groß immer die ganze Strecke).
+- **Platz:** ≈ 25 % der kürzeren Bildschirmseite; **hochkant** rechts oben unter den runden Knöpfen, **quer** oben links neben
+  der Zeit – nie über Tasten, Hüpfer/Nitro oder Tacho (geprüft). Dunkler, halbtransparenter Grund mit Rand, lesbar bei
+  Tag, Nacht, Regen und Schnee.
+- **Optionen → „Minikarte im Rennen“:** **3D** (Standard) / **2D** (Draufsicht derselben Karte) / **Aus**, dazu „⬆️ Norden oben“.
+  URL: `?karte=3d|2d|0`, `?kartenord=1`.
+- Nur im Rennen (auch im Countdown); **nicht** in Pause, Zielshow, Ergebnis, Replay, Kino-Replay/Fan-Cam (sauberes Bild).
+- **Leistung:** eigene kleine Szene, alle 50 ms (Einfach 67 ms, groß 33 ms) in ein kleines Render-Target gezeichnet – vor dem
+  Hauptbild, 2 Draw-Calls –, jedes Bild mit 1 Draw-Call in die Ecke kopiert; die Geometrie wird einmal je Strecke gebaut
+  (~3 ms). Mess-Gate vorher/nachher: Bildzeit gleich (im Rauschen), GPU Standard +0,03 ms je Bild.
+- Regler (A/B): `?kartehz=20` (Takt), `?karteneig=42` (Neigung in Grad, 0 = Draufsicht), `?kartems=4` (MSAA), `?kartemess=1`.
+- Tests: `node tests/node/test_minikarte.mjs` (Geometrie aller 251 Bibliotheks- und Zufallsstrecken, Loopings geschlossen),
+  `python3 tests/test_minikarte_ui.py` (Sichtbarkeit, Tippen, Optionen, URL), `python3 tests/minikarte_shots.py` (Fotos
+  hoch/quer), `python3 tests/minikarte_mess.py` (GPU/CPU der Karte).
+
 ## 🔥 Stunts laden Nitro nach: Stunt-Kette, ruhige Hand, Bauwerke, Landeschub, Zwischenzeiten, Drift-Turbo zum Testen (seit 18.10.2026, n38, Version 0.8.0)
 Stunts sind im Rennen jetzt etwas wert. Die Stunt-Wertung ist inspiriert von klassischen Arcade-Racern (Clean-Room nach dem
 Vorlagen-Datenblatt, eigene Zahlen, per Messung abgestimmt). Messungen (Vorlage-Ziel / vorher / nachher) und Handy-Test:
@@ -485,6 +511,7 @@ zurückgesetzt, an der er die Fahrbahn verlassen hat (Uhr läuft weiter). Ab 18 
   vor/zurück = nicken. Mittel: antippen = ganzer Trick; Original: halten = drehen.
 - **Stunts laden Nitro (n38):** Nach dem Trick nichts mehr drücken = „ruhige Hand“ ×1,5 (Schweif gold). Goldener Ring um 🔥 =
   Nitro-Vorrat aus Stunts. Mit `?driftturbo=1` (zum Testen): im Drift Bremse kurz antippen, wenn der Balken oben links rot ist.
+- **Minikarte (n39):** Antippen der Karte (Desktop `M`) = groß/klein; Optionen → „Minikarte im Rennen“ 3D / 2D / Aus, Norden oben.
 
 ## Technik
 - three.js r186 als ES-Module mit Import-Map, **kein Build-Schritt**; GitHub Pages; PWA mit Service-Worker
@@ -541,6 +568,10 @@ node tests/node/test_assists.mjs          # Fahrhilfen mit simulierten Spielern
 node tests/node/test_arcade.mjs           # n37: Stunt-Formel, Tracker, Luftsteuerung, Wand, Wiedereinstieg, ?physik=alt bitgleich n36, Bestzeiten
 node tools/arcade_mess.mjs                # n37: Datenblatt-Größen alt/neu (0–100, Vmax, Kurven, Sprünge, Stunts, Luft, Landung, Wand)
 node tools/arcade_quote.mjs 8             # n37: Leicht + Mensch-Bots auf 72 Zufallsstrecken, alt gegen neu
+node tests/node/test_minikarte.mjs        # n39: Karten-Geometrie aller Bibliotheks-/Zufallsstrecken (Höhe, Loopings geschlossen, Arten, Lücken)
+python3 tests/test_minikarte_ui.py        # n39: Minikarte sichtbar nur im Rennen, Tippen/M groß-klein, Optionen 3D/2D/Aus/Norden, URL, setMarkers
+python3 tests/minikarte_shots.py hoch,quer looping,roehre,flach,nacht   # n39: Fotos + Lage-Prüfung → tests/shots/n39/
+python3 tests/minikarte_mess.py hoch 1,2 3   # n39: GPU des ganzen Bilds mit/ohne Karte, GPU/CPU des Karten-Bilds
 node tests/node/test_lohn.mjs             # n38: Stunt-Lohn (Nitro-Ladezeit, Vorrat, Bauwerke, ruhige Hand, Kette), Regler aus = n37 bitgleich
 node tools/lohn_mess.mjs 3                # n38: Messgrößen des Vorlagen-Datenblatts (Abklingzeit je Runde, Kette, Hüpfer, Zeit) aus/an
 python3 tests/lohn_shots.py quer|hoch     # n38: Salto lädt Nitro, Vorrats-Ring, Ergebnis-Karte (Bilder tests/shots/n38)

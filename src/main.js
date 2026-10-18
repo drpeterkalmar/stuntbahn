@@ -42,6 +42,7 @@ import { DynReflex } from './gfx/kern/reflex.js';
 import { ImpostorBibliothek } from './gfx/kern/impostor.js';
 import { impostorArten } from './gfx/kulisse.js';
 import { LineViz, LINE_LEVELS } from './gfx/lineviz.js';
+import { Minikarte, KARTE } from './gfx/minikarte.js';
 import { Sound } from './audio/sound.js';
 import { CarFX } from './gfx/fx.js';
 import { PyroFX } from './gfx/pyro.js';
@@ -110,6 +111,9 @@ let reflex = null, reflexOff = false;
 const REFLEX_LAYER = 2, REFLEX_OBJ = /^(trk|terrain|kulisse-(meer|horizont|nah|fern)|trees)/;   // nur große Flächen: jeder Draw-Call der Spiegel-Seite kostet am Handy CPU
 // n30: Bäume als Oktaeder-Impostors (Standard/Kino), sobald assets/tex/imp/impostor.json da ist; ?impostor=0 = Karten
 const IMP = params.get('impostor') === '0' ? null : new ImpostorBibliothek('assets/tex/imp/impostor.json', renderer);
+// n39: Minikarte im Rennen (eigene kleine Szene, Render-Target 20/30 Hz, je Bild eine Kopie in die Ecke). GPU-Messung der
+// Karte (?kartemess=1) nur, wenn nicht schon die Bild-Messung läuft (Zeitabfragen lassen sich nicht schachteln)
+const karte = new Minikarte(renderer, { darfMessen: () => !(quality.gpu && (!quality.forced || GPU_MESS)) });
 
 let sizeW = 0, sizeH = 0, portrait = null;
 function resize() {
@@ -138,6 +142,7 @@ const store = new Store();
 { const q = String(store.settings.quality || 'auto');
   if (params.get('q') == null && LOOK_FIX == null && /^[012]$/.test(q)) { quality.forced = q; quality.tier = +q; resize(); } }
 const ui = new UI(app, store);
+ui.karteObj = karte;   // n39: Tippen auf die Karte = groß/klein
 const rig = new CameraRig(camera);
 if (DEKO && REDUCED) rig.shakeOn = false;   // n28: „Bewegung reduzieren“ → kein Kameraschütteln
 const sound = new Sound(store);
@@ -584,6 +589,7 @@ async function loadTrack(layout, meta = {}, pre = null) {
   vaoUniforms.sbVaoOn.value = vaoJob && vaoJob.done ? 1 : 0;   // fertig → in frame() weich einblenden statt „Plopp“
   rig.setTrackCams(track);
   lineViz.build(ideal, prof, track);
+  karte.setTrack(track);   // n39: Karten-Geometrie einmal je Strecke
   env.buildMs = performance.now() - t0;
   try { if (renderer.compileAsync) await renderer.compileAsync(scene, camera); } catch { /* optional */ }
   if (quality.ap) quality.ap.schonen(1.5);   // n30: Shader/Texturen der neuen Strecke – erste Bilder zählen nicht
@@ -845,6 +851,7 @@ function frame(now) {
   if (input.consume('Escape') || input.consume('KeyP')) { if (mode === 'race') togglePause(); }
   if (input.consume('KeyC')) cycleCam();
   if (input.consume('KeyL') && mode === 'race') toggleLine();
+  if (input.consume('KeyM') && mode === 'race') ui.karteGross();   // n39: Minikarte groß/klein
   if (input.consume('KeyR') && mode === 'race' && race.assist.autoRewind !== undefined && store.settings.assist !== 'original') race.requestRewind();
   // Extras: Leertaste (Gamepad B) = Hüpfer, Shift/N (Gamepad RB) = Nitro
   if (input.consume('Space') && mode === 'race' && !frozen) race.requestHop();
@@ -1121,6 +1128,7 @@ function render(rdt) {
   const lineSpd = mode === 'race' && race && !frozen && quality.tier === 0 && (store.settings.blur || 'light') !== 'off' ? race.car.speed() * 3.6 : 0;
   ui.boost(mode === 'menu' ? 0 : boost, Math.max(0, Math.min(1, (lineSpd - 260) / 240)) * 0.55);
   if (ghost && ghostVis.root.visible && mode === 'race') { ghost.sync(ghostVis); ghostVis.setNitro(ghost.nitro(), frozen ? 0 : rdt); }
+  karteTick(rdt, pose);   // n39
   if (fx) fx.rich = !!(kino && kino.pipeline);
   if (fx && mode === 'race' && !frozen) fx.update(rdt, camera);
   // Replay/Kino-Replay (n25): Reifenqualm aus dem aufgezeichneten Schwimmwinkel
@@ -1233,6 +1241,7 @@ function reflexVorwaermen() {
 
 // Bild zeichnen: Kino-Look (eine Pipeline: Szene, Unschärfe, Licht/Farbe, Cockpit darüber) bzw. ?look=alt wie bis n22
 function drawFrame(o) {
+  karte.vorher(ui.karte);   // n39: Karten-Bild (20 Hz) vor dem Hauptbild ins eigene Render-Target
   // n32 Nacht: Spiegel-Lichter mit der endgültigen Kamera dieses Bilds (Blickraum); nur bei Nässe, ab Standard (Kino 8, Standard 4)
   if (env && env.nacht && env.zeitLook && env.zeitLook.lights > 0) reflNaechste(env.wetterLook && env.wetterLook.wet > 0 ? env.nacht.refl : null, camera, SPIEGEL ?? (quality.decoLite ? 0 : quality.tier >= 2 ? 4 : quality.tier >= 1 ? 2 : 0));
   // n30: Auto-LOD nach Entfernung/Bildwinkel (Geist mindestens Mittel: durchscheinend, Feinheiten sieht man nicht)
@@ -1255,10 +1264,30 @@ function drawFrame(o) {
   if (kino) {
     kino.setLevel(LOOK_FIX ?? quality.tier);
     kino.render(scene, camera, { run: o.run, speed: o.speed, boost: o.boost, car: carVis.root, ghost: ghostVis.root, dt: o.dt, cut: o.cut, sunDir: sun.userData.dir, heat: o.heat, overlay, time: app.fixTime, dof: o.dof, shutter: o.shutter, flash: o.flash, white: o.white, whip: o.whip, flareK: o.flareK });
+    karte.kopie(ui.karte);   // n39: nach dem fertigen Bild in die Ecke (selber Durchgang)
     return;
   }
   if (!post.render(scene, camera, { run: o.run, speed: o.speed, boost: o.boost, car: carVis.root, dt: o.dt, cut: o.cut })) renderer.render(scene, camera);
   if (overlay) overlay(renderer);
+  karte.kopie(ui.karte);
+}
+
+// n39 Minikarte: sichtbar nur im laufenden Rennen (auch Countdown) – nicht in Menü, Pause, Zielshow, Ergebnis, Replay,
+// Kino-Replay/Fan-Cam (mode 'replay') und Fotomodus (app.fotoModus, für spätere Foto-Funktion). Stil aus den Optionen
+// (Minikarte 3D/2D/Aus, Norden oben), ?karte= / ?kartenord= gehen vor.
+function karteTick(rdt, pose) {
+  const S = store.settings;
+  karte.setStil(KARTE.artUrl || S.karte || '3d', KARTE.nordUrl ?? !!S.karteNord);
+  karte.hz = quality.tier === 0 ? 15 : 20;   // Grafik „Einfach“: Karten-Bild nur 15 Hz (CPU)
+  const an = karte.art !== 'aus' && mode === 'race' && !!race && !!pose && !show && !cine && ui.screen !== 'pause' && race.state !== 'finished' && !app.fotoModus;
+  ui.karteZeigen(an);
+  if (!an) { karte.update(rdt, null); return; }
+  const c = race.car, cps = race.cps;
+  karte.update(rdt, {
+    sichtbar: true, rect: ui.karte, car: { pos: pose.pos, vel: c.v, fwd: c.frame.f },
+    idx: race.tracker.idx, zielIdx: race.cpNext < cps.length ? cps[race.cpNext] : race.startIdx, cps, cpNext: race.cpNext, startIdx: race.startIdx,
+    geist: ghost && ghostVis.root.visible && ghost.data ? ghost.pose.pos : null,
+  });
 }
 
 // Hitzeflimmern hinter den Endrohren (Kino): stark im Stand/beim Anfahren mit Gas und mit Nitro, bei Tempo weht es weg
@@ -1275,6 +1304,7 @@ function heatOf(speed, boost) {
 // ---------- Debug-API ----------
 window.__game = {
   get env() { return env; }, get race() { return race; }, get mode() { return mode; }, get replayObj() { return replay; }, scene, camera, renderer, rig, store, ui, quality, trkLib, sammlung,
+  minikarte: karte,   // n39: setMarkers([{ pos: [x, y, z], farbe }]) für Gegner (n34), stats, toggleGross()
   modeKey, worldScale: WORLD_SCALE,
   get theme() { return env && env.theme; }, themes: () => themes, setTheme: (v) => setTheme(v), THEMES, decoUniforms,
   get wetter() { return env && env.wetter; }, get wetterLook() { return env && env.wetterLook; }, setWetter: (v) => setWetter(v),   // n32

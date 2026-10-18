@@ -83,6 +83,10 @@ button.go { background: linear-gradient(180deg, #ff7a36, #e24e10); border-color:
 #hud .gf.hi { color: #ffb347; opacity: 1; }
 /* rundes G-Meter: Cockpit (auf der Instrumentenhutze), Replay und Kino-Replay (Einblendung mit km/h) */
 #gmeter { position: absolute; display: none; pointer-events: none; z-index: 1; }
+/* n39 Minikarte: nur Rahmen und Tippfläche, die Karte selbst zeichnet WebGL darunter (gfx/minikarte.js) */
+#karte { position: absolute; display: none; z-index: 1; border-radius: 12px; pointer-events: auto; touch-action: none; cursor: pointer;
+  box-shadow: 0 0 0 1.5px rgba(0, 0, 0, .72), inset 0 0 0 1px rgba(255, 255, 255, .17), 0 3px 12px rgba(0, 0, 0, .3); -webkit-tap-highlight-color: transparent; }
+#karte.on { display: block; }
 #gmeter.show { display: block; }
 #hud .gear { font-style: normal; font-size: 16px; font-weight: 800; background: #ffffff22; border-radius: 6px; padding: 1px 6px; }
 #hud .hint2 { position: absolute; top: max(48px, calc(var(--sat) + 40px)); left: 50%; transform: translateX(-50%); background: rgba(12, 16, 22, .62); border: 1px solid #ffffff22; border-radius: 10px; padding: 5px 12px; font-size: 15px; font-weight: 700; opacity: 0; transition: opacity .25s; pointer-events: none;

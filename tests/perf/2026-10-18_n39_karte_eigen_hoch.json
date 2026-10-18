@@ -1,0 +1,178 @@
+{
+ "A": {
+  "hoch_q1": {
+   "median": {
+    "karte": {
+     "gpu50": 3.278,
+     "gpu95": 3.563,
+     "p50": 16.7,
+     "p95": 16.75
+    },
+    "ohne": {
+     "gpu50": 3.251,
+     "gpu95": 3.536,
+     "p50": 16.7,
+     "p95": 16.75
+    }
+   },
+   "runden": {
+    "karte": [
+     {
+      "gpu50": 3.279,
+      "gpu95": 3.559,
+      "p50": 16.7,
+      "p95": 16.7,
+      "calls": 90,
+      "fehler": []
+     },
+     {
+      "gpu50": 3.277,
+      "gpu95": 3.567,
+      "p50": 16.7,
+      "p95": 16.8,
+      "calls": 91,
+      "fehler": []
+     }
+    ],
+    "ohne": [
+     {
+      "gpu50": 3.25,
+      "gpu95": 3.546,
+      "p50": 16.7,
+      "p95": 16.7,
+      "calls": 89,
+      "fehler": []
+     },
+     {
+      "gpu50": 3.252,
+      "gpu95": 3.526,
+      "p50": 16.7,
+      "p95": 16.8,
+      "calls": 90,
+      "fehler": []
+     }
+    ]
+   }
+  },
+  "hoch_q2": {
+   "median": {
+    "karte": {
+     "gpu50": 8.331,
+     "gpu95": 13.03,
+     "p50": 16.7,
+     "p95": 16.7
+    },
+    "ohne": {
+     "gpu50": 7.939,
+     "gpu95": 10.049,
+     "p50": 16.7,
+     "p95": 16.75
+    }
+   },
+   "runden": {
+    "karte": [
+     {
+      "gpu50": 8.399,
+      "gpu95": 13.07,
+      "p50": 16.7,
+      "p95": 16.7,
+      "calls": 100,
+      "fehler": []
+     },
+     {
+      "gpu50": 8.263,
+      "gpu95": 12.99,
+      "p50": 16.7,
+      "p95": 16.7,
+      "calls": 108,
+      "fehler": []
+     }
+    ],
+    "ohne": [
+     {
+      "gpu50": 7.92,
+      "gpu95": 10.061,
+      "p50": 16.7,
+      "p95": 16.8,
+      "calls": 105,
+      "fehler": []
+     },
+     {
+      "gpu50": 7.959,
+      "gpu95": 10.037,
+      "p50": 16.7,
+      "p95": 16.7,
+      "calls": 99,
+      "fehler": []
+     }
+    ]
+   }
+  }
+ },
+ "B": {
+  "hoch_q1_20hz": {
+   "cpu_neu_p50": 0.2,
+   "cpu_neu_p95": 1.1,
+   "cpu_kopie_p50": 0,
+   "cpu_kopie_p95": 0.5,
+   "n_neu": 163,
+   "n_kopie": 326,
+   "gpu_bild_p50": 0.419,
+   "gpu_bild_p95": 0.483,
+   "rt": [
+    155,
+    155
+   ],
+   "draws_bild": 2,
+   "fehler": []
+  },
+  "hoch_q1_60hz": {
+   "cpu_neu_p50": 0.2,
+   "cpu_neu_p95": 1,
+   "cpu_kopie_p50": null,
+   "cpu_kopie_p95": null,
+   "n_neu": 484,
+   "n_kopie": 0,
+   "gpu_bild_p50": 0.409,
+   "gpu_bild_p95": 0.473,
+   "rt": [
+    155,
+    155
+   ],
+   "draws_bild": 2,
+   "fehler": []
+  },
+  "hoch_q2_20hz": {
+   "cpu_neu_p50": 0.2,
+   "cpu_neu_p95": 1,
+   "cpu_kopie_p50": 0,
+   "cpu_kopie_p95": 0.4,
+   "n_neu": 162,
+   "n_kopie": 323,
+   "gpu_bild_p50": 0.626,
+   "gpu_bild_p95": 0.745,
+   "rt": [
+    206,
+    206
+   ],
+   "draws_bild": 2,
+   "fehler": []
+  },
+  "hoch_q2_60hz": {
+   "cpu_neu_p50": 0.2,
+   "cpu_neu_p95": 1.1,
+   "cpu_kopie_p50": null,
+   "cpu_kopie_p95": null,
+   "n_neu": 489,
+   "n_kopie": 0,
+   "gpu_bild_p50": 0.627,
+   "gpu_bild_p95": 0.746,
+   "rt": [
+    206,
+    206
+   ],
+   "draws_bild": 2,
+   "fehler": []
+  }
+ }
+}

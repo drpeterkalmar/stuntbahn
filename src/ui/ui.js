@@ -73,6 +73,7 @@ export class UI {
           <button class="rb" data-a="pause" aria-label="Pause" title="Pause (Esc)">⏸</button>
         </div><div class="assistTag"></div></div>
         <div class="speed"><b>0</b><span>km/h</span><i class="gear">1</i><i class="gf"></i></div>
+        <div id="karte" role="button" aria-label="Minikarte – Tippen: groß/klein" title="Minikarte groß/klein (M)"></div>
         <button class="xb hop" data-x="hop" aria-label="Hüpfer" title="Hüpfer (Leertaste, Gamepad B)"><i>🦘</i><kbd>Leer</kbd></button>
         <button class="xb nitro" data-x="nitro" aria-label="Nitro" title="Nitro (Shift oder N, Gamepad RB)"><i>🔥</i><kbd>N</kbd></button>
       </div>
@@ -135,6 +136,43 @@ export class UI {
     this.initTouch();
     this.noZoom();
     this.gview = new GView($('#gmeter'));
+    // n39 Minikarte: Rahmen + Tippfläche im DOM, gezeichnet wird sie per WebGL darunter (gfx/minikarte.js)
+    this.karte = { x: 0, y: 0, w: 0, h: 0, rad: 12 };
+    this._karteDirty = true; this._karteAn = false; this.karteGrossOn = false;
+    addEventListener('resize', () => { this._karteDirty = true; });
+    $('#karte').addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); this.karteGross(); });
+  }
+  // n39: Minikarte an/aus (je Bild aus main.js; DOM nur bei Wechsel anfassen, Lage nur nach Größenänderung neu messen)
+  karteZeigen(an) {
+    if (an && this._karteDirty) this.karteLayout();
+    if (an !== this._karteAn) { this._karteAn = an; $('#karte').classList.toggle('on', an); }
+  }
+  karteGross() {
+    this.karteGrossOn = this.karteObj ? this.karteObj.toggleGross() : !this.karteGrossOn;
+    this.karteLayout();
+  }
+  // Lage: ≈ 25 % der kürzeren Seite (84–230 px), Ecke ohne Tasten und Tacho. Hochkant rechts oben unter den runden
+  // Knöpfen (Platz bis zu den Tasten unten), quer oben links neben der Zeit (links unten liegt der Hüpfer, rechts der
+  // Nitro über den Tasten). Groß: ≈ 2/3 der kürzeren Seite an derselben Ecke. Das HUD (DOM) liegt immer darüber.
+  karteLayout() {
+    this._karteDirty = false;
+    const W = innerWidth, H = innerHeight, S = Math.min(W, H);
+    const tl = $('#hud .tl').getBoundingClientRect(), tr = $('#hud .tr').getBoundingClientRect();
+    if (!tr.width && !tl.width) { this._karteDirty = true; return; }   // HUD (noch) nicht sichtbar
+    let w = Math.round(Math.max(84, Math.min(230, S * 0.25))), x, y;
+    if (H > W) {
+      y = Math.round(tr.bottom + 8);
+      if (this.karteGrossOn) w = Math.round(Math.min(W - 24, S * 0.78, H * 0.5));
+      x = Math.round(Math.min(W - 8, tr.right) - w);
+    } else {
+      x = Math.round(tl.left + Math.max(tl.width, 150) + 14);
+      y = Math.round(Math.max(8, tl.top + 2));
+      if (this.karteGrossOn) w = Math.round(Math.max(w, Math.min(S * 0.66, H - y - 12)));
+    }
+    this.karte = { x, y, w, h: w, rad: 12 };
+    const e = $('#karte');
+    e.style.left = x + 'px'; e.style.top = y + 'px'; e.style.width = w + 'px'; e.style.height = w + 'px';
+    e.classList.toggle('gross', this.karteGrossOn);
   }
   // iOS Safari ignoriert user-scalable=no (seit iOS 10): Zwei-Finger-Zoom (gesture*) und Doppeltipp-Zoom (dblclick)
   // abfangen. Bewusst KEIN preventDefault auf touchstart/touchend – das bräche Klicks und die Ton-Freischaltung;
@@ -420,6 +458,7 @@ export class UI {
       case 'cliprec': this.lastClip = null; if (A.recordCine) A.recordCine(); break;
       case 'clipshare': if (this.lastClip) shareClip(this.lastClip.blob, this.lastClip.name).then((r) => this.toast(r === 'geteilt' ? '📤 Geteilt' : r === 'gespeichert' ? '💾 Video gespeichert' : 'Abgebrochen')); break;
       case 'tbsize': S.tbsize = v; document.body.dataset.tbsize = v; this.store.save(); this.showSettings(); break;
+      case 'karte': S.karte = v; this.store.save(); this.showSettings(); break;   // n39
       case 'blur': S.blur = v; this.store.save(); if (A.quality.post) A.quality.post.autoOff = false; this.showSettings(); break;
       case 'fahrstil': S.fahrstil = v; this.store.save(); if (window.__game && window.__game.race && !FAHRSTIL_URL) window.__game.race.fahrstil = v; if (this.screen === 'pause') this.showPause(true); else this.showSettings(); break;
       case 'brakehelp': S.brakeHelp = v; this.store.save(); if (window.__game && window.__game.race) window.__game.race.brakeHelp = v; this.showSettings(); break;
@@ -615,6 +654,10 @@ export class UI {
         ? 'Auf <b>Original</b> gibt es keine Ideallinie – die Einstellung gilt für Leicht und Mittel.'
         : 'Farbiges Band auf der Fahrbahn wie bei Forza (grün Gas, gelb Gas weg, orange bis rot bremsen – je dunkler, desto stärker –, blau Luft; berechnet aus dem Tempo-Profil): außen anfahren, innen am Scheitel, außen raus. Keile am Innenrand markieren die Scheitelpunkte. Nur die Anzeige – die Lenkhilfe bleibt gleich.'}
       Im Rennen umschalten: Knopf oben rechts, <span class="desk">Taste <b>L</b>, </span>Gamepad <b>Back</b>.</p>
+      <div class="lbl">Minikarte im Rennen (Standard: 3D)</div>
+      <div class="seg" data-g="karte">${[['3d', '3D'], ['2d', '2D'], ['aus', 'Aus']].map(([k, n]) => `<button data-a="karte" data-v="${k}" class="${(S.karte || '3d') === k ? 'on' : ''}">${n}</button>`).join('')}</div>
+      <div class="row">${onoff('karteNord', '⬆️ Norden oben')}</div>
+      <p class="hint">Kleine Karte der ganzen Strecke in der Ecke: dein Auto als roter Pfeil, Start/Ziel kariert, Checkpoints (grün = geschafft, gelb = offen), der Abschnitt bis zum nächsten Checkpoint leuchtet gelb, das Geisterauto hellblau. <b>3D</b> zeigt Höhen, Loopings, Brücken und Röhren schräg von oben, <b>2D</b> dieselbe Karte von oben. ${S.karteNord ? '<b>Norden oben:</b> die Karte steht still.' : 'Die Karte dreht mit – Fahrtrichtung ist oben.'} Antippen<span class="desk"> oder Taste <b>M</b></span> = groß/klein.</p>
       <div class="lbl">Lackfarbe</div>
       <div class="row">${PAINTS.map((p, i) => `<button data-a="paint" data-v="${i}" class="sw ${S.paint === p.color ? 'on' : ''}" style="--c:#${p.color.toString(16).padStart(6, '0')}">${p.name}</button>`).join('')}</div>
       <div class="lbl">Grafik</div>
@@ -633,6 +676,7 @@ export class UI {
       <p><i>Mittel/Original</i>: links ◀ ▶ lenken, rechts GAS und BREMSE (hochkant alle unten in einer Reihe). Bremse im Stand = Rückwärtsgang.</p>
       <p><b>🤸 Stunts in der Luft</b> (Mittel und Original, seit 18.10.2026)${ARCADE.on ? '' : ' – mit <code>?physik=alt</code> aus'}: <b>Gas</b> = Salto vorwärts, <b>Bremse</b> = Salto rückwärts, <b>◀ ▶</b> = Schraube. Was du beim Absprung schon drückst, zählt erst, wenn du es einmal loslässt – wer mit Vollgas über die Schanze fährt, fliegt ganz normal. <b>Mittel:</b> kurz <b>antippen</b> = ein ganzer Salto bzw. eine ganze Schraube (nochmal tippen = noch eine), nur wenn die Flugzeit reicht (sonst „zu spät“); die Landehilfe richtet das Auto danach aus. <b>Original:</b> <b>halten</b> = drehen, loslassen = der Schwung bleibt – Gegenrichtung fängt ab, du landest selbst. Gamepad: linker Stick vor/zurück nickt. Wände streifen kostet nur etwas Tempo, frontal einschlagen bleibt ein Crash. Landen auf dem Dach oder auf der Seite = Crash.</p>
       <p><b>★ Stunt-Punkte</b>: 1 Punkt je 0,1 s Luft (ab 0,5 s), je halbem Salto 15, je halber Schraube 20, je halbem Dreher 10${LOHN.stuntpkt ? '; Hüpfer ohne Drehung zählen halb. <b>Bauwerke</b> zählen auch: Looping ~42, Korkenzieher ~48, Röhre ~28 (je nach Tempo)' : '; ohne Drehung die Hälfte'}. Saubere Landung (alle Räder auf einmal, gerade) ×1,25${LOHN.landung ? `, <b>ruhige Hand</b> (zusätzlich ${String(LOHN.calmT).replace('.', ',')} s vor dem Aufsetzen nichts mehr verändert an Lenken, Gas, Bremse) ×${String(LOHN.calm).replace('.', ',')}` : ''}. Folgt der nächste Stunt kurz danach, wächst die <b>Kette</b> (×1,2 … ×2)${LOHN.stuntpkt ? '; Hüpfer zählen dafür nicht' : ''}. Crash-Landung: halbe Punkte, Kette vorbei. Dieselbe Figur am selben Sprung in der nächsten Runde zählt halb.${LOHN.tank && COOLDOWN.on ? ` <b>🔥 Stunts laden Nitro nach:</b> ${LOHN.tank} Punkte = eine ganze Nitro-Ladezeit. Lädt der Nitro gerade, ist er entsprechend früher bereit; ist er schon bereit, füllt sich ein Vorrat (goldener Ring um den Knopf), der beim nächsten Zünden die Ladezeit verkürzt – Vorrat voll = nach dem Ausbrennen sofort wieder bereit. Nitro zünden verlängert eine laufende Kette um ${LOHN.nitroWin} s.` : ' Die Bestzeit zählt nach Zeit.'}${LOHN.landeschub ? ` <b>🚀 Landeschub:</b> sauber gelandet nach langem Flug (ab ${String(LOHN.schub[0][0]).replace('.', ',')} s) gibt es kurz Schub – nie schneller, als die nächste Schanze verträgt.` : ''}${LOHN.schweif ? ' In der Luft zeigt der <b>Schweif</b>, was noch geht: hell = „ruhige Hand“, matt = nur noch „sauber“.' : ''}</p>
+      <p><b>🗺️ Minikarte:</b> In der Ecke siehst du die ganze Strecke schräg von oben – dein Auto als roter Pfeil, gelb leuchtet der Abschnitt bis zum nächsten Checkpoint, Checkpoints grün = geschafft. Antippen<span class="desk"> oder Taste <b>M</b></span> = groß/klein; 3D, 2D, Aus und „Norden oben“ in den Optionen.</p>
       <p><b>Tastatur:</b> Pfeile oder WASD (bremsen: Pfeil runter/S), <b>Leertaste</b> Hüpfer, <b>Shift</b> oder <b>N</b> Nitro, <b>R</b> zurückspulen, <b>C</b> Kamera (Verfolger, Cockpit, Hubschrauber, Stoßstange, Strecke), <b>L</b> Ideallinie ein/aus, <b>Esc</b> Pause.</p>
       <p><b>Gamepad:</b> linker Stick lenken (in der Luft vor/zurück = nicken), RT/A Gas, LT/X Bremse, <b>B</b> Hüpfer, <b>RB</b> Nitro, Y zurückspulen, LB Kamera, Back Ideallinie, Start Pause.</p>
       <p><b>Extras 🦘 🔥</b> (${COOLDOWN.on ? `unbegrenzt, nach jedem Einsatz lädt der Knopf nach – Ring füllt sich: Hüpfer ${COOLDOWN.hop} s, Nitro ${COOLDOWN.nitro} s nach dem Ausbrennen` : 'je 1 pro Runde, an Start/Ziel wieder voll'}): <b>Hüpfer</b> – das Auto springt aus der Fahrt ~3,5 m hoch und bleibt dabei waagrecht; nur mit Bodenkontakt, in Looping, Röhre, Korkenzieher und an Schanzen gesperrt (Knopf ausgegraut). <b>Nitro</b> – ${NITRO.dur} s lang deutlich mehr Schub (+70–80 % Beschleunigung, bis ~700 km/h), danach sanft zurück. Handy: runde Knöpfe über den Daumen (links 🦘, rechts 🔥). Abschaltbar in den Optionen.</p>
@@ -672,6 +716,7 @@ export class UI {
     this._pen = 0;
     this._x = null;
     $('#hud').classList.toggle('noextras', !race.extrasOn);
+    this._karteDirty = true;   // n39
     this.wipe(false);
     this.setTouchMode(true);
     this.lastCd = null;

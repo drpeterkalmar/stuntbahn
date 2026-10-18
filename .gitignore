@@ -50,3 +50,7 @@ tests/shots/n32/*
 !tests/shots/n37/
 tests/shots/n37/*
 !tests/shots/n37/*.jpg
+# n39 Minikarte: nur die Bericht-Collagen
+!tests/shots/n39/
+tests/shots/n39/*
+!tests/shots/n39/*.jpg

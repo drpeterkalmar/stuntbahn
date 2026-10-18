@@ -1,0 +1,128 @@
+{
+ "datum": "2026-10-18T10:13:41",
+ "stand": "n39_ab_rennen_kino_v2",
+ "modus": "ab",
+ "runden": 3,
+ "varianten": [
+  {
+   "name": "vorher",
+   "wurzel": "/Users/wohnzimmer/dev/stuntbahn_vorher_n39",
+   "zusatz": ""
+  },
+  {
+   "name": "nachher",
+   "wurzel": "/Users/wohnzimmer/dev/stuntbahn",
+   "zusatz": ""
+  },
+  {
+   "name": "ohne_karte",
+   "wurzel": "/Users/wohnzimmer/dev/stuntbahn",
+   "zusatz": "&karte=0"
+  }
+ ],
+ "profil": {
+  "drossel": 4,
+  "dpr": 2.6,
+  "sek": 10,
+  "start": "open",
+  "vsync": false
+ },
+ "szenen": {
+  "rennen_kino": {
+   "hoch": {
+    "vorher": {
+     "p50": 7.3,
+     "p95": 10.2,
+     "fps": 126.9,
+     "calls": 97,
+     "tris": 368344,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      10.3,
+      10.2,
+      10.2
+     ],
+     "fehler": []
+    },
+    "nachher": {
+     "p50": 7.3,
+     "p95": 10,
+     "fps": 126.9,
+     "calls": 98,
+     "tris": 368784,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      10.1,
+      10,
+      10
+     ],
+     "fehler": []
+    },
+    "ohne_karte": {
+     "p50": 7.3,
+     "p95": 10.1,
+     "fps": 126.6,
+     "calls": 97,
+     "tris": 368323,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      10.1,
+      10.6,
+      10.1
+     ],
+     "fehler": []
+    }
+   },
+   "quer": {
+    "vorher": {
+     "p50": 8.4,
+     "p95": 11.4,
+     "fps": 117.2,
+     "calls": 112,
+     "tris": 375724,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      11.1,
+      14.5,
+      11.4
+     ],
+     "fehler": []
+    },
+    "nachher": {
+     "p50": 8.5,
+     "p95": 11.4,
+     "fps": 115,
+     "calls": 113,
+     "tris": 375968,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      11.4,
+      11.7,
+      11
+     ],
+     "fehler": []
+    },
+    "ohne_karte": {
+     "p50": 9.2,
+     "p95": 13.3,
+     "fps": 105,
+     "calls": 112,
+     "tris": 375682,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      11.1,
+      13.7,
+      13.3
+     ],
+     "fehler": []
+    }
+   }
+  }
+ }
+}
