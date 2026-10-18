@@ -244,6 +244,7 @@ body[data-cam="cockpit"][data-mode="replay"] #replayui .bar { margin: 8px 0 0; }
 
 #pause .card, #result .card, .sheetc { width: min(560px, 94vw); display: flex; flex-direction: column; gap: 10px; max-height: calc(100vh - max(12px, var(--sat)) - max(12px, var(--sab))); max-height: calc(100dvh - max(12px, var(--sat)) - max(12px, var(--sab))); overflow-y: auto; }
 #pause, #result, #sheet { background: #0008; pointer-events: auto; }
+#sheet { z-index: 5; }   /* n35: Online-Zieltabelle/Lobby im Rennen über den HUD-Knöpfen (die haben z-index 2–3) */
 h2 { margin: 0; font-size: 24px; }
 .rtime { font-size: 48px; font-weight: 900; font-variant-numeric: tabular-nums; text-align: center; }
 .rec { text-align: center; color: #ffd23d; font-weight: 800; font-size: 20px; }

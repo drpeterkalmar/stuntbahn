@@ -137,6 +137,15 @@ for (const [lat, jit, verl] of [[0, 0, 0], [25, 10, 0.05], [75, 30, 0.05], [75, 
   const tab = B.lobby.ergebnis?.map((e) => e.id).join(',');
   ok(offen && tab === 'sid-a,ki-1,sid-b,ki-2', `KI: Tabelle wartet auf alle KI, dann ${tab}`);
 }
+// KI des Gastgebers ohne Zieleintrag (Gastgeber-Wechsel): Name über opt.nameVon (Spiel kennt die KI-Liste)
+{
+  const W = welt({ latenz: 25 });
+  const A = spieler(W, 'a', { gastgeber: true });
+  A.opt.nameVon = (id) => (id === 'ki-9' ? 'Rita' : null);
+  lauf(W, 500); A.starten({}, ['ki-9']); lauf(W, 4000); A.zielMelden(50); A.abschliessen(); lauf(W, 200);
+  const e = (A.lobby.ergebnis || []).find((x) => x.id === 'ki-9');
+  ok(e && e.name === 'Rita' && e.weg && e.ki, `KI ohne Ziel: Name aus nameVon, weg, ki (${JSON.stringify(e)})`);
+}
 
 // ---------- Gastgeber geht mitten im Rennen ----------
 for (const art of ['verlassen', 'wegreissen']) {

@@ -1,0 +1,130 @@
+{
+ "datum": "2026-10-18T21:02:50",
+ "stand": "n35_probe",
+ "modus": "ab",
+ "runden": 3,
+ "varianten": [
+  {
+   "name": "solo",
+   "wurzel": "/Users/wohnzimmer/dev/stuntbahn",
+   "zusatz": ""
+  },
+  {
+   "name": "g3",
+   "wurzel": "/Users/wohnzimmer/dev/stuntbahn",
+   "zusatz": "&gegner=3"
+  },
+  {
+   "name": "on3",
+   "wurzel": "/Users/wohnzimmer/dev/stuntbahn",
+   "zusatz": "&onlineprobe=3"
+  }
+ ],
+ "profil": {
+  "drossel": 4,
+  "dpr": 2.6,
+  "sek": 10,
+  "start": "open",
+  "vsync": false
+ },
+ "szenen": {
+  "start_standard": {
+   "quer": {
+    "solo": {
+     "p50": 5.2,
+     "p95": 7.4,
+     "fps": 185.9,
+     "calls": 99,
+     "tris": 263722,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      8.8,
+      6.3,
+      7.4
+     ],
+     "fehler": []
+    },
+    "g3": {
+     "p50": 6,
+     "p95": 7.9,
+     "fps": 163.9,
+     "calls": 119,
+     "tris": 282125,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      7.1,
+      7.9,
+      9.1
+     ],
+     "fehler": []
+    },
+    "on3": {
+     "p50": 5.9,
+     "p95": 8.2,
+     "fps": 164.6,
+     "calls": 106,
+     "tris": 264649,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      7.4,
+      8.2,
+      9.3
+     ],
+     "fehler": []
+    }
+   }
+  },
+  "mitte_standard": {
+   "quer": {
+    "solo": {
+     "p50": 5.7,
+     "p95": 7.8,
+     "fps": 170.9,
+     "calls": 106,
+     "tris": 276988,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      7.8,
+      8.6,
+      7.8
+     ],
+     "fehler": []
+    },
+    "g3": {
+     "p50": 6.1,
+     "p95": 8.3,
+     "fps": 159.5,
+     "calls": 115,
+     "tris": 279614,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      9.2,
+      8.3,
+      7.7
+     ],
+     "fehler": []
+    },
+    "on3": {
+     "p50": 7.5,
+     "p95": 11.2,
+     "fps": 124.1,
+     "calls": 112,
+     "tris": 278740,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      9.6,
+      11.2,
+      12.4
+     ],
+     "fehler": []
+    }
+   }
+  }
+ }
+}

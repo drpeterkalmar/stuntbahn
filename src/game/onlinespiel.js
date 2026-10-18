@@ -59,7 +59,9 @@ export class OnlineSpiel {
     this.code = code;
     const tr = await this.opt.verbinde(code);
     const S = this.S = new Sitzung(tr, { jetzt: this.opt.jetzt || tr.jetzt, sid: this._sid(), info: this.info(), gastgeber, schema: AUTO_SCHEMA, lin: LIN, maxMenschen: ONLINE.maxMenschen,
-      einstellungen: { ki: 0, staerke: 'ebenbuertig', tempo: GAME_SPEED_STD } });
+      einstellungen: { ki: 0, staerke: 'ebenbuertig', tempo: GAME_SPEED_STD },
+      // Namen für die Zieltabelle, die die Sitzung nicht kennt (KI des alten Gastgebers nach einem Wechsel)
+      nameVon: (id) => { const k = (this.S && this.S.lobby.einst.kiInfo || []).find((x) => x.id === id); return k ? k.name : null; } });
     S.on('lobby', () => { this._lobbyGesehen(); this.app.anzeige('lobby'); });
     S.on('status', (st) => {
       if (st === 'niemand') this.hinweis(`Kein Raum ${vorlesbar(code)} gefunden – Code prüfen. Klappt es nicht, blockiert vielleicht das Netz die Verbindung: WLAN probieren.`, 0);

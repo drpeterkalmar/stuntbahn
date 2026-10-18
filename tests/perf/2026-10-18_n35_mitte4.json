@@ -1,0 +1,105 @@
+{
+ "datum": "2026-10-18T21:19:48",
+ "stand": "n35_mitte4",
+ "modus": "ab",
+ "runden": 4,
+ "varianten": [
+  {
+   "name": "solo",
+   "wurzel": "/Users/wohnzimmer/dev/stuntbahn",
+   "zusatz": ""
+  },
+  {
+   "name": "g3",
+   "wurzel": "/Users/wohnzimmer/dev/stuntbahn",
+   "zusatz": "&gegner=3"
+  },
+  {
+   "name": "on3",
+   "wurzel": "/Users/wohnzimmer/dev/stuntbahn",
+   "zusatz": "&onlineprobe=3"
+  },
+  {
+   "name": "on3vis0",
+   "wurzel": "/Users/wohnzimmer/dev/stuntbahn",
+   "zusatz": "&onlineprobe=3&gegnervis=0"
+  }
+ ],
+ "profil": {
+  "drossel": 4,
+  "dpr": 2.6,
+  "sek": 10,
+  "start": "open",
+  "vsync": false
+ },
+ "szenen": {
+  "mitte_standard": {
+   "quer": {
+    "solo": {
+     "p50": 5.95,
+     "p95": 8.45,
+     "fps": 162.3,
+     "calls": 106.0,
+     "tris": 277112.5,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      6.5,
+      8.6,
+      8.8,
+      8.3
+     ],
+     "fehler": []
+    },
+    "g3": {
+     "p50": 6.45,
+     "p95": 8.75,
+     "fps": 152.45,
+     "calls": 115.0,
+     "tris": 279020.5,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      8.5,
+      8.3,
+      9.6,
+      9
+     ],
+     "fehler": []
+    },
+    "on3": {
+     "p50": 7.2,
+     "p95": 9.9,
+     "fps": 135.35,
+     "calls": 112.0,
+     "tris": 278134.0,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      9.7,
+      10.1,
+      10.1,
+      9.5
+     ],
+     "fehler": []
+    },
+    "on3vis0": {
+     "p50": 6.75,
+     "p95": 9.05,
+     "fps": 145.55,
+     "calls": 112.0,
+     "tris": 278333.0,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      8.3,
+      10,
+      8.3,
+      9.8
+     ],
+     "fehler": []
+    }
+   }
+  }
+ }
+}

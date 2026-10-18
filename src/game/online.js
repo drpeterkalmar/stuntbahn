@@ -28,7 +28,10 @@ export const ONLINE = {
   kiHz: 15,            // KI-Gegner (Gastgeber) je s
   maxMenschen: 4, maxAutos: 6,
   geist: 1.5,          // s nach einem Reset/Rücksetzen eines fremden Autos: keine Kollision (wie GEIST in ai/gegner.js)
-  rempler: { vMin: 1.5, abstand: 0.25 },   // m/s Stoß-Tempo für ein Rempler-Ereignis, s zwischen zwei je Paar
+  rempler: { vMin: 1.5, abstand: 0.25,     // m/s Stoß-Tempo für ein Rempler-Ereignis, s zwischen zwei je Paar
+    // Gegenstoß (Browser-Abnahme n35): hat nur die Gegenseite den Stoß erkannt, bekommt das eigene Auto beim Eintreffen der
+    // Meldung einen sanften Schubs weg vom anderen (Anteil am Stoß-Tempo, gedeckelt) – sonst spürt ihn nur einer. 0 = aus
+    gegen: 0.4, gegenMax: 3, gegenWeit: 8 },
   p2pHinweis: 10000,   // ms: keine direkte Verbindung → ehrliche Meldung
   nachlauf: 45,        // s: so lange wartet die Zieltabelle nach dem ersten Zieleinlauf (SITZUNG.zielSchluss)
   // fremde Autos um den Puffer-Verzug vorausgerechnet zeigen und anstoßen (1) bzw. so, wie der Puffer sie hat (0, wie im Brief:
@@ -314,6 +317,11 @@ export class OnlineRennen {
       const t = (this.tSim || this.S.zeit) / 1000;
       if (X && t - (X.rempelT || -1e9) < ONLINE.rempler.abstand * 2) return;
       if (X) X.rempelT = t;
+      const c = this.race.car, G = ONLINE.rempler;
+      if (X && X.auto.gueltig && G.gegen > 0 && this.race.state === 'running' && !c.crash) {
+        const dx = c.pos.x - X.auto.pos.x, dz = c.pos.z - X.auto.pos.z, dd = Math.hypot(dx, dz);
+        if (dd > 0.01 && dd < G.gegenWeit) { const dv = Math.min(G.gegenMax, (d.v || 0) * G.gegen); c.v.x += dx / dd * dv; c.v.z += dz / dd * dv; }
+      }
       this.events.push({ type: 'rempler', p: d.p, n: d.n, v: d.v, wer: X ? X.info.name : '', lokal: false });
     } else if (art === 'emoji') this.events.push({ type: 'emoji', e: String(d.e || '').slice(0, 8), von: von.info ? von.info.name : '', pid: von.pid });
   }

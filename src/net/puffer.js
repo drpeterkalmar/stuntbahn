@@ -48,6 +48,7 @@ export class FremdPuffer {
     if (S.length > PUFFER.n) S.shift();
     // Verspätung und Sendeabstand messen
     this.lat.push(ankunft - t); if (this.lat.length > PUFFER.latN) this.lat.shift();
+    this._zv = null;                  // Ziel-Verzug neu (zielVerzug sortiert – nur nach neuen Paketen, nicht je Abtastung)
     if (S.length >= 3) {
       const ds = []; for (let k = 1; k < S.length; k++) ds.push(S[k].t - S[k - 1].t);
       ds.sort((a, b) => a - b); this.intervall = ds[ds.length >> 1];
@@ -68,10 +69,11 @@ export class FremdPuffer {
   }
 
   zielVerzug() {
+    if (this._zv != null) return this._zv;
     if (!this.lat.length) return this.min;
     const a = this.lat.slice().sort((x, y) => x - y);
     const p90 = a[Math.min(a.length - 1, Math.floor(a.length * 0.9))];
-    return Math.max(this.min, Math.min(PUFFER.max, p90 + this.intervall + PUFFER.reserve));
+    return (this._zv = Math.max(this.min, Math.min(PUFFER.max, p90 + this.intervall + PUFFER.reserve)));
   }
 
   // Lage zur Sitzungszeit jetzt (ms). Liefert this.out (wird wiederverwendet) oder null, solange leer.
@@ -129,14 +131,14 @@ export class FremdPuffer {
     const u2 = u * u, u3 = u2 * u;
     const h00 = 2 * u3 - 3 * u2 + 1, h10 = u3 - 2 * u2 + u, h01 = -2 * u3 + 3 * u2, h11 = u3 - u2;
     const d00 = 6 * u2 - 6 * u, d10 = 3 * u2 - 4 * u + 1, d01 = -6 * u2 + 6 * u, d11 = 3 * u2 - 2 * u;
-    for (const [p, v] of [['px', 'vx'], ['py', 'vy'], ['pz', 'vz']]) {
-      o[p] = h00 * a[p] + h10 * h * a[v] + h01 * b[p] + h11 * h * b[v];
-      o[v] = (d00 * a[p] + d10 * h * a[v] + d01 * b[p] + d11 * h * b[v]) / h;
-    }
+    o.px = h00 * a.px + h10 * h * a.vx + h01 * b.px + h11 * h * b.vx; o.vx = (d00 * a.px + d10 * h * a.vx + d01 * b.px + d11 * h * b.vx) / h;
+    o.py = h00 * a.py + h10 * h * a.vy + h01 * b.py + h11 * h * b.vy; o.vy = (d00 * a.py + d10 * h * a.vy + d01 * b.py + d11 * h * b.vy) / h;
+    o.pz = h00 * a.pz + h10 * h * a.vz + h01 * b.pz + h11 * h * b.vz; o.vz = (d00 * a.pz + d10 * h * a.vz + d01 * b.pz + d11 * h * b.vz) / h;
     const q = qslerp([a.q.x, a.q.y, a.q.z, a.q.w], [b.q.x, b.q.y, b.q.z, b.q.w], u);
     o.q.x = q[0]; o.q.y = q[1]; o.q.z = q[2]; o.q.w = q[3];
     const near = u < 0.5 ? a : b;
-    for (const k in near) if (k !== 'q' && !(k in POSE)) o[k] = near[k];
+    const K = this._felder || (this._felder = Object.keys(near).filter((k) => k !== 'q' && !(k in POSE)));
+    for (let j = 0; j < K.length; j++) o[K[j]] = near[K[j]];
     for (const k of this.lin) o[k] = a[k] + (b[k] - a[k]) * u;
     o.sprung = a[this.sprungFeld];
     this.art = 'interp';

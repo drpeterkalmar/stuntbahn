@@ -155,5 +155,19 @@ for (const [lat, jit, verl] of [[0, 0, 0], [75, 30, 0.05]]) {
   ok(race.state === 'running' && A.length === 3 && A.every((X) => X.auto.gueltig && X.auto.fort > 100) && O.stand().length === 4 && probeAnzahl('?onlineprobe=3') === 3 && probeAnzahl('') === 0, `Mess-Probe: 3 Attrappen über den Online-Pfad (Fortschritt ${A.map((X) => X.auto.fort.toFixed(0)).join('/')} m), Rangliste mit 4`);
 }
 
+// ---------- Gegenstoß: nur die Gegenseite hat den Rempler erkannt → sanfter Schubs weg vom anderen, sonst nichts ----------
+{
+  const mach = (lokalVorher) => {
+    const R = Object.create(OnlineRennen.prototype);
+    Object.assign(R, { S: { sid: 'a', zeit: 1000 }, tSim: 1000, events: [], race: { state: 'running', car: { pos: { x: 0, y: 0, z: 0 }, v: { x: 0, y: 0, z: 0 }, crash: null } } });
+    R.autos = new Map([['p:0', { pid: 'p', auto: { gueltig: true, pos: { x: 2, y: 0, z: 0 } }, info: { name: 'Ben' }, rempelT: lokalVorher ? 0.95 : undefined }]]);
+    R._ereignis('rempler', { an: 'a', v: 5, p: [1, 0, 0], n: [1, 0, 0] }, { pid: 'p' });
+    return R;
+  };
+  const R1 = mach(false), R2 = mach(true);
+  ok(Math.abs(R1.race.car.v.x + 2) < 1e-9 && R1.events.length === 1 && !R1.events[0].lokal, `Gegenstoß: Meldung ohne eigene Erkennung → 0,4 × 5 m/s = ${(-R1.race.car.v.x).toFixed(1)} m/s weg vom anderen, Funken`);
+  ok(R2.race.car.v.x === 0 && R2.events.length === 0, 'eigene Erkennung kurz davor: kein zweiter Stoß, keine doppelten Funken');
+}
+
 console.log(bad ? `${bad} FEHLER` : 'alle Online-Rennen-Tests OK');
 process.exit(bad ? 1 : 0);

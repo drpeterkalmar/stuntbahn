@@ -113,7 +113,7 @@ export class Sitzung {
     // gefahren, aber weder im Ziel noch in `rest` (Verbindung weg) → ausgeschieden
     const bekannt = new Set([...fertig, ...offen].map((e) => e.id));
     const weg = [...(L.fahrer || []), ...(L.ki || [])].filter((id) => !bekannt.has(id)).map((id) => ({ id, zeit: null, weg: true, ki: (L.ki || []).includes(id) }));
-    L.ergebnis = [...fertig, ...offen, ...weg].map((e, k) => ({ ...e, platz: k + 1, name: this.mitglieder.get(e.id)?.info.name ?? e.name ?? null }));
+    L.ergebnis = [...fertig, ...offen, ...weg].map((e, k) => ({ ...e, platz: k + 1, name: this.mitglieder.get(e.id)?.info.name ?? e.name ?? (this.opt.nameVon ? this.opt.nameVon(e.id) : null) ?? null }));
     L.phase = 'ergebnis';
     this._lobbySenden();
     this.emit('ergebnis', L.ergebnis);
