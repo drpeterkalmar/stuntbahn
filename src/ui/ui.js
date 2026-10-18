@@ -303,7 +303,7 @@ export class UI {
         <div class="lbl">Fahrhilfe</div>
         <div class="seg" data-g="assist">${Object.entries(ASSISTS).map(([k, A]) => `<button data-a="assist" data-v="${k}" class="${S.assist === k ? 'on' : ''}">${A.icon} ${A.name}</button>`).join('')}</div>
         <div class="hint mhint" data-a="hintmore">${this.assistHint(S.assist)}</div>
-        <div class="row"><button data-a="gegnerwahl" class="themebtn gegnerbtn" title="Gegner: ${this.gegnerLabel()}" aria-label="Gegner: ${this.gegnerLabel()}">🏁 ${this.gegnerLabel()}</button></div>
+        <div class="row"><button data-a="gegnerwahl" class="themebtn gegnerbtn" title="Gegner: ${this.gegnerLabel()}" aria-label="Gegner: ${this.gegnerLabel()}">🏁 ${this.gegnerLabel()}</button>${this.onlineKnopf()}</div>
         <div class="lbl">Neue Strecke</div>
         <div class="segrow"><div class="seg" data-g="diff">${[1, 2, 3].map((d) => `<button data-a="diff" data-v="${d}" class="${(S.diff || 2) === d ? 'on' : ''}">${DIFFS[d].name}</button>`).join('')}</div><div class="seg mode" data-g="mode">${MODES.map(([k, ic, nm, tt]) => `<button data-a="mode" data-v="${k}" class="${S.trackMode === k ? 'on' : ''}" aria-pressed="${S.trackMode === k}" aria-label="${nm}" title="${nm}: ${tt}">${ic}</button>`).join('')}</div></div>
         <div class="row">
@@ -325,6 +325,12 @@ export class UI {
     this.setTouchMode(false);
     $('#hud').classList.remove('show');
     $('#replayui').classList.remove('show');
+  }
+  // n35 Online: Knopf im Menü (Vorbau: nur mit ?online=1 bzw. ?raum=) – im Raum „👥 Lobby AB-CD“
+  onlineKnopf() {
+    if (!this.a.onlineMenue && !(this.a.onlineLabel && this.a.onlineLabel())) return '';
+    const L = this.a.onlineLabel ? this.a.onlineLabel() : null;
+    return `<button data-a="online" class="themebtn onbtn" title="Mit Freunden fahren">👥 ${L ? 'Lobby ' + L : 'Online'}</button>`;
   }
   // Kulissen (n20): Einstellung „Landschaft“ – passend (aus Seed/Horizont) oder fest ein Thema für alle Strecken
   themeLabel(env) {
@@ -517,11 +523,11 @@ export class UI {
       case 'fahrstil': S.fahrstil = v; this.store.save(); if (window.__game && window.__game.race && !FAHRSTIL_URL) window.__game.race.fahrstil = v; if (this.screen === 'pause') this.showPause(true); else this.showSettings(); break;
       case 'brakehelp': S.brakeHelp = v; this.store.save(); if (window.__game && window.__game.race) window.__game.race.brakeHelp = v; this.showSettings(); break;
       case 'quality': S.quality = v; this.store.save(); A.quality.forced = v === 'auto' ? null : v; if (v !== 'auto') A.quality.tier = +v; dispatchEvent(new Event('resize')); this.showSettings(); break;
-      default: break;
+      default: if ((a === 'online' || a.startsWith('on')) && A.online) A.online(a, v, arguments[2]); break;   // n35 Online-Menü (ui/online.js)
     }
   }
-  sheet(title, html) {
-    $('#sheet').innerHTML = `<div class="card sheetc"><h2>${title}</h2><div class="scroll">${html}</div><button class="big" data-a="close">Zurück</button></div>`;
+  sheet(title, html, zurueck = 'close') {
+    $('#sheet').innerHTML = `<div class="card sheetc"><h2>${title}</h2><div class="scroll">${html}</div><button class="big" data-a="${zurueck}">Zurück</button></div>`;
     this.show('sheet');
   }
   // ---------- Importierte Strecken ----------
@@ -752,7 +758,7 @@ export class UI {
       <p><b>Umgebung (Poly Haven, CC0):</b> Tree Small 02 (Rico Cilliers) · Island Tree 01, Celandine 01, Grass Medium 01, Dandelion 01 (Rob Tuytel, Rico Cilliers) · Searsia Lucida (James Ray Cock, Jenelle van Heerden) · Rock Moss Set 01 (Kless Gyzen) · Gravel Floor 02 (Jenelle van Heerden, Dimitrios Savva). Werbebanner zeigen erfundene Marken.</p>
       <p><b>Landschaften (seit 04.10.2026):</b> Himmel von Poly Haven (CC0): Qwantani Afternoon, Qwantani Late Afternoon (Greg Zaal, Jarod Guest) · Pizzo Pernice (Andreas Mischok, Jarod Guest) · Kloofendal 38d Partly Cloudy (Greg Zaal, Jarod Guest) · Autumn Field, Snow Field (Jarod Guest, Sergej Majboroda). Böden und Fels von ambientCG (CC0): Ground 097, Grass 001/004, Scattered Leaves 009, Snow 010 A, Rock 029/051/058. Pflanzen von Poly Haven (CC0): Quiver Tree 01/02, Wild Rooibos Bush, Cheiridopsis Succulent (James Ray Cock, Dario Barresi, Jenelle van Heerden, Rico Cilliers) · Jacaranda Tree, Island Tree 02/03, Pachira Aquatica 01, Fir Sapling Medium (Rob Tuytel, Rico Cilliers) · Shrub 02 (Rico Cilliers). Palmen, Tribünen, Bauten, Ballons, Zeppelin, Fernkulisse: eigene Arbeit. Alle Marken auf Fahnen und Tafeln sind erfunden.</p>
       <p><b>Wetter, Tageszeit, Zuschauer (seit 09.10.2026):</b> 3D-Zuschauer, Tribünen-Bauformen, Event-Gelände (Zelte, Foodtrucks, Riesenrad, Hüpfburg, Strandbar, Hütte), Startampel, Rennleitung, Leinwand, Regen, Schnee, Nachthimmel, Flutlicht, Laternen und Lichterketten: eigene Arbeit (im Spiel erzeugt). Regengeräusch: synthetisch erzeugt.</p>
-      <p><b>Technik:</b> three.js (MIT). Physik, Strecken, Generator, Ton: eigener Code.</p>
+      <p><b>Technik:</b> three.js (MIT). Online-Mehrspieler: Trystero (MIT, Dan Motzenbecker), noble-secp256k1 (MIT, Paul Miller), MQTT.js (MIT). Physik, Strecken, Generator, Ton: eigener Code.</p>
       <p>Build ${this.app.build}</p>`);
   }
   // ---------- Rennen ----------
@@ -781,6 +787,7 @@ export class UI {
   // Leicht: keine Bestzeit, stattdessen die letzte Zeit auf dieser Strecke
   hudBest(race, env) {
     const k = this.store.settings.assist;
+    if (race.online) { const o = this.store.onlineBest && this.store.onlineBest(env.meta.key); $('#hud .best').textContent = o ? 'Online-Beste ' + fmtTime(o.t) : ''; return; }   // n35: eigene Liste
     if (k === 'easy') { const l = this.store.timesFor(env.meta.key)[0]; $('#hud .best').textContent = l ? 'Zuletzt ' + fmtTime(l.t) : ''; return; }
     const b = this.store.bestFor(env.meta.key, k, race.wreckOn, undefined, !!race.mitGegnern);   // n34: Liste „mit Gegnern“
     $('#hud .best').textContent = b ? 'Beste ' + fmtTime(b.time) : '';

@@ -33,6 +33,8 @@ import { Store, modeKey } from './game/store.js';
 import { Ghost } from './game/ghost.js';
 import { GegnerFeld, gegnerOptionen } from './ai/gegner.js';   // n34 KI-Gegner (Standard aus)
 import { GegnerVis } from './gfx/gegnervis.js';
+import { onlineOptionen } from './game/online.js';   // n35 Online-Mehrspieler (Menü im Vorbau nur mit ?online=1 bzw. ?raum=); Rest lädt erst beim Öffnen
+import { beschreibe as streckeBeschreiben, ausB64 } from './game/onlinestrecke.js';
 import { schadenModus, SchadenAuto, neuerSchaden } from './physics/schaden.js';   // n34-Nachtrag Schadensmodell (Standard aus)
 import { schadenZeigen, TruemmerVis } from './gfx/schadenvis.js';
 import { lookSchalten } from './gfx/schadenlook.js';
@@ -162,6 +164,10 @@ let race = null, ghost = null, replay = null, lineViz = null, fx = null;
 // n34 KI-Gegner: Feld (Physik/KI, ai/gegner.js) nur im Rennen mit gewählten Gegnern, sonst null → alles wie bisher;
 // gegnerRec = Aufzeichnungen des letzten Rennens fürs Replay/Kino-Replay
 let gegner = null, gegnerVis = null, gegnerRec = null;
+// n35 Online: onl = Ablauf (game/onlinespiel.js, erst nach „👥 Online“), onlA = Anzeige (ui/online.js), onlR = laufendes
+// Online-Rennen (game/online.js) oder null → alles wie bisher; onlVis = fremde Autos im Format von GegnerFeld (gfx/gegnervis.js);
+// ONLINE_LOOK = Landschaft/Wetter/Tageszeit des Gastgebers (Gäste, solange im Raum)
+let onl = null, onlA = null, onlR = null, onlVis = null, onlVisV = -1, ONLINE_LOOK = null;
 // n34-Nachtrag Schadensmodell (?schaden=optik|fahrt bzw. Option): Schaden des Spieler-Autos (physics/schaden.js SchadenAuto) oder
 // null; Trümmer abgefallener Teile (Spieler und Gegner)
 let schadenSp = null, truemmer = null, schadenRep = null, heilV = 0;
@@ -266,11 +272,15 @@ async function boot() {
   ui.bind({ startRace, newTrack, setAssist, toMenu, retry, startReplay, cycleCam, gegnerStand, gegnerGummi: () => !!(gegner && gegner.opt.aufholhilfe), rewind: () => race && race.requestRewind(), pause: togglePause,
     skipCine: () => endCine(true), skipShow: () => endShow(true), replayCine: () => { if (race && race.film && ui.lastRes) startCine(ui.lastRes); },
     recordCine: () => { if (race && race.film && ui.lastRes) startCine(ui.lastRes, { record: true }); },
-    hop: () => { if (mode === 'race' && race && !frozen) race.requestHop(); }, nitro: () => { if (mode === 'race' && race && !frozen) race.requestNitro(); }, setLine, toggleLine, setPaint, setTheme, setWetter, setZeit, sound, input, quality, importFiles, playImported, deleteImported, trkLib, showcase: SHOWCASE, showcaseBytes, store, sammlung });
+    hop: () => { if (mode === 'race' && race && !frozen) race.requestHop(); }, nitro: () => { if (mode === 'race' && race && !frozen) race.requestNitro(); }, setLine, toggleLine, setPaint, setTheme, setWetter, setZeit, sound, input, quality, importFiles, playImported, deleteImported, trkLib, showcase: SHOWCASE, showcaseBytes, store, sammlung,
+    online: (a, v, el) => onlineAktion(a, v, el), onlineMenue: onlineOptionen().menue, onlineLabel: () => (onl && onl.aktiv ? onl.zustand().vorlesbar : null) });
   initDrop();
   ui.showMenu(env);
   mode = params.has('race') ? 'race' : 'menu';
   if (mode === 'race') startRace();
+  // n35: Link mit ?raum=CODE → Online-Menü mit vorbelegtem Code; App aus dem Hintergrund → neu verbinden
+  else if (params.has('raum')) onlineAktion('online').catch((e) => console.warn('Online', e));
+  document.addEventListener('visibilitychange', () => { if (onl) onl.sichtbar(!document.hidden); });
   // n30: Heldenauto-LOD (Mittel/Fern) erst nach dem Start nachladen; ?lod=0 = immer volles Modell
   if (params.get('lod') !== '0') loadCarLods().then(([mid, far]) => {
     for (const c of [carVis, ghostVis]) { c.addLod(mid, 1); c.addLod(far, 2); }
@@ -319,11 +329,11 @@ let URL_THEMA = params.get('thema');   // gilt, bis im Menü eine Landschaft gew
 // Einstellung und ?thema=; eine Wahl im Landschafts-Menü hebt es auf. Andere Strecken (Tages-Strecke, Code, .TRK) wie bisher.
 let RANDOM_THEMA = null;   // { key, id }
 const randomThemaOf = (layout) => (RANDOM_THEMA && layout && layout.meta && layout.meta.key === RANDOM_THEMA.key ? RANDOM_THEMA.id : null);
-const themeOf = (layout) => randomThemaOf(layout) || themeFor(layout, store.settings.theme || 'auto', URL_THEMA);
+const themeOf = (layout) => (ONLINE_LOOK && ONLINE_LOOK.thema && THEMES[ONLINE_LOOK.thema] ? ONLINE_LOOK.thema : null) || randomThemaOf(layout) || themeFor(layout, store.settings.theme || 'auto', URL_THEMA);
 // n32 Wetter (nur Optik): URL ?wetter= > Einstellung „Wetter“ (localStorage, gilt schon beim Start) > passend zu Strecke
 // und Thema (track/wetter.js). Wertet nicht extra (kein A/B-Zusatz), Physik/Strecke/Bestzeit-Schlüssel unverändert.
 let URL_WETTER = parseWetter(params.get('wetter'));   // gilt, bis im Menü ein Wetter gewählt wird
-const wetterOf = (layout, themeId) => wetterFor(layout, themeId, store.settings.wetter || 'auto', URL_WETTER);
+const wetterOf = (layout, themeId) => wetterFor(layout, themeId, store.settings.wetter || 'auto', (ONLINE_LOOK && ONLINE_LOOK.wetter) || URL_WETTER);
 // Wetter der aktuellen Strecke anwenden: Licht/Nebel/Himmel/Flächen (ThemeManager), Teilchen (render), Gischt/Dampf/
 // Spuren (fx), Regengeräusch (sound). Ohne Neubau der Welt.
 function wendeWetter() {
@@ -341,7 +351,7 @@ function wendeWetter() {
 let URL_ZEIT = parseZeit(params.get('zeit'));
 // ?spiegel=0 … 4: Zahl der Licht-Spiegelungen auf nasser Fahrbahn fest (A/B, Messung); sonst Kino 4, Standard 2, „Deko sparsam“ (Automatik) 0
 const SPIEGEL = params.has('spiegel') ? Math.max(0, Math.min(4, +params.get('spiegel') || 0)) : null;
-const zeitOf = (layout, themeId) => zeitFor(layout, themeId, store.settings.zeit || 'auto', URL_ZEIT);
+const zeitOf = (layout, themeId) => zeitFor(layout, themeId, store.settings.zeit || 'auto', (ONLINE_LOOK && ONLINE_LOOK.zeit) || URL_ZEIT);
 // Nacht-Lichter der Strecke (Licht-Karte + Leuchtpunkte) einmal je Welt bauen, sobald Abend/Nacht gebraucht wird
 function nachtAufbauen() {
   if (!env || !env.worldReady || !worldGroup || !env.zeitLook || env.zeitLook.lights <= 0) return;
@@ -616,7 +626,113 @@ async function loadTrack(layout, meta = {}, pre = null) {
   return env;
 }
 
+// ---------- n35 Online ----------
+// Anschluss für game/onlinespiel.js (siehe dort): Strecke beschreiben/laden, Rennen starten, Anzeige
+const onlineApp = {
+  store, env: () => env,
+  beschreibe: () => (env ? streckeBeschreiben(env, importedBytes) : null),
+  look: () => ({ thema: env && env.theme, wetter: env && env.wetter, zeit: env && env.zeit }),
+  ladeStrecke: (d, look) => ladeOnlineStrecke(d, look),
+  startOnline: (spiel) => startOnlineRace(spiel),
+  zumMenue: () => { if (mode !== 'menu') toMenu(); },
+  anzeige: (art, d) => onlineAnzeige(art, d),
+};
+async function onlineLaden() {
+  if (onl) return;
+  const [{ OnlineSpiel }, { OnlineAnsicht }, N] = await Promise.all([import('./game/onlinespiel.js'), import('./ui/online.js'), import('./net/index.js')]);
+  if (onl) return;
+  const netzOpt = N.netzOptionen();   // ?netz=bc (zwei Tabs, Test) | nostr | mqtt | beide; Standard auto (Nostr, Ausweich MQTT)
+  onl = new OnlineSpiel(onlineApp, { verbinde: (code) => N.verbinden(code, netzOpt) });
+  onlA = new OnlineAnsicht(ui, onl, {
+    menueStrecke: () => (env ? env.meta.name : null), setAssist,
+    zeigeMenue: () => { if (mode === 'menu') ui.showMenu(env); else toMenu(); },
+    zurueck: () => { if (mode === 'race') toMenu(); else ui.showMenu(env); },
+    verlassen: () => { ONLINE_LOOK = null; if (mode === 'race') toMenu(); else ui.showMenu(env); },
+  });
+}
+async function onlineAktion(a, v, el) { await onlineLaden(); return onlA.action(a, v, el); }
+function onlineAnzeige(art, d) {
+  if (!onlA) return;
+  // Zieltabelle: sofort, außer die eigene Zielshow läuft noch (endShow zeigt sie dann)
+  if (art === 'ergebnis' && mode === 'race' && onlR && !show && !cine) { onlA.zeigeErgebnis(); return; }
+  onlA.aktualisieren(art, d);
+}
+async function ladeOnlineStrecke(d, look) {
+  if (mode !== 'menu') toMenu();
+  ONLINE_LOOK = look || null;
+  if (d.art === 'layout') return loadTrack(d.layout, { apTime: d.apTime, fixes: d.fixes });
+  if (d.art === 'sam' || d.art === 'demo') return loadImported(d.id);
+  if (d.art === 'trk') {
+    if (trkLib.get(d.id)) return loadImported(d.id);
+    // fremde .TRK: nur bauen, nicht in die eigene Bibliothek übernehmen (keine Probefahrt – Leicht hilft wie immer)
+    const trk = parseTrk(ausB64(d.b64), (d.name || 'online') + '.trk');
+    trk.name = d.name || 'Online-Strecke';
+    const { layout, report } = trkToLayout(trk);
+    layout.meta.key = d.id; layout.meta.name = trk.name;
+    return loadTrack(layout, { imported: true, report });
+  }
+  throw new Error('unbekannte Strecken-Art ' + d.art);
+}
+// Mess-Probe (Mess-Gate, ein Gerät): ?onlineprobe=N → __game.start() fährt ein Online-Rennen gegen N Attrappen im selben Tab
+// (game/onlineprobe.js; tests/perf_szenen_online.json)
+const PROBE_N = params.has('onlineprobe') ? Math.max(1, Math.min(3, +params.get('onlineprobe') || 3)) : 0;
+async function startOnlineProbe(opts = {}) {
+  const { OnlineProbe } = await import('./game/onlineprobe.js');
+  if (onl && onl.verlassen) onl.verlassen();
+  onl = new OnlineProbe(PROBE_N, { tempo: gameSpeed(store.settings.assist) });
+  startOnlineRace(onl, { autopilot: !!opts.autopilot });
+  app.online = { ...app.online, probe: PROBE_N };
+}
+// Online-Rennen: Totalschaden aus, gemeinsames Spieltempo, kein Geist, KI rechnet nur der Gastgeber (→ gegner = sein Feld)
+function startOnlineRace(spiel, opt = {}) {
+  replay = null;
+  quitShow();
+  if (cine) { cine = null; ui.hideCine(); }
+  if (fx) fx.reset();
+  const S = store.settings, L = spiel.S.lobby;
+  race = new Race(env, { assist: S.assist, wreck: false, autopilot: !!opt.autopilot, extras: S.extras, autoExtras: S.autoExtras, brakeHelp: S.brakeHelp, fahrstil: FAHRSTIL_URL || S.fahrstil || 'brachial', seed: ((L.einst.seed || 1) + L.rennId) >>> 0, countdown: 1e9, splitRef: null });
+  race.online = true;
+  timeScale = L.einst.tempo || GAME_SPEED_STD;
+  lookSchalten(false);
+  schadenSp = null; race.schadenFolgen = null; schadenRep = null; gegnerRec = null;
+  if (carVis.schadenVis) schadenZeigen(carVis, SCHADEN_HEIL, 'heil' + ++heilV);
+  if (truemmer) truemmer.leeren();
+  onlR = spiel.rennenBauen(env, race, {});
+  gegner = onlR.feld;
+  race.mitGegnern = true;
+  onlVisV = -1; onlineVisPruefen();
+  gegnerVis.schilder = true; gegnerVis.einfach = quality.tier === 0;
+  ghost = new Ghost(null);
+  ghostVis.root.visible = false;
+  rig.mode = CAM_MODES.includes(store.settings.cam) ? store.settings.cam : 'chase';
+  rig.init = false;
+  mode = 'race';
+  ui.showHud(race, env);
+  sound.start();
+  prevPose = null;
+  app.online = { code: spiel.code, platz: onlR.slot + 1, autos: onlR.A.n };
+}
+// fremde Autos neu zusammengestellt (jemand kam/ging): Darstellung neu bauen (Lack, Schild)
+function onlineVisPruefen() {
+  if (!onlR || onlR.version === onlVisV) return;
+  onlVisV = onlR.version;
+  onlVis = onlR.visFeld();
+  gegnerVis.bereit(onlVis.fahrer.map((g) => g.info)).catch((e) => console.warn('fremde Autos', e));
+}
+// nach den Physikschritten: senden, Zeitnahme, Ziel melden; Rempler → Ton + Funken an der Stelle; Kurzrufe → Hinweis
+function onlineNachFrame() {
+  onlR.nachFrame(race.events);
+  for (const e of onlR.events) {
+    if (e.type === 'rempler') {
+      if (!e.crash) sound.event({ type: 'crash', imp: Math.min(14, e.v || 3), v: 0 });   // Crash selbst: Ton kommt über race.events
+      if (fx && fx.sparks && e.p) for (let k = 0; k < Math.min(10, 2 + (e.v || 3)); k++) fx.sparks.spawn(e.p[0], e.p[1], e.p[2], (Math.random() - 0.5) * 6 + e.n[0] * 3, 0.8 + Math.random() * 2.5, (Math.random() - 0.5) * 6 + e.n[2] * 3, 0.25 + Math.random() * 0.4, e.p[1] - 0.6);
+    } else if (e.type === 'emoji') ui.toast(`${e.von}: ${e.e}`, 2200);
+  }
+  onlR.events.length = 0;
+}
+
 function startRace(opts = {}) {
+  if (PROBE_N) { startOnlineProbe(opts).catch((e) => console.error('Online-Probe', e)); return; }   // n35 Mess-Probe
   replay = null;
   quitShow();
   if (cine) { cine = null; ui.hideCine(); }
@@ -690,7 +806,9 @@ async function setTheme(v) {
 }
 function setAssist(k) { store.settings.assist = k; store.save(); if (race) race.setAssist(k); timeScale = gameSpeed(k); if (k === 'easy' && ghostVis) ghostVis.root.visible = false; ui.refresh(); ui.assistChanged(); }
 function setPaint(c) { store.settings.paint = c; store.save(); carVis.setPaint(c); }
-function toMenu() { mode = 'menu'; replay = null; quitShow(); if (cine) { cine = null; ui.hideCine(); } sound.stop(); race = new Race(env, { assist: store.settings.assist, countdown: 1e9 }); gegnerAus(); ui.showMenu(env); }
+function toMenu() { mode = 'menu'; replay = null; quitShow(); if (cine) { cine = null; ui.hideCine(); } sound.stop(); race = new Race(env, { assist: store.settings.assist, countdown: 1e9 }); gegnerAus(); ui.showMenu(env);
+  if (onlR) { onlR = null; onlVis = null; timeScale = gameSpeed(store.settings.assist); }   // n35: Online-Rennen verlassen → Lobby (der Raum bleibt)
+  if (onl && onl.aktiv && onlA) onlA.zeigeLobby(); }
 // n34-Nachtrag: Schaden je Bild – Heldenauto (Rennen: aktueller Stand; Replay/Film: Stand zur Replay-Zeit aus dem Verlauf),
 // Trümmer fliegen (Spielzeit), Rauch aus dem Motorraum ab ~70 % (Mittelmotor: über dem Heckdeck)
 const rauchT = { t: 0 };
@@ -842,6 +960,7 @@ function endShow(skipped = false, quiet = false) {
   for (let k = 0; race.state === 'finished' && race.finT < ZIEL.rec && k < 2000; k++) { race.step(DT, zero); if (gegner) gegner.step(DT, race); }
   race.events.length = 0;
   rig.init = false; prevPose = null; blurCut = true;
+  if (onlR && onlA) { onlA.zeigeErgebnis(); return; }   // n35: statt Film/Ergebnis die gemeinsame Zieltabelle
   ensureFilm();
   if (cineWanted() && startCine(res)) return;
   ui.showResult(race, res, env);
@@ -911,7 +1030,7 @@ function rotated(p) {
     ui.toast(p ? '📱 Hochformat' : '📱 Querformat');
   }
 }
-function togglePause() { if (mode !== 'race') return; frozen = !frozen; ui.showPause(frozen); if (frozen) sound.stop(); else sound.start(); }
+function togglePause() { if (mode !== 'race') return; if (onlR && !frozen) { ui.toast('Online läuft die Zeit weiter – kein Pausieren', 1800); return; } frozen = !frozen; ui.showPause(frozen); if (frozen) sound.stop(); else sound.start(); }
 
 // ---------- Schleife ----------
 let cpuLast = null;   // n30: CPU-Arbeitszeit des letzten Bildes (Qualitäts-Autopilot)
@@ -938,14 +1057,17 @@ function frame(now) {
   // Extras: Leertaste (Gamepad B) = Hüpfer, Shift/N (Gamepad RB) = Nitro
   if (input.consume('Space') && mode === 'race' && !frozen) race.requestHop();
   if ((input.consume('KeyN') | input.consume('ShiftLeft') | input.consume('ShiftRight')) && mode === 'race' && !frozen) race.requestNitro();
+  if (onl) onl.takt();   // n35: Netz (Quittungen, Uhr-Abgleich, Lobby) – auch im Menü
   if (!frozen && mode === 'race') {
     acc += rdt * timeScale;
     let steps = 0;
+    if (onlR) { onlR.frame(); onlineVisPruefen(); }   // n35: Countdown/Rennuhr nach Sitzungsuhr
     while (acc >= DT && steps < 14) {
       prevPose = race.car.snapshot();
-      if (gegner) gegnerVis.merke(gegner);
+      if (onlR) gegnerVis.merke(onlVis); else if (gegner) gegnerVis.merke(gegner);
       race.step(DT, inp);
       if (gegner) gegnerSchritt();
+      if (onlR) onlR.schritt(DT);   // n35: fremde Autos auf diesen Schritt, Kollision, Rempler
       if (schadenSp) schadenSchritt();
       if (ghost) ghost.advance(DT, race);
       if (fx) fx.step(DT, race.car, race.state);
@@ -953,6 +1075,7 @@ function frame(now) {
       acc -= DT; steps++;
     }
     if (steps >= 14) acc = 0;
+    if (onlR) onlineNachFrame();   // n35: senden, Zeitnahme, Ziel melden (vor handleEvents: braucht race.events)
     handleEvents();
     if (show) showTick();
   } else if (mode === 'replay' && replay && cine) {
@@ -1022,6 +1145,13 @@ function handleEvents() {
     if (e.type === 'rewind' && schadenSp) {
       if (!e.keepClock) schadenSp.zurueck(race.recFrames() / REC_HZ);
       else { const sn = race.snaps[race.snaps.length - 1]; if (sn) schadenSp.zurueckAuf(sn.recLen / REC_STRIDE / REC_HZ, race.recFrames() / REC_HZ); }
+    }
+    if (e.type === 'finish' && onlR) {
+      // n35: Online zählt nicht in die Solo-Bestzeiten (Liste „Online“ nach der Zieltabelle, game/onlinespiel.js)
+      const res = { online: true, isBest: false, prev: null, time: race.finalTime };
+      ui.lastRace = race; ui.lastRes = res;
+      startShow(res);
+      continue;
     }
     if (e.type === 'finish') {
       const res = store.submit(env.meta.key, race.assistKey, race.wreckOn, race.finalTime, race.assistKey === 'easy' ? null : race.ghostRec(), { ...env.meta, penalties: race.penalties, extras: race.extrasOn, nitro: race.nitroLog, splits: race.autopilotOnly ? null : race.splits, gegner: gegner ? gegner.fahrer.length : 0, gummi: !!(gegner && gegner.opt.aufholhilfe) });
@@ -1253,7 +1383,8 @@ function render(rdt) {
   if (ghost && ghostVis.root.visible && mode === 'race') { ghost.sync(ghostVis); ghostVis.setNitro(ghost.nitro(), frozen ? 0 : rdt); }
   karteTick(rdt, pose);   // n39
   // n34 KI-Gegner: Rennen aus der Physik (interpoliert), Replay/Kino-Replay aus der Aufzeichnung (Rennzeit = Replay-Uhr)
-  if (gegner && mode === 'race' && GEGNER_VIS_AUS) gegnerVis.hide();   // Mess-Schalter ?gegnervis=0 (Mess-Gate: Anteil Darstellung)
+  if (onlR && mode === 'race') gegnerVis.sync(onlVis, camera, prevPose && !frozen ? Math.min(1, acc / DT) : 1);   // n35: fremde Autos (+ KI des Gastgebers)
+  else if (gegner && mode === 'race' && GEGNER_VIS_AUS) gegnerVis.hide();   // Mess-Schalter ?gegnervis=0 (Mess-Gate: Anteil Darstellung)
   else if (gegner && mode === 'race') gegnerVis.sync(gegner, camera, prevPose && !frozen ? Math.min(1, acc / DT) : 1);
   else if (gegnerRec && mode === 'replay' && replay) gegnerVis.syncReplay(gegnerRec, replay.t, camera);
   else if (gegnerVis && gegnerVis.aktiv && mode === 'menu') gegnerVis.hide();
@@ -1275,7 +1406,7 @@ function render(rdt) {
   if (lineViz && lineViz.mat && LINE_LEVELS[store.settings.line] && LINE_LEVELS[store.settings.line].opacity) lineViz.mat.uniforms.uOpacity.value = Math.min(0.9, LINE_LEVELS[store.settings.line].opacity * (1 + (env && env.zeitLook ? env.zeitLook.line : 0)));
   sky.position.copy(camera.position);
   if (mode === 'race' && race) { ui.hud(race, env, ghost); sound.update(race.car, rdt, race.state, { cockpit: rig.view === 'cockpit' }); }
-  if (mode === 'race' && race) ui.hudGegner(gegner && race.state !== 'countdown' ? gegner : null, race);
+  if (mode === 'race' && race) ui.hudGegner(race.state === 'countdown' ? null : onlR || gegner, race);
   if (mode === 'replay' && replay && cine) { ui.cineHud(cine); cineSound(rdt); cine.stats.frames++; }
   else if (mode === 'replay' && replay) ui.replayHud(replay);
   // Cockpit: Außenkarosserie ausblenden (ragt sonst ins Bild), Innenraum im zweiten Durchgang darüber
@@ -1419,14 +1550,15 @@ function karteTick(rdt, pose) {
     geist: ghost && ghostVis.root.visible && ghost.data ? ghost.pose.pos : null,
   });
   // n34: Gegner als Punkte in ihrer Lackfarbe (Lage aus dem Bild, also interpoliert); wer vor dir liegt, ist größer
-  if (gegner && gegnerVis.aktiv) {
+  const KF = onlR ? onlVis : gegner;   // n35: online fremde Autos (+ KI)
+  if (KF && gegnerVis.aktiv) {
     const M = karteMarken, p0 = race.tracker.progress();
     M.length = 0;
-    gegner.fahrer.forEach((g, i) => {
+    KF.fahrer.forEach((g, i) => {
       const A = gegnerVis.autos[i];
       if (!A || !A.car.root.visible) return;
       const r = A.car.root.position;
-      M.push({ pos: [r.x, r.y, r.z], farbe: g.info.farbe, groesse: g.fortschritt() > p0 ? 10 : 8 });
+      M.push({ pos: [r.x, r.y, r.z], farbe: g.info.farbe, groesse: (g.fortschritt ? g.fortschritt() : g.car.fort) > p0 ? 10 : 8 });
     });
     karte.setMarkers(M);
   } else if (karte.marken.length) karte.setMarkers([]);
@@ -1500,6 +1632,7 @@ window.__game = {
   get fx() { return fx; }, get sound() { return sound; },
   get carVis() { return carVis; }, get ghostVis() { return ghostVis; }, get ghost() { return ghost; },
   get gegner() { return gegner; }, get gegnerVis() { return gegnerVis; },   // n34 (Mess-/Abnahme-Skripte)
+  get online() { return { spiel: onl, rennen: onlR, ansicht: onlA, aktion: onlineAktion }; },   // n35 (Abnahme-Skripte, zwei Pages)
   get schaden() { return schadenSp; }, get truemmer() { return truemmer; },   // n34-Nachtrag
   // Abnahme-Haken: Treffer am Spieler-Auto auslösen (Auto-Koordinaten, Außen-Normale, Stoß-Tempo m/s), z. B. für Bilder
   // leicht/mittel/stark beschädigt: __game.treffer([0, 0, -2.4], [0, 0, -1], 25)

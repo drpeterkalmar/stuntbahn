@@ -1,0 +1,34 @@
+{
+ "pins": {
+  "@trystero-p2p/core": "0.26.0",
+  "@trystero-p2p/nostr": "0.26.0",
+  "@trystero-p2p/mqtt": "0.26.0",
+  "@noble/secp256k1": "3.2.0",
+  "mqtt": "5.16.1"
+ },
+ "sha256": {
+  "LICENSE": "bbf91fd979faac0def9551c570e2e9f92b4e02d22f38ca5d98860b6284e1ea25",
+  "LICENSE-mqtt": "81b51ef8ac2a8ac8f111ed34ab1a32d63e7f4f7de586bd65f5510fb1ba3a89eb",
+  "LICENSE-noble-secp256k1": "394c2e6e5552e5dba202bee6390b9d6aa2754d657f5b9869e83b3d265a315501",
+  "core/action-receiver.js": "3a3eef3b55affabf6ba2c075baa46ceb345b05b35a6ae2ddc1eccbec95cb4edc",
+  "core/action-wire.js": "efe02dac77bdf17974f5405219ccd9607f07e77160af0ae90910f81ff902244d",
+  "core/actions.js": "793f9ef43ebb37aab4793e0bf60319cc6817caeb07bc50d18994a310c604c59f",
+  "core/crypto.js": "f7862a6a28ab49de02f74ec1de1bef81bf9edcde24544debcc287612141b7347",
+  "core/data-limits.js": "a9bfefafa9c2be3b78ba2d5a8fe12ec9a766e7a30dc93cf6b1dd881b2ebb0089",
+  "core/handshake.js": "72edf7223d721b7d0f510ebc367e141203163e71820bd1258b3ad7472f471a19",
+  "core/index.js": "4a8bbdbca66f269beb24e059014e852b673f5632b444d0269ecb7cc0780a43d4",
+  "core/media.js": "d1646c69063c95346f3068d6b28834b0f6403b9de96b996acf6122de87ac3eca",
+  "core/offer-manager.js": "8da99cb23562d13fb890726c519c1fd51edc3c8f0123592502371ba8acae03a2",
+  "core/peer.js": "c94019f03ecc2e726ade58ee0327ff1c06e0b17f7cb758c02c21135e7e745280",
+  "core/room.js": "2ca810bbe90f71465999895c79d70cf08ac8c95620001ebb61af9625059803e0",
+  "core/shared-peer.js": "0ee3b6e05e70bccf83c5e1894b0d48723f898e2bcececa1711d1772bd001aeb2",
+  "core/signal-handler.js": "16e1fca5bc412ec026533b3725b74bc115a679eb04b5f7d2e11c79233c352ed7",
+  "core/strategy.js": "37003043be0c69a731e8fbb8faa432b9408cde3a0d22684a0f79f620a3cfcb83",
+  "core/topic-strategy.js": "5dcc5a9e62538145d63bd9711bc0d2bed76c7b277bbdf02b6471a78e7ab50164",
+  "core/utils.js": "0b1565acc74094af14166d25efa328ad0f20d2c5121db125a754945f95cbbb53",
+  "mqtt.esm.js": "1bf8d0a77809e4f2ae8ce48f213e96f3c5bc7cea7806741f32bcd8407296b066",
+  "mqtt.js": "5623b0cea690e9424c4d475383fcb98a90dea3f28411bce89aab026507cfd244",
+  "noble-secp256k1.js": "ba5aadb469e9208f2da1c9878ab6bb93d2c894f84e6c7ebf9dbf9462741b9fb7",
+  "nostr.js": "449d70d712074932031255bb2504463765a0ffe9988d1ba7e215ae5b4386b7d5"
+ }
+}

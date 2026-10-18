@@ -461,3 +461,18 @@ body[data-orient="hoch"] #cine .cskip { top: auto; bottom: max(16px, calc(var(--
 @keyframes rglow { 0%, 100% { text-shadow: none; transform: scale(1); } 50% { text-shadow: 0 0 18px #ffb02a; transform: scale(1.06); } }
 @keyframes rfade { 0% { opacity: 0; transform: translateY(-6px); } 100% { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { #result .card.deko .rtime, #result .card.deko .rec, #result .card.deko h2 { animation: none; } #result .card.deko .rtime { background-position: 50% 0; } }
+/* n35 Online-Menü (Grundgerüst; Feinschliff nach Browser-Abnahme) */
+.onl { display: flex; flex-direction: column; gap: 10px; }
+.onl p { margin: 0; line-height: 1.4; }
+.onlab { display: flex; flex-direction: column; gap: 4px; font-weight: 600; }
+.onl input { font: inherit; font-size: 18px; padding: 10px 12px; border-radius: 12px; border: 1px solid #ffffff33; background: #00000055; color: #fff; min-height: 48px; }
+.onjoin input { flex: 1 1 8em; text-transform: uppercase; letter-spacing: .12em; font-weight: 800; }
+.oncode { text-align: center; font-size: 20px; }
+.oncode b { display: block; font-size: 44px; letter-spacing: .14em; font-variant-numeric: tabular-nums; }
+.onqr { align-self: center; width: min(46vw, 200px); background: #fff; border-radius: 10px; padding: 4px; }
+.onqr svg { display: block; width: 100%; height: auto; }
+.onstr { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-weight: 700; }
+.onstr button { font-size: 14px; padding: 6px 10px; border-radius: 10px; background: #ffffff14; border: 1px solid #ffffff22; }
+.onhin { font-size: 14px; background: #ffffff12; border-radius: 10px; padding: 6px 10px; }
+.onlist td:nth-child(3), .onlist td:nth-child(5) { text-align: center; width: 2em; }
+button.big.aus { opacity: .5; }
