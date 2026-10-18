@@ -787,6 +787,7 @@ export class UI {
   // Leicht: keine Bestzeit, stattdessen die letzte Zeit auf dieser Strecke
   hudBest(race, env) {
     const k = this.store.settings.assist;
+    if (race.online) { const o = this.store.onlineBest && this.store.onlineBest(env.meta.key); $('#hud .best').textContent = o ? 'Online-Beste ' + fmtTime(o.t) : ''; return; }   // n35: eigene Liste
     if (k === 'easy') { const l = this.store.timesFor(env.meta.key)[0]; $('#hud .best').textContent = l ? 'Zuletzt ' + fmtTime(l.t) : ''; return; }
     const b = this.store.bestFor(env.meta.key, k, race.wreckOn, undefined, !!race.mitGegnern);   // n34: Liste „mit Gegnern“
     $('#hud .best').textContent = b ? 'Beste ' + fmtTime(b.time) : '';
