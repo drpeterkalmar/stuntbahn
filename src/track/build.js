@@ -327,7 +327,9 @@ export function buildTrack(layout, opt = {}) {
     }
     const W = Dat ? (f, y, r) => [E[0] + F[0] * f + R[0] * r, y + base + Dat(f, r), E[2] + F[2] * f + R[2] * r] : (f, y, r) => [E[0] + F[0] * f + R[0] * r, y + base, E[2] + F[2] * f + R[2] * r];
     // Boden unter einem Weltpunkt relativ zum (unangehobenen) Stück: Gelände-Strecken messen gegen die Landschaft
-    const gAt = Dat ? (x, z) => { const dx = x - E[0], dz = z - E[2]; return gel.land.h(x, z) - Dat(dx * F[0] + dz * F[2], dx * R[0] + dz * R[2]); } : groundAt;
+    // n33: Spiralen-Hochstraße im Gelände (g = 'sb'): das Gelände liegt dort eingeebnet auf Sockelhöhe – Pfeiler bis 1,5 m
+    // darunter (am Rand des Sockels und am Teich unter der Brücke fällt das Gelände etwas ab; sonst schwebten Pfeilerfüße)
+    const gAt = Dat ? (gx && gx.rigid && pc.g === 'sb' ? () => -1.5 : (x, z) => { const dx = x - E[0], dz = z - E[2]; return gel.land.h(x, z) - Dat(dx * F[0] + dz * F[2], dx * R[0] + dz * R[2]); }) : groundAt;
     const tiltAt = Dat && pc.tilt0 != null ? (f) => pc.tilt0 + (pc.tilt1 - pc.tilt0) * smootherstep(f / TILE) : null;
     const Wv = (v) => [F[0] * v[0] + R[0] * v[2], v[1], F[2] * v[0] + R[2] * v[2]];
     const nd = (d + (P.turn ? (m > 0 ? 1 : 3) : 0)) % 4;

@@ -226,5 +226,40 @@ console.log('--- G: HUD, Highlights, Grafik, Menü ---');
   check(P('4711-2-gh') === '4711|2|g|h' && P('4711-2-3dh') === '4711|2|3d|h' && P('4711-2-h') === '4711|2||h' && P('4711-2-g') === '4711|2|g|' && P('4711-2') === '4711|2||' && P('4711') === '4711|||', 'Code-Eingabe: 4711-2-gh / -3dh / -h (Version 2), ohne „h“ Version 1');
 }
 
+// n33 Heavy: Spiralen-Hochstraße auch im Gelände (Sockel-Gruppe „sb“): gesetzt, Gelände darunter auf Sockelhöhe (Fahrbahn
+// nie unter dem Gelände, Spiral-Einfahrt unter der Ausfahrt frei), Pfeiler stehen auf dem Sockel, Prüffahrt ohne Entschärfen
+console.log('--- G: Spirale im Gelände ---');
+{
+  const { generateGel } = await import('../../src/track/generatorG.js');
+  const { buildTrack } = await import('../../src/track/build.js');
+  let n = 0, mit = 0, ok = 0, clr = 1e9, pierBad = 0, nPier = 0;
+  for (let seed = 1; seed <= 24; seed++) for (const d of [2, 3]) {
+    const lay = generateGel(seed, d, { gv: 2 }); n++;
+    const sb = lay.pieces.filter((p) => p.g === 'sb');
+    if (!sb.length) continue;
+    mit++;
+    if (mit > 6) continue;
+    check(sb.length === 3 && sb[0].lvl === 0 && sb[1].type === 'bridge' && sb[1].lvl === 1 && sb[2].lvl === 1 && (sb[0].type === 'spiral' || sb[2].type === 'spiral'), `${lay.meta.key}: ${sb.map((p) => p.type).join(' → ')}`);
+    const t = buildTrack(lay, { treeCount: 0, tagCol: true }), L = t.line, I = t.pieces, T = t.terrain;
+    lay.pieces.forEach((p, k) => { if (p.g === 'sb') for (let i = I[k].lineStart; i <= I[k].lineEnd; i++) clr = Math.min(clr, L.py[i] - T.height(L.px[i], L.pz[i])); });
+    // Pfeiler (senkrechte Beton-Kästen der sb-Stücke): Fuß auf dem Gelände (±0,6 m)
+    const C = t.col, ks = new Set(lay.pieces.map((p, k) => (p.g === 'sb' ? k : -1)).filter((k) => k >= 0));
+    const feet = new Map();
+    for (let q = 0; q < C.mat.length; q++) {
+      if (!ks.has(C.piece[q])) continue;
+      const o = q * 9; if (Math.abs(C.nrm[o + 1]) > 0.05) continue;   // nur senkrechte Flächen
+      const ys = [C.pos[o + 1], C.pos[o + 4], C.pos[o + 7]];
+      if (Math.max(...ys) - Math.min(...ys) < 3) continue;   // hohe senkrechte Fläche = Pfeiler
+      for (const v of [0, 3, 6]) { const kx = Math.round(C.pos[o + v] * 2) + ',' + Math.round(C.pos[o + v + 2] * 2); const y = C.pos[o + v + 1]; if (!feet.has(kx) || feet.get(kx)[0] > y) feet.set(kx, [y, C.pos[o + v], C.pos[o + v + 2]]); }
+    }
+    for (const [y, x, z] of feet.values()) { nPier++; const dy = y - T.height(x, z); if (dy > 0.25 || dy < -3) { pierBad++; if (process.env.PDBG) console.log('  Fuß', lay.meta.key, (y - T.height(x, z)).toFixed(2), 'Gelände', T.height(x, z).toFixed(1)); } }
+    if (verifySync(lay).ok) ok++;
+  }
+  check(mit >= 12, `Gelände Version 2 (Sportlich/Irre): Spiralen-Hochstraße in ${mit} von ${n} Strecken`);
+  check(clr > 0.05, `Fahrbahn der Spiralen-Hochstraße überall über dem Gelände (kleinster Abstand ${clr.toFixed(2)} m)`);
+  check(nPier > 20 && pierBad === 0, `Pfeiler-Füße im Boden (bis 3 m tief, keiner schwebt mehr als 0,25 m): ${nPier - pierBad}/${nPier}`);
+  check(ok === Math.min(mit, 6), `Prüffahrt ohne Entschärfen: ${ok}/${Math.min(mit, 6)}`);
+}
+
 console.log(fails ? `FEHLER: ${fails}` : 'Hindernisse n33: alle Prüfungen grün');
 process.exit(fails ? 1 : 0);

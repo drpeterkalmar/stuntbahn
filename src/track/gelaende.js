@@ -381,7 +381,8 @@ export function buildGelTerrain(ctx) {
     kindOf[i] = type === 'bank' ? 'bank' : type === 'halfpipe' ? 'hp' : pc && pc.tilt0 != null ? 'tilt' : RIGID.has(type) ? 'rigid' : 'road';
     w0[i] = kindOf[i] === 'bank' ? ENV.w0Bank : kindOf[i] === 'hp' || kindOf[i] === 'rigid' ? ENV.w0Rigid : ENV.w0;
     // Bezugshöhe: Fahrbahn (Mittellinie) – auf Stunt-Sockeln die Sockelhöhe (Schanze, Looping stehen darauf)
-    ub[i] = pl.rigid && ON_BASE.has(type) ? pl.c : L.py[i];
+    // n33: Spiralen-Hochstraße (g = 'sb', nur Generator-Version 2) ebenso – darunter bleibt das Gelände auf Sockelhöhe
+    ub[i] = pl.rigid && (ON_BASE.has(type) || (pc && pc.g === 'sb')) ? pl.c : L.py[i];
     // seitliche Neigung der Fahrbahn (m je m nach rechts)
     const bh = Math.hypot(L.bx[i], L.bz[i]) || 1;
     sl[i] = L.by[i] / bh;

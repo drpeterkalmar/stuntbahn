@@ -6,7 +6,7 @@
 //    Schluchtsprung, Halfpipe im Tal, Plateau-Abfahrt (Drop); dazu Stunts (Looping, Röhre, Korkenzieher, Wellen …) auf
 //    Gelände-Sockeln. Tunnel und Brücken entstehen außerdem von selbst, wo die Fahrbahn tief unter bzw. hoch über der
 //    Landschaft läge.
-import { GRID } from './defs.js';
+import { GRID, HINDERNIS2 } from './defs.js';
 import { rng } from '../core/util.js';
 import { pieceCells, PIECES } from './pieces.js';
 import { DIFFS, bump, dirIdx, trackName, hindFilter, genV, HIND_FALLBACK } from './generator.js';
@@ -24,14 +24,18 @@ export const GD = {
 };
 // n33 Generator-Version 2: Zickzack-Barriere und Röhre mit Wand auf Gelände-Sockeln (Pflicht wie flach: Sanft die kurze
 // Zickzack, Sportlich Zickzack, Irre Zickzack + Röhre mit Wand)
+// n33 Heavy: Spiralen-Hochstraße auch im Gelände („sbridge“ wie flach: Spirale hinauf → Brücke → Spirale oder Rampe hinunter),
+// als eine Sockel-Gruppe – das Gelände bleibt darunter auf Sockelhöhe (gelaende.js, Stück-Merkmal g = 'sb'), die Pfeiler
+// stehen darauf (build.js); so überquert die Spirale sich selbst ohne zweite Geländehöhe an derselben Stelle
 export const GD2 = {
   1: { ...GD[1], must: ['loop', 'zigzag2'] },
-  2: { ...GD[2], must: ['loop', 'zigzag', 'jump'], types: { ...GD[2].types, chicane: 1, zigzag: 2, tube_wall: 2 } },
-  3: { ...GD[3], must: ['loop', 'zigzag', 'tube_wall', 'jump', 'tube'], types: { ...GD[3].types, chicane: 1, zigzag: 2, tube_wall: 2 } },
+  // (Sportlich/Irre etwas größere Grundform: Platz für die Spiralen-Hochstraße neben den Pflicht-Stunts)
+  2: { ...GD[2], w: [15, 19], h: [11, 14], must: ['loop', 'zigzag', 'jump'], types: { ...GD[2].types, chicane: 1, zigzag: 2, tube_wall: 2 }, sb: 0.5 },
+  3: { ...GD[3], w: [16, 21], h: [12, 15], must: ['loop', 'zigzag', 'tube_wall', 'jump', 'tube'], types: { ...GD[3].types, chicane: 1, zigzag: 2, tube_wall: 2 }, sb: 0.6 },
 };
-const LEN = { straight: 1, checkpoint: 1, bumps: 1, chicane: 2, loop: 2, tube: 2, jump: 3, waves: 3, tr_corklr: 2, halfpipe: 3, cliff: 3, cliff2: 3, zigzag: 3, zigzag2: 2, tube_wall: 2 };
-const RUNUP = { bumps: 0, chicane: 0, loop: 1, tube: 0, jump: 1, waves: 0, tr_corklr: 1, halfpipe: 1, cliff: 1, cliff2: 1, zigzag: 1, zigzag2: 1, tube_wall: 1 };
-const AFTER = { bumps: 0, chicane: 0, loop: 1, tube: 1, jump: 1, waves: 0, tr_corklr: 1, halfpipe: 1, cliff: 1, cliff2: 1, zigzag: 1, zigzag2: 1, tube_wall: 1 };
+const LEN = { straight: 1, checkpoint: 1, bumps: 1, chicane: 2, loop: 2, tube: 2, jump: 3, waves: 3, tr_corklr: 2, halfpipe: 3, cliff: 3, cliff2: 3, zigzag: 3, zigzag2: 2, tube_wall: 2, sbridge: 5 };
+const RUNUP = { bumps: 0, chicane: 0, loop: 1, tube: 0, jump: 1, waves: 0, tr_corklr: 1, halfpipe: 1, cliff: 1, cliff2: 1, zigzag: 1, zigzag2: 1, tube_wall: 1, sbridge: 0 };
+const AFTER = { bumps: 0, chicane: 0, loop: 1, tube: 1, jump: 1, waves: 0, tr_corklr: 1, halfpipe: 1, cliff: 1, cliff2: 1, zigzag: 1, zigzag2: 1, tube_wall: 1, sbridge: 0 };
 const key = (p) => p[0] + ',' + p[1];
 
 export function rectCycle(r, D) {
@@ -88,6 +92,9 @@ export function serpentine(cyc, r) {
 export function generateGel(seed, diff, opts = {}) {
   const v2 = genV(opts) === 2;
   const D = v2 ? hindFilter(GD2[diff]) : GD[diff], base = DIFFS[diff];
+  // abgeschaltete Spirale (?spirale2=0) wird flach zur Fluss-Brücke – die gibt es im Gelände nicht (Brücken entstehen dort
+  // von selbst über Tälern)
+  if (D.types.bridge) { const { bridge, ...rest } = D.types; void bridge; D.types = rest; }
   for (let attempt = 0; attempt < 40; attempt++) {
     const r = rng(((seed >>> 0) * 7919 + diff * 104729 + (opts.variant || 0) * 7727 + attempt * 31337 + 0x6e1) >>> 0);
     const lay = tryBuild(r, D, base, diff, seed, v2);
@@ -160,13 +167,35 @@ function tryBuild(r, D, base, diff, seed, v2 = false) {
     for (let q = lo; q <= hi; q++) if (q >= s && q < s + (LEN[t] || 1) ? !plain(q) : !runway(q)) return false;
     return true;
   };
+  // n33: Spiralen brauchen die beiden Felder daneben (links oder rechts, frei, im Raster) – wie generator.js sbridgePlan
+  const spiralSide = (q, m) => {
+    const c = C[out[q].at], d = dr[(out[q].at - 1 + n) % n];
+    const cells = pieceCells('spiral', c[0], c[1], d, m).cells.slice(2);
+    for (const w of cells) if (used.has(key(w)) || w[0] < 2 || w[1] < 2 || w[0] > GRID - 3 || w[1] > GRID - 3) return null;
+    return cells;
+  };
+  const sbridgePlan = (q) => {
+    const opt = (k) => { const ms = r.chance(0.5) ? [1, -1] : [-1, 1]; for (const m of ms) { const c = spiralSide(k, m); if (c) return { t: 'spiral', m, cells: c }; } return null; };
+    let up = r.chance(0.7) ? opt(q) : null, dn = r.chance(0.6) ? opt(q + 3) : null;
+    if (!up && !dn) { up = opt(q); if (!up) dn = opt(q + 3); }
+    if (!up && !dn) return null;
+    if (up && dn && up.cells.some((a) => dn.cells.some((b) => a[0] === b[0] && a[1] === b[1]))) dn = null;
+    return { up: up || { t: 'slope2', m: 1, cells: [] }, dn: dn || { t: 'slope2', m: 1, cells: [] } };
+  };
   const place = (t, s, extra = {}) => {
+    if (t === 'sbridge') {
+      const sb = sbridgePlan(s);
+      if (!sb) return false;
+      out[s].sb = sb;
+      for (const w of [...sb.up.cells, ...sb.dn.cells]) used.add(key(w));
+    }
     if (t === 'zigzag' || t === 'zigzag2') out[s].m = r.chance(0.5) ? 1 : -1;   // n33: Seite des ersten Blocks
     out[s].t = t; out[s].cells = LEN[t]; Object.assign(out[s], extra);
     for (let q = s + 1; q < s + LEN[t]; q++) out[q].t = 'skip';
     for (let q = s; q < s + LEN[t]; q++) out[q].lock = 1;
     for (let q = s - (RUNUP[t] ?? 1); q < s + LEN[t] + (AFTER[t] ?? 1); q++) if (out[q] && !out[q].lock) out[q].soft = 1;
     elems[extra.g || t] = (elems[extra.g || t] || 0) + 1;
+    return true;
   };
   const cands = (t) => { const c = []; for (let s = 2; s < N; s++) if (fits(t, s)) c.push(s); return c; };
   const spread = (c) => {
@@ -185,6 +214,11 @@ function tryBuild(r, D, base, diff, seed, v2 = false) {
   // --- 3) Pflicht-Stunts (die Schanze oft als Schluchtsprung), dann Gelände-Elemente: Kuppe, Hang, Tunnel, Drop, Halfpipe
   const cliffT = (lv) => (lv === 2 ? 'cliff2' : 'cliff');
   let gorgeDone = false;
+  // n33: Spiralen-Hochstraße (Chance D.sb, nur Version 2, vor den übrigen Elementen – braucht den längsten Platz, die Grundform ist dafür etwas größer; Platz für 5 Geraden + Anlauf und die Felder neben der Spirale)
+  if (D.sb && HINDERNIS2.spirale && r.chance(D.sb)) {
+    const c = cands('sbridge');
+    for (let k = 0; k < 6 && c.length; k++) { const s = spread(c); if (place('sbridge', s)) break; c.splice(c.indexOf(s), 1); }
+  }
   if (r.chance(D.gorge)) { const c = cands('jump'); if (c.length) { place('jump', spread(c), { g: 'gorge' }); gorgeDone = true; } }
   if (r.chance(D.drop)) {
     const lv = diff === 3 && r.chance(0.5) ? 2 : 1, t = cliffT(lv);
@@ -247,6 +281,14 @@ function tryBuild(r, D, base, diff, seed, v2 = false) {
   for (const o of out) {
     if (o.t === 'skip') continue;
     const c = C[o.at];
+    if (o.t === 'sbridge' && o.sb) {
+      // Spirale (oder Rampe) hinauf → Brücke (Ebene 1) → Spirale (oder Rampe) hinunter, alle als Sockel-Gruppe „sb“
+      const d = o.at === 0 ? dr[0] : dr[(o.at - 1 + n) % n], F = [[1, 0], [0, 1], [-1, 0], [0, -1]][d];
+      pieces.push({ type: o.sb.up.t, i: c[0], j: c[1], d, m: o.sb.up.m, lvl: 0, h1: 1, g: 'sb' });
+      pieces.push({ type: 'bridge', i: c[0] + F[0] * 2, j: c[1] + F[1] * 2, d, m: 1, lvl: 1, g: 'sb' });
+      pieces.push({ type: o.sb.dn.t, i: c[0] + F[0] * 3, j: c[1] + F[1] * 3, d, m: o.sb.dn.m, lvl: 1, h1: 0, g: 'sb' });
+      continue;
+    }
     const pc = { type: o.t, i: c[0], j: c[1], d: o.at === 0 ? dr[0] : dr[(o.at - 1 + n) % n], m: o.m || 1, lvl: o.lvl || 0 };
     if (o.h1 != null) pc.h1 = o.h1;
     if (o.g) pc.g = o.g;
