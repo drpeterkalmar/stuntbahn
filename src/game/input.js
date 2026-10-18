@@ -33,6 +33,8 @@ export class Input {
     this.steerSmooth = 0;
     addEventListener('keydown', (e) => {
       if (e.repeat) return;
+      // n35: Tippen in Eingabefeldern (Online-Menü: Name, Raumcode) ist keine Spiel-Taste (Leertaste, C, M …)
+      if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
       this.keys.add(e.code);
       this.pressed.add(e.code);
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) e.preventDefault();

@@ -303,7 +303,7 @@ export class UI {
         <div class="lbl">Fahrhilfe</div>
         <div class="seg" data-g="assist">${Object.entries(ASSISTS).map(([k, A]) => `<button data-a="assist" data-v="${k}" class="${S.assist === k ? 'on' : ''}">${A.icon} ${A.name}</button>`).join('')}</div>
         <div class="hint mhint" data-a="hintmore">${this.assistHint(S.assist)}</div>
-        <div class="row"><button data-a="gegnerwahl" class="themebtn gegnerbtn" title="Gegner: ${this.gegnerLabel()}" aria-label="Gegner: ${this.gegnerLabel()}">🏁 ${this.gegnerLabel()}</button></div>
+        <div class="row"><button data-a="gegnerwahl" class="themebtn gegnerbtn" title="Gegner: ${this.gegnerLabel()}" aria-label="Gegner: ${this.gegnerLabel()}">🏁 ${this.gegnerLabel()}</button>${this.onlineKnopf()}</div>
         <div class="lbl">Neue Strecke</div>
         <div class="segrow"><div class="seg" data-g="diff">${[1, 2, 3].map((d) => `<button data-a="diff" data-v="${d}" class="${(S.diff || 2) === d ? 'on' : ''}">${DIFFS[d].name}</button>`).join('')}</div><div class="seg mode" data-g="mode">${MODES.map(([k, ic, nm, tt]) => `<button data-a="mode" data-v="${k}" class="${S.trackMode === k ? 'on' : ''}" aria-pressed="${S.trackMode === k}" aria-label="${nm}" title="${nm}: ${tt}">${ic}</button>`).join('')}</div></div>
         <div class="row">
@@ -325,6 +325,12 @@ export class UI {
     this.setTouchMode(false);
     $('#hud').classList.remove('show');
     $('#replayui').classList.remove('show');
+  }
+  // n35 Online: Knopf im Menü (Vorbau: nur mit ?online=1 bzw. ?raum=) – im Raum „👥 Lobby AB-CD“
+  onlineKnopf() {
+    if (!this.a.onlineMenue && !(this.a.onlineLabel && this.a.onlineLabel())) return '';
+    const L = this.a.onlineLabel ? this.a.onlineLabel() : null;
+    return `<button data-a="online" class="themebtn onbtn" title="Mit Freunden fahren">👥 ${L ? 'Lobby ' + L : 'Online'}</button>`;
   }
   // Kulissen (n20): Einstellung „Landschaft“ – passend (aus Seed/Horizont) oder fest ein Thema für alle Strecken
   themeLabel(env) {
@@ -517,11 +523,11 @@ export class UI {
       case 'fahrstil': S.fahrstil = v; this.store.save(); if (window.__game && window.__game.race && !FAHRSTIL_URL) window.__game.race.fahrstil = v; if (this.screen === 'pause') this.showPause(true); else this.showSettings(); break;
       case 'brakehelp': S.brakeHelp = v; this.store.save(); if (window.__game && window.__game.race) window.__game.race.brakeHelp = v; this.showSettings(); break;
       case 'quality': S.quality = v; this.store.save(); A.quality.forced = v === 'auto' ? null : v; if (v !== 'auto') A.quality.tier = +v; dispatchEvent(new Event('resize')); this.showSettings(); break;
-      default: break;
+      default: if ((a === 'online' || a.startsWith('on')) && A.online) A.online(a, v, arguments[2]); break;   // n35 Online-Menü (ui/online.js)
     }
   }
-  sheet(title, html) {
-    $('#sheet').innerHTML = `<div class="card sheetc"><h2>${title}</h2><div class="scroll">${html}</div><button class="big" data-a="close">Zurück</button></div>`;
+  sheet(title, html, zurueck = 'close') {
+    $('#sheet').innerHTML = `<div class="card sheetc"><h2>${title}</h2><div class="scroll">${html}</div><button class="big" data-a="${zurueck}">Zurück</button></div>`;
     this.show('sheet');
   }
   // ---------- Importierte Strecken ----------

@@ -346,7 +346,8 @@ export class OnlineRennen {
   visFeld() {
     const fahrer = [];
     if (this.feld) for (const g of this.feld.fahrer) fahrer.push(g);
-    for (const X of this.autos.values()) fahrer.push({ car: X.auto, info: X.info, nummer: X.info.nummer, zustand: X.auto.flags.crash ? 'crash' : 'fahrt', schaden: null, id: X.sid || X.platz });
+    // (Liste nur neu, wenn sich die Autos ändern – version; Zustand daher als Getter)
+    for (const X of this.autos.values()) fahrer.push({ car: X.auto, info: X.info, nummer: X.info.nummer, get zustand() { return X.auto.flags.crash ? 'crash' : 'fahrt'; }, schaden: null, id: X.sid || X.platz });
     return { fahrer };
   }
 }
