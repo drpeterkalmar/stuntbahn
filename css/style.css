@@ -64,6 +64,20 @@ button.go { background: linear-gradient(180deg, #ff7a36, #e24e10); border-color:
 #hud .tl { position: absolute; top: max(10px, var(--sat)); left: max(14px, var(--sal)); text-shadow: 0 2px 4px #000c; }
 #hud .time { font-size: 30px; font-weight: 800; font-variant-numeric: tabular-nums; }
 #hud .best { font-size: 14px; opacity: .85; }
+/* n34 KI-Gegner: Platz und Abstände unter der Zeit (TODO n34-Heavy: Größe/Lage hoch + quer am Bild abstimmen) */
+#hud .gpos { display: none; margin-top: 4px; font-size: 15px; line-height: 1.25; }
+#hud .gpos.show { display: block; }
+#hud .gpos b { display: block; font-size: 20px; font-weight: 800; }
+#hud .gpos i { display: block; font-style: normal; font-size: 13px; opacity: .9; font-variant-numeric: tabular-nums; }
+#hud .gpos i.v { color: #ffd9a0; }
+#hud .gpos i.h { color: #b9e6ff; }
+#result .card > * { flex-shrink: 0; }   /* n34: lange Ergebnisse (Zieltabelle) scrollen statt Zeilen zu stauchen */
+.gnote { font-size: 13px; opacity: .85; line-height: 1.35; text-align: center; }
+.gtab { width: 100%; max-width: 420px; margin: 8px auto 2px; border-collapse: collapse; font-size: 15px; font-variant-numeric: tabular-nums; }
+.gtab td { padding: 3px 6px; border-bottom: 1px solid #ffffff1a; }
+.gtab td:nth-child(3), .gtab td:nth-child(4) { text-align: right; }
+.gtab tr.me td { font-weight: 800; color: #ffe08a; }
+.gtab .gnr { display: inline-block; min-width: 20px; padding: 0 4px; border-radius: 10px; text-align: center; color: #111; font-weight: 800; font-size: 12px; }
 #hud .tc { position: absolute; top: max(12px, var(--sat)); left: 50%; transform: translateX(-50%); font-size: 18px; font-weight: 700; text-shadow: 0 2px 4px #000c; }
 /* Schnell-Umschalter oben rechts: Zeile(n) von rechts, höchstens 4 je Zeile (hochkant 3) – Platz für weitere
    Knöpfe (die nächsten Zeilen wachsen nach unten); über der Touch-Fläche (z-index), fern von den Daumen */

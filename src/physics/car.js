@@ -572,6 +572,8 @@ export class Car {
       if (vn < 0) {
         // n37 Arcade: Leitwand (Normale quer zum Auto-Oben) – schrammen statt stoppen; Crash nur steil und schnell
         const wallHit = wallK > 0 && (kind === 2 || kind === 3) && Math.abs(nx * F.u.x + ny * F.u.y + nz * F.u.z) < Wd.up;
+        // Schadensmodell (n34, physics/schaden.js): Karosserie-Treffer (Dach, Front/Heck, Seite) melden – ändert die Physik nicht
+        if (this.onTreffer && kind >= 1 && kind <= 3) this.onTreffer(px, py, pz, nx, ny, nz, -vn, kind);
         if (!this.crash) {
           const info = { kind, vn: +vn.toFixed(1), n: [+nx.toFixed(2), +ny.toFixed(2), +nz.toFixed(2)], p: [+px.toFixed(1), +py.toFixed(1), +pz.toFixed(1)] };
           if (wallHit) { const vp2 = Math.hypot(vp.x, vp.y, vp.z); if (-vn > Wd.vn * wallK && (-vn > Wd.vnMax * wallK || -vn > Math.sin(Wd.ang) * vp2)) this.setCrash('Aufprall', info); }

@@ -1,5 +1,5 @@
 // Service-Worker: offline spielbar, Cache-Busting über Inhalts-Hash (tools/update_sw.py)
-const VERSION = '39977e9c21';
+const VERSION = '25ebe1ebc5';
 const CACHE = 'stuntbahn-' + VERSION;
 const ASSETS = [
   './',
@@ -65,6 +65,7 @@ const ASSETS = [
   'manifest.webmanifest',
   'src/ai/autopilot.js',
   'src/ai/drift.js',
+  'src/ai/gegner.js',
   'src/ai/ideal.js',
   'src/ai/profile.js',
   'src/audio/sound.js',
@@ -79,6 +80,7 @@ const ASSETS = [
   'src/game/jumpassist.js',
   'src/game/lohn.js',
   'src/game/race.js',
+  'src/game/rennfeld.js',
   'src/game/replay.js',
   'src/game/sammlung.js',
   'src/game/store.js',
@@ -96,6 +98,7 @@ const ASSETS = [
   'src/gfx/env.js',
   'src/gfx/fx.js',
   'src/gfx/gauges.js',
+  'src/gfx/gegnervis.js',
   'src/gfx/jumpdeck.js',
   'src/gfx/kern/autopilot.js',
   'src/gfx/kern/impostor.js',
@@ -113,6 +116,7 @@ const ASSETS = [
   'src/gfx/post.js',
   'src/gfx/pyro.js',
   'src/gfx/quality.js',
+  'src/gfx/schadenvis.js',
   'src/gfx/scheibe.js',
   'src/gfx/themes.js',
   'src/gfx/wetter.js',
@@ -121,9 +125,11 @@ const ASSETS = [
   'src/main.js',
   'src/physics/air.js',
   'src/physics/arcade.js',
+  'src/physics/autoauto.js',
   'src/physics/car.js',
   'src/physics/collide.js',
   'src/physics/extras.js',
+  'src/physics/schaden.js',
   'src/track/build.js',
   'src/track/deco.js',
   'src/track/defs.js',

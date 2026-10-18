@@ -483,6 +483,8 @@ export class Race {
     // Achterbahn-Wellen (dort ist die kurze Luftphase gewollt)
     car.haftOff = haftOffAt(this.env.track, idx);
     this.extrasStep(dt, idx);
+    // Schadensmodell „Mit Fahrfolgen“ (n34, nur Original + Totalschaden; null = aus): Ziehen, weniger Leistung, Wrack
+    if (this.schadenFolgen) this.schadenFolgen(car);
     car.step(dt, this.env.world);
     // Fortschritt / Checkpoints / Ziel
     let ti = this.tracker.update(car.pos.x, car.pos.y, car.pos.z);

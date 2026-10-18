@@ -19,7 +19,7 @@ import { CameraRig, CAM_MODES, CAM_NAMES, cockpitDash, clearLens } from './gfx/c
 import { Cockpit } from './gfx/cockpit.js';
 import { displayGear } from './gfx/gauges.js';
 import { Input } from './game/input.js';
-import { Race, ASSISTS, GAME_SPEEDS, GAME_SPEED_STD, FAHRSTIL_URL, REC_HZ } from './game/race.js';
+import { Race, ASSISTS, GAME_SPEEDS, GAME_SPEED_STD, FAHRSTIL_URL, REC_HZ, REC_STRIDE } from './game/race.js';
 import { UI } from './ui/ui.js';
 import { generate, demoLayout, galleryLayout, galleryGelLayout } from './track/generator.js';
 import { verify, prepare, probeLap } from './track/verify.js';
@@ -31,6 +31,10 @@ import { SHOWCASE, showcaseBytes } from './track/showcase.js';
 import { Sammlung } from './game/sammlung.js';
 import { Store, modeKey } from './game/store.js';
 import { Ghost } from './game/ghost.js';
+import { GegnerFeld, gegnerOptionen } from './ai/gegner.js';   // n34 KI-Gegner (Standard aus)
+import { GegnerVis } from './gfx/gegnervis.js';
+import { schadenModus, SchadenAuto, neuerSchaden } from './physics/schaden.js';   // n34-Nachtrag Schadensmodell (Standard aus)
+import { schadenZeigen, TruemmerVis } from './gfx/schadenvis.js';
 import { Replay } from './game/replay.js';
 import { buildFilm, FilmPlayer, HL } from './game/highlights.js';
 import { CineCam } from './game/cinecam.js';
@@ -154,6 +158,13 @@ window.__soundRef = sound;
 let env = null;          // aktuelle Strecke { track, world, ideal, prof, layout, meta }
 let worldGroup = null;
 let race = null, ghost = null, replay = null, lineViz = null, fx = null;
+// n34 KI-Gegner: Feld (Physik/KI, ai/gegner.js) nur im Rennen mit gewählten Gegnern, sonst null → alles wie bisher;
+// gegnerRec = Aufzeichnungen des letzten Rennens fürs Replay/Kino-Replay
+let gegner = null, gegnerVis = null, gegnerRec = null;
+// n34-Nachtrag Schadensmodell (?schaden=optik|fahrt bzw. Option): Schaden des Spieler-Autos (physics/schaden.js SchadenAuto) oder
+// null; Trümmer abgefallener Teile (Spieler und Gegner)
+let schadenSp = null, truemmer = null, schadenRep = null, heilV = 0;
+const SCHADEN_HEIL = neuerSchaden();
 let mode = 'menu';       // menu | race | replay (auch Kino-Replay: dann ist cine gesetzt)
 // Kino-Replay nach dem Ziel (n18): Highlight-Film { film, player, cam, res, stats } oder null. Einstellung „Kino-Replay
 // nach dem Ziel“ (Standard an); ?kino=0|1 übersteuert, Tests schalten ihn per window.__noKino ab (tests/util.py)
@@ -230,6 +241,8 @@ async function boot() {
   }
   ghostVis.root.visible = false;
   scene.add(ghostVis.root);
+  gegnerVis = new GegnerVis(scene);
+  truemmer = new TruemmerVis(scene); gegnerVis.truemmer = truemmer;
   cockpit = new Cockpit(scene.environment, carVis.mats.paint, { tier: quality.tier });
   lineViz = new LineViz(scene);
   fx = new CarFX(scene);
@@ -249,7 +262,7 @@ async function boot() {
   await startAutopilot();
   ui.loading(1, 'Fertig');
   app.ready = true;
-  ui.bind({ startRace, newTrack, setAssist, toMenu, retry, startReplay, cycleCam, rewind: () => race && race.requestRewind(), pause: togglePause,
+  ui.bind({ startRace, newTrack, setAssist, toMenu, retry, startReplay, cycleCam, gegnerStand, gegnerGummi: () => !!(gegner && gegner.opt.aufholhilfe), rewind: () => race && race.requestRewind(), pause: togglePause,
     skipCine: () => endCine(true), skipShow: () => endShow(true), replayCine: () => { if (race && race.film && ui.lastRes) startCine(ui.lastRes); },
     recordCine: () => { if (race && race.film && ui.lastRes) startCine(ui.lastRes, { record: true }); },
     hop: () => { if (mode === 'race' && race && !frozen) race.requestHop(); }, nitro: () => { if (mode === 'race' && race && !frozen) race.requestNitro(); }, setLine, toggleLine, setPaint, setTheme, setWetter, setZeit, sound, input, quality, importFiles, playImported, deleteImported, trkLib, showcase: SHOWCASE, showcaseBytes, store, sammlung });
@@ -260,6 +273,7 @@ async function boot() {
   // n30: Heldenauto-LOD (Mittel/Fern) erst nach dem Start nachladen; ?lod=0 = immer volles Modell
   if (params.get('lod') !== '0') loadCarLods().then(([mid, far]) => {
     for (const c of [carVis, ghostVis]) { c.addLod(mid, 1); c.addLod(far, 2); }
+    if (gegnerVis) gegnerVis.addLods([mid, far]);
     ghostify(ghostVis.root, 'lod');
     app.carLod = { mid: carVis.lodMeshes[1].length, far: carVis.lodMeshes[2].length };
   }).catch((e) => console.warn('Auto-LOD nicht geladen', e));
@@ -595,6 +609,7 @@ async function loadTrack(layout, meta = {}, pre = null) {
   if (quality.ap) quality.ap.schonen(1.5);   // n30: Shader/Texturen der neuen Strecke – erste Bilder zählen nicht
   // Vorschau: Auto an den Start
   quitShow();
+  gegnerAus();
   race = new Race(env, { assist: store.settings.assist, countdown: 1e9 });
   prevPose = null;
   return env;
@@ -608,12 +623,33 @@ function startRace(opts = {}) {
   const S = store.settings;
   // Fahrstil des Autopiloten auf Leicht (n25): Einstellung bzw. ?fahrstil=; Zufall für die Show-Momente je Rennen neu
   race = new Race(env, { assist: S.assist, wreck: S.wreck, autopilot: !!opts.autopilot, extras: S.extras, autoExtras: S.autoExtras, brakeHelp: S.brakeHelp, fahrstil: FAHRSTIL_URL || S.fahrstil || 'brachial', seed: opts.seed ?? ((Math.random() * 1e9) >>> 0),
-    splitRef: opts.autopilot ? null : store.splitRef(env.meta.key, S.assist, !!S.wreck, S.extras !== false) });   // n38 Zwischenzeiten
+    splitRef: opts.autopilot ? null : store.splitRef(env.meta.key, S.assist, !!S.wreck, S.extras !== false, gegnerOptionen(location.search, S).anzahl > 0) });   // n38 Zwischenzeiten
   timeScale = gameSpeed(S.assist);
   // Sammlung: „zuletzt gefahren“ / „noch nie gefahren“
   if (env.meta.sam) { S.samPlayed = { ...(S.samPlayed || {}), [env.meta.key]: Date.now() }; store.save(); }
   // Leicht (n15): kein Geisterauto (keine Bestzeit-Wertung)
-  ghost = new Ghost(S.assist === 'easy' ? null : store.loadGhost(env.meta.key, S.assist, race.wreckOn, race.extrasOn));
+  // n34 KI-Gegner (Menü „🏁 Gegner“ bzw. ?gegner=…&staerke=…): Feld bauen, Spieler auf seinen Rasterplatz; Bestzeiten
+  // und Geist aus der eigenen Liste „mit Gegnern“. Mit Autopilot (Test-Haken __game.start({ autopilot: true })) nur bei
+  // ausdrücklichem ?gegner= (Mess-Gate tests/perf_szenen_gegner.json)
+  const GO = gegnerOptionen(location.search, S);
+  // Schadensmodell: neu = repariert; „Mit Fahrfolgen“ nur auf Original mit Totalschaden, sonst nur Optik
+  const SM = schadenModus(location.search, S);
+  schadenSp = SM !== 'aus' ? new SchadenAuto(race.car) : null;
+  race.schadenFolgen = schadenSp && SM === 'fahrt' && S.assist === 'original' && race.wreckOn ? (c) => schadenSp.folgen(c) : null;
+  if (carVis.schadenVis) schadenZeigen(carVis, SCHADEN_HEIL, 'heil' + ++heilV);
+  if (truemmer) truemmer.leeren();
+  schadenRep = null;
+  gegner = GO.anzahl > 0 && (!opts.autopilot || GO.url) ? new GegnerFeld(env, { anzahl: GO.anzahl, staerke: GO.staerke, seed: race.driftSeed >>> 0, startplatz: GO.startplatz, wreckOn: race.wreckOn, assist: S.assist, aufholhilfe: GO.aufholhilfe, schiene: GO.schiene, physik: GO.physik, schaden: !!schadenSp }) : null;
+  if (gegner) gegner.spielerSchaden = schadenSp;
+  race.mitGegnern = !!gegner;   // HUD „Beste“ aus der Liste „mit Gegnern“
+  gegnerRec = null;
+  if (gegner) {
+    gegner.spielerAufstellen(race);
+    gegnerVis.schilder = GO.schilder;
+    gegnerVis.bereit(gegner.fahrer.map((g) => g.info)).catch((e) => console.warn('Gegner-Autos', e));
+    app.gegner = { anzahl: GO.anzahl, staerke: GO.staerke, platz: gegner.spielerPlatz + 1 };
+  } else { gegnerVis.hide(); app.gegner = null; }
+  ghost = new Ghost(S.assist === 'easy' ? null : store.loadGhost(env.meta.key, S.assist, race.wreckOn, race.extrasOn, !!gegner));
   ghostVis.root.visible = !!ghost.data && store.settings.ghost;
   rig.mode = CAM_MODES.includes(store.settings.cam) ? store.settings.cam : 'chase';
   rig.init = false;
@@ -644,10 +680,39 @@ async function setTheme(v) {
 }
 function setAssist(k) { store.settings.assist = k; store.save(); if (race) race.setAssist(k); timeScale = gameSpeed(k); if (k === 'easy' && ghostVis) ghostVis.root.visible = false; ui.refresh(); ui.assistChanged(); }
 function setPaint(c) { store.settings.paint = c; store.save(); carVis.setPaint(c); }
-function toMenu() { mode = 'menu'; replay = null; quitShow(); if (cine) { cine = null; ui.hideCine(); } sound.stop(); race = new Race(env, { assist: store.settings.assist, countdown: 1e9 }); ui.showMenu(env); }
+function toMenu() { mode = 'menu'; replay = null; quitShow(); if (cine) { cine = null; ui.hideCine(); } sound.stop(); race = new Race(env, { assist: store.settings.assist, countdown: 1e9 }); gegnerAus(); ui.showMenu(env); }
+// n34-Nachtrag: Schaden je Bild – Heldenauto (Rennen: aktueller Stand; Replay/Film: Stand zur Replay-Zeit aus dem Verlauf),
+// Trümmer fliegen (Spielzeit), Rauch aus dem Motorraum ab ~70 % (Mittelmotor: über dem Heckdeck)
+const rauchT = { t: 0 };
+function schadenBild(rdt) {
+  const gdt = frozen ? 0 : Math.min(0.1, rdt) * timeScale;
+  if (truemmer && truemmer.liste.length && mode === 'race') truemmer.schritt(gdt, env.world);
+  if (!schadenSp) return;
+  let S = schadenSp.S;
+  if (mode === 'replay' && replay) {
+    const k = schadenSp.verlauf.index(replay.t);
+    S = schadenSp.verlauf.bei(replay.t, schadenRep || (schadenRep = neuerSchaden()));
+    schadenZeigen(carVis, S, 'r' + k);
+  } else if (mode === 'race') schadenZeigen(carVis, S, schadenSp.version);
+  if (fx && S.gesamt >= 0.7 && gdt > 0 && (rauchT.t -= gdt) <= 0) {
+    rauchT.t = 0.07;
+    const r = carVis.root, p = new THREE.Vector3(0, 0.45, 1.25).applyQuaternion(r.quaternion).add(r.position);
+    const k = Math.min(1, (S.gesamt - 0.7) / 0.3);
+    fx.parts.spawn(fx.p.set(p.x, p.y, p.z), fx.v.set((Math.random() - 0.5) * 0.8, 1.2 + Math.random(), (Math.random() - 0.5) * 0.8), 0.5 + 0.4 * k, 3 + 2 * k, 1.6 + k, 0x2f2f2f, 0.35 + 0.25 * k);
+  }
+}
+// n34: Gegner aus dem Bild (Menü, neue Strecke)
+function gegnerAus() { gegner = null; gegnerRec = null; if (gegnerVis) gegnerVis.hide(); if (truemmer) truemmer.leeren(); }
+// n34: Gegner-Stand für Ergebnis/Zieltabelle (schließt das Feld ab: Übrige hochgerechnet) bzw. null ohne Gegner
+function gegnerStand() {
+  if (!gegner || !race) return null;
+  if (!gegner.abgeschlossen && race.state === 'finished') gegner.abschliessen();
+  return gegner.stand(race);
+}
 function startReplay() {
   if (!race || !race.rec.length) return;
   replay = new Replay(race.rec, env, marksOf(race));
+  gegnerRec = gegner ? gegner.fahrer.map((g) => g.aufnahme()) : null;   // n34
   mode = 'replay';
   rig.mode = 'chase'; rig.init = false;
   ui.showReplay(replay);
@@ -667,6 +732,7 @@ function ensureFilm() {
 function startCine(res, opt = {}) {
   if (!ensureFilm()) return false;
   replay = new Replay(race.rec, env, marksOf(race));
+  gegnerRec = gegner ? gegner.fahrer.map((g) => g.aufnahme()) : null;   // n34
   const t0 = performance.now();
   const cam = new CineCam(env, replay.rec, race.film, { carTop: rig.carBox ? rig.carBox.max.y : 0.75 });
   app.cineSetupMs = performance.now() - t0;
@@ -757,7 +823,7 @@ function endShow(skipped = false, quiet = false) {
   show = null;
   if (!quiet) ui.hideShow();
   const zero = { steer: 0, throttle: 0, brake: 0 };
-  for (let k = 0; race.state === 'finished' && race.finT < ZIEL.rec && k < 2000; k++) race.step(DT, zero);
+  for (let k = 0; race.state === 'finished' && race.finT < ZIEL.rec && k < 2000; k++) { race.step(DT, zero); if (gegner) gegner.step(DT, race); }
   race.events.length = 0;
   rig.init = false; prevPose = null; blurCut = true;
   ensureFilm();
@@ -861,7 +927,10 @@ function frame(now) {
     let steps = 0;
     while (acc >= DT && steps < 14) {
       prevPose = race.car.snapshot();
+      if (gegner) gegnerVis.merke(gegner);
       race.step(DT, inp);
+      if (gegner) gegnerSchritt();
+      if (schadenSp) schadenSchritt();
       if (ghost) ghost.advance(DT, race);
       if (fx) fx.step(DT, race.car, race.state);
       if (fx && LOHN.schweif) fx.airTrail(DT, race.car, race.state === 'running' ? race.stunts.live() : null);   // n38
@@ -894,14 +963,48 @@ function frame(now) {
   if (vaoJob && vaoJob.done && vaoUniforms.sbVaoOn.value < 1) vaoUniforms.sbVaoOn.value = Math.min(1, vaoUniforms.sbVaoOn.value + rdt / 1.5);
 }
 
+// n34-Nachtrag: Schaden des Spielers nach dem Physikschritt eintragen (Uhr = Aufzeichnung, wie Replay/Rückspulen); abgefallene
+// Teile fliegen als Trümmer, kurzer Blech-Ton
+function schadenSchritt() {
+  if (!schadenSp.schritt(race.recFrames() / REC_HZ)) return;
+  for (const e of schadenSp.ereignisse) if (e.art === 'teil') { truemmer.wirf(carVis, e.teil, race.car, e.teil + 7 * schadenSp.nTreffer); sound.event({ type: 'crash', imp: Math.min(12, e.vn), v: 0 }); }
+  schadenSp.ereignisse.length = 0;
+}
+// n34: ein Physikschritt der Gegner nach dem des Spielers – Bewegung, Auto-Auto-Kollision, Leicht weicht aus; Stöße mit dem
+// Spieler → Blech-Ton (höchstens alle 0,25 s; ein Crash „Zusammenstoß“ kommt über race.events), Funken an der Kontaktstelle
+const gegnerTon = { t: -1 }, GEGNER_TON = 90, _gv = new THREE.Vector3();
+function gegnerSchritt() {
+  gegner.step(DT, race);
+  if (race.assistKey === 'easy') { const A = gegner.ausweichen(race, DT); race.ap.avoid = A.versatz; race.ap.vCap = A.vCap; }
+  else { race.ap.avoid = 0; if (race.state === 'running') race.ap.vCap = Infinity; }
+  for (const e of gegner.events) {
+    // Gegner-Crash: Krach nach Entfernung zur Kamera leiser (ab GEGNER_TON m nicht mehr)
+    if (e.type === 'gegnerCrash') {
+      const g = gegner.fahrer.find((x) => x.id === e.id);
+      const d = g ? camera.position.distanceTo(_gv.set(g.car.pos.x, g.car.pos.y, g.car.pos.z)) : 1e9, k = Math.max(0, 1 - d / GEGNER_TON);
+      if (k > 0.05) sound.event({ type: 'crash', imp: Math.min(26, e.v || 10), v: 0, gain: 0.85 * k * k });
+      continue;
+    }
+    if (e.type !== 'stoss') continue;
+    if (e.spieler && !e.crash && e.t - gegnerTon.t > 0.25) { gegnerTon.t = e.t; sound.event({ type: 'crash', imp: e.v, v: 0 }); }
+    if (fx && fx.sparks && e.v > 3) for (let k = 0; k < Math.min(10, 2 + e.v); k++) fx.sparks.spawn(e.p[0], e.p[1], e.p[2], (Math.random() - 0.5) * 6 + e.n[0] * 3, 0.8 + Math.random() * 2.5, (Math.random() - 0.5) * 6 + e.n[2] * 3, 0.25 + Math.random() * 0.4, e.p[1] - 0.6);
+  }
+  gegner.events.length = 0;
+}
 function handleEvents() {
   for (const e of race.events) {
     ui.event(e, race);
     sound.event(e);
     // Auto versetzt (Reset/Überspringen/Rückspulen): Kamera neu ansetzen, keine Zwischenbild-Interpolation
     if (e.type === 'reset' || e.type === 'skip' || e.type === 'rewind') { rig.init = false; prevPose = null; blurCut = true; }
+    // n34: Schaden spult mit – Uhr zurück (Totalschaden an): Stand zur Zeit; Uhr läuft weiter: Stand des zurückgeholten
+    // Schnappschusses (seine Aufzeichnungs-Länge) gilt ab jetzt
+    if (e.type === 'rewind' && schadenSp) {
+      if (!e.keepClock) schadenSp.zurueck(race.recFrames() / REC_HZ);
+      else { const sn = race.snaps[race.snaps.length - 1]; if (sn) schadenSp.zurueckAuf(sn.recLen / REC_STRIDE / REC_HZ, race.recFrames() / REC_HZ); }
+    }
     if (e.type === 'finish') {
-      const res = store.submit(env.meta.key, race.assistKey, race.wreckOn, race.finalTime, race.assistKey === 'easy' ? null : race.ghostRec(), { ...env.meta, penalties: race.penalties, extras: race.extrasOn, nitro: race.nitroLog, splits: race.autopilotOnly ? null : race.splits });
+      const res = store.submit(env.meta.key, race.assistKey, race.wreckOn, race.finalTime, race.assistKey === 'easy' ? null : race.ghostRec(), { ...env.meta, penalties: race.penalties, extras: race.extrasOn, nitro: race.nitroLog, splits: race.autopilotOnly ? null : race.splits, gegner: gegner ? gegner.fahrer.length : 0, gummi: !!(gegner && gegner.opt.aufholhilfe) });
       ui.lastRace = race; ui.lastRes = res;
       startShow(res);
     }
@@ -1129,8 +1232,13 @@ function render(rdt) {
   ui.boost(mode === 'menu' ? 0 : boost, Math.max(0, Math.min(1, (lineSpd - 260) / 240)) * 0.55);
   if (ghost && ghostVis.root.visible && mode === 'race') { ghost.sync(ghostVis); ghostVis.setNitro(ghost.nitro(), frozen ? 0 : rdt); }
   karteTick(rdt, pose);   // n39
+  // n34 KI-Gegner: Rennen aus der Physik (interpoliert), Replay/Kino-Replay aus der Aufzeichnung (Rennzeit = Replay-Uhr)
+  if (gegner && mode === 'race') gegnerVis.sync(gegner, camera, prevPose && !frozen ? Math.min(1, acc / DT) : 1);
+  else if (gegnerRec && mode === 'replay' && replay) gegnerVis.syncReplay(gegnerRec, replay.t, camera);
+  else if (gegnerVis && gegnerVis.aktiv && mode === 'menu') gegnerVis.hide();
   if (fx) fx.rich = !!(kino && kino.pipeline);
   if (fx && mode === 'race' && !frozen) fx.update(rdt, camera);
+  schadenBild(rdt);
   // Replay/Kino-Replay (n25): Reifenqualm aus dem aufgezeichneten Schwimmwinkel
   if (fx && mode === 'replay' && replay && pose) {
     const rt = replay.paused ? 0 : rdt * timeScale * (cine ? cine.player.speed : replay.speedMul);
@@ -1146,6 +1254,7 @@ function render(rdt) {
   if (lineViz && lineViz.mat && LINE_LEVELS[store.settings.line] && LINE_LEVELS[store.settings.line].opacity) lineViz.mat.uniforms.uOpacity.value = Math.min(0.9, LINE_LEVELS[store.settings.line].opacity * (1 + (env && env.zeitLook ? env.zeitLook.line : 0)));
   sky.position.copy(camera.position);
   if (mode === 'race' && race) { ui.hud(race, env, ghost); sound.update(race.car, rdt, race.state, { cockpit: rig.view === 'cockpit' }); }
+  if (mode === 'race' && race) ui.hudGegner(gegner && race.state !== 'countdown' ? gegner : null, race);
   if (mode === 'replay' && replay && cine) { ui.cineHud(cine); cineSound(rdt); cine.stats.frames++; }
   else if (mode === 'replay' && replay) ui.replayHud(replay);
   // Cockpit: Außenkarosserie ausblenden (ragt sonst ins Bild), Innenraum im zweiten Durchgang darüber
@@ -1288,7 +1397,20 @@ function karteTick(rdt, pose) {
     idx: race.tracker.idx, zielIdx: race.cpNext < cps.length ? cps[race.cpNext] : race.startIdx, cps, cpNext: race.cpNext, startIdx: race.startIdx,
     geist: ghost && ghostVis.root.visible && ghost.data ? ghost.pose.pos : null,
   });
+  // n34: Gegner als Punkte in ihrer Lackfarbe (Lage aus dem Bild, also interpoliert); wer vor dir liegt, ist größer
+  if (gegner && gegnerVis.aktiv) {
+    const M = karteMarken, p0 = race.tracker.progress();
+    M.length = 0;
+    gegner.fahrer.forEach((g, i) => {
+      const A = gegnerVis.autos[i];
+      if (!A || !A.car.root.visible) return;
+      const r = A.car.root.position;
+      M.push({ pos: [r.x, r.y, r.z], farbe: g.info.farbe, groesse: g.fortschritt() > p0 ? 10 : 8 });
+    });
+    karte.setMarkers(M);
+  } else if (karte.marken.length) karte.setMarkers([]);
 }
+const karteMarken = [];
 
 // Hitzeflimmern hinter den Endrohren (Kino): stark im Stand/beim Anfahren mit Gas und mit Nitro, bei Tempo weht es weg
 const heatA = [new THREE.Vector3(), new THREE.Vector3()], heatB = [new THREE.Vector3(), new THREE.Vector3()];
@@ -1356,11 +1478,16 @@ window.__game = {
   get brakeLights() { return brakeLights; }, get air() { return air; },
   get fx() { return fx; }, get sound() { return sound; },
   get carVis() { return carVis; }, get ghostVis() { return ghostVis; }, get ghost() { return ghost; },
+  get gegner() { return gegner; }, get gegnerVis() { return gegnerVis; },   // n34 (Mess-/Abnahme-Skripte)
+  get schaden() { return schadenSp; }, get truemmer() { return truemmer; },   // n34-Nachtrag
+  // Abnahme-Haken: Treffer am Spieler-Auto auslösen (Auto-Koordinaten, Außen-Normale, Stoß-Tempo m/s), z. B. für Bilder
+  // leicht/mittel/stark beschädigt: __game.treffer([0, 0, -2.4], [0, 0, -1], 25)
+  treffer(p, n, vn) { if (!schadenSp) return null; const c = race.car, q = new THREE.Quaternion(c.q.x, c.q.y, c.q.z, c.q.w); const w = new THREE.Vector3(...p).applyQuaternion(q).add(new THREE.Vector3(c.pos.x, c.pos.y, c.pos.z)), d = new THREE.Vector3(...n).applyQuaternion(q); schadenSp.stoss({ p: [w.x, w.y, w.z], n: [d.x, d.y, d.z], vn }, 1); schadenSchritt(); return { gesamt: schadenSp.S.gesamt, teile: schadenSp.S.teile, dellen: schadenSp.S.dellen.length }; },
   // Physik ohne Rendering vorspulen (Headless: schneller als Echtzeit)
   sim(seconds, inp = null) {
     const I = inp || { steer: 0, throttle: 0, brake: 0 };
     const n = Math.round(seconds / DT);
-    for (let k = 0; k < n; k++) { prevPose = race.car.snapshot(); race.step(DT, I); if (ghost) ghost.advance(DT, race); if (fx) fx.step(DT, race.car, race.state); if (fx && LOHN.schweif) fx.airTrail(DT, race.car, race.state === 'running' ? race.stunts.live() : null); if (race.state === 'finished') break; }
+    for (let k = 0; k < n; k++) { prevPose = race.car.snapshot(); race.step(DT, I); if (gegner) gegnerSchritt(); if (schadenSp) schadenSchritt(); if (ghost) ghost.advance(DT, race); if (fx) fx.step(DT, race.car, race.state); if (fx && LOHN.schweif) fx.airTrail(DT, race.car, race.state === 'running' ? race.stunts.live() : null); if (race.state === 'finished') break; }
     handleEvents();
     return this.state();
   },

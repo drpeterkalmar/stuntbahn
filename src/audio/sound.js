@@ -380,7 +380,7 @@ export class Sound {
     else if (e.type === 'checkpoint') this.shot(this.bank.cp, 0.8);
     else if (e.type === 'crash' && R) { this.crashRec(e); if (e.penalty) this.shot(this.bank.whoosh, 0.6, 1, 0.12); }
     else if (e.type === 'crash' && e.penalty) { this.shot(this.bank.thump, 0.9); this.shot(this.bank.whoosh, 0.9); }
-    else if (e.type === 'crash') this.shot(this.bank.crash, 1);
+    else if (e.type === 'crash') this.shot(this.bank.crash, e.gain ?? 1);
     else if (e.type === 'finish') this.shot(this.bank.finish, 0.9);
     else if (e.type === 'land' && R) this.landRec(e.v);
     else if (e.type === 'land') this.shot(this.bank.thump, Math.min(1, e.v / 8));
@@ -392,7 +392,7 @@ export class Sound {
   // Crash nach Schwere s (0 … 1, aus Aufprall-Tempo bzw. Fahrtempo): Wumms + Blech immer, Knirschen ab mittel,
   // rieselnde Trümmer ab mittel-schwer (verzögert), Glas nur schwer; Auswahl, Tonhöhe, Einsatz zufällig
   crashRec(e) {
-    const R = this.bank.rec, G = MIX.crash;
+    const R = this.bank.rec, G = MIX.crash * (e.gain ?? 1);   // gain: n34 Gegner-Crash nach Entfernung leiser
     const s = Math.max(0.12, clamp01(Math.max(e.imp || 0, (e.v || 0) * 0.45) / 26));
     this.lastCrashS = s;
     this.shot(R.thud, G * (0.45 + 0.5 * s), rnd(0.85, 1.1));
