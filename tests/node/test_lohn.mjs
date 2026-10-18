@@ -1,7 +1,7 @@
 // n38 Stunt-Lohn (src/game/lohn.js): reine Funktionen (Gutschrift auf die Nitro-Abklingzeit, Wertung n38: Bauwerke, ruhige Hand,
 // Hüpfer), Rennlogik (Abklingzeit kürzer, Vorrat, voll = sofort bereit, Crash/Hüpfer zahlen nicht), Tracker (ruhige Hand, Looping
 // als Kettenglied), Leicht-Automatik auf mehreren Geraden, alle Regler aus = Stand n37 bitgleich, Messgrößen, Bestzeiten einmalig neu.
-const { LOHN, LOHN_AUS, setLohn, cooldownGain, creditNitro } = await import('../../src/game/lohn.js');
+const { LOHN, LOHN_AUS, setLohn, cooldownGain, creditNitro, landBoostStage, landBoostLevel } = await import('../../src/game/lohn.js');
 const { STUNT, scoreJump, scoreBau, chainWindow, chainFactor, StuntTracker, stuntText, bauKinds } = await import('../../src/game/stunts.js');
 const { Race, ASSISTS } = await import('../../src/game/race.js');
 const { Car, CAR_DEF } = await import('../../src/physics/car.js');
@@ -89,7 +89,7 @@ console.log('--- D: Rennlogik ---');
   const r2 = new Race(v1.env, { assist: 'medium', countdown: 0.05 });
   for (let k = 0; k < 30; k++) r2.step(DT, { steer: 0, throttle: 1, brake: 0 });
   r2.charges.nitro = 0; r2.cd.nitro = 1;
-  const s3 = ev({ pts: 60 }); r2.lohnStunt(s3); r2.step(DT, { steer: 0, throttle: 1, brake: 0 });
+  const s3 = ev({ pts: 60 }); r2.lohnStunt(s3);
   check(s3.nitroNow && r2.charges.nitro === 1 && r2.nbank > 0 && r2.events.some((e) => e.type === 'xready'), 'lädt nach (1 s Rest) + Stunt → sofort bereit, Rest in den Vorrat');
   // Kettenfenster: Nitro zünden verlängert um nitroWin s
   r2.stunts.winLeft = 2; r2.requestNitro(); r2.step(DT, { steer: 0, throttle: 1, brake: 0 });
@@ -125,6 +125,34 @@ console.log('--- F: Leicht automatisch auf mehreren Geraden ---');
   let n0 = 0; for (let t = 0; t < 120 && r0.state !== 'finished'; t += DT) { r0.step(DT, { steer: 0, throttle: 0, brake: 0 }); for (const e of r0.events) if (e.type === 'nitro') n0++; r0.events.length = 0; }
   setLohn(STD);
   check(r.state === 'finished' && r0.state === 'finished' && r.crashes === 0 && n >= n0 && r.finalTime <= r0.finalTime + 0.05, `Leicht zündet ${n}× statt ${n0}×, ${r.finalTime.toFixed(2)} statt ${r0.finalTime.toFixed(2)} s, ohne Crash`);
+}
+
+console.log('--- F2: Landeschub (Etappe 2) ---');
+{
+  const st = (o) => landBoostStage({ air: 2.2, landing: 'clean', ...o });
+  check(st({ air: 1.0 }) === null && st({ air: 1.3 }).stufe === 1 && st({}).stufe === 2 && st({ air: 3 }).stufe === 3 && st({ air: 3 }).k === 0.7 && st({ air: 3 }).dur === 1.2, 'Stufen ab 1,2 / 2,0 / 2,8 s Luft: 0,8 / 1,0 / 1,2 s mit k 0,35 / 0,5 / 0,7');
+  check(st({ landing: 'ok' }) === null && st({ hop: true }) === null && st({ bau: true }) === null, 'nur saubere Landung, kein Hüpfer, kein Bauwerk');
+  check(landBoostLevel(0.5, 1) === 1 && landBoostLevel(1 + LOHN.schubFade, 1) === 0 && landBoostLevel(1 + LOHN.schubFade / 2, 1) > 0.4, 'Hüllkurve: voll, dann weich aus');
+  const r = new Race(v1.env, { assist: 'medium', countdown: 0.05 });
+  for (let k = 0; k < 600; k++) r.step(DT, { steer: 0, throttle: 1, brake: 0 });
+  const idx = r.tracker.idx, cap = r.boostCap(idx), J = v1.env.track.jumps[0], W = v1.env.prof.windows[0];
+  check(cap > 0 && cap <= v1.env.prof.vt[idx] + 1e-9, `Deckel ${(cap * 3.6).toFixed(0)} km/h ≤ Brems-Profil hier ${(v1.env.prof.vt[idx] * 3.6).toFixed(0)} km/h`);
+  const capLip = r.boostCap(Math.max(0, J.lipIdx - 3));
+  check(capLip <= W.vmax * LOHN.schubRand + 1e-9, `vor der Schanze höchstens ${LOHN.schubRand} × Fenster-vmax (${(capLip * 3.6).toFixed(0)} ≤ ${(W.vmax * LOHN.schubRand * 3.6).toFixed(0)} km/h)`);
+  const res = { air: 3, landing: 'clean', pts: 40 };
+  r.landBoost(res); r.nitroT = -1;
+  const v0 = r.car.fwdSpeed(), c = r.boostCap(r.tracker.idx);
+  r.step(DT, { steer: 0, throttle: 1, brake: 0 });
+  check(res.schub === 3 && r.lb && (v0 < c ? r.car.boost > 0 : r.car.boost === 0), `Schub Stufe 3 aktiv${v0 < c ? '' : ' – über dem Deckel setzt er aus'} (Tempo ${(v0 * 3.6).toFixed(0)}, Deckel ${(c * 3.6).toFixed(0)} km/h, boost ${r.car.boost.toFixed(2)})`);
+  r.car.v.x *= 0.1; r.car.v.y *= 0.1; r.car.v.z *= 0.1; r.lb.t = 0;
+  r.step(DT, { steer: 0, throttle: 1, brake: 0 });
+  check(Math.abs(r.car.boost - 0.7 / 0.7) < 1e-9, 'langsam unter dem Deckel: volle Stärke k 0,7');
+  r.car.setCrash('Test'); r.onCrash(); check(r.lb === null, 'Crash beendet den Schub');
+  // Messgröße 5 im Kleinen: Lippen nach einem Schub nie über dem Fenster
+  const { execFileSync } = await import('child_process');
+  const out = execFileSync(process.execPath, ['tools/landeschub_mess.mjs', '4', '--zufall=2', '--fahrer=profi,voll'], { encoding: 'utf8', maxBuffer: 1e8 });
+  const after = [...out.matchAll(/davon ≤ 4 s nach Schub (\d+)/g)].map((m) => +m[1]), boosts = [...out.matchAll(/Landeschübe (\d+)/g)].map((m) => +m[1]);
+  check(after.length === 2 && after.every((x) => x === 0) && boosts.some((x) => x > 0), `Landeschübe ${boosts.join('/')}, danach zu schnell an der Lippe: ${after.join('/')}`);
 }
 
 console.log('--- G: alle Regler aus = Stand n37 bitgleich ---');

@@ -72,7 +72,7 @@ spielbar am Handy (quer oder hochkant), mit Gamepad oder Tastatur. Als App insta
   Abstand zu jeder Fahrbahn (auch Hochstraßen/Rampen), nie im Wasser. Dosiert nach Grafikstufe; ruckelt es, blendet die
   Automatik (nach der Unschärfe) zuerst Gras/Büsche/Wolkenschatten aus. `?deko=aus` (bis n29 `?deko=0`) / `?wolken=0` zum Vergleich.
 
-## 🔥 Stunts laden Nitro nach: Stunt-Kette, ruhige Hand, Bauwerke (seit 18.10.2026, n38, Version 0.7.1)
+## 🔥 Stunts laden Nitro nach: Stunt-Kette, ruhige Hand, Bauwerke, Landeschub (seit 18.10.2026, n38, Version 0.7.2)
 Stunts sind im Rennen jetzt etwas wert. Die Stunt-Wertung ist inspiriert von klassischen Arcade-Racern (Clean-Room nach dem
 Vorlagen-Datenblatt, eigene Zahlen, per Messung abgestimmt). Messungen und Handy-Test: `N38_VORLAGEN_BERICHT.md`.
 - **Stunts verkürzen die Nitro-Ladezeit:** 60 Stunt-Punkte = eine ganze Ladezeit (5 s). Lädt der Nitro gerade, ist er früher
@@ -86,12 +86,20 @@ Vorlagen-Datenblatt, eigene Zahlen, per Messung abgestimmt). Messungen und Handy
 - **Stunt-Kette:** Fenster 12 s (vorher 6 s), Nitro zünden verlängert eine laufende Kette um 1 s; Hüpfer sind kein Kettenglied.
 - **Leicht** („Extras automatisch“): Der Autopilot zündet den Nitro auf jeder lohnenden Geraden, sobald er bereit ist (bis zu 6
   Stellen je Runde; vorher nur auf der längsten), ~2,5 % schneller, weiter ohne Crash.
+- **🚀 Landeschub** (Etappe 2): sauber gelandet nach langem Flug → kurzer Schub (ab 1,2 / 2,0 / 2,8 s Luft: 0,8 / 1,0 / 1,2 s
+  mit 35 / 50 / 70 % der Nitro-Stärke). Er setzt aus, sobald das Auto schneller ist als das sichere Absprungtempo der nächsten
+  Schanze oder das Brems-Profil voraus (Kurve, Looping). Gemessen: 0-mal zu schnell an einer Schanze nach einem Schub.
+- **Ton in der Luft:** ab 0,5 s Flug wird alles dumpf (Tiefpass 1,2 kHz), bei der Landung sofort wieder voll + kurzer Bass-Schlag.
+- **Schweif in der Luft:** zwei Kondensstreifen an den hinteren Ecken – **gold** = „ruhige Hand“ ist noch drin, **blass** = nur
+  noch „sauber“.
 - Ergebnis-Karte: „★ Stunt-Punkte · Stunts · längste Kette · 🔥 Nitro … s früher bereit“.
 - **Bestzeiten Mittel/Original starten einmalig neu** (Hinweis im Menü), Leicht-Zeiten bleiben.
 - **Regler (A/B, werten nicht):** `?tank=<Punkte>` (0 = nur Ladezeit wie bisher), `?kette=<s>` (0 = keine Kette, 6 = n37),
-  `?stuntpkt=0` (Wertung wie n37: nur Sprünge, ohne Drehung halb), `?landung=0` (ohne „ruhige Hand“). Alle aus =
+  `?stuntpkt=0` (Wertung wie n37: nur Sprünge, ohne Drehung halb), `?landung=0` (ohne „ruhige Hand“), `?landeschub=0`,
+  `?luftton=0`, `?schweif=0` (die beiden letzten nur Ton/Bild, werten). Alle aus =
   Stand n37 bitgleich (`tests/node/n38_ref.mjs`).
-- Tests: `tests/node/test_lohn.mjs`, `tests/lohn_shots.py`. Messung: `tools/lohn_mess.mjs` (Profi-Mittel, Dauer-Hüpfer, Leicht).
+- Tests: `tests/node/test_lohn.mjs`, `tests/lohn_shots.py`. Messung: `tools/lohn_mess.mjs` (Profi-Mittel, Dauer-Hüpfer, Leicht),
+  `tools/landeschub_mess.mjs` (Landeschub-Sicherheit auf Sammlungs- und Zufallsstrecken).
 
 ## 🤸 Arcade-Stunt-Fahrgefühl: Saltos, Schrauben, Wände schrammen (seit 18.10.2026, n37, Version 0.7.0)
 Peter 10.10.: „Ich würde ein gutes, bereits reverse-engineertes Rennspiel verwenden – nicht das Stunts-Fahrgefühl.“ Vorbild

@@ -14,6 +14,14 @@
 //               (Messgröße 3 des Datenblatts: gerade saubere Schanze 30–40 Punkte). ?stuntpkt=0 = Wertung wie n37.
 //   landung   – Landestufe „ruhige Hand“: saubere Landung ohne Änderung an Lenken/Gas/Bremse in den letzten calmT s vor dem
 //               Aufsetzen → × calm statt × 1,25. ?landung=0 = nur „sauber“.
+//   landeschub – (Etappe 2) saubere Landung nach langer Luftzeit gibt einen kurzen Schub (Stufen schub: [ab Luft s, Dauer s, Stärke
+//               k wie NITRO.k]); nie schneller als das sichere Absprungtempo der nächsten Schanze (Tempo-Fenster vmax) und das
+//               Brems-Profil der nächsten schubLook s (es enthält den Bremsweg zu Kurven, Loopings) – darüber setzt der Schub aus. Hüpfer und Bauwerke nicht.
+//               ?landeschub=0 = aus.
+//   luftton   – (Etappe 2) ab tonAb s in der Luft wird der ganze Ton dumpf (Tiefpass auf tonHz, weich in tonIn s), bei der Landung
+//               in tonOut s zurück + kurzer Bass-Schlag. ?luftton=0 = aus.
+//   schweif   – (Etappe 2) in der Luft (ab 0,5 s) zieht das Auto einen Schweif: hell = „ruhige Hand“ noch drin, matt = nur noch
+//               „sauber“. ?schweif=0 = aus.
 const q = globalThis.location && globalThis.location.search ? new URLSearchParams(globalThis.location.search) : null;
 const num = (k, lo, hi) => { if (!q) return null; const v = q.get(k); return v !== null && v !== '' && Number.isFinite(+v) ? Math.max(lo, Math.min(hi, +v)) : null; };
 // Node: Umgebung STUNT_N38=alt = alle Regler aus (Messungen gegen den Stand n37)
@@ -27,6 +35,14 @@ export const LOHN = {
   landung: num('landung', 0, 1) ?? 1,
   calmT: 1.0,       // s ohne Eingabe-Änderung vor dem Aufsetzen
   calm: 1.5,        // Faktor „ruhige Hand“ (statt sauber × 1,25)
+  landeschub: num('landeschub', 0, 1) ?? 1,
+  schub: [[1.2, 0.8, 0.35], [2.0, 1.0, 0.5], [2.8, 1.2, 0.7]],
+  schubFade: 0.25,  // s weich aus
+  schubLook: 0.5,   // s voraus: Brems-Profil (vt, enthält schon den Bremsweg zu Kurven/Loopings) als Deckel
+  schubRand: 0.97,  // Anteil des Tempo-Fensters der nächsten Schanze (vmax), über dem der Schub aussetzt
+  luftton: num('luftton', 0, 1) ?? 1,
+  tonAb: 0.5, tonHz: 1200, tonIn: 0.3, tonOut: 0.08,
+  schweif: num('schweif', 0, 1) ?? 1,
   autoSpots: 6,     // Leicht automatisch: höchstens so viele Nitro-Stellen je Runde
   hopChain: 0,      // Hüpfer zählen nicht als Kettenglied (n37: 1)
   hopPay: 0,        // Anteil, den ein Hüpfer-Stunt in die Abklingzeit einzahlt (Messgröße 6: Dauer-Hüpfen < 15 % der Einnahmen)
@@ -39,7 +55,7 @@ export const LOHN = {
   },
 };
 // Stand n37: alle Regler aus
-export const LOHN_AUS = { tank: 0, kette: 6, nitroWin: 0, stuntpkt: 0, landung: 0, hopChain: 1 };
+export const LOHN_AUS = { tank: 0, kette: 6, nitroWin: 0, stuntpkt: 0, landung: 0, hopChain: 1, landeschub: 0, luftton: 0, schweif: 0 };
 export function setLohn(o) { Object.assign(LOHN, o); }
 if (ALT) setLohn(LOHN_AUS);
 
@@ -53,4 +69,19 @@ export function creditNitro(x, sec, full) {
   if (!x.ready && cd > 0) { used = Math.min(sec, cd); cd -= used; sec -= used; }
   const nb = Math.min(full, bank + sec);
   return { cd, bank: nb, used, stored: nb - bank };
+}
+
+// Landeschub-Stufe nach einem abgerechneten Stunt r → null oder { stufe (1 …), dur, k }
+export function landBoostStage(r) {
+  if (!LOHN.landeschub || !r || r.bau || r.hop || r.landing !== 'clean') return null;
+  let st = null;
+  LOHN.schub.forEach(([air, dur, k], i) => { if (r.air >= air) st = { stufe: i + 1, dur, k }; });
+  return st;
+}
+// Hüllkurve des Landeschubs (0 … 1) t s nach dem Start, Dauer dur
+export function landBoostLevel(t, dur) {
+  if (!(t >= 0)) return 0;
+  if (t < dur) return 1;
+  const u = (t - dur) / LOHN.schubFade;
+  return u >= 1 ? 0 : 0.5 + 0.5 * Math.cos(Math.PI * u);
 }

@@ -14,7 +14,7 @@ import { DriftCtl, BRACHIAL } from '../ai/drift.js';
 import { ZIEL } from './zielshow.js';
 import { ARCADE, arcadeAssist } from '../physics/arcade.js';
 import { StuntTracker, bauKinds } from './stunts.js';
-import { LOHN, cooldownGain, creditNitro } from './lohn.js';
+import { LOHN, cooldownGain, creditNitro, landBoostStage, landBoostLevel } from './lohn.js';
 
 // Mittel (n16, Peter 29.09.2026: „Mittlere Schwierigkeit mehr Bodenhaftung und kein Magnet zur Ideallinie“): kein
 // Lenkzug zur Linie mehr (steerPull bis n15 0,28, im Stunt stuntPull 0,6), dafür mehr Reifenhaftung (grip, Faktor auf
@@ -484,7 +484,7 @@ export class Race {
     let ti = this.tracker.update(car.pos.x, car.pos.y, car.pos.z);
     if (!this.autopilotOnly) {
       const sr = this.stunts.step(dt, car, { piece: L.piece[ti], lap: this.tracker.lap, loop: L.loop[ti] || L.tube[ti], bau: this.bauK[ti], inp: input });
-      if (sr) { this.lohnStunt(sr); this.emit('stunt', sr); }
+      if (sr) { this.lohnStunt(sr); this.landBoost(sr); this.emit('stunt', sr); }
     }
     // Sprung-Hilfe (Mittel n24): im Flug über eine Schanze dezent Richtung Landerampe (game/jumpassist.js)
     this.jumpK = A.jumpPull && !this.autopilotOnly ? this.jumpAssist.step(dt, car, this.env.track, ti) : 0;
@@ -911,7 +911,7 @@ export class Race {
 
   finish() {
     if (this.state === 'finished') return;
-    this.stopNitro();
+    this.stopNitro(); this.lb = null;
     this.state = 'finished';
     this.finalTime = this.time;
     // Zielshow (n27): Zeit stoppt hier, die Aufzeichnung läuft im Auslaufen noch ZIEL.rec s weiter (Replay, Highlight-
@@ -1043,7 +1043,7 @@ export class Race {
     // Schwere fürs Crash-Geräusch (n16): Aufprall-Tempo senkrecht zur Wand/zum Boden bzw. Fahrtempo
     const ci = this.car.crash.info, sev = { v: +this.car.speed().toFixed(1), imp: ci && ci.vn ? -ci.vn : 0 };
     this.crashT = 0;
-    this.stopNitro();
+    this.stopNitro(); this.lb = null;
     this.crashLog.push({ f: this.recFrames(), reason: this.car.crash.reason, ...sev });
     if (this.wreckOn) {
       this.emit('crash', { reason: this.car.crash.reason, ...sev });
@@ -1126,7 +1126,7 @@ export class Race {
 
   // Nach dem Versetzen: Schnitt fürs Replay merken, Wächter zurücksetzen, weiterfahren
   afterJump() {
-    this.stopNitro();
+    this.stopNitro(); this.lb = null;
     this.stunts.reset();
     this.cuts.push({ f: this.recFrames() });
     this.offT = 0; this.stuckT = 0; this.stuckProg = this.tracker.progress(); this.wrongT = 0;
@@ -1149,7 +1149,7 @@ export class Race {
     k = Math.max(0, k);
     const sn = this.snaps[k];
     this.snaps.length = k + 1;
-    this.car.restore(sn.s); this.jumpAssist.reset(); this.stunts.reset();
+    this.car.restore(sn.s); this.jumpAssist.reset(); this.stunts.reset(); this.lb = null;
     this.cpNext = sn.cp;
     this.tracker.lap = sn.lap; this.tracker.reset(sn.idx);
     this.ap.tr.reset(sn.apIdx);
@@ -1194,6 +1194,18 @@ export class Race {
     const car = this.car;
     if (this.nitroT >= 0) { this.nitroT += dt; if (this.nitroT >= NITRO_TOTAL) this.stopNitro(); }
     car.boost = this.nitroT >= 0 ? nitroLevel(this.nitroT) : 0;
+    // n38 Landeschub: Stärke lb.k (wie NITRO.k), setzt über dem Deckel (nächste Schanze, Profil voraus) aus
+    if (this.lb) {
+      const B = this.lb; B.t += dt;
+      const lv = landBoostLevel(B.t, B.dur);
+      if (lv <= 0 && B.t > B.dur) this.lb = null;
+      else {
+        const cap = this.boostCap(idx), v = car.fwdSpeed();
+        B.cap = cap; B.vMax = Math.max(B.vMax || 0, v);
+        if (v < cap) car.boost = Math.max(car.boost, lv * B.k / NITRO.k);
+        else B.capped = (B.capped || 0) + dt;
+      }
+    }
     if (!this.extrasOn) { this.want.hop = this.want.nitro = false; return; }
     // Abklingzeit: wieder bereit → Ladung 1 (Nitro zählt erst nach dem Ende der Wirkung)
     if (this.cdMode) {
@@ -1223,9 +1235,33 @@ export class Race {
     const x = creditNitro({ ready, cd: this.cd.nitro, bank: this.nbank }, sec, full);
     this.cd.nitro = x.cd; this.nbank = x.bank;
     r.nitroSec = x.used + x.stored; r.nitroNow = !ready && this.nitroT < 0 && x.cd <= 0; r.nitroFull = x.bank >= full - 1e-6;
+    if (r.nitroNow) { this.cd.nitro = 0; this.charges.nitro = 1; this.emit('xready', { k: 'nitro' }); }   // Knopf leuchtet sofort
     const B = this.lohn;
     B.pts += pts; B.sec += r.nitroSec; B.n++; if (r.hop) B.hop += r.nitroSec; if (r.nitroNow) B.now++;
     if (r.nitroSec > 0) this.emit('xgain', { k: 'nitro', sec: r.nitroSec, now: r.nitroNow, full: r.nitroFull, bank: x.bank / full });
+  }
+  // n38 Landeschub nach einem abgerechneten Stunt (saubere Landung, lange Luft; lohn.js landBoostStage)
+  landBoost(r) {
+    const st = landBoostStage(r);
+    if (!st || this.state !== 'running') return;
+    this.lb = { t: 0, dur: st.dur, k: st.k, stufe: st.stufe };
+    r.schub = st.stufe;
+    this.schubN = (this.schubN || 0) + 1;
+  }
+  // Tempo-Deckel des Landeschubs an Linienpunkt idx: sicheres Absprungtempo der nächsten Schanze (Fenster vmax × schubRand) und
+  // das Brems-Profil der nächsten schubLook s (vt enthält den Bremsweg zu Kurven, Loopings, Röhren voraus)
+  boostCap(idx) {
+    const L = this.env.track.line, P = this.env.prof, T = this.env.track, v = Math.max(5, this.car.fwdSpeed());
+    let cap = Infinity, best = Infinity;
+    for (let k = 0; k < T.jumps.length; k++) {
+      const j = T.jumps[k], w = P.windows && P.windows[k];
+      let d = L.s[j.lipIdx] - L.s[idx]; if (d < -2 && L.closed) d += L.total;
+      if (d < -2 || d > best) continue;
+      best = d; cap = w && w.vmax ? w.vmax * LOHN.schubRand : P.vt[j.lipIdx];
+    }
+    const j1 = this.ap.ahead(idx, v * LOHN.schubLook + 10);
+    for (let j = idx, c = 0; c < 800; c++) { cap = Math.min(cap, P.vt[j]); if (j === j1) break; j = j + 1 >= L.n ? (L.closed ? 1 : L.n - 1) : j + 1; }
+    return cap;
   }
   fireNitro() {
     if (this.charges.nitro < 1) { this.emit('xdenied', { k: 'nitro', why: this.cdMode ? 'cool' : 'empty', left: this.nitroT >= 0 ? NITRO_TOTAL - this.nitroT + this.cd.nitro : this.cd.nitro }); return; }

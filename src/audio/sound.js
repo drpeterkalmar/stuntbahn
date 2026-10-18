@@ -8,6 +8,7 @@
 //   Kontakt besteht, Landungen nach Fallhöhe, Reifenquietschen aus Aufnahmen; Zufall in Auswahl, Tonhöhe, Einsatz.
 // Bis n15 (und mit ?snd=alt oder wenn das Laden scheitert) der Synthesizer unten: V12 aus 4 Drehzahl-Loops,
 // Reifen, Fahrtwind, Crash, Aufsetzen. Countdown-/Checkpoint-Töne, Wind, Nitro, Hüpfer bleiben synthetisch.
+import { LOHN } from '../game/lohn.js';
 
 const SR = 44100;
 
@@ -309,7 +310,11 @@ export class Sound {
       this.master = this.ctx.createGain(); this.master.gain.value = 0.7;
       const comp = this.ctx.createDynamicsCompressor(); comp.threshold.value = -16; comp.ratio.value = 3;
       this.comp = comp;
-      this.master.connect(comp).connect(this.ctx.destination);
+      // n38 Luft-Ton (lohn.js luftton): Tiefpass zwischen Mischpult und Kompressor, am Boden offen (20 kHz)
+      if (LOHN.luftton) {
+        this.airLP = this.ctx.createBiquadFilter(); this.airLP.type = 'lowpass'; this.airLP.frequency.value = 20000; this.airLP.Q.value = 0.5;
+        this.master.connect(this.airLP).connect(comp).connect(this.ctx.destination);
+      } else this.master.connect(comp).connect(this.ctx.destination);
       Promise.all([makeBank(), this.recP, this.recP.then((r) => (r ? nitroRec() : null))])
         .then(([b, r, nl]) => { if (r) { b.rec = r; b.nitroLoop = nl; } this.bank = b; if (this.wantRunning) this.start(); })
         .catch((e) => console.warn('Ton', e));
@@ -435,9 +440,30 @@ export class Sound {
     this.rainTick(dt, opt);
     // Aufsetzer nach Sprüngen
     if (this._air && car.onGround >= 2 && this._airT > 0.35) this.event({ type: 'land', v: Math.min(16, this._vy || 5) });
+    this.airTone(car, state);
     this._air = car.onGround === 0;
     this._airT = this._air ? (this._airT || 0) + dt : 0;
     if (this._air) this._vy = -car.v.y;
+  }
+  // n38 Luft-Ton: ab LOHN.tonAb s Flug alles dumpf (Tiefpass tonHz, weich in tonIn s), bei der Landung in tonOut s zurück + kurzer
+  // Bass-Schlag. Zustandswechsel stehen in airLog (Tests: Messgröße 8)
+  airTone(car, state) {
+    if (!this.airLP) return;
+    const air = state === 'running' && car.onGround === 0 && (car.airTime ?? this._airT ?? 0) >= LOHN.tonAb;
+    const on = air ? true : car.onGround > 0 || state !== 'running' ? false : !!this._dumpf;
+    if (on === !!this._dumpf) return;
+    this._dumpf = on;
+    const t = this.ctx.currentTime, f = this.airLP.frequency;
+    f.cancelScheduledValues(t); f.setValueAtTime(f.value, t);
+    f.setTargetAtTime(on ? LOHN.tonHz : 20000, t, (on ? LOHN.tonIn : LOHN.tonOut) / 3);   // nach 3 Zeitkonstanten ~95 %
+    (this.airLog || (this.airLog = [])).push({ t: performance.now(), on, ct: t });
+    if (this.airLog.length > 40) this.airLog.shift();
+    if (!on && state === 'running') {
+      const c = this.ctx, o = c.createOscillator(), g = c.createGain();
+      o.frequency.setValueAtTime(70, t); o.frequency.exponentialRampToValueAtTime(38, t + 0.22);
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.55, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.28);
+      o.connect(g).connect(this.master); o.start(t); o.stop(t + 0.3);
+    }
   }
   // n32 Wetter: Regengeräusch 0 … 1 (main.js aus wetterLook.rain); leise im bestehenden Mix, im Cockpit etwas lauter
   // (Regen aufs Dach) und dumpfer über den Innenraum-Klang nicht nötig – das Rauschen ist schon gedämpft

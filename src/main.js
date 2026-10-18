@@ -1,5 +1,6 @@
 // Stuntbahn – Einstieg: Renderer, Laden, Spielschleife (feste 120-Hz-Physik, Rendering entkoppelt),
 // Debug-API window.__game für Headless-Tests.
+import { LOHN } from './game/lohn.js';
 import * as THREE from 'three';
 import { BUILD } from './build.js';
 import { makeMaterials, shadowUniforms, preloadKtx2, themeUniforms, vaoUniforms, tunnelShader } from './gfx/materials.js';
@@ -855,6 +856,7 @@ function frame(now) {
       race.step(DT, inp);
       if (ghost) ghost.advance(DT, race);
       if (fx) fx.step(DT, race.car, race.state);
+      if (fx && LOHN.schweif) fx.airTrail(DT, race.car, race.state === 'running' ? race.stunts.live() : null);   // n38
       acc -= DT; steps++;
     }
     if (steps >= 14) acc = 0;
@@ -1321,13 +1323,13 @@ window.__game = {
   cam(m) { rig.mode = m; rig.init = false; },
   get cockpit() { return cockpit; },
   get brakeLights() { return brakeLights; }, get air() { return air; },
-  get fx() { return fx; },
+  get fx() { return fx; }, get sound() { return sound; },
   get carVis() { return carVis; }, get ghostVis() { return ghostVis; }, get ghost() { return ghost; },
   // Physik ohne Rendering vorspulen (Headless: schneller als Echtzeit)
   sim(seconds, inp = null) {
     const I = inp || { steer: 0, throttle: 0, brake: 0 };
     const n = Math.round(seconds / DT);
-    for (let k = 0; k < n; k++) { prevPose = race.car.snapshot(); race.step(DT, I); if (ghost) ghost.advance(DT, race); if (fx) fx.step(DT, race.car, race.state); if (race.state === 'finished') break; }
+    for (let k = 0; k < n; k++) { prevPose = race.car.snapshot(); race.step(DT, I); if (ghost) ghost.advance(DT, race); if (fx) fx.step(DT, race.car, race.state); if (fx && LOHN.schweif) fx.airTrail(DT, race.car, race.state === 'running' ? race.stunts.live() : null); if (race.state === 'finished') break; }
     handleEvents();
     return this.state();
   },

@@ -8,6 +8,7 @@ const { generate } = await imp('src/track/generator.js');
 const { verifySync } = await imp('src/track/verify.js');
 const { Race } = await imp('src/game/race.js');
 try { const A = await imp('src/physics/arcade.js'); A.setArcade({ on: false }); } catch { /* vor n37 */ }
+try { const N = await imp('src/game/lohn.js'); N.setLohn(N.LOHN_AUS); } catch { /* vor n38: Stunt-Lohn (eigene Regler, eigener Bitgleich-Test n38_ref.mjs) */ }
 const DT = 1 / 120;
 const out = {};
 for (const [seed, d] of [[4711, 2], [1038, 3]]) {
