@@ -141,7 +141,8 @@ export class Sitzung {
     this.tr.senden('z', b);
   }
   // Lage eines fremden Körpers jetzt (interpoliert); key = 'pid:platz' aus fremdeListe()
-  lage(key, zeit = this.zeit) { const f = this.fremde.get(key); return f ? f.puffer.abtasten(zeit) : null; }
+  // voraus ∈ [0, 1]: um diesen Anteil des Puffer-Verzugs vorausgerechnet (puffer.js)
+  lage(key, zeit = this.zeit, voraus = 0) { const f = this.fremde.get(key); return f ? f.puffer.abtasten(zeit, voraus) : null; }
   fremdeListe() { return [...this.fremde.entries()].map(([key, f]) => ({ key, ...f })); }
 
   // je Bild bzw. alle ~50 ms: Wiederholungen, Uhr-Anfragen, Stille, Gastgeber-Wahl, Zieltabelle

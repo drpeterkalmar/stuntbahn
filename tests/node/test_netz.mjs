@@ -91,7 +91,7 @@ function wahr(t) {
   return { px: x, py: y, pz: z, vx, vy, vz, q, sprung };
 }
 // Sender 20 Hz → Netz (Laufzeit, Schwankung, Verlust, Funkloch) → Empfänger 60 Hz; Uhrfehler ε
-function pufferTest({ latenz = 0, jitter = 0, verlust = 0, hz = 20, eps = 0, loch = null, dauer = 20 }) {
+function pufferTest({ latenz = 0, jitter = 0, verlust = 0, hz = 20, eps = 0, loch = null, dauer = 20, voraus = 0 }) {
   const r = mulberry(5 + latenz + jitter);
   const P = new FremdPuffer();
   const post = [];
@@ -106,9 +106,10 @@ function pufferTest({ latenz = 0, jitter = 0, verlust = 0, hz = 20, eps = 0, loc
   const dtF = 1000 / 60, err = [];
   for (let now = 500; now < dauer * 1000; now += dtF) {
     while (k < post.length && post[k].an <= now) { P.rein(post[k].t, post[k].d, post[k].an + eps); k++; }
-    const o = P.abtasten(now + eps);
+    const o = P.abtasten(now + eps, voraus);
     if (!o) continue;
-    const tr = (P.letztT - eps) / 1000, W = wahr(tr);
+    // Vergleichszeit: gezeigte Pufferzeit bzw. (vorausgerechnet) um den Verzug später
+    const tr = (P.letztT - eps + (voraus ? voraus * Math.min(P.verzug, 250) : 0)) / 1000, W = wahr(tr);
     const p = [o.px, o.py, o.pz];
     // Fehler gegen die Wahrheit zur gezeigten Zeit (ohne die Sekunde um den Sprung/Reset)
     // Wahrheit selbst unstetig: Absprung/Landung (6 s, 8 s), Reset (14 s) – dort nur Sprünge zählen
@@ -124,7 +125,7 @@ function pufferTest({ latenz = 0, jitter = 0, verlust = 0, hz = 20, eps = 0, loc
       maxRuck = Math.max(maxRuck, a); if (a > 40) ruck++;
     }
     // Satz je Bild: gezeigte Bewegung minus wahre Bewegung (m) – außer am Reset
-    if (prev && wPrev && Math.abs(tr - 14) > 0.3) satz = Math.max(satz, Math.hypot(p[0] - prev[0] - (W.px - wPrev.px), p[1] - prev[1] - (W.py - wPrev.py), p[2] - prev[2] - (W.pz - wPrev.pz)));
+    if (prev && wPrev && !nahReset) satz = Math.max(satz, Math.hypot(p[0] - prev[0] - (W.px - wPrev.px), p[1] - prev[1] - (W.py - wPrev.py), p[2] - prev[2] - (W.pz - wPrev.pz)));
     prev2 = prev; prev = p; wPrev = W;
     verzug.push(P.verzug);
   }
@@ -148,6 +149,13 @@ for (const [lat, jit, verl, grenzeM] of [[0, 0, 0, 0.05], [25, 5, 0, 0.05], [75,
   // Funkloch 0,6 s: 250 ms extrapoliert, dann steht das Auto; danach holt es auf (Fehler > 8 m → einmal Sprung)
   const l2 = pufferTest({ latenz: 25, jitter: 5, loch: [9.0, 9.6] });
   ok(l2.mittel < 0.1 && l2.art === 'interp', `Funkloch 0,6 s: Satz ${l2.satz.toFixed(1)} m (sichtbar, ehrlich), danach wieder genau (${l2.mittel.toFixed(3)} m)`);
+  // Vorausrechnen um den Verzug (Kollision/Anzeige „wo das Auto jetzt ist“): stetig, kleiner Fehler gegen die Wahrheit JETZT
+  for (const [lat, jit] of [[25, 5], [75, 30]]) {
+    const v = pufferTest({ latenz: lat, jitter: jit, verlust: 0.05, voraus: 1 });
+    // Ruckler hier nur winzig: beim Wechsel Extrapolation → Interpolation (Paket verspätet) ändert sich das Tempo um wenige
+    // Zehntel m/s, × Verzug = wenige cm Satz (Beschleunigung im 60-Hz-Bild > 40 m/s², sichtbar ist das nicht)
+    ok(v.satz < 0.15 && v.mittel < 0.6 && v.maxW < 3, `vorausgerechnet Ping ${2 * lat} ±${jit}: Fehler zur Wahrheit jetzt Mittel ${v.mittel.toFixed(2)} m, 99 % ${v.p99.toFixed(2)} m, Drehung max ${v.maxW.toFixed(1)}°, größter Satz je Bild ${v.satz.toFixed(3)} m`);
+  }
   // 10 Hz statt 20 Hz (z. B. KI-Autos): noch brauchbar
   const z = pufferTest({ latenz: 25, jitter: 5, hz: 10 });
   ok(z.mittel < 0.3 && z.ruck === 0, `10 Hz: Fehler Mittel ${z.mittel.toFixed(3)} m, max ${z.maxErr.toFixed(2)} m`);

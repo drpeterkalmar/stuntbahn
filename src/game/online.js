@@ -31,6 +31,11 @@ export const ONLINE = {
   rempler: { vMin: 1.5, abstand: 0.25 },   // m/s Stoß-Tempo für ein Rempler-Ereignis, s zwischen zwei je Paar
   p2pHinweis: 10000,   // ms: keine direkte Verbindung → ehrliche Meldung
   nachlauf: 45,        // s: so lange wartet die Zieltabelle nach dem ersten Zieleinlauf (SITZUNG.zielSchluss)
+  // fremde Autos um den Puffer-Verzug vorausgerechnet zeigen und anstoßen (1) bzw. so, wie der Puffer sie hat (0, wie im Brief:
+  // ~100 ms zurück). Messung tools/online_mess.mjs (Autopilot-Fahrt, 25 Hz, 5 % Verlust): mit 0 liegt das gezeigte Auto im
+  // Mittel 3,0 m (Ping 0–50 ms) bzw. 4,8 m (150 ms) hinter dem echten, mit 1 nur 0,2–0,4 m → Rempler passieren dort, wo die
+  // Autos wirklich sind. Nachteil: bei Vollbremsung/Crash schießt das Auto kurz über (≤ Tempo × Verzug). ?netzvoraus=0 = aus.
+  voraus: urlQ && urlQ.has('netzvoraus') ? Math.max(0, Math.min(1, +urlQ.get('netzvoraus') || 0)) : 1,
 };
 export function onlineOptionen(search = urlQ ? location.search : '') {
   const q = new URLSearchParams(search);
@@ -239,7 +244,7 @@ export class OnlineRennen {
     const aktiv = R.state === 'running' || R.state === 'finished';
     if (!aktiv) this.geistBis = jetztS + 0.3;
     for (const [key, X] of this.autos) {
-      const o = this.S.lage(key, this.tSim);
+      const o = this.S.lage(key, this.tSim, ONLINE.voraus);
       X.auto.art = this.S.fremde.get(key)?.puffer.art || 'leer';
       X.prev = X.auto.gueltig ? { ...X.auto.pos } : null;
       X.auto.setze(o, dtEcht / 1000, jetztS);

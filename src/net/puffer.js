@@ -7,11 +7,14 @@
 // Verzug passt sich an: 90-%-Wert der Ankunftsverspätung + Sendeabstand + Reserve, mindestens PUFFER.min ms;
 // Änderungen laufen über zwei Glättungsstufen (je PUFFER.tau ms) und höchstens ± PUFFER.anpassung (Zeit dehnt sich
 // höchstens um 5 %) – so ändert sich das Tempo der gezeigten Zeit nie sprunghaft und nichts ruckt.
+// Vorausrechnen (abtasten(jetzt, voraus)): Lage zusätzlich um voraus × Verzug mit Tempo und Drehrate nach vorn – das
+// fremde Auto steht dann fast dort, wo es auf seinem Gerät wirklich ist (Messung tools/online_mess.mjs: 3–5 m hinter echt
+// → 0,2–0,4 m), bleibt stetig (Tempo aus Hermite ist stetig), schießt aber bei Vollbremsung/Crash kurz über.
 // Datensatz: { px, py, pz, q: {x,y,z,w}, vx, vy, vz, …weitere Felder } (siehe paket.js). Weitere Zahlenfelder in
 // opt.lin werden linear gemischt, alle anderen vom näheren Satz übernommen. Muster: game/ghost.js (15-Hz-Geist).
 // Node-Test: tests/node/test_netz.mjs (glatt/genau bei 0/50/150 ms, Schwankung, 5 % Verlust).
 
-export const PUFFER = { min: 100, max: 450, extra: 250, reserve: 25, anpassung: 0.05, tau: 800, blend: 0.2, sprung: 8, n: 40, latN: 40 };
+export const PUFFER = { min: 100, max: 450, extra: 250, reserve: 25, anpassung: 0.05, tau: 800, blend: 0.2, sprung: 8, n: 40, latN: 40, vGlatt: 0.04 };
 
 export class FremdPuffer {
   constructor(opt = {}) {
@@ -72,7 +75,8 @@ export class FremdPuffer {
   }
 
   // Lage zur Sitzungszeit jetzt (ms). Liefert this.out (wird wiederverwendet) oder null, solange leer.
-  abtasten(jetzt) {
+  // voraus ∈ [0, 1]: Anteil des Verzugs, um den vorausgerechnet wird (0 = gezeigte Pufferlage)
+  abtasten(jetzt, voraus = 0) {
     if (!this.s.length) { this.art = 'leer'; return null; }
     const dt = this.letztJetzt == null ? 0 : Math.max(0, Math.min(200, jetzt - this.letztJetzt));
     this.letztJetzt = jetzt;
@@ -90,7 +94,20 @@ export class FremdPuffer {
     this.fp[0] *= k; this.fp[1] *= k; this.fp[2] *= k;
     this.fq = qnorm(qslerp([0, 0, 0, 1], this.fq, k));
     o.px += this.fp[0]; o.py += this.fp[1]; o.pz += this.fp[2];
-    const q = qnorm(qmul(this.fq, [o.q.x, o.q.y, o.q.z, o.q.w]));
+    let q = qnorm(qmul(this.fq, [o.q.x, o.q.y, o.q.z, o.q.w]));
+    if (voraus > 0 && this.art !== 'halt') {
+      const d = voraus * Math.min(this.verzug, PUFFER.extra) / 1000;
+      // Tempo fürs Vorausrechnen leicht geglättet (PUFFER.vGlatt s): ein verspätetes Paket (kurz extrapoliert, dann wieder
+      // interpoliert) ändert das Tempo sonst sprunghaft – × Verzug ein sichtbarer Satz
+      const V = this.vp || (this.vp = [o.vx, o.vy, o.vz]), kv = dt > 0 ? 1 - Math.exp(-dt / 1000 / PUFFER.vGlatt) : 1;
+      if (Math.hypot(o.vx - V[0], o.vy - V[1], o.vz - V[2]) > 15) { V[0] = o.vx; V[1] = o.vy; V[2] = o.vz; }   // Reset/Crash: sofort
+      else { V[0] += (o.vx - V[0]) * kv; V[1] += (o.vy - V[1]) * kv; V[2] += (o.vz - V[2]) * kv; }
+      o.px += V[0] * d; o.py += V[1] * d; o.pz += V[2] * d;
+      // Drehrate aus der Rohlage 20 ms früher (o.q ist hier noch die Rohlage zu tr); über einen Sprung nicht
+      const art = this.art, f = this._roh(tr - 20, this._qv || (this._qv = {}));
+      this.art = art;
+      if (f.sprung === o.sprung) { const dq = qmul([o.q.x, o.q.y, o.q.z, o.q.w], qkonj([f.q.x, f.q.y, f.q.z, f.q.w])); q = qnorm(qmul(qpow(dq, Math.min(12, d / 0.02)), q)); }
+    }
     o.q.x = q[0]; o.q.y = q[1]; o.q.z = q[2]; o.q.w = q[3];
     return o;
   }
