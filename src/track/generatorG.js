@@ -9,7 +9,7 @@
 import { GRID } from './defs.js';
 import { rng } from '../core/util.js';
 import { pieceCells, PIECES } from './pieces.js';
-import { DIFFS, bump, dirIdx, trackName } from './generator.js';
+import { DIFFS, bump, dirIdx, trackName, hindFilter, genV, HIND_FALLBACK } from './generator.js';
 import './pieces_gel.js';   // Halfpipe registrieren
 
 // Je Stufe: Rechteck, Ausbeulungen, Anteil weiter Kurven / davon Steilkurven, Stunt-Dichte, Chance Serpentine,
@@ -22,9 +22,16 @@ export const GD = {
   3: { w: [14, 19], h: [11, 14], bumps: [2, 4], large: 0.55, bank: 0.5, density: 0.34, serp: 0.6, kuppe: 2, tilt: 1, tunnel: 0.8, gorge: 1, halfpipe: 0.8, drop: 0.9, tiltDeg: 15,
     must: ['loop', 'jump', 'tube'], types: { bumps: 1, chicane: 2, loop: 3, jump: 2, tube: 2, waves: 2, tr_corklr: 3 } },
 };
-const LEN = { straight: 1, checkpoint: 1, bumps: 1, chicane: 2, loop: 2, tube: 2, jump: 3, waves: 3, tr_corklr: 2, halfpipe: 3, cliff: 3, cliff2: 3 };
-const RUNUP = { bumps: 0, chicane: 0, loop: 1, tube: 0, jump: 1, waves: 0, tr_corklr: 1, halfpipe: 1, cliff: 1, cliff2: 1 };
-const AFTER = { bumps: 0, chicane: 0, loop: 1, tube: 1, jump: 1, waves: 0, tr_corklr: 1, halfpipe: 1, cliff: 1, cliff2: 1 };
+// n33 Generator-Version 2: Zickzack-Barriere und Röhre mit Wand auf Gelände-Sockeln (Pflicht wie flach: Sanft die kurze
+// Zickzack, Sportlich Zickzack, Irre Zickzack + Röhre mit Wand)
+export const GD2 = {
+  1: { ...GD[1], must: ['loop', 'zigzag2'] },
+  2: { ...GD[2], must: ['loop', 'zigzag', 'jump'], types: { ...GD[2].types, chicane: 1, zigzag: 2, tube_wall: 2 } },
+  3: { ...GD[3], must: ['loop', 'zigzag', 'tube_wall', 'jump', 'tube'], types: { ...GD[3].types, chicane: 1, zigzag: 2, tube_wall: 2 } },
+};
+const LEN = { straight: 1, checkpoint: 1, bumps: 1, chicane: 2, loop: 2, tube: 2, jump: 3, waves: 3, tr_corklr: 2, halfpipe: 3, cliff: 3, cliff2: 3, zigzag: 3, zigzag2: 2, tube_wall: 2 };
+const RUNUP = { bumps: 0, chicane: 0, loop: 1, tube: 0, jump: 1, waves: 0, tr_corklr: 1, halfpipe: 1, cliff: 1, cliff2: 1, zigzag: 1, zigzag2: 1, tube_wall: 1 };
+const AFTER = { bumps: 0, chicane: 0, loop: 1, tube: 1, jump: 1, waves: 0, tr_corklr: 1, halfpipe: 1, cliff: 1, cliff2: 1, zigzag: 1, zigzag2: 1, tube_wall: 1 };
 const key = (p) => p[0] + ',' + p[1];
 
 export function rectCycle(r, D) {
@@ -79,21 +86,22 @@ export function serpentine(cyc, r) {
 }
 
 export function generateGel(seed, diff, opts = {}) {
-  const D = GD[diff], base = DIFFS[diff];
+  const v2 = genV(opts) === 2;
+  const D = v2 ? hindFilter(GD2[diff]) : GD[diff], base = DIFFS[diff];
   for (let attempt = 0; attempt < 40; attempt++) {
     const r = rng(((seed >>> 0) * 7919 + diff * 104729 + (opts.variant || 0) * 7727 + attempt * 31337 + 0x6e1) >>> 0);
-    const lay = tryBuild(r, D, base, diff, seed);
+    const lay = tryBuild(r, D, base, diff, seed, v2);
     if (!lay) continue;
     lay.seed = seed; lay.diff = diff;
-    const k = `${seed}-${diff}-g`;
-    lay.meta = { seed, diff, gel: true, variant: opts.variant || 0, key: k, name: trackName(seed), diffName: base.name, attempt, elems: lay.elems };
+    const k = `${seed}-${diff}-g${v2 ? 'h' : ''}`;
+    lay.meta = { seed, diff, gel: true, variant: opts.variant || 0, key: k, name: trackName(seed), diffName: base.name, attempt, elems: lay.elems, ...(v2 ? { gv: 2 } : {}) };
     delete lay.elems;
     return lay;
   }
   throw new Error('Gelände-Generator: keine Strecke für ' + seed + '-' + diff);
 }
 
-function tryBuild(r, D, base, diff, seed) {
+function tryBuild(r, D, base, diff, seed, v2 = false) {
   // --- 1) Grundform + Serpentine + Ausbeulungen
   let cyc = rectCycle(r, D), sp = null;
   if (r.chance(D.serp)) { sp = serpentine(cyc, r); if (sp) cyc = sp.cyc; }
@@ -153,6 +161,7 @@ function tryBuild(r, D, base, diff, seed) {
     return true;
   };
   const place = (t, s, extra = {}) => {
+    if (t === 'zigzag' || t === 'zigzag2') out[s].m = r.chance(0.5) ? 1 : -1;   // n33: Seite des ersten Blocks
     out[s].t = t; out[s].cells = LEN[t]; Object.assign(out[s], extra);
     for (let q = s + 1; q < s + LEN[t]; q++) out[q].t = 'skip';
     for (let q = s; q < s + LEN[t]; q++) out[q].lock = 1;
@@ -183,8 +192,9 @@ function tryBuild(r, D, base, diff, seed) {
     const c = cands(t); if (c.length) place(t, spread(c), { lvl: lv, h1: 0, g: 'drop' });
   }
   if (r.chance(D.halfpipe)) { const c = cands('halfpipe'); if (c.length) place('halfpipe', spread(c)); }
-  for (const t of D.must) {
-    const c = cands(t);
+  for (let t of D.must) {
+    let c = cands(t);
+    if (!c.length && v2 && HIND_FALLBACK[t]) { t = HIND_FALLBACK[t]; c = cands(t); }
     if (!c.length) continue;
     if (t === 'jump' && gorgeDone) continue;   // Pflicht-Schanze ist schon der Schluchtsprung
     place(t, spread(c));

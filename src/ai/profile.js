@@ -83,10 +83,13 @@ export function genericJumpWindow(L, lip, land) {
 // n14 (29.09.2026, Messung in FAHRGEFUEHL_BERICHT.md): Kurven 76 % der jetzt höheren Haftung (Bots wie Menschen
 // behalten Reserve), Engstellen 25 m/s (Querfehler in der Slalom-Gasse wächst mit dem Tempo kaum; bei 25 m/s scheitert keine der 244 Slalom-Strecken der Sammlung ohne Hilfen, bei 22 und 30 m/s je eine), Kuppen mit
 // Abtrieb, Bremsplan aus dem Haftungskreis (70 %), Schanze 1,5 m/s unter der Fenster-Obergrenze (Landung bleibt auf der Rampe).
+const ZIG_V = (() => { const e = globalThis.process && globalThis.process.env && +globalThis.process.env.STUNT_ZICKZACK_V; return e > 0 ? e / 3.6 : 70 / 3.6; })();   // Node: STUNT_ZICKZACK_V=km/h
 export const PROF = GRIP_ALT
   ? { res: 0.82, resPre: 0.65, preLen: 25, aero: 0.8, nmin: 0.45, nmax: 6.2, brake: 8, vNarrow: 15.5, rollMax: 3.2, crestAero: false, brakeCircle: 0, jumpSafe: 0 }
-  : { res: 0.76, resPre: 0.65, preLen: 25, aero: 0.8, nmin: 0.45, nmax: 6.2, brake: 8, vNarrow: 25, rollMax: 3.2, crestAero: true, brakeCircle: 0.7, jumpSafe: 1.5, haft: 0 };
+  : { res: 0.76, resPre: 0.65, preLen: 25, aero: 0.8, nmin: 0.45, nmax: 6.2, brake: 8, vNarrow: 25, rollMax: 3.2, crestAero: true, brakeCircle: 0.7, jumpSafe: 1.5, haft: 0, vZig: ZIG_V };
 const PROF_STD = PROF;
+// vZig (n33): Höchsttempo in der Zickzack-Barriere (L.wave = 5, m/s) – unter dem Kurven-Limit der Slalom-Linie, damit ein
+// verzögert lenkender Fahrer (Original-Bot 0,1 s, Mittel-Handy 0,35 s) die Gassen trifft. Messung tools/hindernis_mess.mjs
 
 export const KUPPE_N = -0.45;
 // opts.prof: abweichende Grenzen/Reserven (Teilmenge von PROF), z. B. Leicht „Brachial“ (ai/drift.js BRACHIAL.prof)
@@ -193,6 +196,7 @@ export function computeProfile(L, opts = {}) {
     // Rollrate begrenzen (v·Verwindung ≤ ROLL_MAX): im Korkenzieher hebt das Auto sonst ab. Das alte Auto
     // kam dort nie über ~50 km/h (schwache Beschleunigung) – das neue erreicht das Profil-Tempo wirklich.
     if (Math.abs(tw[i]) > 1e-3) { vmax[i] = Math.min(vmax[i], PROF.rollMax / Math.abs(tw[i])); if (D) dl('rollrate')[i] = PROF.rollMax / Math.abs(tw[i]); }
+    if (wv === 5 && PROF.vZig > 0) { vmax[i] = Math.min(vmax[i], PROF.vZig); if (D) dl('zickzack')[i] = PROF.vZig; }   // n33
     vmin[i] = Math.sqrt(Math.max(0, lo));
     if (vmin[i] > vmax[i]) { vmax[i] = vmin[i]; if (D) dl('mindest')[i] = vmin[i]; }
   }

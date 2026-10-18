@@ -16,7 +16,8 @@ const ROOT = path.resolve(arg('root', path.join(HERE, '..')));
 const imp = (p) => import(url.pathToFileURL(path.join(ROOT, p)).href);
 const DT = 1 / 120;
 
-export const STUNTS = { loop: 'Looping', tube: 'Röhre', tr_corklr: 'Korkenzieher', jump: 'Schanze', waves: 'Wellen', wall: 'Steilwand', halfpipe: 'Halfpipe', crest: 'Kuppe', bumps: 'Bodenwellen', cliff: 'Klippe', cliff2: 'Klippe 2', spiral: 'Spirale', bank: 'Steilkurve', tr_corkud: 'Wendel' };
+export const STUNTS = { loop: 'Looping', tube: 'Röhre', tr_corklr: 'Korkenzieher', jump: 'Schanze', waves: 'Wellen', wall: 'Steilwand', halfpipe: 'Halfpipe', crest: 'Kuppe', bumps: 'Bodenwellen', cliff: 'Klippe', cliff2: 'Klippe 2', spiral: 'Spirale', bank: 'Steilkurve', tr_corkud: 'Wendel',
+  zigzag: 'Zickzack', zigzag2: 'Zickzack kurz', tube_wall: 'Röhre mit Wand' };   // n33
 
 export function messTracks(generate) {
   const L = [];

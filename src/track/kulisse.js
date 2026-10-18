@@ -31,6 +31,21 @@ export function makeGapFree(track, L, n) {
   };
 }
 
+// n33: Zuschauer-Plätze an den neuen Hindernissen – Zickzack-Barriere (Mitte der Blöcke) und, nur auf Strecken der
+// Generator-Version 2 (alte Codes behalten ihre Kulisse bitgleich), Spiralen (unteres Ende, dort ist Boden). Die Röhre mit
+// Wand ist eine Röhre (L.tube) und bekommt den Röhren-Platz von selbst.
+export function hindSpots(track) {
+  const out = [], L = track.line;
+  for (const o of track.obstacles || []) if (o.kind === 'zigzag' && o.blockIdx && o.blockIdx.length) out.push({ i: o.blockIdx[o.blockIdx.length >> 1], kind: 'zickzack' });
+  const gv2 = track.layout && track.layout.meta && track.layout.meta.gv >= 2;
+  if (gv2) (track.pieces || []).forEach((p) => {
+    if (p.type !== 'spiral' || p.lineEnd <= p.lineStart) return;
+    const lowEnd = L.py[p.lineStart] <= L.py[p.lineEnd];
+    out.push({ i: lowEnd ? Math.min(p.lineEnd, p.lineStart + 6) : Math.max(p.lineStart, p.lineEnd - 6), kind: 'spirale' });
+  });
+  return out;
+}
+
 export function planKulisse(c) {
   const { track, L, T, n, R, H, occ, ok, side, faceRoad, flat, kap, at, ground, out, I, tier, o, KS, curveRuns } = c;
   const themeId = o.themeId && THEMES[o.themeId] ? o.themeId : 'land';
@@ -48,6 +63,7 @@ export function planKulisse(c) {
   for (const j of track.jumps || []) spots.push({ i: at(j.landIdx, 25), kind: 'sprung' });
   for (let i = 1; i < n; i++) if (L.loop[i] && !L.loop[i - 1]) { let e = i; while (e < n - 1 && L.loop[e + 1]) e++; spots.push({ i: (i + e) >> 1, kind: 'looping' }); i = e; }
   for (let i = 1; i < n; i++) if (L.tube && L.tube[i] && !L.tube[i - 1]) { spots.push({ i, kind: 'roehre' }); while (i < n - 1 && L.tube[i + 1]) i++; }
+  spots.push(...hindSpots(track));   // n33
   // Tribünen an den beiden schärfsten Kurven (hinter Kiesbett und Reifenstapeln)
   const sharp = (curveRuns || []).filter((cr) => cr.tyreD).sort((a, b) => Math.max(...b.idx.map((i) => kap[i])) - Math.max(...a.idx.map((i) => kap[i]))).slice(0, 2);
   for (const cr of sharp) spots.push({ i: cr.idx[cr.idx.length >> 1], kind: 'kurve', sg: cr.sg, d: cr.tyreD + 16 });

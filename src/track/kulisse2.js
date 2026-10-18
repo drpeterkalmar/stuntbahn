@@ -17,7 +17,7 @@
 // nahe der Fahrbahn auf Fahrbahnhöhe, keine Kollision (nur Optik).
 import { rng } from '../core/util.js';
 import { THEMES } from './themes.js';
-import { makeGapFree } from './kulisse.js';
+import { makeGapFree, hindSpots } from './kulisse.js';
 
 // ?kulisse=alt → Planung wie bis n31 (A/B)
 export const KULISSE2_URL = globalThis.location && globalThis.location.search ? new URLSearchParams(globalThis.location.search).get('kulisse') !== 'alt' : true;
@@ -62,6 +62,7 @@ export function planKulisse2(c) {
   for (const j of track.jumps || []) (stuntOf.get('sprung') || stuntOf.set('sprung', []).get('sprung')).push(at(j.landIdx, 25));
   for (let i = 1; i < n; i++) if (L.loop[i] && !L.loop[i - 1]) { let e = i; while (e < n - 1 && L.loop[e + 1]) e++; (stuntOf.get('looping') || stuntOf.set('looping', []).get('looping')).push((i + e) >> 1); i = e; }
   for (let i = 1; i < n; i++) if (L.tube && L.tube[i] && !L.tube[i - 1]) { (stuntOf.get('roehre') || stuntOf.set('roehre', []).get('roehre')).push(i); while (i < n - 1 && L.tube[i + 1]) i++; }
+  for (const h of hindSpots(track)) (stuntOf.get(h.kind) || stuntOf.set(h.kind, []).get(h.kind)).push(h.i);   // n33
   const spots = [...stuntOf.entries()].flatMap(([k, a]) => a.map((i) => ({ i, kind: k })));
   // Regel aus planDeco (am Ende angewandt): bis 40 m neben der Fahrbahn nur auf Höhe des nächsten ebenerdigen Linienpunkts
   // (±2,5 m). Hier vorab, damit Zuschauer/Zäune nur zu Gruppen und Tribünen gehören, die stehen bleiben.

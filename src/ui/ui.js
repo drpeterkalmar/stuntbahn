@@ -23,11 +23,13 @@ import { G_ON } from '../core/gforce.js';
 const $ = (s, r = document) => r.querySelector(s);
 const h = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
 const ICON = { loop: '➰', jump: '🛫', tube: '🕳️', bank: '↪️', crest: '⛰️', bumps: '〰️', chicane: '🔀', bridge: '🌉',
+  // n33: Zickzack-Barriere, Röhre mit Wand
+  zigzag: '🚧', tube_wall: '🔄',
   // 3D-Teile (n19)
   spiral: '🌀', cliff: '🪂', cliff2: '🪂', wall: '🧱', waves: '🎢', slope3: '🎿', slope4: '🎿', tr_corklr: '🍥', tr_corkud: '🌀', tr_bankC: '↪️',
   // Gelände-Teile (n22)
   halfpipe: '🛹', gorge: '🏞️', kuppe: '🐪', tunnel: '🚇', tilt: '📐', serp: '〽️', drop: '🪂' };
-const ICON_NAME = { gorge: 'Schluchtsprung', kuppe: 'Kuppe mit Luftphase', tunnel: 'Tunnel', tilt: 'Hang-Querfahrt', serp: 'Serpentine', drop: 'Plateau-Abfahrt', bridge: 'Brücke' };
+const ICON_NAME = { gorge: 'Schluchtsprung', kuppe: 'Kuppe mit Luftphase', tunnel: 'Tunnel', tilt: 'Hang-Querfahrt', serp: 'Serpentine', drop: 'Plateau-Abfahrt', bridge: 'Brücke', zigzag: 'Zickzack-Barriere', tube_wall: 'Röhre mit Wand (über Kopf)' };
 // Streckenarten (n22): flach (bis n18), Hochstraße (n19, „3D“), Gelände (Standard ab n22)
 const MODES = [['flat', '▭', 'flach', 'Flache Strecken wie bis n18'], ['3d', '🏗️', 'Hochstraße', 'Hochstraßen-Ebenen, Brücken, Spiralen, Klippensprünge (n19)'], ['gel', '⛰️', 'Gelände', 'Strecke durch Hügel und Täler: Kuppen, Serpentinen, Hänge, Tunnel, Schluchtsprung']];
 // Symbole für importierte Strecken (Elementart → Symbol, Name)
@@ -202,10 +204,13 @@ export class UI {
     const stuntNote = !!this.store.stuntNote;
     if (stuntNote) { this.store.stuntNote = 0; setTimeout(() => this.toast('🌀 Größere Stunts (Looping, Schanze, Röhre …) – Bestzeiten der Zufallsstrecken starten neu, Sammlung und .TRK bleiben', 5000), medNote ? 5200 : 600); }
     // n29: Röhre mit Buckel – nur, wenn es (noch) Bestzeiten auf Zufallsstrecken gab
-    if (this.store.tubeNote) { this.store.tubeNote = 0; setTimeout(() => this.toast('🕳️ Die Röhre hat jetzt einen Buckel in der Mitte – Bestzeiten der Zufallsstrecken starten neu, Sammlung und .TRK bleiben', 5000), 600 + (medNote ? 4600 : 0) + (stuntNote ? 5000 : 0)); }
+    const tubeNote = !!this.store.tubeNote;
+    if (tubeNote) { this.store.tubeNote = 0; setTimeout(() => this.toast('🕳️ Die Röhre hat jetzt einen Buckel in der Mitte – Bestzeiten der Zufallsstrecken starten neu, Sammlung und .TRK bleiben', 5000), 600 + (medNote ? 4600 : 0) + (stuntNote ? 5000 : 0)); }
+    // n33: neue Hindernisse – einmal Bescheid sagen (neue Zufallsstrecken mit „h“ im Code, alte Codes und Bestzeiten bleiben)
+    if (this.store.hindNote) { this.store.hindNote = 0; setTimeout(() => this.toast('🚧 Neue Hindernisse: Zickzack-Barriere, Röhre mit Wand (über Kopf!), Spiralen-Hochstraße – neue Zufallsstrecken haben ein „h“ im Code, alte Codes und Bestzeiten bleiben', 5500), 600 + (medNote ? 4600 : 0) + (stuntNote ? 5000 : 0) + (tubeNote ? 5000 : 0)); }
     const S = this.store.settings, m = env.meta, lay = env.layout;
     const stunts = {};
-    for (const p of lay.pieces) { const t = p.g === 'gorge' ? 'gorge' : p.g === 'drop' ? 'drop' : { tr_bankC: 'bank', cliff2: 'cliff', slope4: 'slope3', tr_corkud: 'spiral' }[p.type] || p.type; if (ICON[t] && (t !== 'straight')) stunts[t] = (stunts[t] || 0) + 1; }
+    for (const p of lay.pieces) { const t = p.g === 'gorge' ? 'gorge' : p.g === 'drop' ? 'drop' : { tr_bankC: 'bank', cliff2: 'cliff', slope4: 'slope3', tr_corkud: 'spiral', zigzag2: 'zigzag' }[p.type] || p.type; if (ICON[t] && (t !== 'straight')) stunts[t] = (stunts[t] || 0) + 1; }
     if (lay.pieces.some((p) => p.type === 'rampUp')) stunts.bridge = lay.pieces.filter((p) => p.type === 'bridge').length;
     if (m.crossings) stunts.bridge = m.crossings;   // 3D: Überführungen
     // Gelände (n22): Elemente aus dem Plan (Tunnel, Brücken entstehen auch von selbst) und den Stück-Markierungen
@@ -356,9 +361,10 @@ export class UI {
       case 'mode': { S.trackMode = v; this.store.save(); this.refresh(); const md = MODES.find((q) => q[0] === v); if (md) this.toast(`${md[1]} ${md[2]}: ${md[3]}`, 2800); break; }
       case 'code': {
         // „4711-2“ = die bisherige (flache) Strecke wie immer, „4711-2-3d“ = Hochstraße (n19), „4711-2-g“ = Gelände (n22);
-        // ohne Stufe die gewählte
-        const c = prompt('Strecken-Code (z. B. 4711-2-g, 4711-2-3d oder 4711-2):', this.env && !this.env.meta.imported ? this.env.meta.key : '');
-        if (c) { const m = /^\s*(\d+)(?:\s*-\s*([123]))?(?:\s*-?\s*(3d|g))?\s*$/i.exec(c); if (m) A.newTrack(+m[1], +(m[2] || S.diff || 2), m[3] ? (m[3].toLowerCase() === 'g' ? 'gel' : '3d') : 'flat'); else this.toast('Ungültiger Code'); }
+        // ohne Stufe die gewählte. n33: „h“ am Ende = mit den neuen Hindernissen (4711-2-gh, 4711-2-3dh, 4711-2-h), ohne „h“
+        // baut der Generator wie bis n32 (alte Codes behalten ihr Layout)
+        const c = prompt('Strecken-Code (z. B. 4711-2-gh, 4711-2-3dh oder 4711-2-h; ohne „h“ wie vor den neuen Hindernissen):', this.env && !this.env.meta.imported ? this.env.meta.key : '');
+        if (c) { const m = /^\s*(\d+)(?:\s*-\s*([123]))?(?:\s*-?\s*(3d|g))?(?:\s*-?\s*(h))?\s*$/i.exec(c); if (m) A.newTrack(+m[1], +(m[2] || S.diff || 2), m[3] ? (m[3].toLowerCase() === 'g' ? 'gel' : '3d') : 'flat', undefined, m[4] ? 2 : 1); else this.toast('Ungültiger Code'); }
         break;
       }
       case 'settings': this.showSettings(); break;

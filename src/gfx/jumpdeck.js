@@ -52,7 +52,7 @@ function strip(L, i0, s0, s1, out, hw0 = 0) {
   for (let k = 0; k < n; k++) { const a = base + k * 2; out.idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
 }
 
-// Gruppe mit allen Markierungen einer Strecke (oder null ohne Schanzen und Röhren-Buckel)
+// Gruppe mit allen Markierungen einer Strecke (oder null ohne Schanzen, Röhren-Buckel und n33-Hindernisse)
 export function buildJumpMarks(track) {
   const L = track.line, out = { pos: [], nrm: [], uv: [], idx: [] };
   for (const j of track.jumps || []) {
@@ -67,6 +67,23 @@ export function buildJumpMarks(track) {
     if (h.idx0 == null || h.idxC == null) continue;
     const a = L.s[h.idx0], c = L.s[h.idxC];
     strip(L, h.idx0, a + HUMP_MARK[0] * (c - a), a + HUMP_MARK[1] * (c - a), out, Math.max(1, h.hw - 0.15));
+  }
+  // n33: Warnflächen der Zickzack-Blöcke (Stirn- und Innenseite) und der Röhren-Wand (Vorderseite, Oberkante) – konvexe
+  // Vielecke aus build.js (pb.markPoly), Textur-Koordinaten in Metern
+  for (const mk of track.marks || []) {
+    const base = out.pos.length / 3, nv = mk.pos.length / 3;
+    for (let k = 0; k < nv; k++) {
+      out.pos.push(mk.pos[3 * k], mk.pos[3 * k + 1], mk.pos[3 * k + 2]);
+      out.nrm.push(mk.nrm[0], mk.nrm[1], mk.nrm[2]);
+      out.uv.push(mk.uv[2 * k] / (DECK_MARK.stripe * 2), mk.uv[2 * k + 1] / (DECK_MARK.stripe * 2));
+    }
+    // Fächer; Wicklung so, dass die Vorderseite zur Normalen zeigt
+    for (let k = 1; k < nv - 1; k++) {
+      const P = (q) => [mk.pos[3 * q], mk.pos[3 * q + 1], mk.pos[3 * q + 2]], A = P(0), B = P(k), C = P(k + 1);
+      const u = [B[0] - A[0], B[1] - A[1], B[2] - A[2]], v = [C[0] - A[0], C[1] - A[1], C[2] - A[2]];
+      const cx = u[1] * v[2] - u[2] * v[1], cy = u[2] * v[0] - u[0] * v[2], cz = u[0] * v[1] - u[1] * v[0];
+      if (cx * mk.nrm[0] + cy * mk.nrm[1] + cz * mk.nrm[2] >= 0) out.idx.push(base, base + k, base + k + 1); else out.idx.push(base, base + k + 1, base + k);
+    }
   }
   if (!out.idx.length) return null;
   const g = new THREE.BufferGeometry();

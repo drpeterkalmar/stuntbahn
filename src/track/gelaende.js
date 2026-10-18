@@ -48,10 +48,11 @@ export const ENV = {
 export const HALFPIPE = { hf: ROAD_HW + 0.4, R: 9 * stuntK(STUNT_SCALE, 0.55), A: 62 * Math.PI / 180, ramp: 30 };
 // Stücke mit festem Sockel (ein Höhenwert je Stück): Stunts und Bauwerke, deren Form an der Waagrechten hängt
 export const RIGID = new Set(['start', 'loop', 'jump', 'tube', 'tr_corklr', 'waves', 'bumps', 'bank', 'wall', 'chicane', 'crest', 'cliff', 'cliff2',
-  'halfpipe', 'tr_bankC', 'spiral', 'tr_corkud', 'slope2', 'slope3', 'slope4', 'rampUp', 'rampDown', 'bridge']);
+  'halfpipe', 'tr_bankC', 'spiral', 'tr_corkud', 'slope2', 'slope3', 'slope4', 'rampUp', 'rampDown', 'bridge',
+  'zigzag', 'zigzag2', 'tube_wall']);   // n33 (nur Generator-Version 2): Zickzack-Blöcke und Röhre mit Wand stehen waagrecht
 // Sockel-Stücke, unter denen das Gelände auf Sockelhöhe bleibt (Schanzen/Looping stehen darauf), statt der Fahrbahn
 // zu folgen (Steilkurve, Klippe, Halfpipe folgen ihrer Fahrbahn)
-const ON_BASE = new Set(['start', 'loop', 'jump', 'tube', 'tr_corklr', 'waves', 'bumps', 'chicane', 'crest']);
+const ON_BASE = new Set(['start', 'loop', 'jump', 'tube', 'tr_corklr', 'waves', 'bumps', 'chicane', 'crest', 'zigzag', 'zigzag2', 'tube_wall']);
 
 // ---------- 1) Landschaft ----------
 export function makeLandscape(seed, diff) {
