@@ -3,8 +3,9 @@
 // Eigene Mini-Mathematik (keine Abhängigkeiten) → deterministisch, läuft in Node und im Browser.
 // Körperachsen: x = rechts, y = oben, z = hinten (vorwärts = −z).
 import { GRIP, ROLL, MAT, WORLD_SCALE, WIESE } from '../track/defs.js';
-import { G as GRAV, gravStep } from './air.js';
+import { G as GRAV, gravStep, AIR } from './air.js';
 import { NITRO } from './extras.js';
+import { ARCADE } from './arcade.js';
 
 // „Verirrt“: so weit draußen liegt nur noch der Bergkranz (wächst mit dem Weltmaßstab; bis 27.09.2026 950 m)
 const LOST = 950 * WORLD_SCALE;
@@ -140,7 +141,9 @@ export class Car {
     this.q = { x: 0, y: 0, z: 0, w: 1 };
     this.v = { x: 0, y: 0, z: 0 };
     this.w = { x: 0, y: 0, z: 0 };
-    this.input = { steer: 0, throttle: 0, brake: 0, hold: false };
+    // air: Luftsteuerung (n37, arcade.js) – pitch + = Nase hoch, roll + = rechts runter (−1 … 1), setzt die Rennlogik
+    this.input = { steer: 0, throttle: 0, brake: 0, hold: false, air: { pitch: 0, roll: 0 } };
+    this.airUsed = false; this.airIdle = 0; this.hopFree = false; this.sideT = 0; this.wallT = 0; this.trick = null;
     this.steerAng = 0;
     this.wheels = def.wheels.map((w) => ({ ...w, comp: 0, prevComp: 0, contact: false, spin: 0, spinV: 0, mat: 0, nx: 0, ny: 1, nz: 0, hx: 0, hy: 0, hz: 0, load: 0, slip: 0, steer: 0 }));
     this.crash = null;
@@ -188,6 +191,7 @@ export class Car {
     this.v.x = fw[0] * speed; this.v.y = fw[1] * speed; this.v.z = fw[2] * speed;
     this.w.x = this.w.y = this.w.z = 0;
     this.steerAng = 0; this.crash = null; this.upsideT = 0; this.airTime = 0; this.gScale = 1; this.hopUp = null;
+    this.airUsed = false; this.airIdle = 0; this.hopFree = false; this.sideT = 0; this.wallT = 0; this.trick = null;
     for (const w of this.wheels) { w.comp = w.prevComp = d.mass * 9.81 / 4 / d.k; w.contact = true; w.spinV = speed / d.wheelR; }
     this.updateFrame();
   }
@@ -247,7 +251,7 @@ export class Car {
     // abhängige Grenze erlaubt (wie ein Drift-Auto mit großem Lenkwinkel); ohne assist.lock wie bisher
     const maxSteer = this.assist.lock ? Math.max(maxSteerAt(d, vF), this.assist.lock) : maxSteerAt(d, vF);
     const target = steerIn * maxSteer;
-    const ds = d.steerSpeed * dt;
+    const ds = (this.assist.steerSpeed || d.steerSpeed) * dt;   // n37 Arcade: direkter (arcade.js boden)
     this.steerAng += Math.max(-ds, Math.min(ds, target - this.steerAng));
     this.steerAng = Math.max(-maxSteer, Math.min(maxSteer, this.steerAng));
 
@@ -320,7 +324,7 @@ export class Car {
       this._pointVel(hit.x, hit.y, hit.z, vp);
       const vLong = vp.x * wfx + vp.y * wfy + vp.z * wfz;
       const vLat = vp.x * wrx + vp.y * wry + vp.z * wrz;
-      let grip = (GRIP[w.mat] ?? 1) * d.mu * (this.assist.grip || 1);   // Fahrhilfe Mittel: mehr Reifenhaftung (n16)
+      let grip = (GRIP[w.mat] ?? 1) * d.mu * (this.assist.grip || 1) * (this.assist.gripK || 1);   // Fahrhilfe Mittel: mehr Reifenhaftung (n16); n37 ?grip=
       // Drift (Leicht „Brachial“, n25): Hinterräder mit weniger Haftung (assist.rearGrip, wie ein durchdrehendes Heck)
       if (!w.front && this.assist.rearGrip) grip *= this.assist.rearGrip;
       const fmax = grip * load;
@@ -379,6 +383,7 @@ export class Car {
     }
     // Hüpfer: bis zur Landung (erster Radkontakt nach dem Abheben) Lage halten
     if (this.hopUp) { this.hopT += dt; if (contacts && this.hopT > 0.25) this.hopUp = null; }
+    const airBefore = this.airTime;
     if (contacts) this.airTime = 0; else this.airTime += dt;
     // Luft-Faktor nur, wenn alle Räder frei sind und das Auto nicht in Looping/Röhre steckt
     this.gScale = gravStep(this.gScale, contacts === 0 && !this.surfaceKind, dt, this.airTime);
@@ -419,13 +424,15 @@ export class Car {
     // Fahrbahnmitte. Nicht in Looping/Röhre/Korkenzieher, nicht in der Luft, nicht im Wrack.
     this.escOn = 0;
     const esc = this.assist.esc || 0;
-    if (esc > 0 && contacts >= 3 && !this.surfaceKind && !wrecked && Math.abs(vF) > 6) {
+    // (n37: nicht kurz nach einem Wandkontakt – die Wand dreht das Auto parallel, ESC bremste sonst dagegen)
+    this.wallT = Math.max(0, this.wallT - dt);
+    if (esc > 0 && contacts >= 3 && !this.surfaceKind && !wrecked && Math.abs(vF) > 6 && !(this.wallT > 0)) {
       const yaw = this.w.x * F.u.x + this.w.y * F.u.y + this.w.z * F.u.z;
       const wb = 2.72, av = Math.abs(vF);
-      const aLat = (this.assist.grip || 1) * d.mu * 9.81 * aero * ESC.lat;
+      const aLat = (this.assist.grip || 1) * (this.assist.gripK || 1) * d.mu * 9.81 * aero * ESC.lat;
       const rLim = aLat / av, rSteer = -vF * Math.tan(this.steerAng) / wb;
       const rRef = Math.max(-rLim, Math.min(rLim, rSteer));
-      const err = yaw - rRef, dead = ESC.dead + ESC.deadK * Math.abs(rRef);
+      const err = yaw - rRef, dead = (this.assist.escDead ?? ESC.dead) + ESC.deadK * Math.abs(rRef);
       // nur Übersteuern: zu viel Gieren in Lenkrichtung oder Gieren gegen die Lenkung
       const excess = Math.abs(err) - dead;
       if (excess > 0 && (Math.sign(err) === Math.sign(yaw) || Math.abs(rRef) < 0.02)) {
@@ -469,9 +476,19 @@ export class Car {
     if (!contacts) {
       const ad = 0.25 * dt;
       this.w.x *= 1 - ad; this.w.y *= 1 - ad; this.w.z *= 1 - ad;
-      if (this.hopUp && !wrecked) this._hopHold(dt);
-      else if (this.assist.air > 0 && !wrecked) this._airAssist(dt);
-    }
+      // n37 Arcade: Luftsteuerung (Mittel/Original); nach eigener Eingabe hält der Hüpfer die Lage nicht mehr, und auf Mittel
+      // hilft dann statt der Lagehilfe die Landehilfe (erst nahe am Ziel, arcade.js land)
+      // Mittel: kurz vor dem Aufsetzen (land.pre s Flugweg bis zur Fläche) zählt keine Luft-Eingabe mehr – die Landehilfe
+      // richtet aus (wer kurz vor der Landung wieder Gas gibt, schlägt keinen halben Salto in die Rampe)
+      this.landSoon = !!this.assist.landHelp && this.airTime > 0.15 && this._landingSoon(world);
+      if ((this.assist.airCtl || 0) > 0 && !wrecked && !this.surfaceKind && !this.landSoon) this._airControl(dt, this.assist.airCtl);
+      if (this.trick) { if (wrecked || this.surfaceKind) this.trick = null; else this._trickStep(dt); }
+      if (this.hopUp && !wrecked && !this.hopFree) this._hopHold(dt);
+      else if (this.airUsed && this.assist.landHelp && !wrecked) this._landHelp(dt);
+      else if (this.assist.air > 0 && !wrecked && !this.airUsed) this._airAssist(dt);
+    } else if (contacts >= 2) { this.airUsed = false; this.airIdle = 0; this.trick = null; }
+    // n37 Mittel: beim Aufsetzen nach einem Flug Dreh-Schwung quer zur Fahrbahn wegnehmen (fast gerade Landung bleibt sauber)
+    if (contacts && airBefore > 0.3 && this.assist.landHelp && !wrecked && !this.surfaceKind) this._landSnap(nAvgX, nAvgY, nAvgZ);
 
     // Integration der Geschwindigkeiten
     this.v.x += fx / m * dt; this.v.y += fy / m * dt; this.v.z += fz / m * dt;
@@ -482,6 +499,10 @@ export class Car {
 
     // Kontakte: Federbein-Anschläge + Karosserie
     this._contacts(dt, world);
+    // n37 Mittel: liegt das Auto auf der Seite (Karosserie berührt, < 3 Räder, 25 … 115° schief), richtet es sich auf
+    if (this.assist.landHelp && this._bodyTouch && contacts < 3 && !this.surfaceKind && !wrecked && this._bodyN && this._bodyTilt > 0.44 && this._bodyTilt < ARCADE.crash.roof) {
+      this._alignTo(this._bodyN, dt, 4, ARCADE.land.right, ARCADE.crash.roof, 3);
+    }
 
     // Positionen integrieren
     this.pos.x += this.v.x * dt; this.pos.y += this.v.y * dt; this.pos.z += this.v.z * dt;
@@ -509,6 +530,9 @@ export class Car {
     if (!this.crash) {
       if (this.pos.y < -1.6) this.setCrash('Abgestürzt');
       if (F.u.y < -0.25 && contacts === 0 && this._roofTouch) this.setCrash('Überschlag');
+      // n37 Arcade: auf der Seite liegen bleiben (Karosserie am Boden, keine 2 Räder, sehr schief) → Überschlag nach sideT s
+      if (this.assist.arcade && this._bodyTouch && contacts < 2 && !this.surfaceKind && this._bodyTilt > ARCADE.crash.side) { this.sideT += dt; if (this.sideT > ARCADE.crash.sideT) this.setCrash('Überschlag'); }
+      else this.sideT = 0;
       if (F.u.y < 0.0 && sp < 2.5 && (this._bodyTouch || contacts)) { this.upsideT += dt; if (this.upsideT > 0.8) this.setCrash('Auf dem Dach'); }
       else this.upsideT = Math.max(0, this.upsideT - dt);
       if (Math.abs(this.pos.x) > LOST || Math.abs(this.pos.z) > LOST) this.setCrash('Verirrt');
@@ -532,7 +556,8 @@ export class Car {
 
   _contacts(dt, world) {
     const d = this.def, F = this.frame;
-    this._roofTouch = false; this._bodyTouch = false;
+    this._roofTouch = false; this._bodyTouch = false; this._floorTouch = false; this._bodyTilt = 0;
+    const arc = !!this.assist.arcade, C = ARCADE.crash, Wd = ARCADE.wand, wallK = this.assist.wall || 0;
     this.scrape = 0;   // Gleit-Tempo der Karosserie an Wand/Leitplanke/Boden in diesem Schritt (nur für den Ton, n16)
     const tmpA = { x: 0, y: 0, z: 0 }, tmpB = { x: 0, y: 0, z: 0 }, vp = { x: 0, y: 0, z: 0 };
     let bestPen = 0, cx = 0, cy = 0, cz = 0;
@@ -545,12 +570,16 @@ export class Car {
         if (sv > this.scrape) { this.scrape = sv; this.scrapeP[0] = px; this.scrapeP[1] = py; this.scrapeP[2] = pz; this.scrapeN[0] = nx; this.scrapeN[1] = ny; this.scrapeN[2] = nz; this.scrapeK = kind; }
       }
       if (vn < 0) {
+        // n37 Arcade: Leitwand (Normale quer zum Auto-Oben) – schrammen statt stoppen; Crash nur steil und schnell
+        const wallHit = wallK > 0 && (kind === 2 || kind === 3) && Math.abs(nx * F.u.x + ny * F.u.y + nz * F.u.z) < Wd.up;
         if (!this.crash) {
           const info = { kind, vn: +vn.toFixed(1), n: [+nx.toFixed(2), +ny.toFixed(2), +nz.toFixed(2)], p: [+px.toFixed(1), +py.toFixed(1), +pz.toFixed(1)] };
-          if (kind === 2 || kind === 3) { if (vn < -9.5) this.setCrash('Aufprall', info); }
-          else if (kind === 0) { if (vn < -13) this.setCrash('Harte Landung', info); }
-          else if (kind === 4) { if (vn < -15) this.setCrash('Harte Landung', info); }
+          if (wallHit) { const vp2 = Math.hypot(vp.x, vp.y, vp.z); if (-vn > Wd.vn * wallK && (-vn > Wd.vnMax * wallK || -vn > Math.sin(Wd.ang) * vp2)) this.setCrash('Aufprall', info); }
+          else if (kind === 2 || kind === 3) { if (vn < -9.5) this.setCrash('Aufprall', info); }
+          else if (kind === 0) { if (vn < -(arc ? C.floor : 13)) this.setCrash('Harte Landung', info); }
+          else if (kind === 4) { if (vn < -(arc ? C.wheel : 15)) this.setCrash('Harte Landung', info); }
         }
+        if (wallHit) { rest = Wd.rest; fric = Wd.fric / wallK; }
         this.lastImpact = Math.max(this.lastImpact, -vn);
         const k = this._kEff(px, py, pz, nx, ny, nz);
         const j = -(1 + rest) * vn / k;
@@ -566,6 +595,7 @@ export class Car {
           const jt = Math.min(vt / kt, fric * j);
           this._impulse(px, py, pz, -vtx * jt, -vty * jt, -vtz * jt);
         }
+        if (wallHit) this._wallAlign(nx, ny, nz, wallK);
       }
       if (pen > bestPen) { bestPen = pen; cx = nx; cy = ny; cz = nz; }
     };
@@ -584,9 +614,14 @@ export class Car {
       const hit = world.ray(ax, ay, az, dx, dy, dz, Ln, true);
       if (!hit) continue;
       const pen = (Ln - hit.t) * Math.max(0.2, -(dx * hit.nx + dy * hit.ny + dz * hit.nz));
-      if (kind === 1) this._roofTouch = true;
+      // Schräglage zur berührten Fläche (n37: Dach-Crash erst ab ARCADE.crash.roof, Seitenlage-Regel in step)
+      const tilt = Math.acos(Math.max(-1, Math.min(1, F.u.x * hit.nx + F.u.y * hit.ny + F.u.z * hit.nz)));
+      if (tilt > this._bodyTilt) { this._bodyTilt = tilt; this._bodyN = [hit.nx, hit.ny, hit.nz]; }
+      const roofCrash = kind === 1 && (!arc || tilt > C.roof);
+      if (roofCrash) this._roofTouch = true;
       this._bodyTouch = true;
-      if (kind === 1 && !this.crash) this.setCrash('Überschlag');
+      if (kind === 0) this._floorTouch = true;
+      if (roofCrash && !this.crash) this.setCrash('Überschlag');
       doContact(ax + dx * Ln, ay + dy * Ln, az + dz * Ln, hit.nx, hit.ny, hit.nz, pen, kind === 0 ? 0.35 : kind === 1 ? 0.5 : 0.22, 0.12, kind);
     }
     if (bestPen > 0.002) {
@@ -608,7 +643,7 @@ export class Car {
     v.x += nx * dv; v.y += ny * dv; v.z += nz * dv;
     const w = this.w, wn = w.x * nx + w.y * ny + w.z * nz;
     w.x = nx * wn; w.y = ny * wn; w.z = nz * wn;
-    this.hopUp = { x: nx, y: ny, z: nz }; this.hopT = 0;
+    this.hopUp = { x: nx, y: ny, z: nz }; this.hopT = 0; this.hopFree = false;
   }
   // Im Hüpfer: Dach zeigt weiter senkrecht zur Absprung-Fahrbahn, Nick-/Rollrate gedämpft (Gieren bleibt)
   _hopHold(dt) {
@@ -617,6 +652,133 @@ export class Car {
     const wt = w.x * T.x + w.y * T.y + w.z * T.z;
     const px = w.x - T.x * wt, py = w.y - T.y * wt, pz = w.z - T.z * wt;
     w.x += (cx * 10 - px * 5) * dt; w.y += (cy * 10 - py * 5) * dt; w.z += (cz * 10 - pz * 5) * dt;
+  }
+
+  // ---- n37 Arcade (arcade.js) ----
+  // Luftsteuerung: Drehraten-Regler um Auto-Quer- (Nicken) und Längsachse (Rollen); Ziel-Rate = Eingabe × Höchstrate × Tempo-
+  // Anteil, die Drehrate folgt mit begrenzter Drehbeschleunigung. Ohne Eingabe bleibt der Schwung (Original) bzw. hilft
+  // die Landehilfe (Mittel). Gieren bleibt frei.
+  _airControl(dt, k) {
+    const a = this.input.air, L = ARCADE.luft, F = this.frame, w = this.w;
+    const p = a && Math.abs(a.pitch) > L.dead ? a.pitch : 0, r = a && Math.abs(a.roll) > L.dead ? a.roll : 0;
+    if (!p && !r) { this.airIdle += dt; return; }
+    this.airIdle = 0; this.airUsed = true;
+    if (this.hopUp) this.hopFree = true;
+    const sp = Math.hypot(this.v.x, this.v.y, this.v.z), kv = k * Math.max(L.vMin, Math.min(1, sp / L.vFull));
+    const axis = (ax, ay, az, inp, rate, acc) => {
+      const cur = w.x * ax + w.y * ay + w.z * az, want = inp * rate * kv, m = acc * kv * dt;
+      const dw = Math.max(-m, Math.min(m, want - cur));
+      w.x += ax * dw; w.y += ay * dw; w.z += az * dw;
+    };
+    if (p) axis(F.r.x, F.r.y, F.r.z, p, L.pitch, L.accP);
+    if (r) axis(F.f.x, F.f.y, F.f.z, r, L.roll, L.accR);
+  }
+  // Trick auf Antippen (Mittel): axis 'p' (Salto, sign −1 vorwärts / +1 rückwärts) oder 'r' (Schraube, +1 rechts). Nur wenn
+  // die restliche Flugzeit für die ganze Drehung (plus Reserve) reicht; nochmal tippen (gleiche Figur) = eine Drehung mehr.
+  // Liefert true (angenommen) oder false (zu spät / andere Figur läuft).
+  startTrick(axis, sign, world) {
+    if (this.onGround > 0 || this.crash || this.surfaceKind) return false;
+    const T = this.trick, K = ARCADE.trick;
+    if (T && (T.axis !== axis || T.sign !== sign)) return false;
+    const left = (T ? T.left : 0) + 2 * Math.PI;
+    const F = this.frame, ax = axis === 'p' ? F.r : F.f;
+    const w0 = Math.max(0, (this.w.x * ax.x + this.w.y * ax.y + this.w.z * ax.z) * sign);
+    const rate = axis === 'p' ? K.pitch : K.roll;
+    // Zeit bis left − capture gedreht ist (beschleunigen bis rate, dann gleichmäßig) + Landehilfe ~0,25 s
+    const ta = Math.max(0, (rate - w0) / K.acc), aa = (w0 + rate) / 2 * ta, rest = left - K.capture;
+    const need = (aa >= rest ? ta * rest / Math.max(aa, 1e-6) : ta + (rest - aa) / rate) + 0.25 + K.margin;
+    if (need > this.flightLeft(world)) return false;
+    this.trick = { axis, sign, left, done: T ? T.done : 0 };
+    this.airUsed = true; this.airIdle = 0;
+    if (this.hopUp) this.hopFree = true;
+    return true;
+  }
+  _trickStep(dt) {
+    const T = this.trick, K = ARCADE.trick, F = this.frame, w = this.w;
+    const ax = T.axis === 'p' ? F.r : F.f, rate = (T.axis === 'p' ? K.pitch : K.roll) * T.sign;
+    const cur = w.x * ax.x + w.y * ax.y + w.z * ax.z, m = K.acc * dt;
+    const dw = Math.max(-m, Math.min(m, rate - cur));
+    w.x += ax.x * dw; w.y += ax.y * dw; w.z += ax.z * dw;
+    const turned = Math.max(0, (cur + dw) * T.sign) * dt;
+    T.left -= turned; T.done += turned;
+    // kurz vor dem Ende: Landehilfe übernimmt (richtet aus und bremst die Drehung)
+    if (T.left <= K.capture) { this.trick = null; this.airIdle = 1; }
+  }
+  // Vorausgesagte restliche Flugzeit (s): Flugbahn mit Luft-Schwerkraft und Luftwiderstand in 0,04-s-Stücken gegen die Welt
+  // (Strahl je Stück, 0,6 m unter der Wagenmitte), höchstens 6 s
+  flightLeft(world) {
+    const d = this.def, k = d.dragK / d.mass, h = 0.04, g = GRAV * AIR.factor;
+    let x = this.pos.x, y = this.pos.y - 0.6, z = this.pos.z, vx = this.v.x, vy = this.v.y, vz = this.v.z;
+    for (let t = 0; t < 6; t += h) {
+      const sp = Math.hypot(vx, vy, vz);
+      const nx = vx * h, ny = vy * h, nz = vz * h, L = Math.hypot(nx, ny, nz);
+      if (L > 1e-6 && world.ray(x, y, z, nx / L, ny / L, nz / L, L, true)) return t;
+      x += nx; y += ny; z += nz;
+      vx -= k * sp * vx * h; vy -= (g + k * sp * vy) * h; vz -= k * sp * vz * h;
+    }
+    return 6;
+  }
+  // Ziel-Oben im Flug (wie _airAssist): Welt-Oben ohne Anteil in Flugrichtung → Dach oben, Nase längs der Flugbahn
+  _airTarget() {
+    let tx = 0, ty = 1, tz = 0;
+    const sp = Math.hypot(this.v.x, this.v.y, this.v.z);
+    if (sp > 6) {
+      const vx = this.v.x / sp, vy = this.v.y / sp, vz = this.v.z / sp;
+      tx = -vy * vx; ty = 1 - vy * vy; tz = -vy * vz;
+      const l = Math.hypot(tx, ty, tz) || 1; tx /= l; ty /= l; tz /= l;
+    }
+    return [tx, ty, tz];
+  }
+  // Drehrate quer zu T auf Soll k·Lagefehler (zur Lage T) bringen, höchstens acc rad/s²; nur wenn der Fehler ≤ maxAng
+  _alignTo(T, dt, k, acc, maxAng, rateMax = 4.5) {
+    const F = this.frame, w = this.w;
+    let cx = F.u.y * T[2] - F.u.z * T[1], cy = F.u.z * T[0] - F.u.x * T[2], cz = F.u.x * T[1] - F.u.y * T[0];
+    const sn = Math.hypot(cx, cy, cz), cs = F.u.x * T[0] + F.u.y * T[1] + F.u.z * T[2], ang = Math.atan2(sn, cs);
+    if (ang > maxAng) return false;
+    if (sn > 1e-6) { cx /= sn; cy /= sn; cz /= sn; }
+    const want = Math.min(rateMax, k * ang);
+    // gewünschte Drehung quer zu T; Anteil von ω längs T (Gieren um Ziel-Oben) bleibt
+    const wt = w.x * T[0] + w.y * T[1] + w.z * T[2];
+    const px = w.x - T[0] * wt, py = w.y - T[1] * wt, pz = w.z - T[2] * wt;
+    let ex = cx * want - px, ey = cy * want - py, ez = cz * want - pz;
+    const el = Math.hypot(ex, ey, ez), m = acc * dt;
+    if (el > m) { ex *= m / el; ey *= m / el; ez *= m / el; }
+    w.x += ex; w.y += ey; w.z += ez;
+    return true;
+  }
+  // Landehilfe Mittel: erst hold s nach der letzten Luft-Eingabe und nur nahe am Ziel (land.ang) – zu schief bleibt schief
+  _landHelp(dt) {
+    if (this.airIdle < ARCADE.luft.hold && !this.landSoon) return;
+    const Ld = ARCADE.land;
+    this._alignTo(this._airTarget(), dt, Ld.k, Ld.acc, Ld.ang);
+  }
+  // Fläche in Flugrichtung innerhalb von land.pre s (+ 1,5 m) oder bis 1,5 m unter dem Wagen?
+  _landingSoon(world) {
+    const sp = Math.hypot(this.v.x, this.v.y, this.v.z), Ld = ARCADE.land;
+    if (sp > 1) { const L = sp * Ld.pre + 1.5; if (world.ray(this.pos.x, this.pos.y, this.pos.z, this.v.x / sp, this.v.y / sp, this.v.z / sp, L, true)) return true; }
+    return !!world.ray(this.pos.x, this.pos.y, this.pos.z, 0, -1, 0, 1.5, true);
+  }
+  // Aufsetzen (Mittel): bis land.snap Schräglage zur Fahrbahn den Dreh-Schwung quer zur Fahrbahn zum Anteil snapK wegnehmen
+  _landSnap(nx, ny, nz) {
+    const l = Math.hypot(nx, ny, nz); if (l < 1e-6) return;
+    nx /= l; ny /= l; nz /= l;
+    const F = this.frame, w = this.w;
+    if (Math.acos(Math.max(-1, Math.min(1, F.u.x * nx + F.u.y * ny + F.u.z * nz))) > ARCADE.land.snap) return;
+    const wn = w.x * nx + w.y * ny + w.z * nz, k = ARCADE.land.snapK;
+    w.x -= (w.x - nx * wn) * k; w.y -= (w.y - ny * wn) * k; w.z -= (w.z - nz * wn) * k;
+  }
+  // Wand (n37): Auto dreht sich weg von der Wand (Gierrate um Auto-Oben = align × Winkel der Nase zur Wand), höchstens alignMax
+  _wallAlign(nx, ny, nz, k) {
+    const F = this.frame, w = this.w, Wd = ARCADE.wand;
+    const fn = F.f.x * nx + F.f.y * ny + F.f.z * nz;
+    if (fn >= -0.02) return;   // Nase zeigt nicht in die Wand (Heck/Seite schrammt): nichts
+    // Drehsinn um Oben, der die Nase von der Wand weg dreht: (u × f) · n > 0
+    const ux = F.u.y * F.f.z - F.u.z * F.f.y, uy = F.u.z * F.f.x - F.u.x * F.f.z, uz = F.u.x * F.f.y - F.u.y * F.f.x;
+    const sg = ux * nx + uy * ny + uz * nz >= 0 ? 1 : -1;
+    const want = Math.min(Wd.alignMax, Wd.align * Math.asin(Math.min(1, -fn))) * Math.min(1, k);
+    const cur = (w.x * F.u.x + w.y * F.u.y + w.z * F.u.z) * sg;
+    if (cur < want) { const d = (want - cur) * sg; w.x += F.u.x * d; w.y += F.u.y * d; w.z += F.u.z * d; }
+    this.wallT = 0.35;
   }
 
   _airAssist(dt) {
@@ -651,6 +813,7 @@ export class Car {
     this.steerAng = s.s;
     this.wheels.forEach((w, i) => { w.comp = w.prevComp = s.c[i]; });
     this.crash = null; this.upsideT = 0; this.gScale = 1; this.hopUp = null;
+    this.airUsed = false; this.airIdle = 0; this.hopFree = false; this.sideT = 0; this.wallT = 0; this.trick = null;
     this.updateFrame();
   }
 }

@@ -64,6 +64,9 @@ export class Input {
     const rt = p.buttons[7] ? p.buttons[7].value : 0, lt = p.buttons[6] ? p.buttons[6].value : 0;
     const a = p.buttons[0] && p.buttons[0].pressed ? 1 : 0, b = p.buttons[2] && p.buttons[2].pressed ? 1 : 0;
     this.pad.steer = dz;
+    // n37: linker Stick vor/zurück (Achse 1, nach vorn negativ) → Nicken in der Luft (+ = Nase hoch)
+    const ay = p.axes[1] || 0;
+    this.pad.pitch = Math.abs(ay) < 0.25 ? 0 : (ay - Math.sign(ay) * 0.25) / 0.75;
     this.pad.throttle = Math.max(rt, a);
     this.pad.brake = Math.max(lt, b);
     this.pad.active = Math.abs(dz) > 0 || this.pad.throttle > 0 || this.pad.brake > 0;
@@ -81,7 +84,7 @@ export class Input {
   update(dt) {
     this.pollPad();
     const k = this.keys;
-    let steer = 0, thr = 0, brk = 0, src = 'none';
+    let steer = 0, thr = 0, brk = 0, src = 'none', raw = 0, pitch = 0;
     const kl = k.has('ArrowLeft') || k.has('KeyA'), kr = k.has('ArrowRight') || k.has('KeyD');
     // Leertaste = Hüpfer (Extras, 28.09.2026; bis dahin Bremse) – Bremse: Pfeil runter / S
     const ku = k.has('ArrowUp') || k.has('KeyW'), kd = k.has('ArrowDown') || k.has('KeyS');
@@ -91,23 +94,25 @@ export class Input {
       // digitale Lenkung weich rampen
       const rate = target === 0 ? 6 : (Math.sign(target) !== Math.sign(this.steerSmooth) ? 8 : 3.2);
       this.steerSmooth += Math.max(-rate * dt, Math.min(rate * dt, target - this.steerSmooth));
-      steer = this.steerSmooth; thr = ku ? 1 : 0; brk = kd ? 1 : 0;
+      steer = this.steerSmooth; thr = ku ? 1 : 0; brk = kd ? 1 : 0; raw = target;
     } else {
       this.steerSmooth *= Math.max(0, 1 - dt * 8);
     }
-    if (this.pad.active) { steer = this.pad.steer; thr = this.pad.throttle; brk = this.pad.brake; src = 'pad'; }
+    if (this.pad.active) { steer = this.pad.steer; thr = this.pad.throttle; brk = this.pad.brake; src = 'pad'; raw = steer; }
+    if (this.pad.pitch) pitch = this.pad.pitch;
     // Touch-Pfeile (n23, Mittel: this.touchRamp): digital ±1 – bis n22 sofort voller Einschlag (bei 200 km/h riss schon ein
     // kurzer Tipp das Auto quer). Jetzt eine Rampe wie auf der Tastatur, bei Tempo langsamer (TOUCH_RAMP, rampSteer):
     // tippen = kleine Korrektur, halten = mehr Einschlag; Gegenrichtung und Loslassen schnell
     const tTarget = this.touch.active ? this.touch.steer : 0;
     this.touchSmooth = this.touchRamp ? rampSteer(this.touchSmooth || 0, tTarget, dt, this.speedHint || 0) : tTarget;
     if (this.touch.active) {
-      steer = this.tilt.enabled ? this.tilt.value : this.touchSmooth;
+      steer = this.tilt.enabled ? this.tilt.value : this.touchSmooth; raw = this.tilt.enabled ? steer : tTarget;
       thr = this.touch.throttle; brk = this.touch.brake; src = 'touch';
     } else if (this.tilt.enabled && this.tilt.value) {
       steer = this.tilt.value; src = src === 'none' ? 'tilt' : src;
     }
-    this.out.steer = steer; this.out.throttle = thr; this.out.brake = brk; this.out.source = src;
+    // steerRaw: Lenk-Wunsch vor Rampe/Glättung (n37: Trick-Tipp in der Luft), pitch: Gamepad-Stick vor/zurück (Luft: Nicken)
+    this.out.steer = steer; this.out.throttle = thr; this.out.brake = brk; this.out.source = src; this.out.steerRaw = raw; this.out.pitch = pitch;
     return this.out;
   }
 }

@@ -12,6 +12,7 @@ import { showKmhMs } from '../core/showspeed.js';
 import { computeProfile } from '../ai/profile.js';
 import { DriftCtl, BRACHIAL } from '../ai/drift.js';
 import { ZIEL } from './zielshow.js';
+import { ARCADE, arcadeAssist } from '../physics/arcade.js';
 
 // Mittel (n16, Peter 29.09.2026: „Mittlere Schwierigkeit mehr Bodenhaftung und kein Magnet zur Ideallinie“): kein
 // Lenkzug zur Linie mehr (steerPull bis n15 0,28, im Stunt stuntPull 0,6), dafür mehr Reifenhaftung (grip, Faktor auf
@@ -244,6 +245,72 @@ export class Race {
 
   setAssist(key) { this.assistKey = key; this.assist = ASSISTS[key]; this.assistChanged = true; }
 
+  // Fahrhilfen der Stufe aufs Auto (je Physikschritt; auch für Node-Messungen). Reine Autopilot-Fahrt: alles aus, auch die
+  // Arcade-Physik (n37) – Prüffahrt und Generator rechnen wie bis n36 (alte Codes bitgleich)
+  static carAssist(car, A, autopilotOnly = false, key = null) {
+    const c = car.assist;
+    c.magnet = autopilotOnly ? 0 : A.magnet;
+    c.air = autopilotOnly ? 0 : A.air;
+    c.grip = autopilotOnly ? 1 : A.grip || 1;
+    c.slipK = autopilotOnly ? 1 : A.slipK || 1;
+    c.tcs = autopilotOnly ? 0 : A.tcs || 0;
+    c.drive = autopilotOnly ? 1 : A.drive || 1;
+    c.vSoft = autopilotOnly ? 0 : A.vSoft || 0; c.vTop = autopilotOnly ? 0 : A.vTop || 0;   // Mittel n24
+    c.esc = autopilotOnly ? 0 : A.esc || 0;
+    // n37 Arcade (arcade.js): Wand, Crash-Schwellen, Luftsteuerung, Landehilfe, Lenkung; Mittel zusätzlich Antrieb/Rutschen
+    const X = autopilotOnly ? null : arcadeAssist(key || Object.keys(ASSISTS).find((k) => ASSISTS[k] === A));
+    c.arcade = X ? 1 : 0; c.wall = X ? X.wall : 0; c.airCtl = X ? X.airCtl || 0 : 0; c.landHelp = X ? X.landHelp || 0 : 0;
+    c.airTap = X ? X.airTap || 0 : 0;
+    c.steerSpeed = X ? X.steerSpeed || 0 : 0; c.gripK = X ? X.gripK || 1 : 1; c.escDead = X ? X.escDead : undefined;
+    if (X && X.drive) { c.drive = X.drive; c.vSoft = X.vSoft; c.vTop = X.vTop; }
+  }
+
+  // Luftsteuerung (n37): Spieler-Eingabe → car.input.air. Was beim Absprung schon gehalten wird (Vollgas, Lenken in der Kurve),
+  // zählt erst nach dem Loslassen – sonst schlüge jeder Sprung mit Vollgas einen Salto. Gamepad: Stick vor/zurück nickt direkt.
+  airInput(input, car, dt = 0) {
+    const a = car.input.air;
+    a.pitch = 0; a.roll = 0;
+    if (!(car.assist.airCtl || car.assist.airTap) || this.autopilotOnly || car.onGround > 0) {
+      // am Boden: gehaltene Eingaben merken (gesperrt bis losgelassen)
+      this.airLock = { t: input.throttle > 0.2, b: input.brake > 0.2, s: Math.abs(input.steer) > 0.2 ? Math.sign(input.steer) : 0 };
+      this.taps = null;
+      return;
+    }
+    const L = this.airLock || (this.airLock = { t: false, b: false, s: 0 });
+    if (L.t && input.throttle < 0.2) L.t = false;
+    if (L.b && input.brake < 0.2) L.b = false;
+    if (L.s && Math.sign(input.steer) !== L.s) L.s = 0;
+    const thr = L.t ? 0 : input.throttle, brk = L.b ? 0 : input.brake, st = L.s ? 0 : input.steer;
+    if (car.assist.airCtl) {   // Original: halten = drehen
+      a.pitch = Math.max(-1, Math.min(1, brk - thr + (input.pitch || 0)));
+      a.roll = Math.max(-1, Math.min(1, st));
+      return;
+    }
+    // Mittel: Antippen = Trick. Kanäle: Gas (Salto vorwärts), Bremse (rückwärts), Lenken rechts/links (Schraube). Lenken zählt
+    // nur als voller Druck (Lenk-Wunsch vor der Rampe ≥ 0,9: Touch-Pfeil, Taste, Stick am Anschlag) – kleine Korrekturen nicht
+    const T = this.taps || (this.taps = {});
+    const sr = L.s ? 0 : input.steerRaw ?? input.steer;
+    const ch = { v: Math.max(thr, -(input.pitch || 0)), r: Math.max(brk, input.pitch || 0), R: Math.max(0, sr), Lf: Math.max(0, -sr) };
+    for (const [k, x] of Object.entries(ch)) {
+      const c = T[k] || (T[k] = { on: false, t: 0 });
+      const on = k === 'R' || k === 'Lf' ? 0.9 : 0.2, off = k === 'R' || k === 'Lf' ? 0.3 : 0.1;
+      // (vor settle gedrückt: gesperrt, bis losgelassen)
+      if (c.block) { if (x < off) c.block = false; continue; }
+      if (!c.on && x > on) { if (car.airTime >= ARCADE.trick.settle) { c.on = true; c.t = 0; } else c.block = true; }
+      else if (c.on) {
+        c.t += dt;
+        if (x < off) {
+          c.on = false;
+          if (c.t <= ARCADE.trick.tap) {
+            const [axis, sign] = { v: ['p', -1], r: ['p', 1], R: ['r', 1], Lf: ['r', -1] }[k];
+            const ok = car.startTrick(axis, sign, this.env.world);
+            this.emit(ok ? 'trick' : 'trickno', { axis, sign });
+          }
+        }
+      }
+    }
+  }
+
   // Ein Physikschritt
   step(dt, input) {
     const car = this.car, A = this.assist, L = this.env.track.line;
@@ -264,7 +331,7 @@ export class Race {
       this.time += dt;
       this.crashT += dt;
       this.record(dt);
-      if (this.crashT > (this.assist.autoRewind ? 1.4 : 2.6)) this.recover();
+      if (this.crashT > (this.assist.autoRewind ? 1.4 : ARCADE.on ? ARCADE.respawn : 2.6)) this.recover();   // n37: alle Stufen ≤ 1,5 s
       return;
     }
     if (this.state === 'reset') {
@@ -360,7 +427,9 @@ export class Race {
         const vt = this.env.prof.vt[idx];
         const v = car.fwdSpeed();
         const H = BRAKE_HELP;
-        if (this.brakeHelp !== 'off') this.brakeHint(v, idx, input);
+        // n37: in der Luft kein „Bremsen!“ (wirkt dort nicht – und Bremse antippen ist auf Mittel ein Rückwärtssalto)
+        if (this.brakeHelp !== 'off' && !(car.assist.airTap && car.onGround === 0)) this.brakeHint(v, idx, input);
+        else if (car.assist.airTap && car.onGround === 0) this.bhOn = false;
         if (A.jumpHint && !this.bhOn) this.jumpHint(v, idx);
         // „Sanft“: nur bei deutlichem Übertempo und ohne Vollgas; Vollgas oder genug langsamer → in outT s frei
         const want = this.brakeHelp === 'soft' && v > vt * (1 + H.over) + 1 && input.throttle < 0.95;
@@ -391,14 +460,9 @@ export class Race {
     this.lastInput = { steer, throttle: thr, brake: brk };
     car.input.steer = steer; car.input.throttle = thr; car.input.brake = brk; car.input.hold = !!A.autoSpeed && !this.autopilotOnly && input.brake < 0.5;
     car.input.hand = brachial && input.brake <= 0.05 ? ap.hand : 0;
-    car.assist.magnet = this.autopilotOnly ? 0 : A.magnet;
-    car.assist.air = this.autopilotOnly ? 0 : A.air;
-    car.assist.grip = this.autopilotOnly ? 1 : A.grip || 1;
-    car.assist.slipK = this.autopilotOnly ? 1 : A.slipK || 1;
-    car.assist.tcs = this.autopilotOnly ? 0 : A.tcs || 0;
-    car.assist.drive = this.autopilotOnly ? 1 : A.drive || 1;
-    car.assist.vSoft = this.autopilotOnly ? 0 : A.vSoft || 0; car.assist.vTop = this.autopilotOnly ? 0 : A.vTop || 0;   // Mittel n24
-    car.assist.esc = this.autopilotOnly ? 0 : A.esc || 0;
+    Race.carAssist(car, A, this.autopilotOnly, this.assistKey);
+    // n37 Luftsteuerung: Eingabe des Spielers (nicht der Hilfe) – Gas = Nase runter, Bremse = Nase hoch, Lenken = Rollen
+    this.airInput(input, car, dt);
     // Drift-Physik (n25, Brachial): Soll-Schwimmwinkel, Gegenlenk-Einschlag, Heckhaftung, Antriebsverteilung – sonst aus
     car.assist.drift = dres ? dres.drift : null; car.assist.lock = dres ? dres.lock : 0;
     car.assist.rearGrip = dres ? dres.rearGrip : 0; car.assist.driveFront = dres ? dres.driveFront : null;
@@ -460,7 +524,8 @@ export class Race {
     // Sprung zu kurz (n21): über der Lücke einer Schanze (nicht Import-Lücken) etwas berührt – Boden, Wasser, Hindernis
     // (Bus, Container, Zug …) – zwischen 3 m hinter der Lippe und der Vorderkante der Landerampe → Crash „Zu kurz“ und
     // Reset wie jeder Crash
-    if (!car.crash && (car.onGround > 0 || car._bodyTouch) && L.air[ti]) {
+    // n37 Arcade: nur Räder oder Wagenboden zählen – streift die Nase beim Salto ein Hindernis, fliegt das Auto weiter
+    if (!car.crash && (car.onGround > 0 || (car.assist.arcade ? car._floorTouch : car._bodyTouch)) && L.air[ti]) {
       const J = this.env.track.jumps.find((j) => !j.gen && ti > j.lipIdx && ti < j.landIdx);
       if (J) {
         const ax = L.px[J.landIdx] - L.px[J.lipIdx], az = L.pz[J.landIdx] - L.pz[J.lipIdx], al = Math.hypot(ax, az) || 1;

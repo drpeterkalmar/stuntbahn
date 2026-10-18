@@ -35,11 +35,14 @@ const HIND_NOTE = 33;
 export const IMPORTED_KEY = /^(trk-|sam-|demo-)/;
 // n26: ?stunt=1 (Stunt-Bauwerke wie bis n25) bzw. jeder andere Stunt-Maßstab als der Standard
 const AB_PARAMS = [['auto', 'alt'], ['grip', '1'], ['mgrip', '1'], ['m', 'n16'], ['m', 'n23'], ['antrieb', null], ['breit', 'alt'], ['wiese', 'alt'], ['haft', 'alt'], ['schanze', 'alt'], ['welt', null], ['stunt', null], ['air', null], ['lip', null], ['roehre', 'glatt'], ['cd', 'runde'], ['cdh', null], ['cdn', null],
-  ['hindernis2', '0'], ['zickzack', '0'], ['roehrewand', '0'], ['spirale2', '0']];   // n33
+  ['hindernis2', '0'], ['zickzack', '0'], ['roehrewand', '0'], ['spirale2', '0'],   // n33
+  ['physik', 'alt'], ['luft', null], ['wand', null]];   // n37 (dazu ?grip= mit jedem Wert, siehe unten)
 const AB_SCALE = { welt: WORLD_SCALE_DEFAULT, stunt: STUNT_SCALE_DEFAULT };
 export function abMode(search = globalThis.location ? globalThis.location.search : '') {
   if (!search) return false;
   const q = new URLSearchParams(search);
+  // n37: ?grip= ist seit n37 auch der Haftungs-Regler der Arcade-Physik (arcade.js) – jeder Wert wertet nicht (?grip=1 wie bisher)
+  if (q.has('grip') && q.get('grip') !== '') return true;
   return AB_PARAMS.some(([k, v]) => q.has(k) && (AB_SCALE[k] ? Math.abs(parseFloat(q.get(k)) - AB_SCALE[k]) > 1e-6 : v === null ? q.get(k) !== '' : q.get(k) === v));
 }
 export const AB = abMode();

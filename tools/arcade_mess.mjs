@@ -23,7 +23,7 @@ const arg = (k, d) => { const a = process.argv.find((s) => s.startsWith(`--${k}=
 const DT = 1 / 120;
 const VARS = (arg('var', AR ? 'alt,neu' : 'alt')).split(',');
 const STUFEN = (arg('stufe', 'medium,original')).split(',');
-const NUR = arg('nur', 'accel,kurve,sprung,luft,landung,respawn,wand').split(',');
+const NUR = arg('nur', 'accel,kurve,sprung,stunt,luft,landung,respawn,wand').split(',');
 const kmh = (v) => v * 3.6;
 const deg = (r) => r * 180 / Math.PI;
 
@@ -98,12 +98,45 @@ function jump(key, name) {
   let vLip = 0, air = 0, top = -1e9, x0 = null, land = null, inp = { steer: 0, throttle: 0, brake: 0 };
   for (let t = 0; t < 40 && !land && !r.car.crash; t += DT) {
     r.step(DT, inp); r.events.length = 0;
-    const o = r.ap.out; inp = { steer: o.steer, throttle: o.throttle, brake: o.brake };
+    // Spieler: am Boden wie der Autopilot, in der Luft hält er die Eingabe (keine Luftsteuerung)
+    const o = r.ap.out; if (r.car.onGround > 0) inp = { steer: o.steer, throttle: o.throttle, brake: o.brake };
     const i = r.tracker.idx, car = r.car;
     if (!vLip && i >= J.lipIdx) { vLip = car.speed(); x0 = { x: car.pos.x, z: car.pos.z }; }
     if (vLip) { if (car.onGround === 0) { air += DT; top = Math.max(top, car.pos.y); } else if (air > 0.3) land = Math.hypot(car.pos.x - x0.x, car.pos.z - x0.z); }
   }
   return { vLip: kmh(vLip), air: air / gs(key), airSim: air, weite: land || 0, apex: top - L.py[J.lipIdx], crash: r.car.crash ? r.car.crash.reason : (r.crashes ? 'Crash' : '') };
+}
+
+// ---- Stunt auf einer Sprungschanze: Spieler-Bot fährt an (Autopilot-Eingaben), lässt in der Luft das Gas los und dreht
+// dann figur (pitch −1 = Salto vorwärts, +1 = rückwärts, roll = Schraube) um n × 360°. Mittel: n-mal kurz antippen (0,12 s
+// drücken, 0,12 s los). Original: Lage-Regler (wie ein geübter Spieler: Ziel-Winkel, Gegenhalten) bis zur Landung.
+function stunt(key, name, fig, turns = 1, tapAt = 0.35) {
+  const env = envCache[name] || (envCache[name] = prepare(JUMPS[name]()));
+  const r = new Race(env, { assist: key, countdown: 0.05 });
+  let inp = { steer: 0, throttle: 0, brake: 0 }, ang = 0, air = 0, landed = false, tAfter = 0, maxTilt = 0, nNo = 0;
+  const target = turns * 2 * Math.PI, sgn = fig === 'vor' ? -1 : 1;
+  for (let t = 0; t < 40 && !r.car.crash && r.crashes === 0; t += DT) {
+    r.step(DT, inp); nNo += r.events.filter((e) => e.type === 'trickno').length; r.events.length = 0;
+    const car = r.car, o = r.ap.out, F = car.frame;
+    if (car.onGround > 0 && air < 0.3) { inp = { steer: o.steer, throttle: o.throttle, brake: o.brake }; continue; }
+    if (car.onGround === 0) {
+      air += DT;
+      const w = fig === 'schraube' ? car.w.x * F.f.x + car.w.y * F.f.y + car.w.z * F.f.z : car.w.x * F.r.x + car.w.y * F.r.y + car.w.z * F.r.z;
+      ang += Math.abs(w) * DT;
+      let u = 0;
+      if (air > tapAt) {
+        if (key === 'medium') { const k = Math.floor((air - tapAt) / 0.24); u = k < turns && (air - tapAt) % 0.24 < 0.12 ? 1 : 0; }
+        else { const err = target - ang, wa = Math.abs(w); u = Math.max(-1, Math.min(1, 1.6 * err - 0.45 * wa)); if (err < 0.05 && wa < 0.3) u = 0; }
+      }
+      inp = fig === 'schraube' ? { steer: u, throttle: 0, brake: 0 } : { steer: 0, throttle: sgn < 0 ? Math.max(0, u) : Math.max(0, -u), brake: sgn > 0 ? Math.max(0, u) : Math.max(0, -u) };
+    } else if (air > 0.3) {
+      landed = true; tAfter += DT; inp = { steer: o.steer, throttle: o.throttle, brake: o.brake };
+      maxTilt = Math.max(maxTilt, Math.acos(Math.max(-1, Math.min(1, F.u.y))));
+      if (tAfter > 2) break;
+    }
+  }
+  const no = nNo;
+  return { deg: deg(ang), air, ok: landed && !r.car.crash && !r.crashes, crash: r.car.crash ? r.car.crash.reason : r.crashes ? 'Crash' : '', tilt: deg(maxTilt), no };
 }
 
 // ---- Drehrate in der Luft: 40 m über der Ebene, 30 m/s, 1,5 s voller Ausschlag ----
@@ -115,7 +148,8 @@ function airRate(key, axis) {
   let maxW = 0, ang = 0, t360 = null;
   for (let t = 0; t < 1.6; t += DT) {
     car.input.steer = axis === 'roll' ? 1 : 0; car.input.throttle = axis === 'pitch' ? 1 : 0; car.input.brake = 0;
-    if (car.input.air) { car.input.air.pitch = axis === 'pitch' ? -1 : 0; car.input.air.roll = axis === 'roll' ? 1 : 0; car.input.air.on = true; }
+    if (car.input.air) { car.input.air.pitch = axis === 'pitch' ? -1 : 0; car.input.air.roll = axis === 'roll' ? 1 : 0; }
+    if (car.assist.airTap && t === 0) car.startTrick(axis === 'pitch' ? 'p' : 'r', axis === 'pitch' ? -1 : 1, W);
     car.step(DT, W);
     const F = car.frame, w = axis === 'pitch' ? car.w.x * F.r.x + car.w.y * F.r.y + car.w.z * F.r.z : car.w.x * F.f.x + car.w.y * F.f.y + car.w.z * F.f.z;
     maxW = Math.max(maxW, Math.abs(w)); ang += Math.abs(w) * DT;
@@ -218,6 +252,13 @@ for (const v of VARS) {
         const j = jump(key, nm);
         R.sprung[nm] = j;
         console.log(`${tag}: ${nm}: Lippe ${f1(j.vLip, 0)} km/h, Flug ${f1(j.air, 2)} s (Spielzeit ${f1(j.airSim, 2)}), Weite ${f1(j.weite, 0)} m, Scheitel ${f1(j.apex, 1)} m ${j.crash}`);
+      }
+    }
+    if (NUR.includes('stunt')) {
+      R.stunt = {};
+      for (const nm of Object.keys(JUMPS)) for (const [fig, n] of [['vor', 1], ['rueck', 1], ['schraube', 1], ['schraube', 2]]) {
+        const st = stunt(key, nm, fig, n); R.stunt[`${nm} ${fig} ${n}`] = st;
+        console.log(`${tag}: ${nm} ${fig} ×${n}: ${f1(st.deg, 0)}° in ${f1(st.air, 2)} s → ${st.ok ? 'gelandet' : st.crash || 'nicht gelandet'}${st.no ? ` (${st.no}× zu spät)` : ''}`);
       }
     }
     if (NUR.includes('luft')) {
