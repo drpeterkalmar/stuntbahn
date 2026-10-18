@@ -5,7 +5,9 @@
 // Rennzeit nahe der Autopilot-Zeit, Gastgeber-Abbruch mitten im Rennen (Gast fährt allein zu Ende, KI verschwindet).
 // Dazu: Schema-Größe, FremdAuto-Achsen, Rempler zwischen zwei Autos nebeneinander (fest), aufstellung().
 import { generate } from '../../src/track/generator.js';
-import { verifySync } from '../../src/track/verify.js';
+import { verifySync, prepare } from '../../src/track/verify.js';
+import { SHOWCASE, showcaseBytes } from '../../src/track/showcase.js';
+import { beschreibe, streckenKennung, ausB64 } from '../../src/game/onlinestrecke.js';
 import { Race } from '../../src/game/race.js';
 import { Car } from '../../src/physics/car.js';
 import { stoss, HAERTE } from '../../src/physics/autoauto.js';
@@ -43,6 +45,21 @@ const DT = 1 / 120;
 const V = verifySync(generate(11, 2));
 ok(V.ok, `Teststrecke S11/2, Autopilot ${V.apTime && V.apTime.toFixed(1)} s`);
 const env = V.env;
+
+// ---------- Strecke als Daten ----------
+{
+  const lay = generate(4711, 3, { gel: true, gv: 2 });
+  const d = beschreibe({ layout: lay, meta: { ...lay.meta, apTime: 70.5, fixes: 1 } });
+  const ueber = JSON.parse(JSON.stringify(d));   // wie über das Netz
+  const e1 = prepare(lay), e2 = prepare(ueber.layout);
+  ok(d.art === 'layout' && JSON.stringify(d).length < 6000 && Math.abs(e1.track.line.total - e2.track.line.total) < 1e-6 && e1.track.line.n === e2.track.line.n && ueber.apTime === 70.5, `Zufallsstrecke (Gelände) als Daten: ${JSON.stringify(d).length} Zeichen, gebaut gleich lang (${e2.track.line.total.toFixed(1)} m)`);
+  ok(streckenKennung(d) === streckenKennung(ueber) && streckenKennung(d) !== streckenKennung(beschreibe({ layout: generate(4712, 3), meta: {} })), 'Strecken-Kennung gleich nach Übertragung, anders für andere Strecke');
+  const id = SHOWCASE[0].id, bytes = showcaseBytes(id);
+  const t = beschreibe({ layout: null, meta: { key: 'trk-abc', name: 'Meine' } }, () => bytes);
+  const zur = ausB64(t.b64);
+  ok(t.art === 'trk' && zur.length === bytes.length && zur.every((x, k) => x === bytes[k]) && t.b64.length < 3000, `.TRK als Daten: ${bytes.length} Byte → ${t.b64.length} Zeichen Base64, Bytes gleich`);
+  ok(beschreibe({ meta: { key: 'sam-0042', name: 'X' } }).art === 'sam' && beschreibe({ meta: { key: 'trk-x' } }, () => null) === null, 'Sammlung nur als Kennung; .TRK ohne Bytes → null');
+}
 
 // ---------- zwei Geräte ----------
 function geraet(N, id, opt) {

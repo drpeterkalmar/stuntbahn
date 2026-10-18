@@ -5,6 +5,7 @@ import { WORLD_SCALE_DEFAULT, STUNT_SCALE_DEFAULT, GEN_V } from '../track/defs.j
 const KEY = 'stuntbahn.v1';
 const GHOST_MAX = 40;
 const TIMES_MAX = 5;   // Leicht: so viele letzte Zeiten je Strecke
+const ONLINE_MAX = 50; // n35: so viele Online-Ergebnisse (alle Strecken)
 
 // Bestzeiten ohne Versions-Schachtelung (Peter 30.09.2026: „Bestzeiten streichen“, n21). Bis n19 bekam jede neue
 // Abstimmung einen Schlüssel-Zusatz (Physik @t2/@t3, Welt @w2, Mittel @m2) und die alten Listen erschienen im Menü als
@@ -70,6 +71,8 @@ export class Store {
     // { t, d (Datum), pen, x (Extras), w (Totalschaden) }
     this.times = d.times || {};
     this.timesMig = d.timesMig;
+    // n35: Online-Rennen zählen nicht in die Solo-Bestzeiten – eigene Liste (neueste zuerst, höchstens ONLINE_MAX)
+    this.online = d.online || [];
     this.reset = d.reset || 0;
     if (this.reset < RESET_MARK) { this.clearBests(); this.reset = RESET_MARK; this.save(); }
     this.medReset = d.medReset || 0;
@@ -122,7 +125,21 @@ export class Store {
     try { localStorage.setItem(KEY + '.verified', JSON.stringify(this.verified)); } catch { /* voll */ }
   }
   save() {
-    try { localStorage.setItem(KEY, JSON.stringify({ settings: this.settings, best: this.best, ghostIndex: this.ghostIndex, times: this.times, timesMig: this.timesMig, reset: this.reset, medReset: this.medReset, stuntReset: this.stuntReset, tubeReset: this.tubeReset, hindSeen: this.hindSeen, arcadeReset: this.arcadeReset, lohnReset: this.lohnReset })); } catch { /* voll */ }
+    try { localStorage.setItem(KEY, JSON.stringify({ settings: this.settings, best: this.best, ghostIndex: this.ghostIndex, times: this.times, timesMig: this.timesMig, reset: this.reset, medReset: this.medReset, stuntReset: this.stuntReset, tubeReset: this.tubeReset, hindSeen: this.hindSeen, arcadeReset: this.arcadeReset, lohnReset: this.lohnReset, online: this.online })); } catch { /* voll */ }
+  }
+  // n35 Online: Ergebnis eintragen { key (Strecke), name (Strecke), t (Zeit) | null, platz, von, stufe, mit: [Namen] }
+  submitOnline(e) {
+    const x = { k: e.key, n: e.name || '', t: e.t != null ? +(+e.t).toFixed(3) : null, p: e.platz | 0, v: e.von | 0, s: e.stufe || '', m: (e.mit || []).slice(0, 5), d: new Date().toISOString().slice(0, 10) };
+    this.online = [x, ...this.online].slice(0, ONLINE_MAX);
+    this.save();
+    return x;
+  }
+  // beste Online-Zeit dieser Strecke (nur Anzeige in der Liste „Online“)
+  onlineBest(key) { return this.online.filter((e) => e.k === key && e.t != null).sort((a, b) => a.t - b.t)[0] || null; }
+  // feste Spieler-ID (Neu-Verbinden erkennt den Platz wieder) und Name fürs Online-Menü
+  spielerId() {
+    if (!this.settings.spielerId) { this.settings.spielerId = 's' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4); this.save(); }
+    return this.settings.spielerId;
   }
   // Leicht: letzte Zeiten dieser Strecke (neueste zuerst, nicht nach Zeit sortiert)
   timesFor(key) { return this.times[key] || []; }

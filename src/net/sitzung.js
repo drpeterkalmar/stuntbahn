@@ -120,6 +120,9 @@ export class Sitzung {
   }
   // nur Gastgeber: zurück in die Lobby (neue Strecke wählen)
   zurLobby() { if (!this.istGastgeber) return; Object.assign(this.lobby, { phase: 'lobby', startAt: null, ergebnis: null }); this._lobbySenden(); }
+  // eigene Meldung des Spiels (zuverlässig): art darf keine der internen Arten sein (p, P, hallo, lobby, ich, ziel, voll,
+  // ev, tschuess, ack); kommt beim Empfänger als Ereignis 'meldung' (d, mitglied) an
+  melden(art, daten = {}, ziel = null, verfall = SITZUNG.verfall) { this._senden({ ...daten, k: art }, ziel, true, verfall); }
   // Ereignis an alle (Rempler, Kurzruf …) – zuverlässig, verfällt schnell
   ereignis(art, daten = {}, ziel = null) { this._senden({ k: 'ev', art, daten, sz: this.zeit }, ziel, true, 1500); }
 

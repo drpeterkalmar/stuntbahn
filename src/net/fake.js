@@ -22,14 +22,16 @@ export class FakeNetz {
     this.gesperrt = new Set();   // 'a|b': direkte Verbindung blockiert (Firmennetz)
     this.zaehler = { gesendet: 0, verloren: 0, bytes: 0 };
   }
-  // neuer Teilnehmer; uhr = Versatz seiner Uhr (ms), gang = Gangfehler (z. B. 1e-4 = 0,1 ms je s)
+  // neuer Teilnehmer; uhr = Versatz seiner Uhr (ms), gang = Gangfehler (z. B. 1e-4 = 0,1 ms je s), raum = Raumcode
+  // (nur Teilnehmer desselben Raums finden sich)
   teilnehmer(id, opt = {}) {
     const t = new FakeTransport(this, id ?? 'p' + (this.teil.size + 1), opt);
+    t.raum = opt.raum ?? '';
     this.teil.set(t.id, t);
     // Verbindungsaufbau zu allen, die schon da sind
     const aufbau = this.opt.aufbau ?? 3 * this.opt.latenz + 20;
     for (const o of this.teil.values()) {
-      if (o === t) continue;
+      if (o === t || o.raum !== t.raum) continue;
       if (this.gesperrt.has(schl(o.id, t.id))) {
         this.spaeter(aufbau + 8000, () => { t._fehler({ art: 'p2p', peer: o.id, text: 'keine direkte Verbindung' }); o._fehler({ art: 'p2p', peer: t.id, text: 'keine direkte Verbindung' }); });
         continue;
