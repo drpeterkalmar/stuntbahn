@@ -34,7 +34,7 @@ export function startHtml(name, code = '', liste = []) {
 const stufeIcon = (k) => (ASSISTS[k] ? ASSISTS[k].icon : '');
 export function mitgliederHtml(z) {
   return `<table class="gtab onlist">${z.mitglieder.map((m) => `<tr class="${m.ich ? 'me' : ''}">
-      <td>${m.nummer || ''}.</td>
+      <td>${m.nummer ? m.nummer + '.' : ''}</td>
       <td>${m.host ? '👑 ' : ''}${esc(m.name)}${m.ich ? ' (du)' : ''}</td>
       <td title="Fahrhilfe">${stufeIcon(m.stufe)}</td>
       <td>${m.still ? '<span title="Verbindung wackelt">⚠️</span>' : m.rtt != null ? `<small>${Math.round(m.rtt)} ms</small>` : ''}</td>
@@ -55,7 +55,11 @@ export function lobbyHtml(z, opt = {}) {
   const E = z.einst || {}, frei = Math.max(0, ONLINE.maxAutos - z.mitglieder.length);
   const ich = z.mitglieder.find((m) => m.ich) || {};
   const qr = opt.qr !== false ? `<div class="onqr" aria-label="QR-Code zum Beitreten">${opt.qrSvg || qrSvg(z.link)}</div>` : '';
-  const haupt = z.gastgeber
+  // Gast ohne Verbindung zum Gastgeber (sucht noch / nicht gefunden / Netz blockiert): kein „Bereit“, sondern Nochmal
+  const getrennt = !z.gastgeber && z.status && z.status !== 'lobby';
+  const haupt = getrennt
+    ? `<div class="onhin">${z.status === 'verbinde' ? '⏳ Suche den Raum …' : '❌ Keine Verbindung zum Raum'}</div><button class="big go" data-a="onnochmal">🔄 Nochmal versuchen</button>`
+    : z.gastgeber
     ? `<button class="big go${z.start && z.start.ok ? '' : ' aus'}" data-a="onstart" ${z.start && z.start.ok ? '' : `title="${esc(z.start && z.start.grund)}"`}>▶ Rennen starten</button>
       ${z.start && !z.start.ok ? `<div class="hint">${esc(z.start.grund)}</div>` : ''}`
     : `<button class="big${ich.bereit ? ' on' : ' go'}" data-a="onbereit">${ich.bereit ? '✅ Bereit – warte auf Start' : '✋ Bereit'}</button>`;
@@ -151,6 +155,7 @@ export class OnlineAnsicht {
       case 'onmenue': this.ansicht = null; if (this.app.zeigeMenue) this.app.zeigeMenue(); this.ui.toast('Strecke wählen, dann „👥 Lobby“ → übernehmen', 3200); break;
       case 'onstart': if (!S.starten()) this.zeigeLobby(); else { this.ansicht = null; this.ui.toast('Start!', 1200); } break;
       case 'onrevanche': S.revanche(); break;
+      case 'onnochmal': { const c = S.code; this.ui.toast('Verbinde …', 1500); try { if (c && await S.beitreten(c)) this.zeigeLobby(); } catch (e) { this.ui.toast('Fehler: ' + (e.message || e), 4000); } break; }
       case 'onlobby': this.ansicht = 'lobby'; S.zurLobby(); this.zeigeLobby(); break;
       case 'onverlassen': S.verlassen(); this.ansicht = null; if (this.app.verlassen) this.app.verlassen(); break;
       case 'onzurueck': this.ansicht = null; if (this.app.zurueck) this.app.zurueck(); else this.ui.showMenu(this.ui.env); break;

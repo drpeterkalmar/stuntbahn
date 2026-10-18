@@ -15,6 +15,10 @@ from util import *
 # zwei Seiten im selben Browser sollen beide voll laufen (rAF/Timer nicht drosseln)
 U.ARGS = U.ARGS + ['--disable-background-timer-throttling', '--disable-backgrounding-occluded-windows', '--disable-renderer-backgrounding']
 ECHT = os.environ.get('ECHT') == '1'
+# Test-Mac hinter VPN: Chrome sammelt ohne Medien-Erlaubnis nur Kandidaten der VPN-Schnittstelle (dort kommt UDP an sich
+# selbst nicht zurück) – mit Schein-Mikrofon-Erlaubnis alle Schnittstellen (WLAN). Siehe tests/online_echt_probe.py.
+if ECHT: U.ARGS = U.ARGS + ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream']
+GUM = "navigator.mediaDevices.getUserMedia({ audio: true }).then((s) => s.getTracks().forEach((t) => t.stop()))"
 NETZ = '' if ECHT else '&netz=bc'
 Q = f'?nosw&online=1{NETZ}&seed=4711&d=2'
 
@@ -42,7 +46,9 @@ with Server() as srv, sync_playwright() as pw:
     errB = []
     B.on('pageerror', lambda e: errB.append('PAGEERROR ' + str(e)))
     B.on('console', lambda m: errB.append('CONSOLE ' + m.text) if m.type == 'error' else None)
+    if ECHT: s.ctx.grant_permissions(['camera', 'microphone'])
     s.open(Q)
+    if ECHT: A.evaluate(GUM)
     # --- A: Raum erstellen ---
     A.evaluate("__game.store.settings.spielerName = 'Peter'; __game.store.settings.assist = 'original'; __game.store.save()")
     best0 = A.evaluate("JSON.stringify(__game.store.best)")
@@ -57,6 +63,7 @@ with Server() as srv, sync_playwright() as pw:
     # --- B: Link öffnen, beitreten ---
     B.goto(link)   # Teilen-Link = Adresse von A (lokal: …/index.html?nosw&online=1&netz=bc&…&raum=CODE)
     B.wait_for_function("window.__app && window.__app.ready && window.__app.frames > 3", timeout=400000)
+    if ECHT: B.evaluate(GUM)
     ok(warte(B, f"document.getElementById('oncode') && document.getElementById('oncode').value === '{code}'", 15), 'B: Link mit ?raum= öffnet die Beitreten-Ansicht mit vorbelegtem Code')
     B.evaluate("__game.store.settings.spielerName = 'Ben'; __game.store.settings.assist = 'easy'; __game.store.save(); document.getElementById('onname').value = 'Ben'")
     B.evaluate("__game.online.aktion('onbeitreten')")
@@ -114,7 +121,8 @@ with Server() as srv, sync_playwright() as pw:
     A.evaluate("__game.online.aktion('onrevanche')")
     ok(warte(B, "__game.race && __game.race.online && __game.race.state === 'countdown'", 15), 'Revanche: neuer Countdown bei B')
     A.evaluate("__game.online.aktion('onverlassen')"); B.evaluate("__game.online.aktion('onverlassen')")
-    err = [e for e in s.errors + errB if 'GL Driver' not in e]
+    # echte Relays: tote Relays meldet der Browser selbst als Konsolen-Fehler (WebSocket …) – kein Fehler des Spiels
+    err = [e for e in s.errors + errB if 'GL Driver' not in e and not (ECHT and 'WebSocket connection' in e)]
     ok(not err, f'keine JS-Fehler {err[:4]}')
     s.close()
 print('Online-UI: ' + (f'{bad} FEHLER' if bad else 'alle Prüfungen grün'))

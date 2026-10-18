@@ -12,6 +12,9 @@
 
 export const APP_ID = 'drpeterkalmar-stuntbahn-n35';
 export const AUSWEICH = { nach: 6000 };
+// Nostr: 7 statt 5 Relays (am 18.10.2026 waren 2 der 5 nach appId gewählten nicht erreichbar – abgelaufenes Zertifikat,
+// Verbindung zurückgesetzt; die Partnersuche lief über die übrigen drei)
+export const RELAYS = { nostr: 7 };
 const PFAD = { nostr: '../../vendor/trystero/nostr.js', mqtt: '../../vendor/trystero/mqtt.js' };
 
 // code: Raumcode; opt: { strategie: 'auto'|'nostr'|'mqtt'|'beide', module: { nostr, mqtt } (Test), laden(name) }
@@ -50,7 +53,7 @@ export class TrysteroTransport {
     const M = await this._modul(name);
     if (!this.aktiv) return;
     this.id = M.selfId;
-    const room = M.joinRoom({ appId: APP_ID, password: 'sb-' + this.code, relayConfig: { warnOnRelayFailure: false } }, 'raum-' + this.code, {
+    const room = M.joinRoom({ appId: APP_ID, password: 'sb-' + this.code, relayConfig: { warnOnRelayFailure: false, ...(RELAYS[name] ? { redundancy: RELAYS[name] } : {}) } }, 'raum-' + this.code, {
       onJoinError: (d) => this._fehler({ art: 'p2p', peer: d && d.peerId, text: String(d && d.error && d.error.message || d && d.error || 'Verbindung nicht möglich') }),
     });
     const r = { name, room, m: room.makeAction('sb-m'), z: room.makeAction('sb-z') };

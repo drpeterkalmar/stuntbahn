@@ -67,7 +67,14 @@ export class OnlineSpiel {
       this.app.anzeige('status', st);
     });
     S.on('fehler', (e) => {
-      if (e.art === 'p2p') { const m = [...S.mitglieder.values()].find((x) => x.pid === e.peer); this.hinweis(`Verbindung zu ${m ? m.info.name : 'einem Mitspieler'} nicht möglich (Netz blockiert direkte Verbindung) – WLAN probieren.`, 0); }
+      if (e.art === 'p2p') {
+        // Partner über die Relays gefunden, direkte Verbindung scheitert (kein TURN): die Vermutung „kein Raum“ ist damit
+        // widerlegt – ersetzen; ein Gast kennt den Namen des Gastgebers noch nicht
+        const m = [...S.mitglieder.values()].find((x) => x.pid === e.peer);
+        this.hinweise = this.hinweise.filter((h) => !h.text.startsWith('Kein Raum'));
+        const wer = m ? m.info.name : S.istGastgeber ? 'einem Mitspieler' : `Raum ${vorlesbar(code)}`;
+        this.hinweis(`Verbindung zu ${wer} nicht möglich (Netz blockiert direkte Verbindung) – WLAN probieren.`, 0);
+      }
       if (e.art === 'version') this.hinweis('Ein Mitspieler hat eine andere Spielversion – bitte beide die Seite neu laden.', 0);
     });
     S.on('neu', (m, zurueck) => { this.hinweis(`${m.info.name} ist ${zurueck ? 'wieder da' : 'da'}`); if (S.istGastgeber && this.strecke) this._streckeSenden(m.pid); });
