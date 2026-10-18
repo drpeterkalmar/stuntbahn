@@ -1,7 +1,7 @@
 // n38 Stunt-Lohn (src/game/lohn.js): reine Funktionen (Gutschrift auf die Nitro-Abklingzeit, Wertung n38: Bauwerke, ruhige Hand,
 // Hüpfer), Rennlogik (Abklingzeit kürzer, Vorrat, voll = sofort bereit, Crash/Hüpfer zahlen nicht), Tracker (ruhige Hand, Looping
 // als Kettenglied), Leicht-Automatik auf mehreren Geraden, alle Regler aus = Stand n37 bitgleich, Messgrößen, Bestzeiten einmalig neu.
-const { LOHN, LOHN_AUS, setLohn, cooldownGain, creditNitro, landBoostStage, landBoostLevel, splitDelta, sectorDeltas, fmtDelta } = await import('../../src/game/lohn.js');
+const { LOHN, LOHN_AUS, setLohn, cooldownGain, creditNitro, landBoostStage, landBoostLevel, splitDelta, sectorDeltas, fmtDelta, DriftTurbo } = await import('../../src/game/lohn.js');
 const { STUNT, scoreJump, scoreBau, chainWindow, chainFactor, StuntTracker, stuntText, bauKinds } = await import('../../src/game/stunts.js');
 const { Race, ASSISTS } = await import('../../src/game/race.js');
 const { Car, CAR_DEF } = await import('../../src/physics/car.js');
@@ -173,6 +173,38 @@ console.log('--- F3: Zwischenzeiten (Etappe 3) ---');
   check(a.r.splits.length === a.r.cps.length && cpD.length === b.r.cps.length && cpD.every((d) => Number.isFinite(d)) && Number.isFinite(fin.d), `Checkpoints mit Abstand: ${cpD.map(fmtDelta).join(' ')} · Ziel ${fmtDelta(fin.d)}`);
   check(Math.abs(sum - fin.d) <= 0.01 && Math.abs(cpD[cpD.length - 1] + sec[sec.length - 1].d - fin.d) <= 0.01, `Messgröße 7: Σ Abschnitte ${fmtDelta(sum)} = Ziel ${fmtDelta(fin.d)} (±0,01 s)`);
   setLohn({ zwischen: 0 }); check(new Race(v1.env, { splitRef: refA }).splitRef === null, '?zwischen=0: kein Vergleich'); setLohn(STD);
+}
+
+console.log('--- F4: Drift-Turbo (Etappe 4, Standard aus) ---');
+{
+  check(LOHN.driftturbo === 0, 'Standard aus (erst nach Handy-Test)');
+  setLohn({ driftturbo: 1 });
+  const B = 20 * Math.PI / 180;
+  // Drift 0,8 s (Meter 0,83 = rot), dann Tipp 0,1 s
+  const run = (driftT, tapLen, brakeAt = driftT) => {
+    const D = new DriftTurbo(); let res = null;
+    for (let t = 0; t < 2.5; t += DT) {
+      const br = t >= brakeAt && t < brakeAt + tapLen ? 1 : 0;
+      const r = D.step(DT, B, true, 30, br, 15); if (r && r.turbo) res = r.turbo;
+    }
+    return { D, res };
+  };
+  const a = run(0.8, 0.1);
+  check(a.res && a.res.u > 0.5 && a.res.k > 0.25 && a.res.dur > 0.7 && a.D.stat.red === 1, `Tipp in der roten Zone → Mini-Turbo (u ${a.res && a.res.u.toFixed(2)}, k ${a.res && a.res.k.toFixed(2)}, ${a.res && a.res.dur.toFixed(2)} s)`);
+  const b = run(0.3, 0.1);
+  check(!b.res && b.D.stat.green === 1, 'Tipp im grünen Bereich: Meter leer, kein Schub');
+  const c = run(0.8, 0.4);
+  check(!c.res && c.D.stat.taps === 0, 'Bremse gehalten (0,4 s) ist kein Tipp');
+  const d = run(1.2, 0.1);
+  check(!d.res && d.D.stat.full === 1, 'Meter voll gelaufen: Serie vorbei');
+  // höchstens 3 je Drift
+  const D = new DriftTurbo(); let n = 0;
+  for (let t = 0; t < 6; t += DT) { const ph = t % 0.9; const r = D.step(DT, B, true, 30, ph > 0.8 && ph < 0.88 ? 1 : 0, 15); if (r && r.turbo) n++; }
+  check(n === 3, `höchstens ${LOHN.dt.max} Turbos je Drift (${n})`);
+  setLohn({ driftturbo: 2 }); const E = new DriftTurbo(); let pts = null;
+  for (let t = 0; t < 3; t += DT) { const r = E.step(DT, t < 2 ? B : 0, true, 30, 0, 15); if (r && r.pts) pts = r.pts; }
+  check(pts === 16, `Variante 2: Drift 2 s → ${pts} Punkte für den Nitro (8/s)`);
+  setLohn(STD);
 }
 
 console.log('--- G: alle Regler aus = Stand n37 bitgleich ---');

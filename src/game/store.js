@@ -43,7 +43,7 @@ export const IMPORTED_KEY = /^(trk-|sam-|demo-)/;
 const AB_PARAMS = [['auto', 'alt'], ['grip', '1'], ['mgrip', '1'], ['m', 'n16'], ['m', 'n23'], ['antrieb', null], ['breit', 'alt'], ['wiese', 'alt'], ['haft', 'alt'], ['schanze', 'alt'], ['welt', null], ['stunt', null], ['air', null], ['lip', null], ['roehre', 'glatt'], ['cd', 'runde'], ['cdh', null], ['cdn', null],
   ['hindernis2', '0'], ['zickzack', '0'], ['roehrewand', '0'], ['spirale2', '0'],   // n33
   ['physik', 'alt'], ['luft', null], ['wand', null],   // n37 (dazu ?grip= mit jedem Wert, siehe unten)
-  ['tank', null], ['kette', null], ['stuntpkt', null], ['landung', null], ['landeschub', null]];   // n38 Stunt-Lohn (jeder Wert, auch der Standard)
+  ['tank', null], ['kette', null], ['stuntpkt', null], ['landung', null], ['landeschub', null], ['driftturbo', null]];   // n38 Stunt-Lohn (jeder Wert, auch der Standard)
 const AB_SCALE = { welt: WORLD_SCALE_DEFAULT, stunt: STUNT_SCALE_DEFAULT };
 export function abMode(search = globalThis.location ? globalThis.location.search : '') {
   if (!search) return false;

@@ -14,7 +14,7 @@ import { DriftCtl, BRACHIAL } from '../ai/drift.js';
 import { ZIEL } from './zielshow.js';
 import { ARCADE, arcadeAssist } from '../physics/arcade.js';
 import { StuntTracker, bauKinds } from './stunts.js';
-import { LOHN, cooldownGain, creditNitro, landBoostStage, landBoostLevel, splitDelta } from './lohn.js';
+import { LOHN, cooldownGain, creditNitro, landBoostStage, landBoostLevel, splitDelta, DriftTurbo } from './lohn.js';
 
 // Mittel (n16, Peter 29.09.2026: „Mittlere Schwierigkeit mehr Bodenhaftung und kein Magnet zur Ideallinie“): kein
 // Lenkzug zur Linie mehr (steerPull bis n15 0,28, im Stunt stuntPull 0,6), dafür mehr Reifenhaftung (grip, Faktor auf
@@ -237,6 +237,7 @@ export class Race {
     this.lohn = { pts: 0, sec: 0, n: 0, hop: 0, now: 0 };
     // n38 Etappe 3 Zwischenzeiten: Rennzeit an jedem Checkpoint; splitRef = Bestfahrt { t, sp } derselben Wertung (main.js/store)
     this.splits = [];
+    this.dturbo = new DriftTurbo();   // n38 Etappe 4 (nur mit ?driftturbo=1/2, Mittel/Original)
     this.splitRef = opts.splitRef && LOHN.zwischen ? opts.splitRef : null;
     this.place(this.startIdx - (opts.startBack ?? 1));
     this.chargeLap = this.tracker.lap;
@@ -488,6 +489,7 @@ export class Race {
     if (!this.autopilotOnly) {
       const sr = this.stunts.step(dt, car, { piece: L.piece[ti], lap: this.tracker.lap, loop: L.loop[ti] || L.tube[ti], bau: this.bauK[ti], inp: input });
       if (sr) { this.lohnStunt(sr); this.landBoost(sr); this.emit('stunt', sr); }
+      if (LOHN.driftturbo && (this.assistKey === 'medium' || this.assistKey === 'original')) this.driftStep(dt, input);
     }
     // Sprung-Hilfe (Mittel n24): im Flug über eine Schanze dezent Richtung Landerampe (game/jumpassist.js)
     this.jumpK = A.jumpPull && !this.autopilotOnly ? this.jumpAssist.step(dt, car, this.env.track, ti) : 0;
@@ -1134,7 +1136,7 @@ export class Race {
 
   // Nach dem Versetzen: Schnitt fürs Replay merken, Wächter zurücksetzen, weiterfahren
   afterJump() {
-    this.stopNitro(); this.lb = null;
+    this.stopNitro(); this.lb = null; this.dturbo.reset();
     this.stunts.reset();
     this.cuts.push({ f: this.recFrames() });
     this.offT = 0; this.stuckT = 0; this.stuckProg = this.tracker.progress(); this.wrongT = 0;
@@ -1247,6 +1249,18 @@ export class Race {
     const B = this.lohn;
     B.pts += pts; B.sec += r.nitroSec; B.n++; if (r.hop) B.hop += r.nitroSec; if (r.nitroNow) B.now++;
     if (r.nitroSec > 0) this.emit('xgain', { k: 'nitro', sec: r.nitroSec, now: r.nitroNow, full: r.nitroFull, bank: x.bank / full });
+  }
+  // n38 Etappe 4 Drift-Turbo (lohn.js DriftTurbo): Rutschwinkel aus Tempo längs/quer, Bremse des Spielers
+  driftStep(dt, input) {
+    const c = this.car, F = c.frame;
+    const vf = c.v.x * F.f.x + c.v.y * F.f.y + c.v.z * F.f.z, vr = c.v.x * F.r.x + c.v.y * F.r.y + c.v.z * F.r.z;
+    const beta = Math.abs(Math.atan2(vr, Math.abs(vf)));
+    const r = this.dturbo.step(dt, beta, c.onGround >= 3, Math.hypot(vf, vr), input.brake || 0, LOHN.dt.deg[this.assistKey]);
+    if (r && r.turbo && this.state === 'running') {
+      this.lb = { t: 0, dur: r.turbo.dur, k: r.turbo.k, stufe: 0, drift: true };
+      this.emit('dturbo', { u: r.turbo.u, n: this.dturbo.n });
+    }
+    if (r && r.pts) { const x = { pts: r.pts, landing: 'ok', hop: false, drift: true }; this.lohnStunt(x); if (x.nitroSec) this.emit('dturbo', { pts: r.pts, sec: x.nitroSec }); }
   }
   // n38 Landeschub nach einem abgerechneten Stunt (saubere Landung, lange Luft; lohn.js landBoostStage)
   landBoost(r) {

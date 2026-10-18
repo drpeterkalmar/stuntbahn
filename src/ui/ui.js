@@ -62,7 +62,7 @@ export class UI {
       <div id="loading" class="screen show"><div class="logo">STUNT<b>BAHN</b></div><div class="bar"><i></i></div><p>Laden …</p></div>
       <div id="menu" class="screen"></div>
       <div id="hud">
-        <div class="tl"><div class="time">0:00,00</div><div class="pen"></div><div class="best"></div><div class="sp"></div></div>
+        <div class="tl"><div class="time">0:00,00</div><div class="pen"></div><div class="best"></div><div class="sp"></div><div class="dtm"><i></i></div></div>
         <div id="stuntpop"></div>
         <div class="tc"><div class="cp"></div></div>
         <div class="hint2" aria-live="polite"></div>
@@ -733,6 +733,14 @@ export class UI {
         clearTimeout(this._spT);
       } else if (P.classList.contains('live')) P.className = '';
     }
+    // n38 Etappe 4 Drift-Turbo-Meter (oben links unter der Zeit): füllt sich im Drift, rechte Hälfte rot = jetzt Bremse antippen
+    const D = race.dturbo, dk = LOHN.driftturbo === 1 && D && D.on ? (D.over ? 'x' : Math.round(D.m * 40)) : '';
+    if (dk !== this._dk) {
+      this._dk = dk;
+      const E = $('#hud .dtm');
+      E.className = 'dtm' + (dk === '' ? '' : ' on') + (dk === 'x' ? ' over' : D && D.m >= 0.5 && dk !== 'x' ? ' red' : '');
+      E.style.setProperty('--m', dk === '' || dk === 'x' ? '0' : D.m.toFixed(3));
+    }
     if (this._pen !== race.penalties) {
       this._pen = race.penalties;
       $('#hud .pen').textContent = race.penalties ? `inkl. +${race.penalties * PENALTY} s Strafe` : '';
@@ -773,7 +781,8 @@ export class UI {
       this._lv = 'x'; clearTimeout(this._spT); clearTimeout(this._spW);
       const show = () => { P.className = cls; P.innerHTML = html; this._spT = setTimeout(() => { if (!P.classList.contains('live')) P.className = ''; }, 2200); };
       if (wait > 0) this._spW = setTimeout(show, wait); else show();
-    } else if (e.type === 'trickno') this.toast(e.axis === 'p' ? '🤸 Zu spät für einen Salto' : '🤸 Zu spät für eine Schraube', 1100);
+    } else if (e.type === 'dturbo') this.toast(e.pts ? `💨 Drift lädt Nitro ${e.sec.toFixed(1).replace('.', ',')} s schneller` : `💨 Drift-Turbo${e.n > 1 ? ' ×' + e.n : ''}${e.u > 0.8 ? ' – perfekt!' : ''}`, 900);
+    else if (e.type === 'trickno') this.toast(e.axis === 'p' ? '🤸 Zu spät für einen Salto' : '🤸 Zu spät für eine Schraube', 1100);
     else if (e.type === 'refill') {
       this.toast('🦘 🔥 wieder voll');
       for (const b of document.querySelectorAll('#hud .xb')) { b.classList.remove('glow'); void b.offsetWidth; b.classList.add('glow'); }

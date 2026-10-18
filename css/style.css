@@ -113,6 +113,13 @@ button.go { background: linear-gradient(180deg, #ff7a36, #e24e10); border-color:
 #hud .pen { font-size: 15px; font-weight: 800; color: #ffcf3d; }
 /* n37 Stunt-Punkte: Summe unter der Zeit, Anzeige je Sprung oben mittig (über dem Auto, unter der Stunt-Ansage) */
 #hud .sp { font-size: 14px; font-weight: 800; color: #9fe8ff; }
+/* n38 Etappe 4 Drift-Turbo-Meter: Füllstand --m, rechte Hälfte = rote Zone (Bremse antippen) */
+#hud .dtm { display: none; position: relative; width: 120px; height: 9px; margin-top: 5px; border-radius: 5px; overflow: hidden;
+  background: linear-gradient(90deg, #ffffff22 0 50%, #ff4a3a55 50% 100%); box-shadow: 0 1px 4px #0008; }
+#hud .dtm.on { display: block; }
+#hud .dtm i { position: absolute; inset: 0 auto 0 0; width: calc(var(--m, 0) * 100%); background: #7dff7a; }
+#hud .dtm.red i { background: #ff5a3a; box-shadow: 0 0 8px #ff5a3a; }
+#hud .dtm.over { opacity: .35; }
 #stuntpop { position: absolute; top: 21%; left: 50%; transform: translate(-50%, -6px) scale(.94); text-align: center; pointer-events: none; opacity: 0; transition: opacity .15s, transform .15s; text-shadow: 0 2px 6px #000d; white-space: nowrap; }
 #stuntpop.show { opacity: 1; transform: translate(-50%, 0) scale(1); }
 #stuntpop b { display: block; font-size: clamp(20px, 4.2vw, 34px); font-weight: 900; font-style: italic; color: #fff; }

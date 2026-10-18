@@ -111,5 +111,20 @@ with Server() as srv, sync_playwright() as pw:
         if 'zur Bestfahrt' not in tab or 'Ziel' not in tab: fails.append(f'{lay} zwischen: keine Ziel-Tabelle ({tab!r})')
         if s.errors: fails.append(f'{lay} ziel: Seitenfehler {s.errors[:3]}')
         s.close()
+    # n38 Etappe 4: Drift-Turbo-Meter (Original, ?driftturbo=1) – Meter rot, Lage oben links, keine Überdeckung der Touch-Tasten
+    for lay in which:
+        dev = PIXEL7_LAND if lay == 'quer' else PORTRAIT
+        s = Session(pw, srv.base, device=dev)
+        s.open(SEED + '&driftturbo=1')
+        s.ev("__game.setAssist('original')"); s.ev("__game.start({})"); s.ev("__game.sim(5)")
+        s.ev("__game.freeze(true)"); s.ev("(() => { const D = __game.race.dturbo; D.on = true; D.over = false; D.m = 0.72; })()")
+        s.frames(4); time.sleep(0.3)
+        cls = s.ev("document.querySelector('#hud .dtm').className")
+        box = s.ev("(() => { const r = document.querySelector('#hud .dtm').getBoundingClientRect(); const hit = [...document.querySelectorAll('#touch .pad, #hud .xb, #hud button')].filter(e => { const q = e.getBoundingClientRect(); return q.width && !(q.right < r.left || q.left > r.right || q.bottom < r.top || q.top > r.bottom); }).length; return { x: r.left, y: r.top, w: r.width, hit }; })()")
+        s.shot(f'{lay}_drift', 'n38')
+        print(lay, 'drift', cls, box, 'Fehler', s.errors[:3], flush=True)
+        if 'red' not in cls or box['w'] < 50 or box['hit']: fails.append(f'{lay} drift: Meter falsch ({cls}, {box})')
+        if s.errors: fails.append(f'{lay} drift: Seitenfehler {s.errors[:3]}')
+        s.close()
 print('FEHLER' if fails else 'OK', fails)
 sys.exit(1 if fails else 0)

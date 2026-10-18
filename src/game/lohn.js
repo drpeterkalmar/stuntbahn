@@ -25,6 +25,11 @@
 //   zwischen  – (Etappe 3) Zwischenzeiten: an jedem Checkpoint der Abstand zur Bestfahrt derselben Wertung (blau schneller, rot
 //               langsamer), im Ziel eine Tabelle je Abschnitt; die Zwischenzeiten werden mit der Bestzeit gespeichert (Leicht: mit
 //               den letzten Zeiten, Vergleich mit der schnellsten davon). ?zwischen=0 = keine Anzeige.
+//   driftturbo – (Etappe 4, Standard AUS bis zum Handy-Test) Mittel/Original: Rutschwinkel ≥ deg füllt in fill s ein Meter, die
+//               zweite Hälfte ist die rote Zone. Bremse ANTIPPEN (≤ tap s) in der roten Zone = Mini-Turbo (Stärke linear 0 → k,
+//               Dauer d0 … d1 s, je später, desto mehr; Deckel wie der Landeschub), im grünen Bereich = Meter leer, kein Schub;
+//               höchstens max je Drift; Meter läuft voll ohne Tipp = Serie vorbei. ?driftturbo=1. ?driftturbo=2 = Touch-Variante
+//               ohne Timing: Driften lädt nur den Nitro nach (pts Punkte je s, wie Stunt-Punkte).
 const q = globalThis.location && globalThis.location.search ? new URLSearchParams(globalThis.location.search) : null;
 const num = (k, lo, hi) => { if (!q) return null; const v = q.get(k); return v !== null && v !== '' && Number.isFinite(+v) ? Math.max(lo, Math.min(hi, +v)) : null; };
 // Node: Umgebung STUNT_N38=alt = alle Regler aus (Messungen gegen den Stand n37)
@@ -47,6 +52,8 @@ export const LOHN = {
   tonAb: 0.5, tonHz: 1200, tonIn: 0.3, tonOut: 0.08,
   schweif: num('schweif', 0, 1) ?? 1,
   zwischen: num('zwischen', 0, 1) ?? 1,
+  driftturbo: num('driftturbo', 0, 2) ?? 0,
+  dt: { deg: { medium: 7, original: 15 }, vMin: 15, fill: 0.96, tap: 0.2, k: 0.5, d0: 0.4, d1: 1.0, max: 3, end: 0.3, pts: 8 },
   autoSpots: 6,     // Leicht automatisch: höchstens so viele Nitro-Stellen je Runde
   hopChain: 0,      // Hüpfer zählen nicht als Kettenglied (n37: 1)
   hopPay: 0,        // Anteil, den ein Hüpfer-Stunt in die Abklingzeit einzahlt (Messgröße 6: Dauer-Hüpfen < 15 % der Einnahmen)
@@ -113,4 +120,43 @@ export function fmtDelta(d) {
   if (d == null || !Number.isFinite(d)) return '';
   const a = Math.abs(d).toFixed(2).replace('.', ',');
   return Math.abs(d) < 0.005 ? '±' + a : (d < 0 ? '−' : '+') + a;
+}
+
+// Drift-Turbo (Etappe 4): reines Meter je Physikschritt. step(dt, beta (rad, Betrag des Rutschwinkels), ground, v (m/s), brake (Spieler
+// 0 … 1), deg (Schwelle °)) → null | { turbo: { k, dur, u } } | { pts } (Variante 2 am Drift-Ende); stat zählt fürs Testen mit
+export class DriftTurbo {
+  constructor() { this.reset(); this.stat = { drifts: 0, taps: 0, red: 0, green: 0, full: 0, turbos: 0 }; this.bOn = false; this.bT = 0; this.m0 = 0; }
+  reset() { this.m = 0; this.on = false; this.n = 0; this.over = false; this.offT = 0; this.pts = 0; }
+  step(dt, beta, ground, v, brake, deg) {
+    const D = LOHN.dt, drifting = ground && v > D.vMin && beta >= deg * Math.PI / 180;
+    let out = null;
+    if (drifting) {
+      this.offT = 0;
+      if (!this.on) { this.reset(); this.on = true; this.stat.drifts++; }
+      this.pts += D.pts * dt;
+      if (!this.over) { this.m += dt / D.fill; if (this.m >= 1) { this.m = 0; this.over = true; this.stat.full++; } }
+    } else if (this.on) {
+      this.offT += dt;
+      if (this.offT > D.end || !ground) { if (LOHN.driftturbo === 2 && this.pts >= 1) out = { pts: Math.round(this.pts) }; this.reset(); }
+    }
+    // Brems-Tipp: Zeitpunkt = Drücken, gilt nur, wenn innerhalb von tap s wieder losgelassen
+    if (brake > 0.5 && !this.bOn) { this.bOn = true; this.bT = 0; this.m0 = this.on && !this.over ? this.m : -1; }
+    else if (this.bOn) {
+      this.bT += dt;
+      if (brake <= 0.5) {
+        this.bOn = false;
+        if (this.bT <= D.tap && this.m0 >= 0 && LOHN.driftturbo === 1 && this.on && !this.over) {
+          this.stat.taps++;
+          if (this.m0 < 0.5) { this.stat.green++; this.m = 0; }
+          else {
+            const u = Math.min(1, (this.m0 - 0.5) / 0.5);
+            this.stat.red++; this.stat.turbos++; this.n++; this.m = 0;
+            if (this.n >= D.max) this.over = true;
+            out = { turbo: { k: D.k * u, dur: D.d0 + (D.d1 - D.d0) * u, u } };
+          }
+        }
+      }
+    }
+    return out;
+  }
 }
