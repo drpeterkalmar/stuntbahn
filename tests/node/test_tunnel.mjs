@@ -69,10 +69,12 @@ for (const { t } of strecken) {
   const nat = (x, z) => { const fx = (x + T.ext) / T.step, fz = (z + T.ext) / T.step, i = Math.min(T.nx - 2, Math.floor(fx)), j = Math.min(T.nx - 2, Math.floor(fz)), k = j * T.nx + i; return triLerp(HH[k], HH[k + 1], HH[k + T.nx], HH[k + T.nx + 1], fx - i, fz - j); };
   // vorher: Gelände im Querschnitt der Öffnung 0,5 … 3 m hinter der Portalwand
   for (const p of portale(tl)) {
-    for (let o = -3; o <= -0.5; o += 0.5) for (let r = -p.R.tw + 1; r <= p.R.tw - 1; r += 1) {
+    let zu = false;
+    for (let o = -3; o <= -0.5 && !zu; o += 0.5) for (let r = -p.R.tw + 1; r <= p.R.tw - 1; r += 1) {
       const x = p.x + p.ox * o + p.R.B[0] * r, z = p.z + p.oz * o + p.R.B[1] * r, h = nat(x, z) - hoeheAuf(p.R, p.t + o * p.s);
-      if (h > 0.3 && h < p.R.H - 0.3) { vorher++; break; }
+      if (h > 0.3 && h < p.R.H - 0.3) { zu = true; break; }
     }
+    if (zu) vorher++;
   }
   const pg = portalGelaende(T, tl, HH);
   check(pg.portale.length === portale(tl).length && pg.n > 0, `Strecke ${t.layout.seed}: ${pg.portale.length} Portale mit feinem Netz (${pg.n} Punkte, ${pg.skip.size} Rasterzellen ersetzt)`);
@@ -129,7 +131,7 @@ for (const { t } of strecken) {
     if (best < Math.min(nat(x, z), yR - 0.3) - 0.15) zuuntief++;   // abgesenkt nur bis knapp unter die Fahrbahn
   }
 }
-check(vorher > 0, `vorher (Höhenfeld): Gelände quer in der Öffnung an ${vorher} Portalen`);
+check(vorher > 0, `vorher (Höhenfeld): Gelände quer in der Öffnung an ${vorher} von ${nPortal} Portalen`);
 check(inOeffnung === 0, `nachher: kein Gelände-Dreieck in der Öffnung oder bis 4 m davor über der Fahrbahn (${nTri} Dreiecke geprüft)`);
 check(rasterImRohr === 0, `übriges Raster-Gelände nirgends im Tunnelrohr (${rasterImRohr} Treffer)`);
 check(ueberStrasse === 0 && zuuntief === 0, `Zufahrt: Gelände 0,5 … 4 m vor dem Portal nicht über der Fahrbahn (${ueberStrasse}) und höchstens bis 0,3 m darunter abgesenkt (${zuuntief})`);
@@ -211,9 +213,13 @@ console.log('--- F: Röhre mit Mittelwand ---');
   const L = t.line; let rolle = 0, rolle1 = 0;
   for (let i = R.i0; i <= R.i1; i++) { const [tt] = lageIm(R, L.px[i], L.py[i], L.pz[i]); if (tt > Math.max(R.fr0, R.faceIn + TUNNEL_LOOK.rampe) && tt < Math.min(R.fr1, R.faceOut - TUNNEL_LOOK.rampe)) { rolle++; if (maskeAm(tl, L.px[i] + L.nx[i] * 0.5, L.py[i] + L.ny[i] * 0.5, L.pz[i] + L.nz[i] * 0.5) > 0.99) rolle1++; } }
   check(rolle > 50 && rolle1 === rolle, `Maske 1 an der Fahrlinie in der Rolle ab 11 m hinter den Portalen (auch kopfüber): ${rolle1}/${rolle}`);
-  const at = tunnelAttr(t.batches, tl); let ring = 0;
-  t.batches.forEach((b, k) => { const a = at[k]; if (a) for (let v = 0; v < a.length / 4; v++) if (a[v * 4 + 3] === 5 && a[v * 4] > 0.99) ring++; });
-  check(ring > 200, `Röhren-Wand mit Lichtring-Kennung (${ring} Punkte)`);
+  const at = tunnelAttr(t.batches, tl); let ring = 0, aussen = 0;
+  t.batches.forEach((b, k) => { const a = at[k]; if (a) for (let v = 0; v < a.length / 4; v++) if (a[v * 4 + 3] === 5) {
+    if (a[v * 4] > 0.99) ring++;
+    const [tt, r, h] = lageIm(R, b.pos[v * 3], b.pos[v * 3 + 1], b.pos[v * 3 + 2]);
+    if (tt > R.fr0 && tt < R.fr1 && Math.hypot(r, h - R.Rr) > R.Rr + 0.3) aussen++;
+  } });
+  check(ring > 200 && aussen === 0, `Röhren-Innenwand mit Lichtring-Kennung (${ring} Punkte), Außenmantel ohne (${aussen})`);
   // Kamera: Punkt 0,2 m vor der Wand → auf Rr − 1,3 gezogen; Punkt nahe der Achse bleibt
   const tm = (R.fr0 + R.fr1) / 2, ax = (r, h) => ({ x: R.A[0] + R.D[0] * tm + R.B[0] * r, y: hoeheAuf(R, tm) + h, z: R.A[2] + R.D[1] * tm + R.B[1] * r });
   const p1 = ax(0, 2 * R.Rr - 0.2), p2 = ax(1, R.Rr + 1);

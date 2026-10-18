@@ -1,0 +1,357 @@
+{
+ "datum": "2026-10-18T02:55:48",
+ "stand": "n33_ende",
+ "modus": "ab",
+ "runden": 3,
+ "varianten": [
+  {
+   "name": "vorher",
+   "wurzel": "/Users/wohnzimmer/dev/stuntbahn_vorher_n33",
+   "zusatz": ""
+  },
+  {
+   "name": "nachher",
+   "wurzel": "/Users/wohnzimmer/dev/stuntbahn",
+   "zusatz": ""
+  }
+ ],
+ "profil": {
+  "drossel": 4,
+  "dpr": 2.6,
+  "sek": 10,
+  "start": "open",
+  "vsync": false
+ },
+ "szenen": {
+  "looping_kino": {
+   "hoch": {
+    "vorher": {
+     "p50": 9.2,
+     "p95": 28.1,
+     "fps": 84.8,
+     "calls": 84,
+     "tris": 305451,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      28.1,
+      28.7,
+      8.4
+     ],
+     "fehler": []
+    },
+    "nachher": {
+     "p50": 8.9,
+     "p95": 16.4,
+     "fps": 99.5,
+     "calls": 84,
+     "tris": 305451,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      16.4,
+      29.6,
+      8.5
+     ],
+     "fehler": []
+    }
+   },
+   "quer": {
+    "vorher": {
+     "p50": 5.7,
+     "p95": 8.5,
+     "fps": 168,
+     "calls": 82,
+     "tris": 304251,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      7.6,
+      8.5,
+      9.8
+     ],
+     "fehler": []
+    },
+    "nachher": {
+     "p50": 5.6,
+     "p95": 7.6,
+     "fps": 176.6,
+     "calls": 82,
+     "tris": 304251,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      7.5,
+      7.6,
+      9.7
+     ],
+     "fehler": []
+    }
+   }
+  },
+  "rennen_kino": {
+   "hoch": {
+    "vorher": {
+     "p50": 7.7,
+     "p95": 10.8,
+     "fps": 119.8,
+     "calls": 96,
+     "tris": 358485,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      10.8,
+      13.3,
+      10.4
+     ],
+     "fehler": []
+    },
+    "nachher": {
+     "p50": 8.4,
+     "p95": 12.7,
+     "fps": 106.7,
+     "calls": 97,
+     "tris": 368451,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      12.8,
+      12.7,
+      11.2
+     ],
+     "fehler": []
+    }
+   },
+   "quer": {
+    "vorher": {
+     "p50": 10,
+     "p95": 14.4,
+     "fps": 97.2,
+     "calls": 111,
+     "tris": 365971,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      12.4,
+      14.4,
+      14.4
+     ],
+     "fehler": []
+    },
+    "nachher": {
+     "p50": 8.6,
+     "p95": 12.3,
+     "fps": 112.6,
+     "calls": 112,
+     "tris": 375836,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      12.3,
+      12.3,
+      12
+     ],
+     "fehler": []
+    }
+   }
+  },
+  "rennen_standard": {
+   "hoch": {
+    "vorher": {
+     "p50": 5.3,
+     "p95": 8,
+     "fps": 179.4,
+     "calls": 84,
+     "tris": 251935,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      8,
+      6.3,
+      8.5
+     ],
+     "fehler": []
+    },
+    "nachher": {
+     "p50": 5.2,
+     "p95": 7.3,
+     "fps": 185.8,
+     "calls": 84,
+     "tris": 256751,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      7.2,
+      7.3,
+      7.5
+     ],
+     "fehler": []
+    }
+   },
+   "quer": {
+    "vorher": {
+     "p50": 5.3,
+     "p95": 7.1,
+     "fps": 185,
+     "calls": 98,
+     "tris": 259262,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      8.1,
+      7.1,
+      7
+     ],
+     "fehler": []
+    },
+    "nachher": {
+     "p50": 5.2,
+     "p95": 7,
+     "fps": 187.4,
+     "calls": 99,
+     "tris": 264323,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      7,
+      7,
+      6.9
+     ],
+     "fehler": []
+    }
+   }
+  },
+  "rennen_einfach": {
+   "hoch": {
+    "vorher": {
+     "p50": 2.9,
+     "p95": 4.7,
+     "fps": 332,
+     "calls": 56,
+     "tris": 145783,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      5.7,
+      4.7,
+      4.6
+     ],
+     "fehler": []
+    },
+    "nachher": {
+     "p50": 3,
+     "p95": 4.8,
+     "fps": 318.7,
+     "calls": 56,
+     "tris": 150695,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      5.2,
+      4.8,
+      4.8
+     ],
+     "fehler": []
+    }
+   },
+   "quer": {
+    "vorher": {
+     "p50": 3.3,
+     "p95": 5.1,
+     "fps": 291.7,
+     "calls": 68,
+     "tris": 152530,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      4.9,
+      5.1,
+      5.1
+     ],
+     "fehler": []
+    },
+    "nachher": {
+     "p50": 3.4,
+     "p95": 5.2,
+     "fps": 286.5,
+     "calls": 69,
+     "tris": 157540,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      5,
+      5.3,
+      5.2
+     ],
+     "fehler": []
+    }
+   }
+  },
+  "cockpit_kino": {
+   "hoch": {
+    "vorher": {
+     "p50": 9.5,
+     "p95": 31.1,
+     "fps": 68.8,
+     "calls": 75,
+     "tris": 220168,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      16.2,
+      35.2,
+      31.1
+     ],
+     "fehler": []
+    },
+    "nachher": {
+     "p50": 9.2,
+     "p95": 33,
+     "fps": 59.4,
+     "calls": 75,
+     "tris": 226389,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      30.7,
+      33.8,
+      33
+     ],
+     "fehler": []
+    }
+   },
+   "quer": {
+    "vorher": {
+     "p50": 13.4,
+     "p95": 36.1,
+     "fps": 57,
+     "calls": 82,
+     "tris": 223807,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      36.1,
+      36,
+      38.9
+     ],
+     "fehler": []
+    },
+    "nachher": {
+     "p50": 12.1,
+     "p95": 36.4,
+     "fps": 63.6,
+     "calls": 82,
+     "tris": 229942,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      37,
+      33.3,
+      36.4
+     ],
+     "fehler": []
+    }
+   }
+  }
+ }
+}

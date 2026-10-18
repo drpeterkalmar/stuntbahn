@@ -72,6 +72,20 @@ spielbar am Handy (quer oder hochkant), mit Gamepad oder Tastatur. Als App insta
   Abstand zu jeder Fahrbahn (auch Hochstraßen/Rampen), nie im Wasser. Dosiert nach Grafikstufe; ruckelt es, blendet die
   Automatik (nach der Unschärfe) zuerst Gras/Büsche/Wolkenschatten aus. `?deko=aus` (bis n29 `?deko=0`) / `?wolken=0` zum Vergleich.
 
+## 🚧🔄🌀 Original-Stunt-Hindernisse (seit 18.10.2026, n33)
+Peter 08.10.: „Mehr Original-Stunts-Hindernisse: Zickzack-Barriere, Spirale, Röhre mit Wand in der Mitte.“ Details, Messwerte,
+A/B-Links: `HINDERNISSE_BERICHT.md`.
+- **Zickzack-Barriere:** 5 (kurz 3) gelb-schwarze Betonblöcke abwechselnd von links/rechts über die Fahrbahnmitte → Slalom,
+  Tempo-Deckel 70 km/h, Aufprall = Crash. Mittel: Spurhilfe durch die Gassen.
+- **Röhre mit Wand:** Wand sperrt die untere Hälfte der Röhre – 360°-Rolle die Rohrwand hinauf, kopfüber über die Wand (ab
+  ~50 km/h), innen dunkel mit Lichtringen; Verfolger-/Stoßstangen-Kamera bleiben im Rohr.
+- **Spiralen-Hochstraße:** Spirale hinauf → Brücke → Spirale/Rampe/Klippensprung hinunter, flach, im Gelände (auf einem
+  Sockel) und in 3D häufiger.
+- **Neue Zufallsstrecken haben ein „h“ im Code** (`4711-2-gh`, `-3dh`, `-h`); Codes ohne „h“ bauen wie vorher, Bestzeiten
+  bleiben. A/B: `?hindernis2=0`, `?zickzack=0`, `?roehrewand=0`, `?spirale2=0` (werten nicht).
+- Tests: `tests/node/test_hindernisse.mjs`, `tests/hindernis_shots.py`, `tests/test_hindernisse_ui.py`; Messungen
+  `tools/hindernis_mess.mjs` (fest/fahrer/quote), `tools/hindernis_kamera.mjs`.
+
 ## 🚇 Tunnel sehen aus wie Tunnel (seit 18.10.2026, n33 Etappe 0)
 Peter 09.10.: „Tunneleinfahrt sieht aus wie eine Wand“. Ursache: Das Gelände ist ein Höhenfeld im 5-m-Raster – am Portal
 sprang es zwischen zwei Rasterpunkten von der Zufahrt auf den Hügel und lag als schräge Felsfläche quer in der Öffnung.
@@ -84,7 +98,8 @@ sprang es zwischen zwei Rasterpunkten von der Zufahrt auf den Hügel und lag als
   an der Decke alle 12 m (leuchten in den Bloom), Lichtpfützen darunter; Nebel im Tunnel fast aus; Lack und Cockpit
   spiegeln im Tunnel weniger Himmel. Nachts: Portal von zwei Strahlern angeleuchtet. Auch die .TRK-Kastentunnel sind
   innen dunkel mit Leuchten.
-- Nur Optik: Strecke, Physik, Kollision, Bestzeiten unverändert. **A/B:** `?tunnelalt=1` = alter Look.
+- Nur Optik: Strecke, Physik, Kollision, Bestzeiten unverändert. **A/B:** `?tunnelalt=1` = alter Look. Die Röhre mit Wand
+  nutzt dasselbe Licht (Lichtringe).
   Code nur auf Strecken mit Tunnel (sonst gleiche Shader wie vorher).
 - Test: `node tests/node/test_tunnel.mjs`, Fotos: `python3 tests/tunnel_shots.py hoch wueste,alpen,stadt "" neu 1000 3`.
 

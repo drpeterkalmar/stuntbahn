@@ -150,6 +150,8 @@ export function tunnelAttr(batches, laeufe) {
         if (x < x0 || x > x1 || z < z0 || z > z1) continue;
         const [t, r, h] = lageIm(R, x, y, z);
         if (t < -0.6 || t > R.len + 0.6 || Math.abs(r) > R.tw + 0.4 || h < -0.8 || h > R.H + 0.6) continue;
+        // Röhre: nur die Innenfläche (Normale zur Achse hin) – der Außenmantel bekommt keine Lichtringe
+        if (R.art === 'roehre' && b.nrm && (b.nrm[v * 3] * R.B[0] + b.nrm[v * 3 + 2] * R.B[1]) * -r + b.nrm[v * 3 + 1] * (R.Rr - h) <= 0) continue;
         const m = maskeBei(R, t);
         if (!a) a = new Float32Array(nv * 4);
         const dc = R.art === 'roehre' ? 5 : h - (R.art === 'gel' ? deckeGel(r) : R.H);   // Röhre: +5 = Lichtringe (Shader)
@@ -167,7 +169,7 @@ export function tunnelAttr(batches, laeufe) {
 export function portale(laeufe, alle = false) {
   const out = [];
   for (const R of laeufe) {
-    if (R.art !== 'gel' && !alle) continue;
+    if ((R.art !== 'gel' && !alle) || R.art === 'roehre') continue;   // Röhren: eigene Fassade und Lichterketten (n29/n32)
     if (R.faceIn != null) out.push({ R, t: R.faceIn, s: -1 });
     if (R.faceOut != null) out.push({ R, t: R.faceOut, s: 1 });
   }
