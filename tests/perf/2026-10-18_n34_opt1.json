@@ -1,0 +1,87 @@
+{
+ "datum": "2026-10-18T13:33:50",
+ "stand": "n34_opt1",
+ "modus": "ab",
+ "runden": 5,
+ "varianten": [
+  {
+   "name": "aus",
+   "wurzel": "/Users/wohnzimmer/dev/stuntbahn",
+   "zusatz": ""
+  },
+  {
+   "name": "g5",
+   "wurzel": "/Users/wohnzimmer/dev/stuntbahn",
+   "zusatz": "&gegner=5&staerke=ebenbuertig"
+  },
+  {
+   "name": "g5nv",
+   "wurzel": "/Users/wohnzimmer/dev/stuntbahn",
+   "zusatz": "&gegner=5&staerke=ebenbuertig&gegnervis=0"
+  }
+ ],
+ "profil": {
+  "drossel": 4,
+  "dpr": 2.6,
+  "sek": 10,
+  "start": "open",
+  "vsync": false
+ },
+ "szenen": {
+  "start_standard": {
+   "quer": {
+    "aus": {
+     "p50": 5.6,
+     "p95": 7.8,
+     "fps": 172.6,
+     "calls": 99,
+     "tris": 263777,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      8,
+      7.1,
+      6.2,
+      8.3,
+      7.8
+     ],
+     "fehler": []
+    },
+    "g5": {
+     "p50": 7.1,
+     "p95": 9.6,
+     "fps": 138.3,
+     "calls": 128,
+     "tris": 287431,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      11.2,
+      9.6,
+      8.4,
+      10.7,
+      9.6
+     ],
+     "fehler": []
+    },
+    "g5nv": {
+     "p50": 6.1,
+     "p95": 8.1,
+     "fps": 159.1,
+     "calls": 99,
+     "tris": 263688,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      8.6,
+      8.1,
+      7.5,
+      7.1,
+      8.7
+     ],
+     "fehler": []
+    }
+   }
+  }
+ }
+}

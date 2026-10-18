@@ -1,0 +1,61 @@
+{
+ "datum": "2026-10-18T13:03:36",
+ "stand": "n34_zeitprobe",
+ "modus": "ab",
+ "runden": 3,
+ "varianten": [
+  {
+   "name": "aus",
+   "wurzel": "/Users/wohnzimmer/dev/stuntbahn",
+   "zusatz": ""
+  },
+  {
+   "name": "g5",
+   "wurzel": "/Users/wohnzimmer/dev/stuntbahn",
+   "zusatz": "&gegner=5&staerke=ebenbuertig"
+  }
+ ],
+ "profil": {
+  "drossel": 4,
+  "dpr": 2.6,
+  "sek": 10,
+  "start": "open",
+  "vsync": false
+ },
+ "szenen": {
+  "mitte_standard": {
+   "quer": {
+    "aus": {
+     "p50": 5.4,
+     "p95": 7.6,
+     "fps": 178.9,
+     "calls": 101,
+     "tris": 273999,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      7.9,
+      7.6,
+      7.5
+     ],
+     "fehler": []
+    },
+    "g5": {
+     "p50": 7.9,
+     "p95": 10.3,
+     "fps": 124.5,
+     "calls": 113,
+     "tris": 277075,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      10.7,
+      8.2,
+      10.3
+     ],
+     "fehler": []
+    }
+   }
+  }
+ }
+}

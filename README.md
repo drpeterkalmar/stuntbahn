@@ -72,6 +72,33 @@ spielbar am Handy (quer oder hochkant), mit Gamepad oder Tastatur. Als App insta
   Abstand zu jeder Fahrbahn (auch Hochstraßen/Rampen), nie im Wasser. Dosiert nach Grafikstufe; ruckelt es, blendet die
   Automatik (nach der Unschärfe) zuerst Gras/Büsche/Wolkenschatten aus. `?deko=aus` (bis n29 `?deko=0`) / `?wolken=0` zum Vergleich.
 
+## 🏁 KI-Gegner und Schadensmodell (seit 18.10.2026, n34, Version 0.10)
+Peter 08.10.: „stuntbahn mit optionalem multiplayer oder npc-gegnern“, 15.10.: „egal wie schlecht man fährt, die npc Gegner sollten
+immer in der Nähe bleiben“. Messwerte, Fotos, Grenzen: `GEGNER_BERICHT.md`; Technik/Port-Notiz: `GEGNER.md`.
+- **Menü „🏁 Gegner“:** Aus (Standard) · 1 · 3 · 5 Gegner, Stärke **Locker / Ebenbürtig / Profi**, dein Startplatz (Auto/Vorne/
+  Mitte/Hinten), Namen-Schilder, **„🪢 Gegner bleiben in der Nähe“** (Standard an). Link: `?gegner=3&staerke=profi`.
+- **Gegner fahren mit derselben Physik wie du** (auch die Arcade-Physik der gewählten Fahrhilfe), gesteuert vom Autopiloten mit
+  menschlichen Fehlern: späteres Bremsen, Linien-Streuung, mal ein verbremster oder verpatzter Stunt mit Crash und Reset. Jeder
+  hat einen eigenen Stil (aggressiv/sauber), Namen, Lack und eine Startnummer, zündet sein Nitro mit derselben Abklingzeit wie du.
+- **Rennen:** Startaufstellung in 2er-Reihen, gemeinsamer Countdown, im HUD **„Platz 3/6“** mit Abstand zum Vorder- und
+  Hintermann, Gegner als farbige Punkte auf der Minikarte. Im Ziel die **Zieltabelle** mit allen Zeiten (wer nach 10 s noch fährt,
+  wird hochgerechnet, *). Rennen mit Gegnern zählen in eine **eigene Bestzeiten-Liste**, Solo-Zeiten bleiben unberührt; Geisterauto
+  und Gegner gehen gleichzeitig. Replay und Highlights zeigen die Gegner mit.
+- **Berührungen:** Auto-Auto-Kollision mit Funken und Blech-Ton – auf Leicht sanftes Anstupsen, auf Original hart (ein harter Stoß
+  kann zum Crash führen). In Looping, Röhre und Korkenzieher wird nicht überholt, vor Stunts halten Gegner Abstand. Leicht weicht
+  Gegnern aus, Gegner machen einem schnelleren Spieler Platz.
+- **Gegner bleiben in der Nähe (Gummiband):** wer weit vorn ist, fährt vorsichtiger und wartet außer Sicht, wer weit hinten ist,
+  holt auf – nie schneller als ein Profi und nie langsamer in Stunts. Deine Physik und Zeit bleiben unverändert (in der Zieltabelle
+  steht ein 🪢-Hinweis). Aus = echtes Rennen (`?aufholhilfe=0`).
+- **Schaden** (Optionen „Schaden“: Aus / Nur Optik / Mit Fahrfolgen, `?schaden=aus|optik|fahrt`): Beulen an der Trefferstelle,
+  abfallende Spiegel, Abrisskante, Stoßstangen und Haube als Trümmer, Kratzer, abgeplatzter Lack, Ruß, gesprungene Scheibe, Rauch
+  ab ~70 %. Gilt für alle Autos. Mit Fahrfolgen (nur Original mit 💥 Totalschaden): ab ~60 % zieht das Auto und hat weniger
+  Leistung, 100 % = Wrack. Reset repariert nicht, ein neues Rennen schon; Rückspulen spult den Schaden mit.
+- Regler (A/B): `?gegnerphysik=roh`, `?gummi=0…2`, `?schiene=0`, `?gegnernitro=0`, `?gegnertakt=voll`, `?schilder=0`,
+  `?startplatz=`. Tests: `node tests/node/test_gegner.mjs`, `test_autoauto.mjs`, `test_schaden.mjs`, `test_gegner_gfx.mjs`,
+  `test_schaden_gfx.mjs`; Browser `python3 tests/test_gegner_ui.py`, Fotos `tests/gegner_shots.py`, `tests/schaden_shots.py`;
+  Messung `node tools/gegner_mess.mjs`, `node tools/gummiband_probe.mjs`; Mess-Gate `tests/perf_szenen_gegner.json`.
+
 ## 🗺️ 3D-Minikarte im Rennen (seit 18.10.2026, n39, Version 0.9.0)
 Peter 10.10.: „Stuntbahn: 3D-Minimap der Strecke.“ Messwerte, Fotos, Regler: `N39_MINIKARTE_BERICHT.md`.
 - **Kleine Karte der ganzen Strecke** in einer Ecke, schräg von oben (42°) als leuchtendes Band mit echten Höhen: Rampen,

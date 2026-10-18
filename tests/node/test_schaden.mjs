@@ -150,5 +150,16 @@ ok(schadenModus('', {}) === 'aus' && schadenModus('?schaden=optik', {}) === 'opt
   SA2.folgen(c2);
   ok(c2.crash && c2.crash.reason === 'Totalschaden' && c2.input.throttle < 1, 'Fahrfolgen bei 100 %: Wrack „Totalschaden“, weniger Gas');
 }
+// Schrammen an der Wand (n34-Heavy): Kratzer als ganz flache Treffer, gedrosselt
+{
+  const { SchadenAuto, KRATZER } = await import('../../src/physics/schaden.js');
+  const c3 = new Car(); c3.place([0, 0.5, 0], [0, 0, -1], [0, 1, 0], 20);
+  const SA3 = new SchadenAuto(c3);
+  for (let k = 0; k < 120; k++) { c3.scrape = 12; c3.scrapeK = 2; c3.scrapeP[0] = c3.pos.x - 1; c3.scrapeP[1] = c3.pos.y + 0.1; c3.scrapeP[2] = c3.pos.z - 0.3 * (k % 4); c3.scrapeN[0] = 1; c3.scrapeN[1] = 0; c3.scrapeN[2] = 0; SA3.schritt(k / 120); }
+  const D = SA3.S.dellen;
+  ok(D.length >= 1 && D.every((d) => d.t < 0.03 && d.p[0] < 0) && SA3.S.gesamt < 0.1, `1 s Schrammen links: ${D.length} Kratzer-Stellen, Tiefe ≤ ${D.length ? Math.max(...D.map((d) => d.t)).toFixed(3) : '–'} m, Gesamt ${SA3.S.gesamt.toFixed(3)} (je ${KRATZER.alle} s einer)`);
+  c3.scrape = 3; const n0 = SA3.nTreffer; for (let k = 0; k < 120; k++) SA3.schritt(1 + k / 120);
+  ok(SA3.nTreffer === n0, 'langsames Schleifen (3 m/s): keine Kratzer');
+}
 console.log(bad ? `Schaden: ${bad} FEHLER` : 'Schaden: alle Prüfungen grün');
 process.exit(bad ? 1 : 0);

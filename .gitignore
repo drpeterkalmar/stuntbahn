@@ -54,3 +54,7 @@ tests/shots/n37/*
 !tests/shots/n39/
 tests/shots/n39/*
 !tests/shots/n39/*.jpg
+# n34 KI-Gegner/Schaden: nur die Bericht-Collagen
+!tests/shots/n34/
+tests/shots/n34/*
+!tests/shots/n34/*.jpg

@@ -7,8 +7,9 @@
 // Darstellung: gfx/schadenvis.js (Dellen auf Karosserie/Lack/Glas, Teile, Rauch). Node-Test: tests/node/test_schaden.mjs.
 // Bereiche der Teile: tools/schaden_teile.mjs (Goblin in Auto-Koordinaten, Dreiecke je Teil, Querschnitte).
 
-// Optionen „Schaden: Aus / Nur Optik / Mit Fahrfolgen“ (URL ?schaden=aus|optik|fahrt). Vorbau-Standard: aus (erst nach der
-// Browser-Abnahme auf „optik“ stellen – TODO n34-Heavy)
+// Optionen „Schaden: Aus / Nur Optik / Mit Fahrfolgen“ (URL ?schaden=aus|optik|fahrt). Standard: aus (n34-Abnahme 18.10.: die
+// Schadens-Optik im Lack-Shader kostet auf Grafik „Kino“ +13 … 22 % Bildzeit am Mittelklasse-Profil, auf Standard +4 … 6 %;
+// mit „Aus“ bleibt der Shader wie vor n34 – Peter entscheidet, ob er es standardmäßig will)
 export const SCHADEN_MODI = { aus: 'Aus', optik: 'Nur Optik', fahrt: 'Mit Fahrfolgen' };
 export const SCHADEN_STD = 'aus';
 export function schadenModus(search = globalThis.location ? globalThis.location.search : '', settings = {}) {
@@ -55,6 +56,8 @@ function abstandZu(k, x, y, z) {
 // Fahrfolgen (nur Modus „fahrt“, Original, Totalschaden an): ab ab Gesamtschaden linear bis 1: Ziehen bis zug rad Lenkung,
 // Leistung bis × leistung; bei 1 → Wrack
 export const FOLGEN = { ab: 0.6, zug: 0.05, leistung: 0.75 };
+// Kratzer beim Schrammen (Wand/Leitplanke): ab v m/s Gleit-Tempo der Karosserie, je alle s ein Treffer ueber m/s über DELLE.v0
+export const KRATZER = { v: 6, alle: 0.35, ueber: 0.8 };
 // Rauch aus dem Motorraum ab rauch Gesamtschaden, Scheibe springt ab scheibe
 export const OPTIK = { rauch: 0.7, scheibe: 0.45 };
 
@@ -258,6 +261,15 @@ export class SchadenAuto {
   stoss(r, seite) { if (r && r.vn > DELLE.v0) this.puffer.push([r.p[0], r.p[1], r.p[2], r.n[0] * seite, r.n[1] * seite, r.n[2] * seite, r.vn]); }
   // nach dem Physikschritt: Treffer eintragen; t = Rennzeit (Aufzeichnungs-Uhr, für das Rückspulen)
   schritt(t) {
+    // Schrammen an Wand/Leitplanke (n37: schrammen statt Crash) hinterlassen Kratzer: je KRATZER.alle s Schleifen über KRATZER.v
+    // m/s ein ganz flacher Treffer (Delle kaum sichtbar, die Shader-Optik gfx/schadenlook.js zeichnet Kratzer)
+    const c = this.car;
+    if (c.scrape > KRATZER.v && (c.scrapeK === 2 || c.scrapeK === 3) && !c.crash) {
+      if ((this.kratzT = (this.kratzT || 0) + 1 / 120) >= KRATZER.alle) {
+        this.kratzT = 0;
+        this.puffer.push([c.scrapeP[0], c.scrapeP[1], c.scrapeP[2], -c.scrapeN[0], -c.scrapeN[1], -c.scrapeN[2], DELLE.v0 + KRATZER.ueber]);
+      }
+    }
     if (!this.puffer.length) return false;
     const P = this.puffer.sort((a, b) => b[6] - a[6]), genommen = [];
     for (const h of P) {

@@ -4,10 +4,11 @@
 //   Dreiecke aus dem Teile-Index und fliegen als Trümmer (Kopie mit eigenem Index, Starrkörper light, nach 6 s weg).
 // - Dellen: nur auf LOD 0 (Heldenauto; Gegner nur nah, gfx/gegnervis.js), CPU: neue Lage/Normale nur für Punkte im Umkreis
 //   alter und neuer Dellen (Raster 0,3 m) – nicht je Bild, nur wenn sich der Schaden ändert (Treffer, Rückspulen, Replay).
-// Kein Shader-Wechsel (keine Neu-Übersetzung mitten im Rennen). Kratzer-/Ruß-Decals und gesprungene Scheibe: TODO n34-Heavy
-// (CC0-Texturen ambientCG/Poly Haven, am Bild abstimmen). Im Browser NICHT geprüft (Vorbau n34).
+// Kein Shader-Wechsel (keine Neu-Übersetzung mitten im Rennen). Kratzer, abgeplatzter Lack, Ruß und gesprungene Scheibe: im Shader
+// (gfx/schadenlook.js, n34-Heavy), Uniforms hier bei jeder neuen Version gesetzt.
 import * as THREE from 'three';
 import { TEILE, teilVon, verschiebung, normale, Truemmer } from '../physics/schaden.js';
+import { lookSetzen } from './schadenlook.js';
 
 export const ZELLE = 0.3;              // m: Raster für die Dellen-Suche
 export const SCHADEN_NAH = 45;         // m: Gegner zeigen Dellen nur so nah (LOD 0), weiter weg nur fehlende Teile
@@ -44,7 +45,10 @@ export function schadenVorbereiten(cv) {
       const T = new THREE.Mesh(gT, m.material);
       T.castShadow = m.castShadow; T.receiveShadow = m.receiveShadow; T.visible = m.visible;
       T.userData.lod = lod; T.userData.schadenTeil = true; T.name = (m.name || 'karosserie') + '-teile';
-      m.parent.add(T); list.push(T);
+      // (abgehängte LOD-Stufe, gfx/carmesh.js abhaengen: Teile-Mesh ebenfalls nur merken)
+      const par = m.parent || m.userData.lodParent;
+      if (m.parent) par.add(T); else T.userData.lodParent = par;
+      list.push(T);
       const E = { m, T, jeTeil, lod, nVert: pos.count };
       V.teile.push(E);
       // Dellen nur auf LOD 0: Ursprungslage/-normale und Raster
@@ -76,6 +80,7 @@ export function schadenZeigen(cv, S, version, dellen = true, budget = DELLEN_BUD
   const neu = [];
   if (V.version !== version) {
     V.version = version;
+    lookSetzen(cv.sbU, S);   // Kratzer/Lack ab/Ruß/Scheibe im Shader (gfx/schadenlook.js)
     const bits = S.teile;
     if (bits !== V.teileBits) {
       for (let k = 0; k < TEILE.length; k++) if ((bits & (1 << k)) && !(V.teileBits & (1 << k))) neu.push(k);

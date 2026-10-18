@@ -16,8 +16,10 @@ const DT = 1 / 120;
 
 // Attrappe eines Autos (Schnittstelle wie gfx/carmesh.js makeCar)
 function attrappe() {
-  const root = new THREE.Group(); const m = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial()); m.castShadow = true; root.add(m);
-  return { root, lod: 1, sync(phys, a, pose) { root.position.set(pose.pos.x, pose.pos.y, pose.pos.z); root.quaternion.set(pose.q.x, pose.q.y, pose.q.z, pose.q.w); this.synced = (this.synced || 0) + 1; }, updateLod() { return 1; }, setPaint(c) { this.paint = c; }, mesh: m };
+  // (n34-Heavy: Echtzeit-Schatten nur die Karosserie – Material „car_body“, über die LOD-Listen)
+  const root = new THREE.Group(); const m = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ name: 'car_body' })); m.castShadow = true; root.add(m);
+  const rad = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.5), new THREE.MeshBasicMaterial({ name: 'car_rim' })); rad.castShadow = false; root.add(rad);   // wie nach schattenAus()
+  return { root, lod: 1, lodMeshes: [[], [m, rad], []], rad, sync(phys, a, pose) { root.position.set(pose.pos.x, pose.pos.y, pose.pos.z); root.quaternion.set(pose.q.x, pose.q.y, pose.q.z, pose.q.w); this.synced = (this.synced || 0) + 1; }, updateLod() { return 1; }, setPaint(c) { this.paint = c; }, mesh: m };
 }
 const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera(62, 1, 0.1, 2000);
 const vis = new GegnerVis(scene);
@@ -49,7 +51,7 @@ for (let t = 0; t < 8; t += DT) { vis.merke(F); race.step(DT, { steer: 0, thrott
   ok(A.tag.visible && A.tag.position.y > g.car.pos.y + 1.5, 'Namensschild über dem Auto');
   camera.position.set(g.car.pos.x + 10, g.car.pos.y, g.car.pos.z);
   vis.sync(F, camera, 1);
-  ok(A.car.mesh.castShadow, 'nah: Schatten wieder an');
+  ok(A.car.mesh.castShadow && !A.car.rad.castShadow, 'nah: Schatten wieder an (nur Karosserie, Räder ohne)');
   camera.position.set(g.car.pos.x + SCHILD.weit + 10, g.car.pos.y, g.car.pos.z);
   vis.sync(F, camera, 1);
   ok(!A.tag.visible, `Schild aus ab ${SCHILD.weit} m`);

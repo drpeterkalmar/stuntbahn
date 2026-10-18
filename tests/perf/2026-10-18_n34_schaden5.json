@@ -1,0 +1,105 @@
+{
+ "datum": "2026-10-18T15:40:27",
+ "stand": "n34_schaden5",
+ "modus": "ab",
+ "runden": 4,
+ "varianten": [
+  {
+   "name": "aus",
+   "wurzel": "/Users/wohnzimmer/dev/stuntbahn",
+   "zusatz": ""
+  },
+  {
+   "name": "s",
+   "wurzel": "/Users/wohnzimmer/dev/stuntbahn",
+   "zusatz": "&schaden=optik"
+  },
+  {
+   "name": "sl",
+   "wurzel": "/Users/wohnzimmer/dev/stuntbahn",
+   "zusatz": "&schaden=optik&lookglas=0"
+  },
+  {
+   "name": "sg",
+   "wurzel": "/Users/wohnzimmer/dev/stuntbahn",
+   "zusatz": "&schaden=optik&looklack=0"
+  }
+ ],
+ "profil": {
+  "drossel": 4,
+  "dpr": 2.6,
+  "sek": 10,
+  "start": "open",
+  "vsync": false
+ },
+ "szenen": {
+  "mitte_kino": {
+   "hoch": {
+    "aus": {
+     "p50": 8.35,
+     "p95": 11.4,
+     "fps": 115.3,
+     "calls": 105.0,
+     "tris": 371735.5,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      11.3,
+      11.9,
+      11.5,
+      11.3
+     ],
+     "fehler": []
+    },
+    "s": {
+     "p50": 9.55,
+     "p95": 13.6,
+     "fps": 98.1,
+     "calls": 112.5,
+     "tris": 375628.5,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      13.6,
+      13.6,
+      13.6,
+      13.8
+     ],
+     "fehler": []
+    },
+    "sl": {
+     "p50": 9.35,
+     "p95": 13.65,
+     "fps": 99.4,
+     "calls": 112.5,
+     "tris": 375584.5,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      13.9,
+      13.7,
+      13.6,
+      13.3
+     ],
+     "fehler": []
+    },
+    "sg": {
+     "p50": 8.4,
+     "p95": 11.3,
+     "fps": 115.9,
+     "calls": 111.0,
+     "tris": 371107.0,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      11.1,
+      11.3,
+      11.6,
+      11.3
+     ],
+     "fehler": []
+    }
+   }
+  }
+ }
+}

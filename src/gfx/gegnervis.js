@@ -11,6 +11,11 @@ import { neuerSchaden } from '../physics/schaden.js';
 const HEIL = neuerSchaden();
 let heilV = 0;
 
+const Q = typeof location !== 'undefined' ? new URLSearchParams(location.search) : new URLSearchParams('');
+// Mess-Regler (A/B, Mess-Gate): ?gegnerlod=0|1|2 = feste LOD-Stufe, ?gegnerschatten=0 = keine Echtzeit-Schatten
+export const GEGNER_LOD = Q.has('gegnerlod') ? +Q.get('gegnerlod') : null;
+export const GEGNER_SCHATTEN = Q.get('gegnerschatten') !== '0';
+const RAEDER_AUS = Q.get('gegnerraeder') === '0';   // Mess-Regler: Räder der Gegner ausblenden
 export const SCHATTEN_NAH = 60;          // m: weiter weg werfen Gegner keinen Echtzeit-Schatten (Kontaktschatten bleibt)
 // Namensschild: Höhe über dem Auto, sichtbar von nah bis weit m; Breite = 4 × clamp(Abstand × k, min, max) m (10 m: 2,8 m,
 // 50 m: 5 m, 150 m: 15 m ≈ 6 % der Bildbreite) – Startwerte, am Bild abstimmen (TODO n34-Heavy)
@@ -34,6 +39,11 @@ function schildTextur(nummer, name, farbe) {
   return tex;
 }
 
+const schattenMesh = (o) => { const m = Array.isArray(o.material) ? o.material[0] : o.material; return !!m && (m.name === 'car_body') && !o.userData.fx; };
+
+// alle Meshes ohne Schatten (auch abgehängte LOD-Stufen); die Karosserie schaltet nachbereiten() je nach Abstand
+function schattenAus(car) { for (const L of car.lodMeshes || []) for (const o of L) o.castShadow = false; }
+
 export class GegnerVis {
   constructor(scene) {
     this.scene = scene; this.autos = []; this.aktiv = 0; this.schilder = true; this.lods = null;
@@ -46,12 +56,14 @@ export class GegnerVis {
     while (this.autos.length < Math.min(infos.length, GEGNER_MAX)) {
       const car = await makeCar({ color: 0xffffff, contact: true });
       car.root.visible = false; car.root.name = 'gegner';
-      if (this.lods) { car.addLod(this.lods[0], 1); car.addLod(this.lods[1], 2); }
+      if (car.setLod) { car.abhaengen = true; car.lod = -1; car.setLod(0); }   // nicht aktive LOD-Stufen aus dem Szenengraph (Mess-Gate)
+      schattenAus(car);
+      if (this.lods) { car.addLod(this.lods[0], 1); car.addLod(this.lods[1], 2); schattenAus(car); }
       this.scene.add(car.root);
       const mat = new THREE.SpriteMaterial({ transparent: true, depthWrite: false, depthTest: true, toneMapped: false, fog: false });
       const tag = new THREE.Sprite(mat); tag.visible = false; tag.renderOrder = 6; tag.name = 'gegner-schild';
       this.scene.add(tag);
-      this.autos.push({ car, tag, schatten: true, key: '' });
+      this.autos.push({ car, tag, schatten: null, key: '' });
     }
     infos.forEach((g, i) => {
       const A = this.autos[i]; if (!A) return;
@@ -69,7 +81,7 @@ export class GegnerVis {
   addLods(lods) {
     if (this.lods) return;
     this.lods = lods;
-    for (const A of this.autos) { A.car.addLod(lods[0], 1); A.car.addLod(lods[1], 2); }
+    for (const A of this.autos) { A.car.addLod(lods[0], 1); A.car.addLod(lods[1], 2); schattenAus(A.car); A.schatten = null; }
   }
   // vor jedem Physikschritt: Lage merken (für die Interpolation wie beim Spieler, main.js prevPose)
   merke(feld) {
@@ -93,6 +105,7 @@ export class GegnerVis {
       pose.air = c.onGround === 0 && !c.surfaceKind && !c.crash;
       A.car.root.visible = true;
       A.car.sync(c, 1, pose);
+      if (RAEDER_AUS) for (const k in A.car.wheels) A.car.wheels[k].pivot.visible = false;
       if (A.car.setNitro) A.car.setNitro(c.boost || 0, 1 / 60);   // Nitro-Flammen (Gegner zünden mit Abklingzeit, ai/gegner.js)
       // Schaden: Teile immer, Dellen nur nah (dort dann LOD 0)
       A.dellen = false;
@@ -131,10 +144,13 @@ export class GegnerVis {
   // LOD, Schatten nur nah, Namensschild
   nachbereiten(A, camera, crash) {
     const r = A.car.root;
-    A.car.updateLod(camera, { min: A.dellen ? 0 : 1 });   // Gegner ab Mittel-LOD; nah mit Dellen voll (Dellen nur auf LOD 0)
+    // Grafik „Einfach“ (this.einfach, main.js): Gegner immer mit dem Fern-Modell, ohne Echtzeit-Schatten (Mess-Gate)
+    A.car.updateLod(camera, GEGNER_LOD != null ? { force: GEGNER_LOD } : this.einfach ? { force: 2 } : { min: A.dellen ? 0 : 1 });   // Gegner ab Mittel-LOD; nah mit Dellen voll (Dellen nur auf LOD 0)
     const dist = camera.position.distanceTo(r.position);
-    const nah = dist < SCHATTEN_NAH;
-    if (nah !== A.schatten) { A.schatten = nah; r.traverse((o) => { if (o.isMesh && !o.userData.fx) o.castShadow = nah; }); }
+    const nah = GEGNER_SCHATTEN && !this.einfach && dist < SCHATTEN_NAH;
+    // Echtzeit-Schatten nur nah und nur die Karosserie (Räder/Felgen/Glas: 14 Schatten-Draw-Calls je Auto – Mess-Gate; der
+    // Kontaktschatten erdet das Auto weiter)
+    if (nah !== A.schatten) { A.schatten = nah; for (const L of A.car.lodMeshes || []) for (const o of L) if (schattenMesh(o)) o.castShadow = nah; }
     const T = A.tag;
     T.visible = this.schilder && !crash && dist > SCHILD.nah && dist < SCHILD.weit && r.visible;
     if (T.visible) {

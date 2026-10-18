@@ -1,0 +1,136 @@
+{
+ "datum": "2026-10-18T15:07:56",
+ "stand": "n34_aus_check",
+ "modus": "ab",
+ "runden": 4,
+ "varianten": [
+  {
+   "name": "vorher",
+   "wurzel": "/Users/wohnzimmer/dev/stuntbahn_vorher_n34",
+   "zusatz": ""
+  },
+  {
+   "name": "aus",
+   "wurzel": "/Users/wohnzimmer/dev/stuntbahn",
+   "zusatz": ""
+  },
+  {
+   "name": "aus_nolook",
+   "wurzel": "/Users/wohnzimmer/dev/stuntbahn",
+   "zusatz": "&schadenlook=0"
+  }
+ ],
+ "profil": {
+  "drossel": 4,
+  "dpr": 2.6,
+  "sek": 10,
+  "start": "open",
+  "vsync": false
+ },
+ "szenen": {
+  "mitte_kino": {
+   "hoch": {
+    "vorher": {
+     "p50": 8.35,
+     "p95": 11.25,
+     "fps": 116.35,
+     "calls": 105.0,
+     "tris": 371351.5,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      11.7,
+      11.2,
+      11.3,
+      11.1
+     ],
+     "fehler": []
+    },
+    "aus": {
+     "p50": 9.2,
+     "p95": 13.35,
+     "fps": 101.4,
+     "calls": 107.0,
+     "tris": 376261.5,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      13.5,
+      13.3,
+      13.4,
+      13.3
+     ],
+     "fehler": []
+    },
+    "aus_nolook": {
+     "p50": 8.25,
+     "p95": 11.2,
+     "fps": 117.65,
+     "calls": 105.0,
+     "tris": 371846.5,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      11.2,
+      11.2,
+      11.6,
+      11.1
+     ],
+     "fehler": []
+    }
+   }
+  },
+  "mitte_einfach": {
+   "hoch": {
+    "vorher": {
+     "p50": 3.25,
+     "p95": 5.2,
+     "fps": 296.0,
+     "calls": 61.0,
+     "tris": 159268.0,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      5.1,
+      5.3,
+      5.5,
+      4.9
+     ],
+     "fehler": []
+    },
+    "aus": {
+     "p50": 3.35,
+     "p95": 5.15,
+     "fps": 288.9,
+     "calls": 61.0,
+     "tris": 159597.5,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      5,
+      5.2,
+      5.1,
+      6
+     ],
+     "fehler": []
+    },
+    "aus_nolook": {
+     "p50": 3.55,
+     "p95": 5.4,
+     "fps": 275.75,
+     "calls": 61.0,
+     "tris": 159290.5,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      5.1,
+      5.1,
+      5.7,
+      6.2
+     ],
+     "fehler": []
+    }
+   }
+  }
+ }
+}

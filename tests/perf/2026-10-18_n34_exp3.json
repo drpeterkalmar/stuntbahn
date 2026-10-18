@@ -1,0 +1,173 @@
+{
+ "datum": "2026-10-18T14:16:15",
+ "stand": "n34_exp3",
+ "modus": "ab",
+ "runden": 4,
+ "varianten": [
+  {
+   "name": "aus",
+   "wurzel": "/Users/wohnzimmer/dev/stuntbahn",
+   "zusatz": ""
+  },
+  {
+   "name": "g5",
+   "wurzel": "/Users/wohnzimmer/dev/stuntbahn",
+   "zusatz": "&gegner=5&staerke=ebenbuertig"
+  },
+  {
+   "name": "einz",
+   "wurzel": "/Users/wohnzimmer/dev/stuntbahn",
+   "zusatz": "&gegner=5&staerke=ebenbuertig&gegnerraeder=einzeln"
+  },
+  {
+   "name": "nv",
+   "wurzel": "/Users/wohnzimmer/dev/stuntbahn",
+   "zusatz": "&gegner=5&staerke=ebenbuertig&gegnervis=0"
+  }
+ ],
+ "profil": {
+  "drossel": 4,
+  "dpr": 2.6,
+  "sek": 10,
+  "start": "open",
+  "vsync": false
+ },
+ "szenen": {
+  "start_standard": {
+   "quer": {
+    "aus": {
+     "p50": 4.65,
+     "p95": 6.3,
+     "fps": 211.15,
+     "calls": 99.0,
+     "tris": 263734.0,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      6.2,
+      6,
+      6.7,
+      6.4
+     ],
+     "fehler": []
+    },
+    "g5": {
+     "p50": 6.7,
+     "p95": 8.55,
+     "fps": 147.85,
+     "calls": 122.0,
+     "tris": 295972.5,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      8.3,
+      8.2,
+      9.4,
+      8.8
+     ],
+     "fehler": []
+    },
+    "einz": {
+     "p50": 5.7,
+     "p95": 7.9,
+     "fps": 170.6,
+     "calls": 115.5,
+     "tris": 273589.5,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      7.8,
+      8,
+      7.8,
+      11
+     ],
+     "fehler": []
+    },
+    "nv": {
+     "p50": 5.2,
+     "p95": 7.15,
+     "fps": 187.8,
+     "calls": 98.5,
+     "tris": 263286.0,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      6.8,
+      7.1,
+      7.2,
+      7.5
+     ],
+     "fehler": []
+    }
+   }
+  },
+  "start_einfach": {
+   "quer": {
+    "aus": {
+     "p50": 3.5,
+     "p95": 5.3,
+     "fps": 276.2,
+     "calls": 69.0,
+     "tris": 157254.0,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      5.9,
+      5.2,
+      5.4,
+      5.1
+     ],
+     "fehler": []
+    },
+    "g5": {
+     "p50": 5.3,
+     "p95": 7.85,
+     "fps": 181.95,
+     "calls": 91.0,
+     "tris": 187041.0,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      6.6,
+      7.8,
+      8.2,
+      7.9
+     ],
+     "fehler": []
+    },
+    "einz": {
+     "p50": 5.05,
+     "p95": 7.8,
+     "fps": 192.3,
+     "calls": 85.0,
+     "tris": 164565.0,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      7.4,
+      7.9,
+      8.5,
+      7.7
+     ],
+     "fehler": []
+    },
+    "nv": {
+     "p50": 3.95,
+     "p95": 6.25,
+     "fps": 241.9,
+     "calls": 68.5,
+     "tris": 156685.0,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      5.9,
+      6.5,
+      6.3,
+      6.2
+     ],
+     "fehler": []
+    }
+   }
+  }
+ }
+}

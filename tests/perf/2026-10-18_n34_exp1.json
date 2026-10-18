@@ -1,0 +1,121 @@
+{
+ "datum": "2026-10-18T14:03:27",
+ "stand": "n34_exp1",
+ "modus": "ab",
+ "runden": 3,
+ "varianten": [
+  {
+   "name": "aus",
+   "wurzel": "/Users/wohnzimmer/dev/stuntbahn",
+   "zusatz": ""
+  },
+  {
+   "name": "g5",
+   "wurzel": "/Users/wohnzimmer/dev/stuntbahn",
+   "zusatz": "&gegner=5&staerke=ebenbuertig"
+  },
+  {
+   "name": "lod2",
+   "wurzel": "/Users/wohnzimmer/dev/stuntbahn",
+   "zusatz": "&gegner=5&staerke=ebenbuertig&gegnerlod=2"
+  },
+  {
+   "name": "ksch",
+   "wurzel": "/Users/wohnzimmer/dev/stuntbahn",
+   "zusatz": "&gegner=5&staerke=ebenbuertig&gegnerschatten=0"
+  },
+  {
+   "name": "nv",
+   "wurzel": "/Users/wohnzimmer/dev/stuntbahn",
+   "zusatz": "&gegner=5&staerke=ebenbuertig&gegnervis=0"
+  }
+ ],
+ "profil": {
+  "drossel": 4,
+  "dpr": 2.6,
+  "sek": 10,
+  "start": "open",
+  "vsync": false
+ },
+ "szenen": {
+  "start_einfach": {
+   "quer": {
+    "aus": {
+     "p50": 3.4,
+     "p95": 5,
+     "fps": 286.6,
+     "calls": 69,
+     "tris": 157166,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      7.8,
+      4.8,
+      5
+     ],
+     "fehler": []
+    },
+    "g5": {
+     "p50": 6.4,
+     "p95": 9.6,
+     "fps": 144.2,
+     "calls": 85,
+     "tris": 164011,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      9.6,
+      12,
+      6
+     ],
+     "fehler": []
+    },
+    "lod2": {
+     "p50": 4.6,
+     "p95": 7.5,
+     "fps": 205.2,
+     "calls": 84,
+     "tris": 160300,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      9.6,
+      7.5,
+      6.1
+     ],
+     "fehler": []
+    },
+    "ksch": {
+     "p50": 4.7,
+     "p95": 6.8,
+     "fps": 204.7,
+     "calls": 93,
+     "tris": 172752,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      10.7,
+      6.4,
+      6.8
+     ],
+     "fehler": []
+    },
+    "nv": {
+     "p50": 3.8,
+     "p95": 5.7,
+     "fps": 252.7,
+     "calls": 70,
+     "tris": 157541,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      9.6,
+      5.7,
+      5.5
+     ],
+     "fehler": []
+    }
+   }
+  }
+ }
+}

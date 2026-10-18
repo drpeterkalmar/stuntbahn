@@ -35,7 +35,7 @@ export function sammlung60() {
 
 // Ein Rennen ohne Spieler bis alle im Ziel (oder Zeitlimit)
 export function rennen(env, apTime, opt) {
-  const F = new GegnerFeld(env, { anzahl: 1, startplatz: 'hinten', assist: String(arg('assist', 'medium')), physik: String(arg('physik', 'stufe')), seed: 3, ...opt });
+  const F = new GegnerFeld(env, { anzahl: 1, startplatz: 'hinten', assist: String(arg('assist', 'medium')), physik: String(arg('physik', 'stufe')), takt: String(arg('takt', 'auto')), seed: 3, ...opt });
   const lim = apTime * 2.5 + 40;
   let t = 0;
   const c0 = process.cpuUsage();

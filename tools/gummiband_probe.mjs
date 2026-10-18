@@ -10,7 +10,7 @@ const R = url.pathToFileURL(path.resolve(path.dirname(url.fileURLToPath(import.m
 const { generate } = await import(R + 'src/track/generator.js');
 const { verifySync } = await import(R + 'src/track/verify.js');
 const { Race } = await import(R + 'src/game/race.js');
-const { GegnerFeld } = await import(R + 'src/ai/gegner.js');
+const { GegnerFeld, GEGNER_NITRO, TAKT } = await import(R + 'src/ai/gegner.js');
 const DT = 1 / 120;
 const arg = (k, d) => { const a = process.argv.find((s) => s.startsWith(`--${k}=`)); return a ? a.slice(k.length + 3) : d; };
 const auf = process.argv[2] === '1';
@@ -19,6 +19,8 @@ const STRECKEN = arg('strecken', '11-2,4711-3,77-2,5-1,2024-3,303-2').split(',')
 const STAERKEN = arg('staerken', 'locker,ebenbuertig,profi').split(',');
 const SPIELER = arg('spieler', '1,0.7,0.5,crash').split(',');
 const SIEHT = arg('sieht', '0') === '1';
+if (arg('nitro', '1') === '0') GEGNER_NITRO.an = false;   // A/B
+if (arg('takt', 'auto') === 'voll') TAKT.an = false;
 
 export function probe(v, staerke, sp, aufholhilfe, seed = 3) {
   const crashSp = sp === 'crash', sc = crashSp ? 0.7 : +sp;

@@ -2,6 +2,9 @@
 // Lädt das GLB (Meshopt), backt Transformationen, normiert auf Physik-Maße (vorwärts −Z, oben +Y),
 // trennt Räder (Lenk-Pivot + Dreh-Gruppe) und ersetzt den Lack durch Clearcoat-Material.
 import * as THREE from 'three';
+import { schadenLook } from './schadenlook.js';
+// Mess-Regler ?schadenlook=0: Lack/Glas ohne Schadens-Shader (A/B gegen den Stand vor n34)
+const SCHADENLOOK_AUS = typeof location !== 'undefined' && new URLSearchParams(location.search).get('schadenlook') === '0';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { CAR_DEF } from '../physics/car.js';
@@ -295,6 +298,8 @@ export async function makeCar(opts = {}) {
       (p.w.kind === 'wheel' ? W.spin : W.brake).add(mesh);
     } else body.add(mesh);
   }
+  // n34 Schadens-Optik (gfx/schadenlook.js): Kratzer/Lack ab/Ruß/Scheibe im Shader, Uniforms je Auto (car.sbU)
+  const sbU = SCHADENLOOK_AUS ? null : schadenLook({ body: bodyMats.body, paint, glass });
   const all = new Set();
   root.traverse((o) => { if (o.isMesh) (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => all.add(m)); });
   all.forEach((m) => { if (!m.userData.sbPatched) { patchStaticShadow(m); m.userData.sbPatched = true; } });
@@ -311,7 +316,7 @@ export async function makeCar(opts = {}) {
   if (contact) { contact.position.z = (wheels.FL.base.z + wheels.BL.base.z) / 2; root.add(contact); }
   let contactA = 1;
   const car = {
-    root, body, wheels, mats, rVis, tris, flames, contact,
+    root, body, wheels, mats, rVis, tris, flames, contact, sbU,
     lod: 0, lodLevels: 1, lodMeshes,
     // n30: LOD-Stufe (1 = Mittel, 2 = Fern) aus einem GLB von tools/build_assets.mjs --car-mid anhängen. Gleiche Knoten-
     // namen → gleiche Rad-Zuordnung und Modell→Auto-Transformation wie das Heldenauto; Materialien über den Namen.
@@ -344,7 +349,15 @@ export async function makeCar(opts = {}) {
       // fehlt eine Zwischenstufe (noch nicht geladen), die nächstfeinere nehmen
       while (level > 0 && !lodMeshes[level].length) level--;
       this.lod = level;
-      lodMeshes.forEach((list, i) => { for (const m of list) m.visible = i === level; });
+      // abhaengen (n34, Gegner-Autos): nicht aktive Stufen ganz aus dem Szenengraph (keine Matrix-Updates/Durchläufe je Bild)
+      lodMeshes.forEach((list, i) => {
+        for (const m of list) {
+          const an = i === level;
+          m.visible = an;
+          if (!this.abhaengen) { if (an && !m.parent && m.userData.lodParent) m.userData.lodParent.add(m); continue; }
+          if (!an && m.parent) { m.userData.lodParent = m.parent; m.parent.remove(m); } else if (an && !m.parent && m.userData.lodParent) m.userData.lodParent.add(m);
+        }
+      });
     },
     // je Bild: Stufe aus Entfernung und Bildwinkel; opts.min = gröbste Mindeststufe (Geist: 1), opts.force = feste Stufe
     updateLod(camera, opts = {}) {

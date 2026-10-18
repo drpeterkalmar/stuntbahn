@@ -47,7 +47,7 @@ export const FAHRER = [
   { name: 'Lotte Looping', farbe: 0xd9a000, charakter: 'sauber' },
   { name: 'Bruno Blech', farbe: 0x5a2382, charakter: 'aggressiv' },
   { name: 'Nina Nitro', farbe: 0xcf4f0a, charakter: 'aggressiv' },
-  { name: 'Paul Piste', farbe: 0x0b6f78, charakter: 'sauber' },
+  { name: 'Paul Piste', farbe: 0x07505a, charakter: 'sauber' },
   { name: 'Hugo Haarnadel', farbe: 0x3d4148, charakter: 'sauber' },
   { name: 'Svenja Schikane', farbe: 0xb3124f, charakter: 'aggressiv' },
 ];
@@ -72,10 +72,10 @@ export const ENG_FENSTER = [30, 60, 100], ENG_V = [25, 50];
 export const GEGNER_FENSTER = 2;
 export function grenzen(M, i, v, min = 0) { const k = Math.max(min, v < ENG_V[0] ? 0 : v < ENG_V[1] ? 1 : 2); return [M.loW[k][i], M.hiW[k][i]]; }
 // Leicht (Spieler): Ausweich-Versatz folgt mit höchstens seitV m/s, Folge-Abstand abstand s (wie ein sauberer Gegner)
-export const LEICHT_AUSWEICHEN = { seitV: 2.2, abstand: 0.5, luecke: 2.6 };
+export const LEICHT_AUSWEICHEN = { seitV: 2.2, abstand: 0.5, luecke: 2.6, geduld: 2, vorbei: 3, stups: 3, vorbeiDv: 3 };
 // Auf Leicht machen Gegner Platz, wenn der Spieler von hinten (bis hinten m) mindestens dv m/s schneller kommt – Leicht lässt
 // das Auto mit „Hände weg“ im ±3,5-m-Band treiben und fährt einen Ausweich-Versatz kaum (Probe: Spieler blieb hängen)
-export const PLATZ_MACHEN = { hinten: 28, dv: 2, luecke: 2.8, alle: true, dvHart: 4 };
+export const PLATZ_MACHEN = { hinten: 45, dv: 2, luecke: 2.8, alle: true, dvHart: 4, folgeZeit: 1.2 };
 // Abstand vor Looping/Röhre/Korkenzieher/Schanze (Brief: „Gegner halten dort Abstand“): ab vor m davor folgt man mit
 // mindestens min m + t s × Tempo – in der Anfahrt selbst (Tempo-Faktor 1) gibt es keinen Deckel mehr, der Abstand muss vorher stehen
 export const STUNT_ABSTAND = { vor: 220, min: 22, t: 0.55 };
@@ -112,6 +112,10 @@ export const GEIST = { t: 1.5, frei: 5.5 };
 // nie zu schnell. Aggressive zünden früher (luecke × 0,6). Hüpfer nutzen die Gegner nicht (Risiko ohne Gewinn: über Bodenwellen
 // fahren sie mit dem Profil). ?gegnernitro=0 = aus
 export const GEGNER_NITRO = { an: !(urlQ && urlQ.get('gegnernitro') === '0'), frei: 220, luecke: 8, vMin: 15 };
+// Physik-Takt (Mess-Gate: 5 Gegner in voller Physik kosteten am Mittelklasse-Handy +16 % p95): ein Gegner ohne anderes Auto im
+// Umkreis von frei m rechnet seine Physik im halben Takt (60 Hz, abwechselnd je Gegner, doppeltes dt) – Auto-Auto-Kollisionen in
+// der Nähe bleiben bei 120 Hz. ?gegnertakt=voll = immer 120 Hz (A/B)
+export const TAKT = { an: !(urlQ && urlQ.get('gegnertakt') === 'voll'), frei: 25, halbImmer: !!(urlQ && urlQ.get('gegnertakt') === 'halb') };
 // Nach dem Zieleinlauf des Spielers fahren die Gegner höchstens so lange weiter (s), dann Hochrechnung
 export const NACHLAUF = 10;
 // Aufzeichnung fürs Replay: 15 Hz, 8 Floats je Bild (x, y, z, qx, qy, qz, qw, Flags) – gleiches Format wie das Geisterauto
@@ -328,7 +332,7 @@ export class GegnerFahrer {
     this.zustand = 'start';      // start · fahrt · crash · ziel
     this.modus = 'physik';       // physik · schiene
     this.sch = { s: 0, idx: 0, lap: 0, v: 0, stand: 0 };
-    this.versatz = 0; this.streuZiel = 0; this.vCap = Infinity; this.tempoMod = 1; this.gummi = 1; this.geistT = 0;
+    this.versatz = 0; this.streuZiel = 0; this.vCap = Infinity; this.tempoMod = 1; this.gummi = 1; this.geistT = 0; this.taktRest = 0;
     this.bremst = false; this.bremsT = 0; this.loesT = 0; this.panikT = 0; this.aktivGebremst = false;
     this.crashT = 0; this.crashes = 0; this.strafen = 0; this.failS = -1e9; this.failN = 0;
     this.offT = 0; this.stuckP = -1e9; this.stuckT = 0;
@@ -639,7 +643,7 @@ export class GegnerFahrer {
 export class GegnerFeld {
   constructor(env, opt = {}) {
     this.env = env; this.L = env.track.line; this.I = env.ideal || env.track.line; this.world = env.world;
-    this.opt = { anzahl: 3, staerke: STAERKE_STD, seed: 1, startplatz: 'auto', wreckOn: false, assist: 'medium', aufholhilfe: false, schiene: 'auto', kollision: true, physik: 'stufe', ...opt };
+    this.opt = { anzahl: 3, staerke: STAERKE_STD, seed: 1, startplatz: 'auto', wreckOn: false, assist: 'medium', aufholhilfe: false, schiene: 'auto', kollision: true, physik: 'stufe', takt: 'auto', ...opt };
     this.wreckOn = !!this.opt.wreckOn;
     this.haerte = HAERTE[HAERTE_JE_STUFE[this.opt.assist] || 'mittel'];
     this.M = streckenMasken(env);
@@ -649,7 +653,7 @@ export class GegnerFeld {
     this.fahrer = gegnerListe(this.opt.anzahl, this.opt.staerke, this.opt.seed).map((g) => new GegnerFahrer(this, g));
     this.spielerZn = null; this.spielerZiel = null; this.nachT = 0; this.abgeschlossen = false;
     this.snaps = []; this.snapT = 0; this.rewinds = 0; this.recT = 0;
-    this.stoesse = 0; this.spGeistT = 0;
+    this.stoesse = 0; this.spGeistT = 0; this.tick = 0;
     const raster = this.raster = startRaster(this.L, this.startIdx, this.fahrer.length + 1);
     const st = this.opt.startplatz === 'auto' ? (STAERKEN[this.opt.staerke] || STAERKEN[STAERKE_STD]).start : this.opt.startplatz;
     this.spielerPlatz = spielerSlot(raster.length, st);
@@ -672,6 +676,13 @@ export class GegnerFeld {
   }
 
   ereignis(e) { this.events.push({ t: this.uhr, ...e }); }
+  // kein anderes Auto (Gegner, Spieler) näher als m Meter?
+  frei(ich, m) {
+    const c = ich.car.pos;
+    for (const g of this.fahrer) if (g !== ich && Math.abs(g.car.pos.x - c.x) < m && Math.abs(g.car.pos.z - c.z) < m && Math.hypot(g.car.pos.x - c.x, g.car.pos.y - c.y, g.car.pos.z - c.z) < m) return false;
+    const s = this.spielerCar;
+    return !(s && Math.hypot(s.pos.x - c.x, s.pos.y - c.y, s.pos.z - c.z) < m);
+  }
   // steht an diesem Punkt (≤ 6 m) schon ein Auto (außer `ich`)?
   belegt(x, y, z, ich) {
     for (const g of this.fahrer) if (g !== ich && Math.hypot(g.car.pos.x - x, g.car.pos.y - y, g.car.pos.z - z) < 6) return true;
@@ -710,8 +721,12 @@ export class GegnerFeld {
         else if (g.modus === 'schiene' && d < SCHIENE.nah && ds < SCHIENE.nahS && this.opt.schiene !== 'immer') g.zurPhysik();
       } else if (g.modus === 'schiene' && this.opt.schiene === 'nie') g.zurPhysik();
       if (!sp && this.opt.schiene === 'immer' && g.modus === 'physik') g.zurSchiene();
-      g.schritt(dt, this);
+      // halber Physik-Takt (TAKT): ohne Nachbarn rechnet ein Gegner abwechselnd nur jeden zweiten Schritt (mit doppeltem dt)
+      const halb = g.modus === 'physik' && g.zustand === 'fahrt' && (this.opt.takt === 'halb' || TAKT.halbImmer || (this.opt.takt === 'auto' && TAKT.an && this.frei(g, TAKT.frei)));
+      if (halb && ((this.tick + g.nummer) & 1)) { g.taktRest += dt; continue; }
+      g.schritt(dt + g.taktRest, this); g.taktRest = 0;
     }
+    this.tick++;
     if (this.opt.kollision) this.kollisionen(race, dt);
     // Spieler: Zeitnahme, Ziel
     if (race && this.spielerZn) {
@@ -792,12 +807,27 @@ export class GegnerFeld {
         const sp = autos.find((a) => a.spieler && !a.crash);
         if (sp) {
           const dp = me.p - sp.p;
-          if (dp > 0 && dp < PLATZ_MACHEN.hinten && sp.v > me.v + (this.opt.assist === 'easy' ? PLATZ_MACHEN.dv : PLATZ_MACHEN.dvHart) && Math.abs(sp.lat - me.lat) < V.breite + 0.5) {
+          // … oder wenn er schon folgeZeit s direkt hinter ihm hängt (folgt er mit gleichem Tempo, war er nie „schneller“ – Probe:
+          // ein Spieler, der den Verkehr respektiert, kam an „Locker“ nie vorbei)
+          const hinter = dp > 0 && dp < PLATZ_MACHEN.hinten && Math.abs(sp.lat - me.lat) < V.breite + 0.5;
+          g.folgeT = hinter ? (g.folgeT || 0) + dt : 0;
+          if (hinter && (sp.v > me.v + (this.opt.assist === 'easy' ? PLATZ_MACHEN.dv : PLATZ_MACHEN.dvHart) || g.folgeT > PLATZ_MACHEN.folgeZeit)) {
             const [plo, phi] = grenzen(M, i, Math.max(0, me.v), GEGNER_FENSTER);
             const r = sp.lat + PLATZ_MACHEN.luecke, l = sp.lat - PLATZ_MACHEN.luecke;
             ziel = me.lat >= sp.lat ? (r <= phi ? r : l >= plo ? l : ziel) : (l >= plo ? l : r <= phi ? r : ziel);
           }
         }
+      }
+      // Leicht „Geduld“ (ausweichen): Spieler vorbeilassen – etwas langsamer als er, zur Seite (kleinstes Fenster)
+      if (g.vorbeiT > 0) {
+        g.vorbeiT -= dt;
+        const sp = autos.find((a) => a.spieler && !a.crash);
+        if (sp && !M.nahe[i] && me.p > sp.p - 5) {
+          vCap = Math.min(vCap, Math.max(5, sp.v - LEICHT_AUSWEICHEN.vorbeiDv));
+          const [plo, phi] = grenzen(M, i, Math.max(0, me.v), 0);
+          const r = sp.lat + PLATZ_MACHEN.luecke, l = sp.lat - PLATZ_MACHEN.luecke;
+          ziel = me.lat >= sp.lat ? (r <= phi ? r : l >= plo ? l : phi) : (l >= plo ? l : r <= phi ? r : plo);
+        } else g.vorbeiT = 0;
       }
       // daneben (Fortschritt ± neben m, seitlich enger als die Breite): zur eigenen Seite ausweichen
       for (const a of autos) {
@@ -820,7 +850,7 @@ export class GegnerFeld {
     // in Looping/Röhre/Schanze und ihrer Anfahrt kein Folge-Deckel: dort braucht jedes Auto sein Profil-Tempo (hinter einem
     // Vordermann zu langsam an der Lippe → Sprung zu kurz). Den Abstand stellt das Folgen davor her.
     if (M.nahe[i] > 0 && !g.fertig) vCap = notCap;
-    const [glo, ghi] = grenzen(M, i, Math.max(0, me.v), GEGNER_FENSTER);
+    const [glo, ghi] = grenzen(M, i, Math.max(0, me.v), g.vorbeiT > 0 ? 0 : GEGNER_FENSTER);
     ziel = Math.max(glo, Math.min(ghi, ziel));
     // in Stunt-Spuren (Looping/Röhre) kein Versatz – dort ist die Spur so schmal wie die Ideallinie
     if (M.stunt[i]) ziel = 0;
@@ -874,6 +904,12 @@ export class GegnerFeld {
       if (!r) continue;
       this.stoesse++;
       if (r.vn > 1.5) this.ereignis({ type: 'stoss', v: r.vn, p: r.p, n: r.n, spieler: !!(A.spieler || B.spieler), crash: r.crash });
+      else if (this.uhr - (this.schleifT || -1) > 0.06) {
+        // Schleifen (Seite an Seite): Funken, wenn die Autos schnell aneinander vorbeigleiten (höchstens ~16 × je s)
+        const va = A.car.v, vb = B.car.v, rx = va.x - vb.x, ry = va.y - vb.y, rz = va.z - vb.z, rn = rx * r.n[0] + ry * r.n[1] + rz * r.n[2];
+        const vt = Math.hypot(rx - rn * r.n[0], ry - rn * r.n[1], rz - rn * r.n[2]);
+        if (vt > 4) { this.schleifT = this.uhr; this.ereignis({ type: 'schleif', v: vt, p: r.p, n: r.n, spieler: !!(A.spieler || B.spieler) }); }
+      }
       // Schaden: Stoß für beide Autos (A: Außen-Normale n, B: −n); Spieler über spielerSchaden (main.js)
       for (const [X, sg] of [[A, 1], [B, -1]]) { const SA = X.g ? X.g.schaden : X.spieler ? this.spielerSchaden : null; if (SA) SA.stoss(r, sg); }
       for (const X of [A, B]) if (X.g && X.car.crash && X.g.zustand !== 'crash') X.g.crash(this);
@@ -933,7 +969,7 @@ export class GegnerFeld {
       for (const g of this.fahrer) {
         if (g.zustand === 'start') continue;
         const dp = g.fortschritt() - p, gl = g.modus === 'schiene' ? g.versatz : g.latJetzt();
-        if (dp > -2 && dp < V.blick && Math.abs(gl - lat) < V.breite && dp < dpMin) { dpMin = dp; vor = { lat: gl, v: g.zustand === 'crash' ? 0 : g.tempo(), idx: g.idx(), crash: g.zustand === 'crash' }; }
+        if (dp > -2 && dp < V.blick && Math.abs(gl - lat) < V.breite && dp < dpMin) { dpMin = dp; vor = { g, lat: gl, v: g.zustand === 'crash' ? 0 : g.tempo(), idx: g.idx(), crash: g.zustand === 'crash' }; }
       }
       if (vor) {
         const links = vor.lat - W.luecke, rechts = vor.lat + W.luecke;
@@ -949,8 +985,13 @@ export class GegnerFeld {
         }
         // gecrashter Gegner: wird gleich zurückgesetzt – nicht auf 0 abbremsen (sonst „Festgefahren“), nur langsam vorbei
         if (vor.crash) vCap = Math.max(vCap, 8);
+        // Geduld: hängt der Spieler länger als W.geduld s hinter einem Gegner (zu eng zum Überholen), lässt der ihn vorbei
+        // (vorbeiT: langsamer, zur Seite) und Leicht darf sanft anstupsen (Kollision auf Leicht weich, nie Crash). Probe
+        // tools/gegner_spieler_probe.mjs: „Hände weg“ hinter 5 × Locker verlor sonst ~22 s (24 von 40 s „zu eng“)
+        if (Number.isFinite(vCap) && !M.kein[i] && !vor.crash) this.spFolgeT = (this.spFolgeT || 0) + dt; else this.spFolgeT = 0;
+        if (this.spFolgeT > W.geduld && !M.kein[i]) { vor.g.vorbeiT = W.vorbei; vCap = Math.max(vCap, vor.v + W.stups); }
         if (M.nahe[i] > 0) vCap = Infinity;
-      }
+      } else this.spFolgeT = 0;
       const [glo, ghi] = grenzen(M, i, v);
       ziel = Math.max(glo, Math.min(ghi, ziel));
     }

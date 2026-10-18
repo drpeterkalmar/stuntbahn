@@ -35,6 +35,7 @@ import { GegnerFeld, gegnerOptionen } from './ai/gegner.js';   // n34 KI-Gegner 
 import { GegnerVis } from './gfx/gegnervis.js';
 import { schadenModus, SchadenAuto, neuerSchaden } from './physics/schaden.js';   // n34-Nachtrag Schadensmodell (Standard aus)
 import { schadenZeigen, TruemmerVis } from './gfx/schadenvis.js';
+import { lookSchalten } from './gfx/schadenlook.js';
 import { Replay } from './game/replay.js';
 import { buildFilm, FilmPlayer, HL } from './game/highlights.js';
 import { CineCam } from './game/cinecam.js';
@@ -634,6 +635,7 @@ function startRace(opts = {}) {
   const GO = gegnerOptionen(location.search, S);
   // Schadensmodell: neu = repariert; „Mit Fahrfolgen“ nur auf Original mit Totalschaden, sonst nur Optik
   const SM = schadenModus(location.search, S);
+  lookSchalten(SM !== 'aus');   // Schadens-Shader nur mit Schaden (gfx/schadenlook.js; beim Start, nie mitten im Rennen)
   schadenSp = SM !== 'aus' ? new SchadenAuto(race.car) : null;
   race.schadenFolgen = schadenSp && SM === 'fahrt' && S.assist === 'original' && race.wreckOn ? (c) => schadenSp.folgen(c) : null;
   if (carVis.schadenVis) schadenZeigen(carVis, SCHADEN_HEIL, 'heil' + ++heilV);
@@ -642,10 +644,18 @@ function startRace(opts = {}) {
   gegner = GO.anzahl > 0 && (!opts.autopilot || GO.url) ? new GegnerFeld(env, { anzahl: GO.anzahl, staerke: GO.staerke, seed: race.driftSeed >>> 0, startplatz: GO.startplatz, wreckOn: race.wreckOn, assist: S.assist, aufholhilfe: GO.aufholhilfe, schiene: GO.schiene, physik: GO.physik, schaden: !!schadenSp }) : null;
   if (gegner) gegner.spielerSchaden = schadenSp;
   race.mitGegnern = !!gegner;   // HUD „Beste“ aus der Liste „mit Gegnern“
+  // Mess-Gate Schaden (tests/perf_szenen_gegner.json): ?schadenprobe=1 = Spieler- und Gegner-Autos stark beschädigt ab dem Start
+  if (schadenSp && params.get('schadenprobe') === '1') {
+    const H = [[[-0.3, 0.1, -2.4], [0, 0, -1], 34], [[-1.08, 0.1, 0.8], [-1, 0, 0], 26], [[-0.4, 0.6, -0.2], [0, 1, 0], 22], [[0.6, 0.2, 2.25], [0, 0, 1], 24]];
+    const roh = (SA, c) => { for (const [p, n, vn] of H) schadenTreffer(SA, c, p, n, vn); SA.schritt(0); };
+    roh(schadenSp, race.car);
+    if (gegner) for (const g of gegner.fahrer) if (g.schaden) roh(g.schaden, g.car);
+  }
   gegnerRec = null;
   if (gegner) {
     gegner.spielerAufstellen(race);
     gegnerVis.schilder = GO.schilder;
+    gegnerVis.einfach = quality.tier === 0;
     gegnerVis.bereit(gegner.fahrer.map((g) => g.info)).catch((e) => console.warn('Gegner-Autos', e));
     app.gegner = { anzahl: GO.anzahl, staerke: GO.staerke, platz: gegner.spielerPlatz + 1 };
   } else { gegnerVis.hide(); app.gegner = null; }
@@ -700,6 +710,12 @@ function schadenBild(rdt) {
     const k = Math.min(1, (S.gesamt - 0.7) / 0.3);
     fx.parts.spawn(fx.p.set(p.x, p.y, p.z), fx.v.set((Math.random() - 0.5) * 0.8, 1.2 + Math.random(), (Math.random() - 0.5) * 0.8), 0.5 + 0.4 * k, 3 + 2 * k, 1.6 + k, 0x2f2f2f, 0.35 + 0.25 * k);
   }
+}
+// n34-Nachtrag: Treffer in Auto-Koordinaten (Ort, Außen-Normale, Stoß-Tempo) ins Schadensmodell (Abnahme-Haken, Mess-Gate)
+function schadenTreffer(SA, c, p, n, vn) {
+  const q = new THREE.Quaternion(c.q.x, c.q.y, c.q.z, c.q.w);
+  const w = new THREE.Vector3(...p).applyQuaternion(q).add(new THREE.Vector3(c.pos.x, c.pos.y, c.pos.z)), d = new THREE.Vector3(...n).applyQuaternion(q);
+  SA.stoss({ p: [w.x, w.y, w.z], n: [d.x, d.y, d.z], vn }, 1);
 }
 // n34: Gegner aus dem Bild (Menü, neue Strecke)
 function gegnerAus() { gegner = null; gegnerRec = null; if (gegnerVis) gegnerVis.hide(); if (truemmer) truemmer.leeren(); }
@@ -972,7 +988,7 @@ function schadenSchritt() {
 }
 // n34: ein Physikschritt der Gegner nach dem des Spielers – Bewegung, Auto-Auto-Kollision, Leicht weicht aus; Stöße mit dem
 // Spieler → Blech-Ton (höchstens alle 0,25 s; ein Crash „Zusammenstoß“ kommt über race.events), Funken an der Kontaktstelle
-const gegnerTon = { t: -1 }, GEGNER_TON = 90, _gv = new THREE.Vector3();
+const gegnerTon = { t: -1 }, GEGNER_TON = 90, _gv = new THREE.Vector3(), GEGNER_VIS_AUS = params.get('gegnervis') === '0';
 function gegnerSchritt() {
   gegner.step(DT, race);
   if (race.assistKey === 'easy') { const A = gegner.ausweichen(race, DT); race.ap.avoid = A.versatz; race.ap.vCap = A.vCap; }
@@ -983,6 +999,10 @@ function gegnerSchritt() {
       const g = gegner.fahrer.find((x) => x.id === e.id);
       const d = g ? camera.position.distanceTo(_gv.set(g.car.pos.x, g.car.pos.y, g.car.pos.z)) : 1e9, k = Math.max(0, 1 - d / GEGNER_TON);
       if (k > 0.05) sound.event({ type: 'crash', imp: Math.min(26, e.v || 10), v: 0, gain: 0.85 * k * k });
+      continue;
+    }
+    if (e.type === 'schleif') {   // Seite an Seite: ein paar Funken
+      if (fx && fx.sparks) for (let k = 0; k < Math.min(4, 1 + e.v / 6); k++) fx.sparks.spawn(e.p[0], e.p[1], e.p[2], (Math.random() - 0.5) * 4 + e.n[0] * 2, 0.6 + Math.random() * 1.5, (Math.random() - 0.5) * 4 + e.n[2] * 2, 0.2 + Math.random() * 0.3, e.p[1] - 0.6);
       continue;
     }
     if (e.type !== 'stoss') continue;
@@ -1233,7 +1253,8 @@ function render(rdt) {
   if (ghost && ghostVis.root.visible && mode === 'race') { ghost.sync(ghostVis); ghostVis.setNitro(ghost.nitro(), frozen ? 0 : rdt); }
   karteTick(rdt, pose);   // n39
   // n34 KI-Gegner: Rennen aus der Physik (interpoliert), Replay/Kino-Replay aus der Aufzeichnung (Rennzeit = Replay-Uhr)
-  if (gegner && mode === 'race') gegnerVis.sync(gegner, camera, prevPose && !frozen ? Math.min(1, acc / DT) : 1);
+  if (gegner && mode === 'race' && GEGNER_VIS_AUS) gegnerVis.hide();   // Mess-Schalter ?gegnervis=0 (Mess-Gate: Anteil Darstellung)
+  else if (gegner && mode === 'race') gegnerVis.sync(gegner, camera, prevPose && !frozen ? Math.min(1, acc / DT) : 1);
   else if (gegnerRec && mode === 'replay' && replay) gegnerVis.syncReplay(gegnerRec, replay.t, camera);
   else if (gegnerVis && gegnerVis.aktiv && mode === 'menu') gegnerVis.hide();
   if (fx) fx.rich = !!(kino && kino.pipeline);
@@ -1482,7 +1503,7 @@ window.__game = {
   get schaden() { return schadenSp; }, get truemmer() { return truemmer; },   // n34-Nachtrag
   // Abnahme-Haken: Treffer am Spieler-Auto auslösen (Auto-Koordinaten, Außen-Normale, Stoß-Tempo m/s), z. B. für Bilder
   // leicht/mittel/stark beschädigt: __game.treffer([0, 0, -2.4], [0, 0, -1], 25)
-  treffer(p, n, vn) { if (!schadenSp) return null; const c = race.car, q = new THREE.Quaternion(c.q.x, c.q.y, c.q.z, c.q.w); const w = new THREE.Vector3(...p).applyQuaternion(q).add(new THREE.Vector3(c.pos.x, c.pos.y, c.pos.z)), d = new THREE.Vector3(...n).applyQuaternion(q); schadenSp.stoss({ p: [w.x, w.y, w.z], n: [d.x, d.y, d.z], vn }, 1); schadenSchritt(); return { gesamt: schadenSp.S.gesamt, teile: schadenSp.S.teile, dellen: schadenSp.S.dellen.length }; },
+  treffer(p, n, vn) { if (!schadenSp) return null; schadenTreffer(schadenSp, race.car, p, n, vn); schadenSchritt(); return { gesamt: schadenSp.S.gesamt, teile: schadenSp.S.teile, dellen: schadenSp.S.dellen.length }; },
   // Physik ohne Rendering vorspulen (Headless: schneller als Echtzeit)
   sim(seconds, inp = null) {
     const I = inp || { steer: 0, throttle: 0, brake: 0 };
