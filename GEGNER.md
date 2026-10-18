@@ -89,6 +89,12 @@ Ohne `race` (Server, Messung, KI gegen KI): `feld.step(dt, null, sichtPunkt)`.
 - **Gegner im Netz**: der Gastgeber rechnet die KI-Gegner (`GegnerFeld`) und sendet Lage + Zustand (15 Hz reicht, Format wie
   `aufnahme()`), Fehler-Plan und Stärke folgen aus dem Seed.
 
+**Stand n35-Vorbau (18.10.2026):** gebaut in `src/game/online.js` + `src/net/` (Port-Notiz `NETZ.md`). Haken im Feld (Standard
+unverändert, Node-Test `test_gegner.mjs` grün): `opt.online` (kein Mit-Rückspulen, kein Nachlauf-Abschluss), `opt.rasterN` +
+`opt.plaetze` + `opt.spielerPlatz` (Raster für Menschen + KI), `feld.fremde` (fremde Menschen als feste Körper in Verkehr und
+Kollision; Spieler ↔ fremd rechnet online.js), `feld.sichtPunkte` (Schiene nur fern von allen Menschen), `g.resets`
+(Sprungzähler fürs Netz). Online-KI ohne Gummiband.
+
 ## Was nicht automatisch passt
 - **Linie mit gleichen Indizes**: Fortschritt nutzt die Mittellinie mit den Indizes der Ideallinie (Stuntbahn: `ideal.js
   makeLine` behält die Indizes). Eine andere Ideallinie braucht eine Abbildung Index → Bogenlänge.
