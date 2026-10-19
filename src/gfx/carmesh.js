@@ -11,6 +11,7 @@ import { CAR_DEF } from '../physics/car.js';
 import { patchStaticShadow } from './materials.js';
 import { makeContactShadow } from './kinolook.js';
 import { lodFor } from './carlod.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 let gltfPromise = null;
 
@@ -342,6 +343,47 @@ export async function makeCar(opts = {}) {
       this.lodLevels = Math.max(this.lodLevels, level + 1);
       const want = this.lod; this.lod = -1; this.setLod(want);
       return list.length;
+    },
+    // n35 (fremde Autos: Online-Mitspieler und KI-Gegner): Fern-Stufe 2 zusammenfassen – Räder in Ruhelage in die Karosserie,
+    // je Material EIN Netz. 15 → ~5 Draw-Calls je Auto (Mess-Gate: drei fremde Autos vorn im Bild kosteten 45 Draw-Calls).
+    // Fern (> ~60 m) sieht man weder Raddrehung noch Lenkeinschlag. Gibt die Zahl der Netze vorher/nachher zurück.
+    fernVerschmelzen() {
+      const L = lodMeshes[2];
+      if (!L.length || this.fernVerschmolzen) return null;
+      for (const W of Object.values(wheels)) { W.pivot.position.copy(W.base); W.pivot.rotation.set(0, 0, 0); W.spin.rotation.set(0, 0, 0); }
+      root.updateMatrixWorld(true);
+      const inv = new THREE.Matrix4().copy(body.matrixWorld).invert();
+      const gruppen = new Map(), bleiben = [];
+      for (const m of L) {
+        const par = m.parent || m.userData.lodParent;
+        if (!par || Array.isArray(m.material)) { bleiben.push(m); continue; }
+        m.updateMatrix();
+        const rel = new THREE.Matrix4().multiplyMatrices(inv, new THREE.Matrix4().multiplyMatrices(par.matrixWorld, m.matrix));
+        const g = m.geometry.clone().applyMatrix4(rel);
+        const k = m.material.uuid;
+        if (!gruppen.has(k)) gruppen.set(k, { mat: m.material, geos: [], schatten: m.castShadow });
+        gruppen.get(k).geos.push(g);
+      }
+      const neu = [...bleiben];
+      for (const { mat, geos } of gruppen.values()) {
+        // gleiche Attribute und alle mit bzw. ohne Index – sonst verschmilzt mergeGeometries nicht
+        const namen = Object.keys(geos[0].attributes).filter((n) => geos.every((g) => g.attributes[n]));
+        for (const g of geos) for (const n of Object.keys(g.attributes)) if (!namen.includes(n)) g.deleteAttribute(n);
+        const gemischt = geos.some((g) => g.index) && geos.some((g) => !g.index);
+        const fertig = gemischt ? geos.map((g) => (g.index ? g.toNonIndexed() : g)) : geos;
+        for (const g of fertig) { g.morphAttributes = {}; g.clearGroups(); }
+        const mg = fertig.length > 1 ? mergeGeometries(fertig, false) : fertig[0];
+        if (!mg) { continue; }
+        const mesh = new THREE.Mesh(mg, mat);
+        mesh.castShadow = false; mesh.receiveShadow = true; mesh.userData.lod = 2; mesh.userData.fern = true;
+        neu.push(mesh);
+      }
+      const vorher = L.length;
+      for (const m of L) if (!neu.includes(m)) { if (m.parent) m.parent.remove(m); m.userData.lodParent = null; }
+      L.length = 0; L.push(...neu);
+      for (const m of neu) if (m.userData.fern) { if (this.lod === 2 || !this.abhaengen) body.add(m); else m.userData.lodParent = body; m.visible = this.lod === 2; }
+      this.fernVerschmolzen = true;
+      return [vorher, neu.length];
     },
     setLod(level) {
       level = Math.max(0, Math.min(this.lodLevels - 1, level));

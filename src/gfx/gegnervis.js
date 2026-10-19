@@ -16,6 +16,8 @@ const Q = typeof location !== 'undefined' ? new URLSearchParams(location.search)
 export const GEGNER_LOD = Q.has('gegnerlod') ? +Q.get('gegnerlod') : null;
 export const GEGNER_SCHATTEN = Q.get('gegnerschatten') !== '0';
 const RAEDER_AUS = Q.get('gegnerraeder') === '0';   // Mess-Regler: Räder der Gegner ausblenden
+// n35: Fern-Stufe der fremden Autos zusammengefasst (carmesh fernVerschmelzen, 15 → ~5 Draw-Calls); ?gegnerfern=0 = wie n34
+export const FERN_VERSCHMELZEN = Q.get('gegnerfern') !== '0';
 export const SCHATTEN_NAH = 60;          // m: weiter weg werfen Gegner keinen Echtzeit-Schatten (Kontaktschatten bleibt)
 // Namensschild: Höhe über dem Auto, sichtbar von nah bis weit m; Breite = 4 × clamp(Abstand × k, min, max) m (10 m: 2,8 m,
 // 50 m: 5 m, 150 m: 15 m ≈ 6 % der Bildbreite) – Startwerte, am Bild abstimmen (TODO n34-Heavy)
@@ -58,7 +60,7 @@ export class GegnerVis {
       car.root.visible = false; car.root.name = 'gegner';
       if (car.setLod) { car.abhaengen = true; car.lod = -1; car.setLod(0); }   // nicht aktive LOD-Stufen aus dem Szenengraph (Mess-Gate)
       schattenAus(car);
-      if (this.lods) { car.addLod(this.lods[0], 1); car.addLod(this.lods[1], 2); schattenAus(car); }
+      if (this.lods) { car.addLod(this.lods[0], 1); car.addLod(this.lods[1], 2); schattenAus(car); if (FERN_VERSCHMELZEN && car.fernVerschmelzen) car.fernVerschmelzen(); }
       this.scene.add(car.root);
       const mat = new THREE.SpriteMaterial({ transparent: true, depthWrite: false, depthTest: true, toneMapped: false, fog: false });
       const tag = new THREE.Sprite(mat); tag.visible = false; tag.renderOrder = 6; tag.name = 'gegner-schild';
@@ -81,7 +83,7 @@ export class GegnerVis {
   addLods(lods) {
     if (this.lods) return;
     this.lods = lods;
-    for (const A of this.autos) { A.car.addLod(lods[0], 1); A.car.addLod(lods[1], 2); schattenAus(A.car); A.schatten = null; }
+    for (const A of this.autos) { A.car.addLod(lods[0], 1); A.car.addLod(lods[1], 2); schattenAus(A.car); if (FERN_VERSCHMELZEN && A.car.fernVerschmelzen) A.car.fernVerschmelzen(); A.schatten = null; }
   }
   // vor jedem Physikschritt: Lage merken (für die Interpolation wie beim Spieler, main.js prevPose)
   merke(feld) {

@@ -14,7 +14,7 @@ import { GegnerFeld } from '../ai/gegner.js';
 import { GAME_SPEED_STD } from './race.js';
 
 const DT = 1 / 120;
-export const PROBE = { latenz: 20, jitter: 5, hz: 25, linieTempo: 0.85, hoehe: 0.54 };
+export const PROBE = { latenz: 20, jitter: 5, hz: 25, linieTempo: 0.85, hoehe: 0.54, anfahren: 9 };
 export function probeArt(search = typeof location !== 'undefined' ? location.search : '') { return new URLSearchParams(search).get('probeart') === 'linie' ? 'linie' : 'ki'; }
 export function probeAnzahl(search = typeof location !== 'undefined' ? location.search : '') {
   const q = new URLSearchParams(search);
@@ -80,8 +80,9 @@ export class OnlineProbe {
   // Gleiter: Fortschritt mit dem Ziel-Tempo (Profil der Ideallinie) × linieTempo, Linienpunkt nachführen
   _gleite(g, dt) {
     const { L, vt, nI } = this.linie;
-    const v = vt ? Math.max(8, vt[Math.min(vt.length - 1, Math.round(g.i * nI / L.n))] * PROBE.linieTempo) : 30;
-    g.s += v * dt; g.weg += v * dt; g.v = v;
+    const ziel = vt ? Math.max(8, vt[Math.min(vt.length - 1, Math.round(g.i * nI / L.n))] * PROBE.linieTempo) : 30;
+    const v = g.v = Math.min(ziel, (g.v || 0) + PROBE.anfahren * dt);   // anfahren wie ein Auto (Pulk bleibt am Start beisammen)
+    g.s += v * dt; g.weg += v * dt;
     if (g.s >= L.total) { if (L.closed) { g.s -= L.total; g.lap++; g.i = 0; } else g.s = L.total - 0.01; }
     while (g.i < L.n - 2 && L.s[g.i + 1] <= g.s) g.i++;
     g.lat *= Math.exp(-dt / 6);   // vom Rasterplatz langsam zur Mitte (±0,8 m bleibt)

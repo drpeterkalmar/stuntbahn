@@ -31,6 +31,14 @@ spielunabhängig, die Port-Notiz steht in `NETZ.md`. Kein eigener Server, keine 
 | Ablauf `game/onlinespiel.js` | Raum, Strecke als Daten, Bereit, Revanche, Neu-Verbinden, Liste „Online“ | Aussehen-Änderung des Gastgebers geht live an alle; Meldung „Netz blockiert“ statt „Kein Raum“ |
 | Lobby `ui/online.js` | Grundgerüst (eine Spalte) | **quer zweispaltig** (Code/QR/Teilen links, Mitglieder + Start rechts, ohne Scrollen), **Landschaft/Wetter/Tageszeit** in der Lobby, „Nochmal versuchen“ ohne Verbindung, Online-Pause, Kurzrufe |
 | Teilen-Link | ganze Adresse + `raum=` | nur `?raum=CODE` (kleinerer QR-Code; Test-Regler `netz*`/`nosw` bleiben) |
+| Pause online | Hinweis „kein Pausieren“ (man kam nicht aus dem Rennen) | ⏸/Esc = „▶ Weiterfahren / 🏳️ Aufgeben – zur Lobby“; Drehen des Handys öffnet online nichts |
+| Kurzrufe (optional) | Leitung `OnlineRennen.emoji()`, Anzeige als Hinweis | 💬-Knopf, Leiste links daneben (überdeckt keine Fahrknöpfe), Emoji ~2,5 s über dem Auto |
+
+**Fehler, die erst im Browser auffielen (behoben):** Beim Gast blieb das Lobby-Blatt über dem laufenden Rennen liegen
+(ein verspätetes Nachzeichnen 50 ms nach „Bereit“ kam nach dem Start) – das Rennen lief verdeckt weiter; jetzt zeigt sich
+die Lobby nie über einem Online-Rennen (`test_online_extras.py` prüft das). Die Zieltabelle nach einem Gastgeber-Wechsel
+zeigte die KI des alten Gastgebers als „🤖 ?“ (jetzt mit Namen). Zieltabelle/Lobby lagen im Rennen unter den HUD-Knöpfen.
+Die Räder fremder Autos saßen 8 cm zu hoch in den Radkästen.
 
 ## Prüfung – Ergebnisse
 **Node** (alle in `tests/node/run_all.mjs`, ganze Suite grün): `test_netz.mjs` (Code, Pakete, Uhr bei Ping 0/50/150/300 ms
