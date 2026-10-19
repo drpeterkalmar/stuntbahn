@@ -4,7 +4,8 @@
 Browser). Sie ist für die Stuntbahn gebaut und für den geplanten **WipeOut-artigen Racer** gedacht: dort nur das
 Zustands-Schema und den Spiel-Anschluss (Gegenstück zu `src/game/online.js`) neu schreiben. Kein eigener Server, keine
 Konten, keine Schlüssel. Lizenz: eigener Code; Trystero (MIT) liegt gepinnt unter `vendor/trystero/`.
-Stand: Vorbau n35 (18.10.2026) – Node-geprüft, Browser-Abnahme folgt im Heavy-Job.
+Stand: n35 (18.10.2026) – Node-geprüft und im Browser abgenommen (zwei Pages über BroadcastChannel und einmal echt über
+Trystero/öffentliche Relays; Abbrüche, blockiertes Netz, Ping 0/50/150 ms gemessen – siehe `ONLINE_BERICHT.md`).
 
 | Datei | Aufgabe |
 |---|---|
@@ -29,7 +30,9 @@ t.peers(); t.verlassen()
 Trystero 0.26.0 (im Quellcode geprüft): `joinRoom({ appId, password, relayConfig }, roomId, { onJoinError })`,
 `room.makeAction(name) → { send(data, { target }), onMessage(data, { peerId }) }`, `onPeerJoin/onPeerLeave`. Nostr nimmt
 **5 der 29 eingetragenen Relays** (gemischt nach appId – für `drpeterkalmar-stuntbahn-n35`: relay.aarpia.com,
-bendernostur.duckdns.org:8443, cdn.satellite.earth, relay.piazza.today, nostr.chaima.info), MQTT **alle 4 Broker**
+bendernostur.duckdns.org:8443, cdn.satellite.earth, relay.piazza.today, nostr.chaima.info). **Die Stuntbahn nimmt 7**
+(`RELAYS.nostr` in `net/trystero.js`): am 18.10.2026 waren zwei der fünf tot (abgelaufenes Zertifikat, Verbindung
+zurückgesetzt) – die Suche lief über die übrigen drei in < 1 s. MQTT **alle 4 Broker**
 (broker.emqx.io, public.cloud.shiftr.io, broker.hivemq.com, test.mosquitto.org). STUN: stun.l.google.com (3 Server) +
 stun.cloudflare.com; **kein TURN**. Je Peer ein **zuverlässiger, geordneter** Datenkanal (Verlust zeigt sich als
 Verspätung, nicht als Lücke). Verschlüsselt: Verbindungsdaten mit dem Raumcode als Passwort (AES-GCM), Datenkanal DTLS.
@@ -41,7 +44,9 @@ umgeschrieben und `.mjs` → `.js`, damit jeder Server sie als Modul ausliefert)
 ## Sitzung
 ```js
 import { Sitzung, schema, verbinden } from './net/index.js';
-const S = new Sitzung(await verbinden(code), { sid, info: { name, … }, gastgeber: true|false, schema: MEIN_SCHEMA, lin: ['…'], einstellungen: {…} });
+const S = new Sitzung(await verbinden(code), { sid, info: { name, … }, gastgeber: true|false, schema: MEIN_SCHEMA, lin: ['…'], einstellungen: {…},
+  nameVon: (id) => …,                      // optional: Namen für Tabellen-Einträge, die die Sitzung nicht kennt (KI)
+  rest: () => [{ id, fortschritt, ki, name }] });   // optional (Gastgeber): noch Fahrende für die Zieltabelle
 S.on('lobby' | 'start' | 'ergebnis' | 'neu' | 'weg' | 'still' | 'gastgeber' | 'status' | 'fehler' | 'ereignis' | 'meldung', fn);
 S.takt();                                  // je Bild bzw. alle ~50 ms (kein setTimeout im Kern → in Tests deterministisch)
 S.setzeInfo({…}); S.setzeBereit(true);     // jeder
@@ -49,6 +54,7 @@ S.setzeEinstellungen({…}); S.starten(extra, kiIds); S.abschliessen(rest); S.zu
 S.sendeZustand(satz); S.sendeSammel([{ platz, … }]);   // 20–30 Hz bzw. KI 15 Hz
 S.lage(key, zeit, voraus);                 // fremder Körper (key 'pid:platz', S.fremdeListe())
 S.zielMelden(zeit, daten); S.zielEintragen(id, zeit, daten);   // Ziel (Gastgeber bestätigt in Sitzungszeit)
+S.aufgeben(daten);                         // ohne Zeit fertig (Tabelle wartet nicht), Gastgeber: seine KI endet
 S.ereignis(art, daten); S.melden(art, daten, ziel);            // flüchtig (1,5 s) bzw. zuverlässig
 S.neuVerbinden(neuerTransport); S.verlassen();
 ```
@@ -71,12 +77,22 @@ S.neuVerbinden(neuerTransport); S.verlassen();
   (Ping 0–50) bzw. 0,4 m (150 ms) neben dem echten statt 3,0 m bzw. 4,8 m dahinter (`node tools/online_mess.mjs`).
 - Last: Stuntbahn-Zustand 34 + 7 Byte, 25 Hz ≈ 1 kB/s je Auto und Empfänger (+ Trystero-Rahmen und Quittungen).
 
+## Zahlen (Browser, zwei Pages in einem Chrome, 18.10.2026)
+- Start: Soll-Zeitpunkt „Los!“ nach abgeglichener Sitzungsuhr auf beiden Seiten 0–1 ms auseinander, tatsächlicher
+  Bildwechsel 2–14 ms (Bildraster); echt über Nostr ebenso. Partnersuche Nostr bzw. MQTT < 1,5 s.
+- Gezeigt ↔ wahr (`tests/online_ping_mess.py`, Autopilot-Rennen, beide Seiten loggen je Bild mit gemeinsamer Systemuhr):
+  Ping 0 / 50 / 150 ms → vorausgerechnet Mittel 0,4 / 0,4 / 0,7 m (p95 0,8 / 1,0 / 1,3 m), reiner Puffer 3,7 / 4,2 / 6,5 m
+  (p95 5,5 / 6,4 / 9,8 m). Rempler-Meldung kommt beim anderen ½ Ping + Bild später an (4 / 22 / 104 ms).
+- Puffer-Abtastung ≈ 1,9 µs (Mac, ungedrosselt; vor der Optimierung 4,6 µs).
+- Gastgeber-Abbruch ohne Abmeldung (Funkloch): Nachfolger übernimmt nach 4,6 s (BroadcastChannel „still“ nach 4 s).
+
 ## Einbau in ein anderes Spiel (WipeOut)
 1. Schema festlegen (`schema([...])`): Lage, Quaternion, Tempo genügen für Darstellung/Kollision; dazu, was die Anzeige
    braucht (Schub, Schild, Waffe …) und einen **Sprungzähler** (Respawn).
 2. Spiel-Anschluss wie `src/game/online.js`: Raster aus der Beitrittsnummer, `frame()` (Countdown/Rennuhr nach
    `S.zeit`), je Physikschritt fremde Körper aus `S.lage(...)` als **feste** Körper in die eigene Kollision (jedes Gerät
-   rechnet nur die eigene Reaktion), Rempler-Ereignis an die Gegenseite, Zustand senden, Ziel melden.
+   rechnet nur die eigene Reaktion), Rempler-Ereignis an die Gegenseite (dort Funken/Ton und – hat sie den Stoß selbst
+   nicht erkannt – ein sanfter Gegenstoß, `ONLINE.rempler.gegen`), Zustand senden, Ziel melden.
 3. Ablauf/Lobby wie `src/game/onlinespiel.js` (Strecke als Daten, „Bereit“, Revanche, Hintergrund → `neuVerbinden`).
 4. KI rechnet nur der Gastgeber (`sendeSammel`, Plätze ≥ 1); beim Gastgeber-Wechsel fährt sie nicht weiter (`kiAktiv`).
 - **WipeOut-Unterschiede**: viel höheres Tempo → Vorausrechnen (`voraus = 1`) ist dort Pflicht; Waffen/Treffer als
@@ -91,6 +107,11 @@ S.neuVerbinden(neuerTransport); S.verlassen();
   prüft nur den Zeitstempel (nicht nach dem Eintreffen) – gegen Freunde gedacht, nicht für Ranglisten.
 - **Öffentliche Relays** können ausfallen oder drosseln (Ausweich MQTT); die Partnersuche dauert meist 1–5 s.
 - **Gastgeber-Wechsel im Rennen**: KI verschwindet (ihr Zustand lag beim alten Gastgeber).
+- **Test-Mac hinter VPN** (ProtonVPN): Chrome sammelt ohne Kamera/Mikrofon-Erlaubnis nur Kandidaten der VPN-Schnittstelle,
+  dort kommt UDP an sich selbst nicht zurück – zwei Tabs auf demselben Mac verbinden sich dann nicht (genau der Fall
+  „Netz blockiert“, `tests/test_online_blockiert.py`). Für den echten Test gibt `ECHT=1 tests/test_online_ui.py` eine
+  Schein-Mikrofon-Erlaubnis (dann nimmt Chrome alle Schnittstellen, Verbindung über die WLAN-Adresse). Das Spiel selbst
+  fragt nie nach Kamera/Mikrofon.
 - Datenkanal zuverlässig/geordnet: bei Paketverlust kommen Zustände gebündelt spät – der Puffer (Verzug ≥ 100 ms) fängt
   das ab; ein unzuverlässiger Kanal (WebRTC `maxRetransmits: 0`) wäre besser, bietet Trystero 0.26 aber nicht an.
 
@@ -99,5 +120,8 @@ S.neuVerbinden(neuerTransport); S.verlassen();
 Abbruch, Neu-Verbinden, 12 Zufalls-Netze), `test_netz_transport.mjs` (Trystero mit nachgebautem joinRoom, vendor lädt,
 BroadcastChannel echt), Stuntbahn: `test_online.mjs` (zwei Autopilot-Rennen + KI über das Fake-Netz, Mess-Probe),
 `test_onlinespiel.mjs` (ganzer Ablauf), `test_online_ui.mjs` (Lobby-HTML), `test_qr.mjs` (QR, Rücklesen mit zbarimg).
-Browser: `python3 tests/test_online_ui.py` (zwei Pages, BroadcastChannel; `ECHT=1` über Relays), Mess-Gate
-`tests/perf_szenen_online.json` (`?onlineprobe=3`).
+Browser (immer EIN Browser, mehrere Pages): `python3 tests/test_online_ui.py` (zwei Pages, BroadcastChannel; `ECHT=1`
+über Relays), `test_online_abbruch.py` (Tab zu, Gastgeber reißt ab, Neu-Laden, Hintergrund), `test_online_blockiert.py`
+(Netz blockiert direkte Verbindung), `test_online_extras.py` (Kurzrufe, Aufgeben), Messungen `online_ping_mess.py`
+(Ping 0/50/150 ms: Abstand gezeigt↔wahr, Rempler), `online_echt_probe.py` (nur Transport über Relays),
+`online_profil.py` (CPU-Profil); Mess-Gate `tests/perf_szenen_online.json` (`?onlineprobe=3`).

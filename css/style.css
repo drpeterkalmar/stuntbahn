@@ -463,6 +463,14 @@ body[data-orient="hoch"] #cine .cskip { top: auto; bottom: max(16px, calc(var(--
 @keyframes rfade { 0% { opacity: 0; transform: translateY(-6px); } 100% { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { #result .card.deko .rtime, #result .card.deko .rec, #result .card.deko h2 { animation: none; } #result .card.deko .rtime { background-position: 50% 0; } }
 /* n35 Online-Menü */
+/* Kurzrufe: 💬 nur im Online-Rennen; Leiste unter den Knöpfen; Emojis über den Autos (#rufe, per JS positioniert) */
+#hud .rb.emo { display: none; }
+body[data-online="1"] #hud .rb.emo { display: inline-block; }
+#hud .emobar { display: none; position: fixed; z-index: 4; gap: 6px; flex-direction: row-reverse; flex-wrap: wrap; pointer-events: auto; }   /* links neben 💬 (Lage per JS, ui/online.js rufLeiste) */
+#hud .emobar.show { display: flex; }
+#hud .emobar button { width: 52px; height: 52px; border-radius: 14px; background: rgba(12, 16, 22, .72); border: 1px solid #ffffff2a; font-size: 26px; }
+#rufe { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+#rufe i { position: absolute; left: 0; top: 0; font-style: normal; font-size: 40px; line-height: 1; filter: drop-shadow(0 2px 4px #0009); will-change: transform, opacity; }
 .onl { display: flex; flex-direction: column; gap: 10px; }
 .onl p { margin: 0; line-height: 1.4; }
 .onlab { display: flex; flex-direction: column; gap: 4px; font-weight: 600; }

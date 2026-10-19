@@ -651,6 +651,9 @@ async function onlineLaden() {
     zeigeMenue: () => { if (mode === 'menu') ui.showMenu(env); else toMenu(); },
     zurueck: () => { if (mode === 'race') toMenu(); else ui.showMenu(env); },
     verlassen: () => { ONLINE_LOOK = null; if (mode === 'race') toMenu(); else ui.showMenu(env); },
+    aufgeben: () => { if (onlR) onlR.aufgeben(); if (mode === 'race') toMenu(); },
+    imRennen: () => !!(onlR && mode === 'race'),
+    kurzruf: (e) => { if (onlR) onlR.emoji(e); },
   });
 }
 async function onlineAktion(a, v, el) { await onlineLaden(); return onlA.action(a, v, el); }
@@ -734,6 +737,9 @@ function startOnlineRace(spiel, opt = {}) {
   sound.start();
   prevPose = null;
   app.online = { code: spiel.code, platz: onlR.slot + 1, autos: onlR.A.n };
+  document.body.dataset.online = '1';   // 💬 Kurzruf-Knopf (css)
+  if (onlA) onlA.ansicht = null;         // Lobby-Blatt ist zu (showHud)
+  onlRufe.length = 0;
 }
 // fremde Autos neu zusammengestellt (jemand kam/ging): Darstellung neu bauen (Lack, Schild)
 function onlineVisPruefen() {
@@ -742,6 +748,28 @@ function onlineVisPruefen() {
   onlVis = onlR.visFeld();
   gegnerVis.bereit(onlVis.fahrer.map((g) => g.info)).catch((e) => console.warn('fremde Autos', e));
 }
+// Kurzrufe (n35): ~2,5 s über dem Auto (eigenes oder fremdes), steigt leicht und blendet aus
+const onlRufe = [], RUF = { dauer: 2500, hoch: 2.4 }, rufV = new THREE.Vector3();
+function rufeBild() {
+  if (!onlRufe.length) return;
+  const jetzt = performance.now(), out = [];
+  for (let k = onlRufe.length - 1; k >= 0; k--) if (jetzt - onlRufe[k].t0 > RUF.dauer) onlRufe.splice(k, 1);
+  for (const r of onlRufe) {
+    let p = null;
+    if (r.pid == null) p = race.car.pos;
+    else if (onlR && onlVis) {
+      const X = [...onlR.autos.values()].find((x) => x.pid === r.pid && !x.ki), i = X ? onlVis.fahrer.findIndex((g) => g.car === X.auto) : -1;
+      const A = i >= 0 ? gegnerVis.autos[i] : null;
+      if (A && A.car.root.visible) p = A.car.root.position;
+    }
+    if (!p) continue;
+    const u = (jetzt - r.t0) / RUF.dauer;
+    rufV.set(p.x, p.y + RUF.hoch + u * 0.8, p.z).project(camera);
+    if (rufV.z > 1 || Math.abs(rufV.x) > 1.2 || Math.abs(rufV.y) > 1.2) continue;
+    out.push({ e: r.e, x: (rufV.x + 1) / 2 * innerWidth, y: (1 - rufV.y) / 2 * innerHeight, a: u < 0.75 ? 1 : (1 - u) / 0.25, s: u < 0.12 ? 0.6 + u / 0.12 * 0.5 : 1.1 - Math.min(0.1, (u - 0.12)) });
+  }
+  ui.rufe(out);
+}
 // nach den Physikschritten: senden, Zeitnahme, Ziel melden; Rempler → Ton + Funken an der Stelle; Kurzrufe → Hinweis
 function onlineNachFrame() {
   onlR.nachFrame(race.events);
@@ -749,13 +777,15 @@ function onlineNachFrame() {
     if (e.type === 'rempler') {
       if (!e.crash) sound.event({ type: 'crash', imp: Math.min(14, e.v || 3), v: 0 });   // Crash selbst: Ton kommt über race.events
       if (fx && fx.sparks && e.p) for (let k = 0; k < Math.min(10, 2 + (e.v || 3)); k++) fx.sparks.spawn(e.p[0], e.p[1], e.p[2], (Math.random() - 0.5) * 6 + e.n[0] * 3, 0.8 + Math.random() * 2.5, (Math.random() - 0.5) * 6 + e.n[2] * 3, 0.25 + Math.random() * 0.4, e.p[1] - 0.6);
-    } else if (e.type === 'emoji') ui.toast(`${e.von}: ${e.e}`, 2200);
+    } else if (e.type === 'emoji') onlRufe.push({ pid: e.ich ? null : e.pid, e: e.e, t0: performance.now() });
+    else if (e.type === 'aufgabe') ui.toast(`🏳️ ${e.name} hat aufgegeben`, 2400);
   }
   onlR.events.length = 0;
 }
 
 function startRace(opts = {}) {
   if (PROBE_N) { startOnlineProbe(opts).catch((e) => console.error('Online-Probe', e)); return; }   // n35 Mess-Probe
+  delete document.body.dataset.online;
   replay = null;
   quitShow();
   if (cine) { cine = null; ui.hideCine(); }
@@ -829,7 +859,7 @@ async function setTheme(v) {
 }
 function setAssist(k) { store.settings.assist = k; store.save(); if (race) race.setAssist(k); timeScale = gameSpeed(k); if (k === 'easy' && ghostVis) ghostVis.root.visible = false; ui.refresh(); ui.assistChanged(); }
 function setPaint(c) { store.settings.paint = c; store.save(); carVis.setPaint(c); }
-function toMenu() { mode = 'menu'; replay = null; quitShow(); if (cine) { cine = null; ui.hideCine(); } sound.stop(); race = new Race(env, { assist: store.settings.assist, countdown: 1e9 }); gegnerAus(); ui.showMenu(env);
+function toMenu() { delete document.body.dataset.online; onlRufe.length = 0; ui.rufe([]); mode = 'menu'; replay = null; quitShow(); if (cine) { cine = null; ui.hideCine(); } sound.stop(); race = new Race(env, { assist: store.settings.assist, countdown: 1e9 }); gegnerAus(); ui.showMenu(env);
   if (onlR) { onlR = null; onlVis = null; timeScale = gameSpeed(store.settings.assist); }   // n35: Online-Rennen verlassen → Lobby (der Raum bleibt)
   if (onl && onl.aktiv && onlA) onlA.zeigeLobby(); }
 // n34-Nachtrag: Schaden je Bild – Heldenauto (Rennen: aktueller Stand; Replay/Film: Stand zur Replay-Zeit aus dem Verlauf),
@@ -1049,11 +1079,12 @@ function rotated(p) {
   input.releaseTouch();
   rig.init = false;
   if (mode === 'race' && !frozen && race && (race.state === 'running' || race.state === 'countdown') && ui.isTouchDevice()) {
-    togglePause();
+    if (!onlR) togglePause();   // n35: online hält nichts an – kein „Aufgeben“-Blatt beim Drehen
     ui.toast(p ? '📱 Hochformat' : '📱 Querformat');
   }
 }
-function togglePause() { if (mode !== 'race') return; if (onlR && !frozen) { ui.toast('Online läuft die Zeit weiter – kein Pausieren', 1800); return; } frozen = !frozen; ui.showPause(frozen); if (frozen) sound.stop(); else sound.start(); }
+// n35: online läuft die Zeit weiter – statt Pause ein Blatt „Weiterfahren / Aufgeben“
+function togglePause() { if (mode !== 'race') return; if (onlR && !frozen) { if (onlA) { if (onlA.offen() && onlA.ansicht === 'pause') onlA.action('onweiter'); else onlA.zeigePause(); } return; } frozen = !frozen; ui.showPause(frozen); if (frozen) sound.stop(); else sound.start(); }
 
 // ---------- Schleife ----------
 let cpuLast = null;   // n30: CPU-Arbeitszeit des letzten Bildes (Qualitäts-Autopilot)
@@ -1406,7 +1437,7 @@ function render(rdt) {
   if (ghost && ghostVis.root.visible && mode === 'race') { ghost.sync(ghostVis); ghostVis.setNitro(ghost.nitro(), frozen ? 0 : rdt); }
   karteTick(rdt, pose);   // n39
   // n34 KI-Gegner: Rennen aus der Physik (interpoliert), Replay/Kino-Replay aus der Aufzeichnung (Rennzeit = Replay-Uhr)
-  if (onlR && mode === 'race') gegnerVis.sync(onlVis, camera, prevPose && !frozen ? Math.min(1, acc / DT) : 1);   // n35: fremde Autos (+ KI des Gastgebers)
+  if (onlR && mode === 'race') { gegnerVis.sync(onlVis, camera, prevPose && !frozen ? Math.min(1, acc / DT) : 1); rufeBild(); }   // n35: fremde Autos (+ KI des Gastgebers), Kurzrufe
   else if (gegner && mode === 'race' && GEGNER_VIS_AUS) gegnerVis.hide();   // Mess-Schalter ?gegnervis=0 (Mess-Gate: Anteil Darstellung)
   else if (gegner && mode === 'race') gegnerVis.sync(gegner, camera, prevPose && !frozen ? Math.min(1, acc / DT) : 1);
   else if (gegnerRec && mode === 'replay' && replay) gegnerVis.syncReplay(gegnerRec, replay.t, camera);
@@ -1655,7 +1686,7 @@ window.__game = {
   get fx() { return fx; }, get sound() { return sound; },
   get carVis() { return carVis; }, get ghostVis() { return ghostVis; }, get ghost() { return ghost; },
   get gegner() { return gegner; }, get gegnerVis() { return gegnerVis; },   // n34 (Mess-/Abnahme-Skripte)
-  get online() { return { spiel: onl, rennen: onlR, ansicht: onlA, aktion: onlineAktion }; },   // n35 (Abnahme-Skripte, zwei Pages)
+  get online() { return { spiel: onl, rennen: onlR, ansicht: onlA, aktion: onlineAktion, rufe: onlRufe }; },   // n35 (Abnahme-Skripte, zwei Pages)
   get schaden() { return schadenSp; }, get truemmer() { return truemmer; },   // n34-Nachtrag
   // Abnahme-Haken: Treffer am Spieler-Auto auslösen (Auto-Koordinaten, Außen-Normale, Stoß-Tempo m/s), z. B. für Bilder
   // leicht/mittel/stark beschädigt: __game.treffer([0, 0, -2.4], [0, 0, -1], 25)

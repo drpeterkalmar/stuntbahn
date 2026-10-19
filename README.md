@@ -72,6 +72,32 @@ spielbar am Handy (quer oder hochkant), mit Gamepad oder Tastatur. Als App insta
   Abstand zu jeder Fahrbahn (auch Hochstraßen/Rampen), nie im Wasser. Dosiert nach Grafikstufe; ruckelt es, blendet die
   Automatik (nach der Unschärfe) zuerst Gras/Büsche/Wolkenschatten aus. `?deko=aus` (bis n29 `?deko=0`) / `?wolken=0` zum Vergleich.
 
+## 👥 Mit Freunden fahren – Online für 2–4 Spieler (seit 18.10.2026, n35, Version 0.11)
+Peter 08.10.: „stuntbahn mit optionalem multiplayer“. Messwerte, Ping-Verhalten, Grenzen: `ONLINE_BERICHT.md`; Netz-Schicht
+für spätere Spiele (WipeOut-Racer): `NETZ.md`.
+- **So geht's:** Einer tippt **„👥 Online“** → Namen → **„Raum erstellen“** und teilt den Link (📤, am Handy über WhatsApp
+  & Co.) oder zeigt den **QR-Code**; die anderen öffnen den Link oder tippen den 4-stelligen Code (z. B. `MC-KR`, ohne
+  0/O/1/I/L) bei „Beitreten“. Der Name bleibt gespeichert.
+- **Lobby:** Der Gastgeber wählt Strecke (alles aus dem Menü – Zufall/Code, Sammlung, eigene .TRK; die Strecke geht als
+  Daten an alle), Landschaft, Wetter und Tageszeit (direkt in der Lobby) und füllt mit **KI-Gegnern** bis 6 Autos auf.
+  **Jeder fährt mit seiner eigenen Fahrhilfe** (🟢🟡🔴 im Namensschild über dem Auto). „✋ Bereit“ – der Gastgeber startet.
+- **Rennen:** Countdown auf allen Geräten gleichzeitig (gemessen 0–14 ms auseinander). Jedes Handy rechnet sein Auto
+  selbst – keine Eingabe-Verzögerung; die anderen werden vorausgerechnet dort gezeigt, wo sie gerade wirklich sind (im
+  Mittel < 1 m daneben, auch bei 150 ms Ping). Rempler gibt es wirklich (Funken und Ton bei beiden), Platz im HUD und auf
+  der Minikarte. **💬** schickt Kurzrufe (👍 😂 😮 🔥 👋 🏁), die über dem Auto erscheinen. **⏸** hält online nicht an
+  (die Zeit läuft weiter) – dort kann man aufgeben.
+- **Ziel:** Gemeinsame Zieltabelle (vom Gastgeber bestätigt, für alle gleich), **🔁 Revanche** auf derselben Strecke.
+  Online-Zeiten stehen in einer eigenen Liste („Deine letzten Online-Rennen“), **nicht** bei den Solo-Bestzeiten.
+- **Wenn etwas wegbricht:** Wer geht, verschwindet mit Hinweis; geht der Gastgeber, übernimmt der Nächste (seine KI endet).
+  App im Hintergrund → beim Zurückkommen automatisch neu verbunden (gleicher Platz).
+- **Kein Konto, kein Server, keine Schlüssel:** Die Autos fahren direkt von Gerät zu Gerät (WebRTC, verschlüsselt); nur
+  zum Finden des Raums dienen öffentliche Relays (Nostr, Ausweich MQTT) über die Bibliothek Trystero (MIT, im Repo
+  unter `vendor/`). **Manche Mobilfunk- oder Firmennetze blockieren direkte Verbindungen** – dann kommt nach ~10 s die
+  Meldung „Verbindung … nicht möglich – WLAN probieren“. Schummeln ist möglich (jedes Gerät meldet seine Zeit selbst) –
+  gedacht für Runden unter Freunden.
+- Regler: `?online=0` blendet den Knopf aus, `?netz=bc` (zwei Tabs im selben Browser, Test) bzw. `nostr`/`mqtt`,
+  `?netzvoraus=0` = fremde Autos nicht vorausrechnen (reiner ~100-ms-Puffer).
+
 ## 🏁 KI-Gegner und Schadensmodell (seit 18.10.2026, n34, Version 0.10)
 Peter 08.10.: „stuntbahn mit optionalem multiplayer oder npc-gegnern“, 15.10.: „egal wie schlecht man fährt, die npc Gegner sollten
 immer in der Nähe bleiben“. Messwerte, Fotos, Grenzen: `GEGNER_BERICHT.md`; Technik/Port-Notiz: `GEGNER.md`.
@@ -728,7 +754,7 @@ erlaubt 1 … 2,5; andere Welt als 2 wertet nicht). In Node: `STUNT_WELT=1 node 
 - **Himmel:** „Kloofendal 48d Partly Cloudy (Pure Sky)“ von Greg Zaal & Jarod Guest, Poly Haven, CC0; Landschafts-Themen (n20): 6 weitere Poly-Haven-Himmel, ambientCG-Böden und Poly-Haven-Pflanzen, alle CC0 (`assets/LICENSES.md`).
 - **Texturen:** Poly Haven (CC0) – Rob Tuytel, Charlotte Baglioni, Rico Cilliers.
 - **Umgebung:** Poly Haven (CC0) – Pflanzen, Felsen, Kies von Rico Cilliers, Rob Tuytel, James Ray Cock, Jenelle van Heerden, Kless Gyzen, Dimitrios Savva (Details in `assets/LICENSES.md`).
-- **Bibliothek:** three.js (MIT).
+- **Bibliotheken:** three.js (MIT); Online-Mehrspieler (n35): Trystero 0.26.0 von Dan Motzenbecker (MIT), noble-secp256k1 von Paul Miller (MIT), MQTT.js (MIT) – gepinnt unter `vendor/trystero/`.
 - **Ton-Aufnahmen:** 13 CC0-Aufnahmen von freesound.org (Urheber und Links in `assets/LICENSES.md`).
 
 Details: [`assets/LICENSES.md`](assets/LICENSES.md). Code, Bausteine, Physik, Ton-Synthese: eigene Arbeit.

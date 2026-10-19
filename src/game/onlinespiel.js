@@ -237,6 +237,7 @@ export class OnlineSpiel {
       mitglieder: S.liste().map((m) => ({ sid: m.sid, name: m.info.name, stufe: m.info.stufe, bereit: m.sid === L.host || m.bereit, host: m.sid === L.host, ich: m.sid === S.sid, still: !!m.still, rtt: m.sid === S.sid ? null : (S.istGastgeber ? m.rtt : (m.sid === L.host ? S.uhr.rtt : null)), nummer: m.nummer, strecke: m.info.geladen === L.einst.strecke })),
       hinweise: this.hinweise.filter((h) => !h.dauer || this._jetzt() - h.t < h.dauer).map((h) => h.text),
       wartet: L.phase === 'rennen' && !(L.fahrer || []).includes(S.sid),
+      aufgegeben: !!(S.meinZiel && S.meinZiel.zeit == null && S.meinZiel.rennId === L.rennId),
     };
   }
 }

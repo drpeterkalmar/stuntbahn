@@ -96,16 +96,26 @@ export function lobbyHtml(z, opt = {}) {
 // Zieltabelle (für alle gleich, vom Gastgeber): Platz, Name, Zeit, Abstand; „weg“ = Verbindung verloren
 export function ergebnisHtml(z, E, ichSid) {
   const sieg = E && E.length && E[0].zeit != null ? E[0].zeit : null;
-  const rows = (E || []).map((e) => `<tr class="${e.id === ichSid ? 'me' : ''}"><td>${e.platz}.</td><td>${e.ki ? '🤖 ' : ''}${esc(e.name || '?')}</td><td>${e.zeit != null ? fmtTime(e.zeit) + (e.daten && e.daten.hoch ? '*' : '') : e.weg ? 'weg' : '–'}</td><td>${e.platz > 1 && e.zeit != null && sieg != null ? '+' + (e.zeit - sieg).toFixed(2).replace('.', ',') : ''}</td></tr>`).join('');
+  const rows = (E || []).map((e) => `<tr class="${e.id === ichSid ? 'me' : ''}"><td>${e.platz}.</td><td>${e.ki ? '🤖 ' : ''}${esc(e.name || '?')}</td><td>${e.zeit != null ? fmtTime(e.zeit) + (e.daten && e.daten.hoch ? '*' : '') : e.aufgabe ? '🏳️ aufgegeben' : e.weg ? 'weg' : '–'}</td><td>${e.platz > 1 && e.zeit != null && sieg != null ? '+' + (e.zeit - sieg).toFixed(2).replace('.', ',') : ''}</td></tr>`).join('');
   const offen = !E;
   return `<div class="onl">
-    ${offen ? '<p>🏁 Im Ziel – warte auf die anderen …</p>' : ''}
+    ${offen ? `<p>${z.aufgegeben ? '🏳️ Aufgegeben' : '🏁 Im Ziel'} – warte auf die anderen …</p>` : ''}
     <table class="gtab">${rows}</table>
     ${(E || []).some((e) => e.daten && e.daten.hoch) ? '<div class="gnote">* hochgerechnet</div>' : ''}
     <div class="row">${z.gastgeber ? '<button class="go" data-a="onrevanche">🔁 Revanche</button><button data-a="onlobby">👥 Zur Lobby</button>' : '<button class="go" data-a="onrevanche">🔁 Revanche wünschen</button>'}</div>
     <div class="row"><button data-a="onverlassen">🚪 Raum verlassen</button></div>
   </div>`;
 }
+
+// Online-Pause: die Zeit läuft weiter (kein Anhalten) – nur Weiterfahren oder Aufgeben (zurück zur Lobby)
+export function pauseHtml() {
+  return `<div class="onl"><p>Online läuft die Zeit weiter – dein Auto rollt aus, solange du hier bist.</p>
+    <button class="big go" data-a="onweiter">▶ Weiterfahren</button>
+    <button class="big" data-a="onaufgeben">🏳️ Aufgeben – zur Lobby</button></div>`;
+}
+// Kurzrufe (über dem Auto, alle sehen sie ~2,5 s)
+export const KURZRUFE = ['👍', '😂', '😮', '🔥', '👋', '🏁'];
+export function kurzrufHtml() { return KURZRUFE.map((e) => `<button data-a="onruf" data-v="${e}" aria-label="Kurzruf ${e}">${e}</button>`).join(''); }
 
 // Verdrahtung mit ui.js. spiel: game/onlinespiel.js; ui: UI (sheet, toast, show, store); app: Aktionen aus main.js
 // ({ menueStrecke(), zeigeMenue() })
@@ -118,11 +128,30 @@ export class OnlineAnsicht {
   offen() { return this.ui.screen === 'sheet' && !!this.ansicht; }
   zeigeStart(code = codeAusUrl() || '') { this.ansicht = 'start'; this.ui.sheet('👥 Online', startHtml(this.spiel.name() === 'Gast' ? '' : this.spiel.name(), code, this.spiel.app.store.online || [])); }
   zeigeLobby() {
+    // nie über einem laufenden Online-Rennen (verspätetes Nachzeichnen, z. B. nach „Bereit“, wenn der Start schon kam)
+    if (this.app.imRennen && this.app.imRennen()) return;
     const z = this.spiel.zustand();
     if (!z.aktiv) return this.zeigeStart();
     this.ansicht = 'lobby';
     this.ui.sheet(`👥 Lobby`, lobbyHtml(z, { menueStrecke: this.app.menueStrecke ? this.app.menueStrecke() : null, look: z.gastgeber && this.app.lookOptionen ? this.app.lookOptionen() : null }), 'onzurueck');
   }
+  // Kurzruf-Leiste im HUD auf/zu (an = undefined: umschalten); schließt sich nach 4 s von selbst
+  rufLeiste(an) {
+    const B = typeof document !== 'undefined' && document.querySelector('#hud .emobar');
+    if (!B) return;
+    if (!B.innerHTML) B.innerHTML = kurzrufHtml();
+    const zeigen = an ?? !B.classList.contains('show');
+    if (zeigen) {
+      // eine Reihe links neben dem 💬-Knopf (wird es zu eng, bricht sie nach unten um) – nie über Gas/Nitro/Hüpfer
+      const K = document.querySelector('#hud .rb.emo').getBoundingClientRect();
+      B.style.top = Math.round(K.top) + 'px'; B.style.right = Math.round(innerWidth - K.left + 6) + 'px';
+      B.style.maxWidth = Math.max(116, Math.round(K.left - 12)) + 'px';
+    }
+    B.classList.toggle('show', zeigen);
+    clearTimeout(this._rufT);
+    if (zeigen) this._rufT = setTimeout(() => B.classList.remove('show'), 4000);
+  }
+  zeigePause() { this.ansicht = 'pause'; this.ui.sheet('⏸ Online-Rennen', pauseHtml(), 'onweiter'); }
   zeigeErgebnis() { const z = this.spiel.zustand(); if (!z.aktiv) return; this.ansicht = 'ergebnis'; this.ui.sheet('🏁 Ergebnis', ergebnisHtml(z, z.phase === 'ergebnis' ? z.ergebnis : null, z.ich), 'onzurueck'); }
   // Spiel meldet Änderung: offene Ansicht neu zeichnen (Eingabefelder nicht überschreiben, solange getippt wird)
   aktualisieren(art, daten) {
@@ -147,7 +176,7 @@ export class OnlineAnsicht {
       }
       case 'onkopie': this.kopieren(S.link()); break;
       case 'onstufe': if (this.app.setAssist) this.app.setAssist(v); S.stufeGeaendert(); this.zeigeLobby(); break;
-      case 'onbereit': S.setzeBereit(!S.zustand().mitglieder.find((m) => m.ich).bereit); setTimeout(() => this.zeigeLobby(), 50); break;
+      case 'onbereit': S.setzeBereit(!S.zustand().mitglieder.find((m) => m.ich).bereit); setTimeout(() => { if (this.ansicht === 'lobby' && this.offen()) this.zeigeLobby(); }, 50); break;
       case 'onki': S.setzeKi(+v); break;
       case 'onstaerke': S.setzeKi(S.zustand().einst.ki, v); break;
       case 'onstrecke': S.waehleAktuelleStrecke(); break;
@@ -155,6 +184,10 @@ export class OnlineAnsicht {
       case 'onmenue': this.ansicht = null; if (this.app.zeigeMenue) this.app.zeigeMenue(); this.ui.toast('Strecke wählen, dann „👥 Lobby“ → übernehmen', 3200); break;
       case 'onstart': if (!S.starten()) this.zeigeLobby(); else { this.ansicht = null; this.ui.toast('Start!', 1200); } break;
       case 'onrevanche': S.revanche(); break;
+      case 'onweiter': this.ansicht = null; this.ui.show(null); break;
+      case 'onaufgeben': this.ansicht = null; if (this.app.aufgeben) this.app.aufgeben(); this.zeigeErgebnis(); break;
+      case 'onruf': if (this.app.kurzruf) this.app.kurzruf(v); this.rufLeiste(false); break;
+      case 'onrufe': this.rufLeiste(); break;
       case 'onnochmal': { const c = S.code; this.ui.toast('Verbinde …', 1500); try { if (c && await S.beitreten(c)) this.zeigeLobby(); } catch (e) { this.ui.toast('Fehler: ' + (e.message || e), 4000); } break; }
       case 'onlobby': this.ansicht = 'lobby'; S.zurLobby(); this.zeigeLobby(); break;
       case 'onverlassen': S.verlassen(); this.ansicht = null; if (this.app.verlassen) this.app.verlassen(); break;

@@ -74,7 +74,9 @@ export class UI {
           <button class="rb" data-a="rewind" aria-label="Zurückspulen" title="Zurückspulen (R)">⏪</button>
           <button class="rb" data-a="cam" aria-label="Kamera wechseln" title="Kamera (C)">🎥</button>
           <button class="rb" data-a="pause" aria-label="Pause" title="Pause (Esc)">⏸</button>
-        </div><div class="assistTag"></div></div>
+          <button class="rb emo" data-a="onrufe" aria-label="Kurzruf an die Mitspieler" title="Kurzruf (Online)">💬</button>
+        </div><div class="emobar" role="group" aria-label="Kurzrufe"></div><div class="assistTag"></div></div>
+        <div id="rufe" aria-hidden="true"></div>
         <div class="speed"><b>0</b><span>km/h</span><i class="gear">1</i><i class="gf"></i></div>
         <div id="karte" role="button" aria-label="Minikarte – Tippen: groß/klein" title="Minikarte groß/klein (M)"></div>
         <button class="xb hop" data-x="hop" aria-label="Hüpfer" title="Hüpfer (Leertaste, Gamepad B)"><i>🦘</i><kbd>Leer</kbd></button>
@@ -415,6 +417,19 @@ export class UI {
       <p class="hint">Rennen mit Gegnern zählen in eine <b>eigene Bestzeiten-Liste</b> – deine Solo-Zeiten bleiben unberührt. Das Rennen endet, wenn du im Ziel bist; wer dann noch fährt, darf höchstens 10 s weiterfahren, danach wird seine Zeit hochgerechnet. Auf Leicht weicht die Hilfe den Gegnern aus, Berührungen sind sanft; auf Original kann ein harter Stoß zum Crash führen.${G.aufholhilfe ? ' <b>🪢 Gegner bleiben in der Nähe:</b> wer weit vorn ist, fährt vorsichtiger und wartet, wer weit hinten ist, holt auf – egal wie du fährst, das Feld bleibt um dich herum. Deine Physik und Zeit ändern sich nicht. Aus = echtes Rennen.' : ' Ohne „Gegner bleiben in der Nähe“ fährt jeder sein eigenes Tempo (echtes Rennen).'}</p>`);
   }
   // HUD: Platz „3/6“, Abstand zum Vorder- und Hintermann (4 × je Sekunde aktualisiert); feld = null blendet aus
+  // n35 Kurzrufe über den Autos: liste = [{ id, e, x, y, a }] (Bildschirm-px, a = Deckkraft); Elemente werden wiederverwendet
+  rufe(liste) {
+    const C = $('#rufe'), els = C.children;
+    while (els.length < liste.length) C.appendChild(document.createElement('i'));
+    for (let k = 0; k < els.length; k++) {
+      const el = els[k], r = liste[k];
+      if (!r) { if (el.style.display !== 'none') el.style.display = 'none'; continue; }
+      if (el.textContent !== r.e) el.textContent = r.e;
+      el.style.display = '';
+      el.style.transform = `translate(${r.x.toFixed(0)}px, ${r.y.toFixed(0)}px) translate(-50%, -100%) scale(${r.s.toFixed(2)})`;
+      el.style.opacity = r.a.toFixed(2);
+    }
+  }
   hudGegner(feld, race) {
     const E = $('#hud .gpos');
     if (!feld) { if (this._gp) { this._gp = ''; E.innerHTML = ''; E.classList.remove('show'); } return; }

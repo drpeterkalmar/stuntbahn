@@ -1,7 +1,7 @@
 // n35 Online-Menü: HTML-Bausteine (ui/online.js) ohne Browser – Start (Name, Code), Lobby Gastgeber/Gast (Code, QR,
 // Mitglieder mit Stufe/Bereit/Ping/wackelt/lädt, KI-Auswahl begrenzt auf 6 Autos, Start gesperrt mit Grund), Zieltabelle,
 // Escaping von Namen. Layout/Bedienung im Browser: Heavy-Job.
-import { startHtml, lobbyHtml, ergebnisHtml, mitgliederHtml, esc } from '../../src/ui/online.js';
+import { startHtml, lobbyHtml, ergebnisHtml, mitgliederHtml, esc, pauseHtml, kurzrufHtml, KURZRUFE } from '../../src/ui/online.js';
 
 let bad = 0;
 const ok = (c, m) => { console.log((c ? 'OK   ' : 'FAIL ') + m); if (!c) bad++; };
@@ -33,6 +33,8 @@ const E = [{ id: 'b', platz: 1, name: 'Ben', zeit: 61.2 }, { id: 'a', platz: 2, 
 const e = ergebnisHtml(z, E, 'a');
 ok(has(e, '1.</td><td>Ben', '+1,51', '🤖 Rita', '1:10,00*', 'weg', 'class="me"', 'data-a="onrevanche"', 'data-a="onlobby"', '* hochgerechnet'), 'Zieltabelle: Abstände, KI, hochgerechnet, weg, eigene Zeile, Revanche + Lobby (Gastgeber)');
 ok(has(ergebnisHtml({ ...z, gastgeber: false }, null, 'b'), 'warte auf die anderen', 'Revanche wünschen'), 'Gast im Ziel vor der Tabelle: „warte auf die anderen“, Revanche wünschen');
+ok(has(ergebnisHtml(z, [{ id: 'a', platz: 1, name: 'Peter', zeit: 60 }, { id: 'b', platz: 2, name: 'Ben', zeit: null, aufgabe: true }], 'a'), '🏳️ aufgegeben') && has(ergebnisHtml({ ...z, aufgegeben: true }, null, 'a'), 'Aufgegeben – warte'), 'Zieltabelle: aufgegeben; wartend nach Aufgabe');
+ok(has(pauseHtml(), 'data-a="onweiter"', 'data-a="onaufgeben"', 'Zeit weiter') && KURZRUFE.every((e) => kurzrufHtml().includes(`data-v="${e}"`)), 'Online-Pause (Weiterfahren/Aufgeben), Kurzruf-Knöpfe');
 ok(esc(`"<'&>`) === '&quot;&lt;&#39;&amp;&gt;' && mitgliederHtml({ mitglieder: [] }).includes('onlist'), 'Escaping');
 console.log(bad ? `${bad} FEHLER` : 'alle Online-Menü-Tests OK');
 process.exit(bad ? 1 : 0);

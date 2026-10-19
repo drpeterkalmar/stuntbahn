@@ -102,18 +102,25 @@ export class Sitzung {
     if (this.istGastgeber) this._zielAnnehmen(this.sid, m, this.zeit);
     else this._senden(m, this.lobby.host ? this._pidVon(this.lobby.host) : null, true);
   }
+  // Rennen aufgeben (zählt als „fertig“, ohne Zeit; in der Tabelle hinter den Fahrenden)
+  // Gibt der Gastgeber auf, endet auch seine KI (sie rechnet nur bei ihm) – KI ohne Ziel steht dann als „weg“ in der Tabelle
+  aufgeben(daten = {}) {
+    if (this.istGastgeber && this.lobby.kiAktiv) this.lobby.kiAktiv = false;
+    this.zielMelden(null, { ...daten, aufgabe: true });
+  }
   // nur Gastgeber: Ergebnis für einen Nicht-Menschen (KI-Gegner) eintragen
   zielEintragen(id, zeit, daten = {}) { if (this.istGastgeber) this._zielAnnehmen(id, { rennId: this.lobby.rennId, zeit, sz: this.zeit, daten, ki: true }, this.zeit, true); }
   // nur Gastgeber: Zieltabelle jetzt aufstellen (z. B. alle im Ziel oder Spiel bricht ab); rest = [{ id, fortschritt }]
   abschliessen(rest = []) {
     if (!this.istGastgeber || this.lobby.phase !== 'rennen') return;
-    const L = this.lobby, fertig = Object.entries(L.ziel).map(([id, z]) => ({ id, zeit: z.zeit, sz: z.sz, ki: !!z.ki, daten: z.daten, name: z.daten && z.daten.name }));
+    const L = this.lobby, alle = Object.entries(L.ziel).map(([id, z]) => ({ id, zeit: z.zeit, sz: z.sz, ki: !!z.ki, daten: z.daten, name: z.daten && z.daten.name }));
+    const fertig = alle.filter((e) => e.zeit != null), aufgabe = alle.filter((e) => e.zeit == null).map((e) => ({ ...e, aufgabe: true }));
     fertig.sort((a, b) => a.zeit - b.zeit || (a.id < b.id ? -1 : 1));
     const offen = rest.filter((r) => !L.ziel[r.id]).sort((a, b) => (b.fortschritt || 0) - (a.fortschritt || 0)).map((r) => ({ id: r.id, zeit: null, fortschritt: r.fortschritt, ki: !!r.ki, name: r.name }));
     // gefahren, aber weder im Ziel noch in `rest` (Verbindung weg) → ausgeschieden
-    const bekannt = new Set([...fertig, ...offen].map((e) => e.id));
+    const bekannt = new Set([...alle, ...offen].map((e) => e.id));
     const weg = [...(L.fahrer || []), ...(L.ki || [])].filter((id) => !bekannt.has(id)).map((id) => ({ id, zeit: null, weg: true, ki: (L.ki || []).includes(id) }));
-    L.ergebnis = [...fertig, ...offen, ...weg].map((e, k) => ({ ...e, platz: k + 1, name: this.mitglieder.get(e.id)?.info.name ?? e.name ?? (this.opt.nameVon ? this.opt.nameVon(e.id) : null) ?? null }));
+    L.ergebnis = [...fertig, ...offen, ...aufgabe, ...weg].map((e, k) => ({ ...e, platz: k + 1, name: this.mitglieder.get(e.id)?.info.name ?? e.name ?? (this.opt.nameVon ? this.opt.nameVon(e.id) : null) ?? null }));
     L.phase = 'ergebnis';
     this._lobbySenden();
     this.emit('ergebnis', L.ergebnis);
@@ -378,7 +385,7 @@ export class Sitzung {
     // Zeitstempel in Sitzungszeit: gemeldet (sz) nicht später als jetzt + spaet; sonst gilt das Eintreffen
     const sz = Number.isFinite(d.sz) && d.sz <= jetzt + SITZUNG.ziel.spaet && d.sz > L.startAt ? d.sz : jetzt;
     L.ziel[sid] = { zeit: d.zeit, sz, bestaetigt: jetzt, daten: d.daten || {}, ki: ki || !!d.ki };
-    if (L.ersterZiel == null) L.ersterZiel = jetzt;
+    if (L.ersterZiel == null && d.zeit != null) L.ersterZiel = jetzt;   // Aufgabe (zeit null) startet die Frist nicht
     this._lobbySenden();
     this.emit('zielBestaetigt', sid, L.ziel[sid]);
   }

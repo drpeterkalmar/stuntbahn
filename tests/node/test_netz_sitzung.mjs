@@ -137,6 +137,23 @@ for (const [lat, jit, verl] of [[0, 0, 0], [25, 10, 0.05], [75, 30, 0.05], [75, 
   const tab = B.lobby.ergebnis?.map((e) => e.id).join(',');
   ok(offen && tab === 'sid-a,ki-1,sid-b,ki-2', `KI: Tabelle wartet auf alle KI, dann ${tab}`);
 }
+// Aufgeben: zählt als fertig (Tabelle wartet nicht 45 s), steht hinter den Fahrenden als „aufgabe“; Gastgeber gibt auf →
+// seine KI endet (kiAktiv aus)
+{
+  const W = welt({ latenz: 25 });
+  const A = spieler(W, 'a', { gastgeber: true }), B = spieler(W, 'b'), C = spieler(W, 'c');
+  lauf(W, 1500); A.starten({}, ['ki-1']); lauf(W, 4000);
+  B.aufgeben({ stufe: 'easy' }); lauf(W, 500);
+  const zwischen = A.lobby.phase;
+  A.zielMelden(50); C.zielMelden(60); A.zielEintragen('ki-1', 55); lauf(W, 1500);
+  const E = C.lobby.ergebnis || [];
+  ok(zwischen === 'rennen' && E.map((e) => e.id).join(',') === 'sid-a,ki-1,sid-c,sid-b' && E[3].aufgabe && E[3].zeit == null, `Aufgeben: Tabelle sofort nach den anderen, Aufgeber hinten (${E.map((e) => e.id + (e.aufgabe ? '🏳' : '')).join(',')})`);
+  const W2 = welt({ latenz: 25 });
+  const A2 = spieler(W2, 'a', { gastgeber: true }), B2 = spieler(W2, 'b');
+  lauf(W2, 1500); A2.starten({}, ['ki-1']); lauf(W2, 4000); A2.aufgeben(); lauf(W2, 300); B2.zielMelden(61); lauf(W2, 1500);
+  const E2 = B2.lobby.ergebnis || [];
+  ok(!A2.lobby.kiAktiv && E2.map((e) => e.id + (e.aufgabe ? '🏳' : e.weg ? '✗' : '')).join(',') === 'sid-b,sid-a🏳,ki-1✗', `Gastgeber gibt auf → KI endet, Tabelle ohne Warten (${E2.map((e) => e.id + (e.aufgabe ? '🏳' : e.weg ? '✗' : '')).join(',')})`);
+}
 // KI des Gastgebers ohne Zieleintrag (Gastgeber-Wechsel): Name über opt.nameVon (Spiel kennt die KI-Liste)
 {
   const W = welt({ latenz: 25 });

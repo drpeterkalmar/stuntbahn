@@ -20,9 +20,9 @@ import { GAME_SPEED_STD, PENALTY, ASSISTS } from './race.js';
 import { GegnerFeld, gegnerListe, STAERKE_STD } from '../ai/gegner.js';
 
 const urlQ = typeof location !== 'undefined' ? new URLSearchParams(location.search) : null;
-// Menü „👥 Online“: im Vorbau Standard AUS (?online=1 zeigt es; ein Link mit ?raum= auch) – der Heavy-Job schaltet nach
-// der Browser-Abnahme auf an
-export const ONLINE_STANDARD = false;
+// Menü „👥 Online“: seit der Browser-Abnahme (n35) Standard an; ?online=0 blendet den Knopf aus (ein Link mit ?raum= zeigt
+// ihn immer)
+export const ONLINE_STANDARD = true;
 export const ONLINE = {
   hz: 25,              // eigener Zustand je s
   kiHz: 15,            // KI-Gegner (Gastgeber) je s
@@ -204,6 +204,7 @@ export class OnlineRennen {
     this.zielGemeldet = false; this.version = 0;
     this.eigenZn = new Zeitnahme(this.p0);
     this.kiGemeldet = new Set();
+    this.raus = new Set();        // sids, die aufgegeben haben
     this._abo = [];
     const an = (art, fn) => { sitzung.on(art, fn); this._abo.push([art, fn]); };
     an('ereignis', (art, d, von, sz) => this._ereignis(art, d, von, sz));
@@ -297,6 +298,7 @@ export class OnlineRennen {
       if (f.ki && f.pid !== this.S._pidVon(this.S.lobby.host)) continue;   // KI nur vom (aktuellen) Gastgeber
       if (f.ki && !this.S.lobby.kiAktiv) continue;
       if (!f.ki && this.S.lobby.fahrer && !this.S.lobby.fahrer.includes(f.sid)) continue;   // Zuschauer
+      if (!f.ki && (this.raus.has(f.sid) || this.raus.has(f.pid))) continue;   // aufgegeben
       da.add(key);
       if (!this.autos.has(key)) {
         const m = f.sid && this.S.mitglieder.get(f.sid);
@@ -323,8 +325,16 @@ export class OnlineRennen {
         if (dd > 0.01 && dd < G.gegenWeit) { const dv = Math.min(G.gegenMax, (d.v || 0) * G.gegen); c.v.x += dx / dd * dv; c.v.z += dz / dd * dv; }
       }
       this.events.push({ type: 'rempler', p: d.p, n: d.n, v: d.v, wer: X ? X.info.name : '', lokal: false });
+    } else if (art === 'aufgabe') {
+      // Mitspieler hat aufgegeben: Auto sofort weg (sonst stünde es nach dem Puffer-Ende als Hindernis da)
+      const X = [...this.autos.values()].find((x) => x.pid === von.pid && !x.ki);
+      this.raus.add(von.sid ?? von.pid);
+      for (const [k, Y] of this.autos) if (Y.pid === von.pid && !Y.ki) { this.autos.delete(k); this.version++; }
+      this.events.push({ type: 'aufgabe', name: X ? X.info.name : (von.info && von.info.name) || '' });
     } else if (art === 'emoji') this.events.push({ type: 'emoji', e: String(d.e || '').slice(0, 8), von: von.info ? von.info.name : '', pid: von.pid });
   }
+  // Rennen aufgeben: als „aufgegeben“ beim Gastgeber eintragen, Auto bei den anderen sofort entfernen
+  aufgeben() { if (this.zielGemeldet) return; this.zielGemeldet = true; this.S.ereignis('aufgabe', {}); this.S.aufgeben({ stufe: this.race.assistKey }); }
   emoji(e) { this.S.ereignis('emoji', { e }); this.events.push({ type: 'emoji', e, von: 'Du', ich: true }); }
 
   // Gastgeber-KI: fremde Menschen als feste Körper für Verkehr und Kollision (ai/gegner.js opt fremde)

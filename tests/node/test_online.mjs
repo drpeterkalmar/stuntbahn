@@ -8,7 +8,7 @@ import { generate } from '../../src/track/generator.js';
 import { verifySync, prepare } from '../../src/track/verify.js';
 import { SHOWCASE, showcaseBytes } from '../../src/track/showcase.js';
 import { beschreibe, streckenKennung, ausB64 } from '../../src/game/onlinestrecke.js';
-import { OnlineProbe, probeAnzahl } from '../../src/game/onlineprobe.js';
+import { OnlineProbe, probeAnzahl, probeArt } from '../../src/game/onlineprobe.js';
 import { Race } from '../../src/game/race.js';
 import { Car } from '../../src/physics/car.js';
 import { stoss, HAERTE } from '../../src/physics/autoauto.js';
@@ -34,7 +34,7 @@ const DT = 1 / 120;
   F.setze({ px: 1, py: 2, pz: 3, q: { x: 0, y: 0, z: 0, w: 1 }, vx: 0, vy: 0, vz: 0, f: {}, sprung: 1, fort: 5 }, 1 / 60, 10);
   ok(F.geist(10.5) && !F.geist(12), 'FremdAuto nach Sprung (Reset) 1,5 s ohne Kollision');
   ok(schildName({ name: 'Peter', stufe: 'easy' }) === 'Peter 🟢' && schildName({ name: 'X'.repeat(30), stufe: 'original' }).length < 20, 'Namensschild mit Stufe');
-  ok(!onlineOptionen('').menue && onlineOptionen('?online=1').menue && onlineOptionen('?raum=ABCD').menue, 'Menü „Online“ im Vorbau nur mit ?online=1 oder ?raum=');
+  ok(onlineOptionen('').menue && !onlineOptionen('?online=0').menue && onlineOptionen('?online=0&raum=ABCD').menue, 'Menü „Online“ Standard an, ?online=0 aus, Link mit ?raum= zeigt es immer');
   // Rempler: eigenes Auto fährt seitlich in ein festes fremdes Auto
   const ich = new Car(); ich.place([0, 0, 0], [0, 0, -1], [0, 1, 0], 0); ich.v.x = 6;
   const X = new FremdAuto(); X.setze({ px: 1.85, py: 0, pz: 0, q: { x: 0, y: 0, z: 0, w: 1 }, vx: 0, vy: 0, vz: 0, f: {}, sprung: 0, fort: 0 }, 1 / 60, 0);
@@ -153,6 +153,26 @@ for (const [lat, jit, verl] of [[0, 0, 0], [75, 30, 0.05]]) {
   for (let k = 0; k < 120 * 25; k++) { now += 1000 / 120; P.takt(); O.frame(); race.step(DT, {}); O.schritt(DT); O.nachFrame(race.events.splice(0)); O.events.length = 0; }
   const A = [...O.autos.values()];
   ok(race.state === 'running' && A.length === 3 && A.every((X) => X.auto.gueltig && X.auto.fort > 100) && O.stand().length === 4 && probeAnzahl('?onlineprobe=3') === 3 && probeAnzahl('') === 0, `Mess-Probe: 3 Attrappen über den Online-Pfad (Fortschritt ${A.map((X) => X.auto.fort.toFixed(0)).join('/')} m), Rangliste mit 4`);
+}
+
+// Mess-Probe ohne Physik (?probeart=linie): Attrappen gleiten die Linie entlang – auf der Fahrbahn, aufrecht, vorwärts
+{
+  let now = 0;
+  const P = new OnlineProbe(3, { tempo: 1, jetzt: () => now, art: 'linie' });
+  const race = new Race(env, { assist: 'medium', autopilot: true, countdown: 1e9 });
+  const O = P.rennenBauen(env, race);
+  const L = env.track.line;
+  let maxAb = 0, minHoch = 1, n = 0;
+  for (let k = 0; k < 120 * 20; k++) {
+    now += 1000 / 120; P.takt(); O.frame(); race.step(DT, {}); O.schritt(DT); O.nachFrame(race.events.splice(0)); O.events.length = 0;
+    if (k > 120 * 3 && k % 60 === 0) for (const X of O.autos.values()) if (X.auto.gueltig) {
+      const p = X.auto.pos; let bd = 1e9; for (let i = 0; i < L.n; i++) bd = Math.min(bd, Math.hypot(L.px[i] - p.x, L.py[i] - p.y, L.pz[i] - p.z));
+      maxAb = Math.max(maxAb, bd); minHoch = Math.min(minHoch, X.auto.frame.u.y); n++;
+    }
+  }
+  const A = [...O.autos.values()];
+  ok(probeArt('?probeart=linie') === 'linie' && probeArt('') === 'ki' && P.feld.fahrer.length === 0 && A.length === 3 && A.every((X) => X.auto.gueltig && X.auto.fort > 150) && maxAb < 6 && n > 50,
+    `Probe „linie“: 3 Gleiter ohne Physik (Fortschritt ${A.map((X) => X.auto.fort.toFixed(0)).join('/')} m), höchstens ${maxAb.toFixed(1)} m neben der Mittellinie, Oben-Achse y ≥ ${minHoch.toFixed(2)}`);
 }
 
 // ---------- Gegenstoß: nur die Gegenseite hat den Rempler erkannt → sanfter Schubs weg vom anderen, sonst nichts ----------
