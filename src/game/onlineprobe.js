@@ -24,6 +24,9 @@ export function probeAnzahl(search = typeof location !== 'undefined' ? location.
 export class OnlineProbe {
   constructor(n, opt = {}) {
     this.n = n; this.tempo = opt.tempo || GAME_SPEED_STD; this.art = opt.art || probeArt();
+    // ?probetempo=1.15: Gleiter schneller als das Ziel-Tempo → sie fahren vor dir (alle im Bild, ungünstigster Fall)
+    const pt = typeof location !== 'undefined' ? +new URLSearchParams(location.search).get('probetempo') : 0;
+    this.linieTempo = opt.linieTempo || (pt > 0 ? Math.min(2, pt) : PROBE.linieTempo);
     this.N = new FakeNetz({ latenz: PROBE.latenz, jitter: PROBE.jitter, seed: 5 });
     this.t0 = opt.jetzt ? opt.jetzt() : performance.now(); this.jetzt = opt.jetzt || (() => performance.now());
     const mk = (id, gast) => { const t = this.N.teilnehmer(id, { uhr: gast ? 1000 * id.length : 0 }); return new Sitzung(t, { jetzt: t.jetzt, sid: 'probe-' + id, info: { name: gast ? 'Probe ' + id.slice(1) : 'Du', stufe: 'medium' }, gastgeber: !gast, schema: AUTO_SCHEMA, lin: LIN }); };
@@ -80,7 +83,7 @@ export class OnlineProbe {
   // Gleiter: Fortschritt mit dem Ziel-Tempo (Profil der Ideallinie) × linieTempo, Linienpunkt nachführen
   _gleite(g, dt) {
     const { L, vt, nI } = this.linie;
-    const ziel = vt ? Math.max(8, vt[Math.min(vt.length - 1, Math.round(g.i * nI / L.n))] * PROBE.linieTempo) : 30;
+    const ziel = vt ? Math.max(8, vt[Math.min(vt.length - 1, Math.round(g.i * nI / L.n))] * this.linieTempo) : 30;
     const v = g.v = Math.min(ziel, (g.v || 0) + PROBE.anfahren * dt);   // anfahren wie ein Auto (Pulk bleibt am Start beisammen)
     g.s += v * dt; g.weg += v * dt;
     if (g.s >= L.total) { if (L.closed) { g.s -= L.total; g.lap++; g.i = 0; } else g.s = L.total - 0.01; }
