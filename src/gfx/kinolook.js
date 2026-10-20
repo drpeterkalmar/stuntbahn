@@ -5,7 +5,7 @@
 //
 // Schnittstelle (Szene/Kamera/Renderer rein, Bild raus):
 //   const kino = new KinoLook(renderer, { level: 1, stages: '-ssao,+haze', grade: 'mittag' });
-//   kino.render(scene, camera, { dt, sunDir, run, speed, boost, car, cut, heat, overlay, time, dof, shutter, flash, white, whip });   // zeichnet auf den Bildschirm
+//   kino.render(scene, camera, { dt, sunDir, run, speed, boost, car, cut, heat, overlay, time, dof, shutter, flash, white, whip, action });   // zeichnet auf den Bildschirm
 //     flash = { k 0…1, col } Lichtblitz (n27, Feuerwerk), white 0…1 Weißblitz, whip = { len, ang } Reißschwenk-Unschärfe
 //     dof = { focus (m), k 0…1 } Tiefenschärfe auf das Auto (n18, Kino-Replay); shutter = Belichtung × (Zeitlupe)
 //   kino.setLevel(0|1|2)   0 = Einfach (direkt, wie bisher), 1 = Standard, 2 = Kino
@@ -261,6 +261,7 @@ const COMP_FS = `
   uniform vec4 uHaze0, uHaze1; uniform vec2 uHazeR; uniform float uHazeK;
   uniform vec3 uWB, uLift, uGamma, uGain, uShTint, uHiTint; uniform float uSplit, uSat, uVib, uContrast, uGreen;
   uniform vec4 uFx; uniform vec3 uFlashCol;
+  uniform vec4 uAct; uniform vec2 uActC;
   varying vec2 vUv;
   ${COMMON}
   ${BLUR_CORE}
@@ -372,6 +373,17 @@ const COMP_FS = `
     }
   #endif
     vec3 col = kinoSR( uv );
+  #ifdef ACTION
+    // n36 Action-Momente: Radial-Unschärfe zum Auto hin (Zoom-Punch; Auto-Umgebung bleibt scharf), Farbsäume (Bullet-Time)
+    { vec2 dc = uv - uActC; vec2 da = dc * vec2( uRes.x / uRes.y, 1.0 );
+      if ( uAct.z > 0.001 ) {
+        vec3 a = col;
+        for ( int i = 1; i < 8; i++ ) a += texture2D( tColor, uv - dc * uAct.z * float( i ) / 7.0 ).rgb;
+        col = mix( col, a / 8.0, smoothstep( 0.08, 0.45, length( da ) ) );
+      }
+      if ( uAct.y > 0.0 ) { float r = smoothstep( 0.1, 0.8, length( da ) ); vec2 o = dc * uAct.y * r * 8.0;
+        col.r = mix( col.r, texture2D( tColor, uv + o ).r, r ); col.b = mix( col.b, texture2D( tColor, uv - o ).b, r ); } }
+  #endif
   #ifdef WHIP
     // Reißschwenk (n27, Kino-Replay): Bewegungsunschärfe entlang der Schwenkrichtung, 12 Abtastungen
     { vec2 wd = vec2( cos( uFx.w ), sin( uFx.w ) * uRes.x / uRes.y ) * uFx.z; vec3 a = vec3( 0.0 );
@@ -420,6 +432,9 @@ const COMP_FS = `
     col += uFlashCol * uFx.x * ( 0.3 + 0.7 * kLuma( col ) );
   #ifdef GRADE
     col = kGrade( col );
+  #endif
+  #ifdef ACTION
+    col = clamp( mix( vec3( kLuma( col ) ), col, 1.0 + uAct.x ), 0.0, 1.0 );   // Sättigung hoch (Zeitlupe)
   #endif
   #ifdef VIGNETTE
     { vec2 c = vUv - 0.5; col *= 1.0 - uVig * smoothstep( 0.3, 0.85, length( c * vec2( 1.0, uRes.y / uRes.x ) * 1.25 ) ); }
@@ -485,6 +500,7 @@ export class KinoLook {
       uCarOn: F(0), uScale: F(0), uMaxLen: F(0.03), uRadial: F(0), uNear: F(0.25), uFar: F(8000),
       uRadius: F(1), uFadeFar: F(160), uTh: F(0.8), uSky: F(0.08), uK: F(1), uGreen: F(0),
       uFx: { value: new THREE.Vector4() }, uFlashCol: V3(1, 0.9, 0.7),
+      uAct: { value: new THREE.Vector4() }, uActC: { value: new THREE.Vector2(0.5, 0.5) },   // n36 Action-Momente
     };
     this.mats = new Map();
     this.rt = null; this.aoRT = null; this.blurRT = null; this.bloomRT = []; this.dofRT = null;
@@ -732,7 +748,8 @@ export class KinoLook {
     // 5. Endbild
     const ts = +this.taaOpts.scharf;   // ?taasharp= (A/B des Nachschärfens mit TAA)
     U.uSharp.value = taa === 'taa' ? (this.taaOpts.scharf != null && this.taaOpts.scharf !== '' && Number.isFinite(ts) ? ts : (P.taaSharpen ?? 0.4)) : (P.sharpen || 0.3);
-    U.uVig.value = (st.vignette ? 0.2 : 0) + (k > 0 ? 0.22 * Math.min(1, k) : 0);
+    const act = o.action || null;
+    U.uVig.value = (st.vignette ? 0.2 : 0) + (k > 0 ? 0.22 * Math.min(1, k) : 0) + (act ? act.vig : 0);
     const sun = o.sunDir;
     if (sun) U.uSunDir.value.copy(sun);
     U.uSunCol.value.set(this.sunCol.r, this.sunCol.g, this.sunCol.b);
@@ -766,7 +783,9 @@ export class KinoLook {
     if (st.flare && sun) defs.FLARE = 1;
     if (st.aerial) defs.AERIAL = 1;
     if (st.grade) defs.GRADE = 1;
-    if (st.vignette || k > 0) defs.VIGNETTE = 1;
+    if (st.vignette || k > 0 || (act && act.vig > 0)) defs.VIGNETTE = 1;
+    // n36 Action-Momente: o.action = { sat, vig, ca, radial, cx, cy } (nur solange ein Moment läuft – sonst keine Kosten)
+    if (act && (act.sat > 0.002 || act.ca > 0 || act.radial > 0.001)) { defs.ACTION = 1; U.uAct.value.set(act.sat, act.ca, act.radial, 0); U.uActC.value.set(act.cx ?? 0.5, act.cy ?? 0.5); }
     if (st.dither) defs.DITHER = 1;
     if (haze) defs.HAZE = 1;
     if (dof) defs.DOF = 1;

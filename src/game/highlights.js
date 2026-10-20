@@ -64,6 +64,10 @@ export const HL = {
   // Freeze-Frame beim Rekord-Stunt (bester Moment des Films ab freezeScore Punkten, freeze s Standbild mit Weißblitz),
   // Reißschwenk zwischen zwei Einstellungen eines Clips (whip s Filmzeit je Seite), Übergänge zwischen Clips im Wechsel
   fx: { fast: 1.35, fastRamp: 0.5, fastGap: 0.35, freeze: 0.7, freezeScore: 60, whip: 0.2, trans: ['fade', 'flash', 'whip'] },
+  // n36 Bullet-Time im Film: Standbild bullet s (Filmzeit), die Kamera fährt dabei im Halbkreis um das Auto (main.js
+  // cineCamera). Für Momente, die live eine Bullet-Time (bzw. online deren Schein) hatten (marks.action), höchstens
+  // bulletMax je Film; sonst wird das Rekord-Standbild eines großen Sprungs (ab bulletAir s Flug) bzw. Crashs zur Bullet-Time
+  bullet: { dur: 1.2, max: 2, air: 1.2, arten: ['bullet', 'crash'], kinds: ['jump', 'gorge', 'cliff', 'drop', 'air', 'crash'] },
 };
 
 // Einblendung je Art (Emoji + Text); n = Zahl (m, km/h …). km/h als Show-Tacho (core/showspeed.js, wie der Tacho), dazu
@@ -579,7 +583,9 @@ export function buildFilm(rec, env, marks = {}, opt = {}) {
     return f;
   };
   const fin0 = finClip(finT != null ? finT - Zs.pre : end - Fm.finish);
-  const budget = (opt.max ?? Fm.max) - (fin0 && finT == null ? fin0.film : 0) - (opt.fx !== false ? HL.fx.freeze : 0);
+  // n36: Live-Bullet-Time-Momente (Aufzeichnungszeit) → im Film Standbild mit Kreisfahrt
+  const BT = HL.bullet, bMarks = (marks.action || []).filter((x) => x && BT.arten.includes(x.art) && x.t != null);
+  const budget = (opt.max ?? Fm.max) - (fin0 && finT == null ? fin0.film : 0) - (opt.fx !== false ? Math.max(HL.fx.freeze, BT.dur) + BT.dur * Math.min(BT.max - 1, bMarks.length) : 0);
   // gierige Auswahl nach Punkten (gleiche Art mehrfach abgewertet), ohne Überlappung, im Zeitbudget
   const chosen = [], used = {};
   const overlaps = (c) => chosen.some((x) => c.a < x.b + P.gap && c.b > x.a - P.gap);
@@ -616,8 +622,18 @@ export function buildFilm(rec, env, marks = {}, opt = {}) {
   const FX = opt.fx !== false ? HL.fx : null;
   if (FX) {
     for (const c of chosen) c.fast = FX.fast;
+    let nB = 0;
+    for (const c of chosen) {
+      if (nB >= BT.max) break;
+      const a = bMarks.find((x) => x.t >= c.a + 0.2 && x.t <= c.b - 0.2);
+      if (a) { c.freeze = { t: a.t, dur: BT.dur, orbit: true }; c.bullet = true; nB++; }
+    }
     const top = chosen.slice().sort((x, y) => y.score - x.score)[0];
-    if (top && top.score >= FX.freezeScore) { top.freeze = { t: top.tp, dur: FX.freeze }; top.record = true; top.label = '⭐ ' + top.label; }
+    if (top && top.score >= FX.freezeScore && !top.freeze) {
+      const orbit = nB < BT.max && BT.kinds.includes(top.kind) && (top.kind === 'crash' || (top.m && top.m.dur >= BT.air));
+      top.freeze = { t: top.tp, dur: orbit ? BT.dur : FX.freeze, orbit }; top.record = true; top.label = '⭐ ' + top.label;
+      if (orbit) top.bullet = true;
+    }
     clips.forEach((c, k) => { c.trans = k === 0 ? 'fade' : FX.trans[(k + Math.round(c.a)) % FX.trans.length]; });
     let fT = 0;
     for (const c of clips) { c.film = clipFilmTime(c); if (c.kind !== 'finish') fT += c.film; }

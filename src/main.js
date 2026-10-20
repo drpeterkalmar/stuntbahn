@@ -41,6 +41,7 @@ import { lookSchalten } from './gfx/schadenlook.js';
 import { Replay } from './game/replay.js';
 import { buildFilm, FilmPlayer, HL } from './game/highlights.js';
 import { CineCam } from './game/cinecam.js';
+import { ActionRegie, actionStufe } from './game/action.js';   // n36 Action-Momente (Zoom-Punch, Speed-Ramp, Bullet-Time live)
 import { ClipRecorder, clipMime } from './ui/cliprec.js';
 import { Quality } from './gfx/quality.js';
 import { GpuZeit } from './gfx/kern/autopilot.js';
@@ -191,6 +192,19 @@ const FOG = [260 * WORLD_SCALE, 1500 * WORLD_SCALE];
 let acc = 0, last = performance.now(), frozen = false, timeScale = GAME_SPEED;
 let prevPose = null;
 let blurCut = true;      // nächstes Bild ohne Bewegungsunschärfe (Kameraschnitt)
+// n36 Action-Momente: Regie je Rennen (game/action.js), Welt-Uhr für Wind/Wellen/Regen (läuft in der Zeitlupe langsamer,
+// in der Bullet-Time stehen die Tropfen), Tipp-Speicher (kurze Tipps in der Zeitlupe gehen nicht zwischen zwei Schritten verloren)
+let act = null, weltUhr = performance.now() / 1000;
+const tippMerk = { throttle: 0, brake: 0, steerRaw: 0, pitch: 0, n: 0 };
+// Blitze reduzieren (Optionen) bzw. „Bewegung reduzieren“ des Systems → nur leichtes Aufhellen statt Weißblitz
+const blitzeArm = () => !!store.settings.blitzeArm || REDUCED;
+function actionNeu(opts = {}, online = false) {
+  // Test-Haken __game.start({ autopilot: true }) ohne ausdrückliches ?action= → aus (Mess-Gate, Bild-Skripte bleiben gleich)
+  const stufe = opts.autopilot && !params.has('action') ? 'aus' : actionStufe(location.search, store.settings);
+  act = new ActionRegie({ stufe, online, arm: blitzeArm(), rnd: app.actionRnd || Math.random });
+  race.actionMarks = [];
+  app.action = act;
+}
 
 // Geist: durchscheinend hellblau, ohne Schatten (n30: auch für die nachgeladenen LOD-Stufen, nur = 'lod')
 function ghostify(root, nur = null) {
@@ -724,6 +738,7 @@ function startOnlineRace(spiel, opt = {}) {
   if (carVis.schadenVis) schadenZeigen(carVis, SCHADEN_HEIL, 'heil' + ++heilV);
   if (truemmer) truemmer.leeren();
   onlR = spiel.rennenBauen(env, race, {});
+  actionNeu(opt, true);   // n36: online nur Schein (Kamera/Bild), Physik in Echtzeit
   gegner = onlR.feld;
   race.mitGegnern = true;
   onlVisV = -1; onlineVisPruefen();
@@ -828,6 +843,7 @@ function startRace(opts = {}) {
     gegnerVis.bereit(gegner.fahrer.map((g) => g.info)).catch((e) => console.warn('Gegner-Autos', e));
     app.gegner = { anzahl: GO.anzahl, staerke: GO.staerke, platz: gegner.spielerPlatz + 1 };
   } else { gegnerVis.hide(); app.gegner = null; }
+  actionNeu(opts);   // n36
   ghost = new Ghost(S.assist === 'easy' ? null : store.loadGhost(env.meta.key, S.assist, race.wreckOn, race.extrasOn, !!gegner));
   ghostVis.root.visible = !!ghost.data && store.settings.ghost;
   rig.mode = CAM_MODES.includes(store.settings.cam) ? store.settings.cam : 'chase';
@@ -859,14 +875,14 @@ async function setTheme(v) {
 }
 function setAssist(k) { store.settings.assist = k; store.save(); if (race) race.setAssist(k); timeScale = gameSpeed(k); if (k === 'easy' && ghostVis) ghostVis.root.visible = false; ui.refresh(); ui.assistChanged(); }
 function setPaint(c) { store.settings.paint = c; store.save(); carVis.setPaint(c); }
-function toMenu() { delete document.body.dataset.online; onlRufe.length = 0; ui.rufe([]); mode = 'menu'; replay = null; quitShow(); if (cine) { cine = null; ui.hideCine(); } sound.stop(); race = new Race(env, { assist: store.settings.assist, countdown: 1e9 }); gegnerAus(); ui.showMenu(env);
+function toMenu() { act = null; ui.actionFx(null); delete document.body.dataset.online; onlRufe.length = 0; ui.rufe([]); mode = 'menu'; replay = null; quitShow(); if (cine) { cine = null; ui.hideCine(); } sound.stop(); race = new Race(env, { assist: store.settings.assist, countdown: 1e9 }); gegnerAus(); ui.showMenu(env);
   if (onlR) { onlR = null; onlVis = null; timeScale = gameSpeed(store.settings.assist); }   // n35: Online-Rennen verlassen → Lobby (der Raum bleibt)
   if (onl && onl.aktiv && onlA) onlA.zeigeLobby(); }
 // n34-Nachtrag: Schaden je Bild – Heldenauto (Rennen: aktueller Stand; Replay/Film: Stand zur Replay-Zeit aus dem Verlauf),
 // Trümmer fliegen (Spielzeit), Rauch aus dem Motorraum ab ~70 % (Mittelmotor: über dem Heckdeck)
 const rauchT = { t: 0 };
 function schadenBild(rdt) {
-  const gdt = frozen ? 0 : Math.min(0.1, rdt) * timeScale;
+  const gdt = frozen ? 0 : Math.min(0.1, rdt) * timeScale * (act && mode === 'race' ? act.physK : 1);   // n36: Trümmer in der Zeitlupe
   if (truemmer && truemmer.liste.length && mode === 'race') truemmer.schritt(gdt, env.world);
   if (!schadenSp) return;
   let S = schadenSp.S;
@@ -905,7 +921,7 @@ function startReplay() {
   ui.showReplay(replay);
 }
 // Kino-Replay (n18): Film aus der Aufzeichnung bauen (einmal je Rennen) und abspielen; danach das Ergebnis (res)
-function marksOf(r) { return { cuts: r.cuts, pens: r.pens, xev: r.xev, crashes: r.crashLog, fin: r.finF != null ? { f: r.finF, time: r.finalTime } : null }; }
+function marksOf(r) { return { cuts: r.cuts, pens: r.pens, xev: r.xev, crashes: r.crashLog, fin: r.finF != null ? { f: r.finF, time: r.finalTime } : null, action: r.actionMarks || [] }; }
 // Film einmal je Rennen bauen (auch bei Einstellung „aus“ – dann über „🎬 Highlights“ im Ergebnis)
 function ensureFilm() {
   if (!race || !race.rec.length) return null;
@@ -1091,6 +1107,10 @@ let cpuLast = null;   // n30: CPU-Arbeitszeit des letzten Bildes (Qualitäts-Aut
 let vaoJob = null;    // n30: Vertex-AO der aktuellen Strecke (gfx/world.js vaoAuftrag), rechnet je Bild ein Stück
 function frame(now) {
   requestAnimationFrame(frame);
+  if (app.manuell) { last = now; return; }   // n36 Test-Haken: Bilder nur über __game.bild(rdt) (Bildfolgen der Action-Momente)
+  bild(now);
+}
+function bild(now) {
   const tA = performance.now();
   const rdt = Math.min(0.1, (now - last) / 1000);
   last = now;
@@ -1113,13 +1133,18 @@ function frame(now) {
   if ((input.consume('KeyN') | input.consume('ShiftLeft') | input.consume('ShiftRight')) && mode === 'race' && !frozen) race.requestNitro();
   if (onl) onl.takt();   // n35: Netz (Quittungen, Uhr-Abgleich, Lobby) – auch im Menü
   if (!frozen && mode === 'race') {
-    acc += rdt * timeScale;
+    // n36 Action-Momente: Spielzeit läuft im Moment langsamer (Speed-Ramp) bzw. fast gar nicht (Bullet-Time); online immer 1
+    if (act) act.takt(rdt);
+    const ak = act ? act.physK : 1;
+    weltUhr += rdt * ak;
+    acc += rdt * timeScale * ak;
     let steps = 0;
+    if (ak < 1) tippMerken(inp); else tippMerk.n = 0;
     if (onlR) { onlR.frame(); onlineVisPruefen(); }   // n35: Countdown/Rennuhr nach Sitzungsuhr
     while (acc >= DT && steps < 14) {
       prevPose = race.car.snapshot();
       if (onlR) gegnerVis.merke(onlVis); else if (gegner) gegnerVis.merke(gegner);
-      race.step(DT, inp);
+      race.step(DT, tippMerk.n ? tippEingabe(inp) : inp);
       if (gegner) gegnerSchritt();
       if (onlR) onlR.schritt(DT);   // n35: fremde Autos auf diesen Schritt, Kollision, Rempler
       if (schadenSp) schadenSchritt();
@@ -1130,15 +1155,20 @@ function frame(now) {
     }
     if (steps >= 14) acc = 0;
     if (onlR) onlineNachFrame();   // n35: senden, Zeitnahme, Ziel melden (vor handleEvents: braucht race.events)
+    if (act) actionAusloeser();    // n36 (vor handleEvents: braucht race.events)
     handleEvents();
     if (show) showTick();
   } else if (mode === 'replay' && replay && cine) {
     // Kino-Replay: Film-Uhr mit Zeitlupe; Schnitt (neuer Clip/neue Kamera) ohne Unschärfe-Verschmieren
     cine.player.advance(rdt * timeScale);
+    weltUhr += rdt * cine.player.speed;
     replay.t = cine.player.t;
     if (cine.player.cut) { cine.cut = true; blurCut = true; ui.gmeterCut(); }
     if (cine.player.done) endCine(false);
+  } else if (mode === 'race' && frozen) {
+    // Pause: Welt-Uhr steht
   } else if (mode === 'replay' && replay) {
+    weltUhr += rdt * (replay.paused ? 0 : replay.speedMul);
     replay.advance(rdt * timeScale);
     if (replay.jumped) { replay.jumped = false; rig.init = false; blurCut = true; ui.gmeterCut(); } // Schnitt: Kamera neu ansetzen statt schwenken
   }
@@ -1160,7 +1190,7 @@ function frame(now) {
 // Teile fliegen als Trümmer, kurzer Blech-Ton
 function schadenSchritt() {
   if (!schadenSp.schritt(race.recFrames() / REC_HZ)) return;
-  for (const e of schadenSp.ereignisse) if (e.art === 'teil') { truemmer.wirf(carVis, e.teil, race.car, e.teil + 7 * schadenSp.nTreffer); sound.event({ type: 'crash', imp: Math.min(12, e.vn), v: 0 }); }
+  for (const e of schadenSp.ereignisse) if (e.art === 'teil') { actTeilT = performance.now(); truemmer.wirf(carVis, e.teil, race.car, e.teil + 7 * schadenSp.nTreffer); sound.event({ type: 'crash', imp: Math.min(12, e.vn), v: 0 }); }
   schadenSp.ereignisse.length = 0;
 }
 // n34: ein Physikschritt der Gegner nach dem des Spielers – Bewegung, Auto-Auto-Kollision, Leicht weicht aus; Stöße mit dem
@@ -1171,6 +1201,7 @@ function gegnerSchritt() {
   if (race.assistKey === 'easy') { const A = gegner.ausweichen(race, DT); race.ap.avoid = A.versatz; race.ap.vCap = A.vCap; }
   else { race.ap.avoid = 0; if (race.state === 'running') race.ap.vCap = Infinity; }
   for (const e of gegner.events) {
+    if (act) act.gegnerEreignis(e, actionWelt());   // n36: Rempler → Takedown
     // Gegner-Crash: Krach nach Entfernung zur Kamera leiser (ab GEGNER_TON m nicht mehr)
     if (e.type === 'gegnerCrash') {
       const g = gegner.fahrer.find((x) => x.id === e.id);
@@ -1187,6 +1218,80 @@ function gegnerSchritt() {
     if (fx && fx.sparks && e.v > 3) for (let k = 0; k < Math.min(10, 2 + e.v); k++) fx.sparks.spawn(e.p[0], e.p[1], e.p[2], (Math.random() - 0.5) * 6 + e.n[0] * 3, 0.8 + Math.random() * 2.5, (Math.random() - 0.5) * 6 + e.n[2] * 3, 0.25 + Math.random() * 0.4, e.p[1] - 0.6);
   }
   gegner.events.length = 0;
+}
+// ---------- n36 Action-Momente ----------
+// Tipps in der Zeitlupe: was zwischen zwei Physikschritten gedrückt UND wieder losgelassen wurde, zählt im nächsten Schritt
+function tippMerken(inp) {
+  const M = tippMerk;
+  M.throttle = Math.max(M.throttle, inp.throttle || 0); M.brake = Math.max(M.brake, inp.brake || 0);
+  if (Math.abs(inp.steerRaw || 0) > Math.abs(M.steerRaw)) M.steerRaw = inp.steerRaw || 0;
+  if (Math.abs(inp.pitch || 0) > Math.abs(M.pitch)) M.pitch = inp.pitch || 0;
+  M.n = 1;
+}
+function tippEingabe(inp) {
+  const M = tippMerk, o = { ...inp, throttle: Math.max(inp.throttle, M.throttle), brake: Math.max(inp.brake, M.brake) };
+  if (Math.abs(M.steerRaw) > Math.abs(inp.steerRaw || 0)) o.steerRaw = M.steerRaw;
+  if (Math.abs(M.pitch) > Math.abs(inp.pitch || 0)) o.pitch = M.pitch;
+  M.throttle = M.brake = M.steerRaw = M.pitch = 0; M.n = 0;
+  return o;
+}
+// Welt-Abfragen für die Regie: Fläche unter dem Auto (Strecke oder Gelände), Aufzeichnungszeit, Bestzeit, Teile ab
+let actTeilT = -1e9;
+const _actW = { race: null, env: null, gegner: null, boden: null, g: 9.81 * 0.7, recT: 0, best: null, teile: false };
+const actRayOut = {};
+function bodenUnter(x, y, z) {
+  const W = env.world, h = W.rayTrack(x, y, z, 0, -1, 0, 300, false);
+  let yb = h ? y - h.t : -1e9;
+  if (W.terrain) yb = Math.max(yb, W.terrain.height(x, z));
+  return yb;
+}
+function actionWelt() {
+  const W = _actW;
+  W.race = race; W.env = env; W.gegner = onlR ? null : gegner; W.boden = bodenUnter; W.recT = race.recFrames() / REC_HZ;
+  W.best = race.splitRef ? race.splitRef.t : null;
+  W.teile = performance.now() - actTeilT < 700;   // abfallende Teile (n34-Schaden) gerade eben
+  return W;
+}
+// je Bild nach den Physikschritten: Ereignisse (Crash, Stunt-Kette) und Zustand (Scheitel, kopfüber, Überholen, Ziel)
+function actionAusloeser() {
+  const W = actionWelt(), n0 = act.log.length;
+  for (const e of race.events) act.ereignis(e, W);
+  act.beobachte(W);
+  for (let k = n0; k < act.log.length; k++) {
+    const e = act.log[k];
+    if (!e.ok) continue;
+    race.actionMarks.push({ t: e.recT, art: e.art, schein: act.online });
+    sound.stinger(act.M && act.M.cam === 'kreis' ? 1 : 0.6);
+    if (act.M && act.M.cam === 'kreis') blurCut = true;
+  }
+}
+// Kamera im Moment: nach der normalen Kamera (rig) – Kreisfahrt (Bullet-Time), Zoom-Punch (Sichtfeld), Blick zum Fokus, Wackeln
+const actRig = { pos: [0, 0, 0], look: [0, 0, 0] }, actCar = [0, 0, 0], _ak = new THREE.Vector3();
+const actFrei = (a, b) => {
+  const W = env.world, dx = b[0] - a[0], dy = b[1] - a[1], dz = b[2] - a[2], L = Math.hypot(dx, dy, dz);
+  if (L < 1e-3) return 1;
+  let t = L;
+  const h = W.rayTrack(a[0], a[1], a[2], dx / L, dy / L, dz / L, L, false);
+  if (h) t = Math.min(t, h.t);
+  if (W.rayTerrain) { const g = W.rayTerrain(a[0], a[1], a[2], dx / L, dy / L, dz / L, t, actRayOut); if (g) t = Math.min(t, g.t); }
+  return t / L;
+};
+const actBoden = (x, z) => (env.world.terrain ? env.world.terrain.height(x, z) : -1e9) + 0.7;
+function actionKamera(pose, rdt) {
+  if (!act || (!act.M && act.out.shake <= 0)) return;
+  camera.updateMatrixWorld();
+  actRig.pos[0] = camera.position.x; actRig.pos[1] = camera.position.y; actRig.pos[2] = camera.position.z;
+  _ak.set(0, 0, -10).applyQuaternion(camera.quaternion).add(camera.position);
+  actRig.look[0] = _ak.x; actRig.look[1] = _ak.y; actRig.look[2] = _ak.z;
+  actCar[0] = pose.pos.x; actCar[1] = pose.pos.y + 0.5; actCar[2] = pose.pos.z;
+  const C = act.kamera(actRig, actCar, actFrei, actBoden, rdt);
+  if (!C.an || (rig.view === 'cockpit' && !act.kreis)) return;   // Cockpit: festes Sichtfeld (gegen Übelkeit), nur Bild-Effekte
+  if (act.kreis) { camera.up.set(0, 1, 0); rig.view = rig.view === 'cockpit' ? 'chase' : rig.view; }
+  camera.position.set(C.pos[0], C.pos[1], C.pos[2]);
+  camera.lookAt(C.look[0], C.look[1], C.look[2]);
+  const fov = rig.fov * C.fovK;
+  if (Math.abs(camera.fov - fov) > 0.01) { camera.fov = fov; camera.updateProjectionMatrix(); }
+  act.fovSetzt = true;
 }
 function handleEvents() {
   for (const e of race.events) {
@@ -1326,7 +1431,10 @@ function updateCheer(pose, rdt) {
 }
 function render(rdt) {
   let pose = null;
-  decoUniforms.uTime.value = shadowUniforms.sbTime.value = app.fixTime ?? performance.now() / 1000;   // Wind im Gras, Wolkenschatten, Wellen (Tests: feste Zeit)
+  // Wind im Gras, Wolkenschatten, Wellen, Regen (Tests: feste Zeit); n36: Welt-Uhr – in der Zeitlupe langsamer, in der Bullet-Time
+  // steht der Regen fast in der Luft (main frame: weltUhr), im Menü wie bisher Echtzeit
+  if (mode === 'menu') weltUhr = performance.now() / 1000;
+  decoUniforms.uTime.value = shadowUniforms.sbTime.value = app.fixTime ?? weltUhr;
   shadowUniforms.sbKino.value = kino && kino.pipeline ? kino.level : 0;   // Fahrbahn-Details des Kino-Looks
   shadowUniforms.sbCloudOn.value = quality.tier > 0 && !quality.decoLite && params.get('wolken') !== '0' ? 1 : 0;
   // Automatik „Deko sparsam“: Gras/Blumen und Büsche ausblenden (Welt nicht neu bauen)
@@ -1347,7 +1455,7 @@ function render(rdt) {
     if (air.wetter === 'regen') {
       // Regenstreifen: Kamera-Geschwindigkeit (Strich relativ zur Kamera), bei Kameraschnitten 0
       const cp = camera.position, V = air.u.uCamVel.value;
-      if (air.lastCam && rdt > 0 && !blurCut) V.subVectors(cp, air.lastCam).divideScalar(Math.max(rdt, 1 / 240)).clampLength(0, 120); else V.set(0, 0, 0);
+      if (air.lastCam && rdt > 0 && !blurCut && !(act && act.kreis)) V.subVectors(cp, air.lastCam).divideScalar(Math.max(rdt, 1 / 240)).clampLength(0, 120); else V.set(0, 0, 0);   // n36: Kreisfahrt → Tropfen ohne Strich
       (air.lastCam || (air.lastCam = cp.clone())).copy(cp);
     }
     if (air.mesh.visible) {
@@ -1422,7 +1530,7 @@ function render(rdt) {
     rig.driftCam = mode === 'replay' || (mode === 'race' && race && race.brachial);   // n25: Drift-Kamera (Leicht Brachial, Replays)
     if (cine) cineCamera(rdt, pose);
     else if (show && show.camOn && !app.freezeCam) showCamera(rdt, pose);
-    else if (!frozen || !app.freezeCam) rig.update(rdt, pose, crashed, env && env.world, sp);
+    else if (!frozen || !app.freezeCam) { rig.update(rdt, pose, crashed, env && env.world, sp); if (mode === 'race' && !frozen) actionKamera(pose, rdt); }
     // Sonne mit Schattenkamera folgt dem Auto
     sun.target.position.set(pose.pos.x, pose.pos.y, pose.pos.z);
     sun.position.copy(sun.target.position).addScaledVector(sun.userData.dir, 60);
@@ -1444,7 +1552,7 @@ function render(rdt) {
   else if (gegnerRec && mode === 'replay' && replay) gegnerVis.syncReplay(gegnerRec, replay.t, camera);
   else if (gegnerVis && gegnerVis.aktiv && mode === 'menu') gegnerVis.hide();
   if (fx) fx.rich = !!(kino && kino.pipeline);
-  if (fx && mode === 'race' && !frozen) fx.update(rdt, camera);
+  if (fx && mode === 'race' && !frozen) fx.update(rdt * (act ? act.physK : 1), camera);   // n36: Staub/Funken in der Zeitlupe langsam
   schadenBild(rdt);
   // Replay/Kino-Replay (n25): Reifenqualm aus dem aufgezeichneten Schwimmwinkel
   if (fx && mode === 'replay' && replay && pose) {
@@ -1460,7 +1568,7 @@ function render(rdt) {
   // n32: abends/nachts leuchtet die Ideallinie stärker (Lesbarkeit)
   if (lineViz && lineViz.mat && LINE_LEVELS[store.settings.line] && LINE_LEVELS[store.settings.line].opacity) lineViz.mat.uniforms.uOpacity.value = Math.min(0.9, LINE_LEVELS[store.settings.line].opacity * (1 + (env && env.zeitLook ? env.zeitLook.line : 0)));
   sky.position.copy(camera.position);
-  if (mode === 'race' && race) { ui.hud(race, env, ghost); sound.update(race.car, rdt, race.state, { cockpit: rig.view === 'cockpit' }); }
+  if (mode === 'race' && race) { ui.hud(race, env, ghost); sound.update(race.car, rdt, race.state, { cockpit: rig.view === 'cockpit', pitch: act && act.M && !act.M.schein ? 0.5 + 0.5 * Math.min(1, act.physK) : 1 }); }
   if (mode === 'race' && race) ui.hudGegner(race.state === 'countdown' ? null : onlR || gegner, race);
   if (mode === 'replay' && replay && cine) { ui.cineHud(cine); cineSound(rdt); cine.stats.frames++; }
   else if (mode === 'replay' && replay) ui.replayHud(replay);
@@ -1498,7 +1606,22 @@ function render(rdt) {
   const cfx = cine ? cineFx(rdt) : null;
   const shutter = cine ? Math.min(2.5, 1 / Math.pow(Math.max(0.2, cine.player.speed), 0.6)) : 1;
   const flash = pyroTick(rdt, pose);
-  drawFrame({ run: running, speed: spd, boost, dt: rdt, cut: blurCut, cockpit: inCockpit, heat: !inCockpit && pose && mode !== 'menu' ? heatOf(spd, boost) : null, dof: cdof, shutter, flash, white: cfx ? cfx.white : 0, whip: cfx ? cfx.whip : null, flareK: (cine ? 1.5 : 1) * (env && env.zeitLook ? env.zeitLook.flare : 1) });
+  // n36 Action-Momente: Weißblitz, Sättigung, Vignette, Farbsäume, Radial-Unschärfe (Kino-Look) bzw. CSS (Grafik Einfach);
+  // Mitte der Radial-Unschärfe = Auto im Bild; Kino-Balken und (ohne Kino-Look) Blitz/Vignette/Tempo-Streifen im DOM
+  const afx = act && mode === 'race' && !frozen && (act.M || act.out.shake > 0) ? act.out : null, kinoAn = !!(kino && kino.pipeline);
+  let actO = null;
+  if (afx && pose) {
+    _ak.set(pose.pos.x, pose.pos.y + 0.4, pose.pos.z).project(camera);
+    actO = { sat: afx.sat, vig: afx.vig, ca: afx.ca, radial: afx.radial, cx: Math.max(0.15, Math.min(0.85, _ak.x * 0.5 + 0.5)), cy: Math.max(0.15, Math.min(0.85, _ak.y * 0.5 + 0.5)) };
+  }
+  if (!actO && cine && cine.bullet) {
+    // n36: Bullet-Time im Film – Sättigung, Vignette, Farbsäume, Kino-Balken sind dort ohnehin da
+    const q = cine.bullet.q, z = Math.min(1, q / 0.1) * Math.min(1, (1 - q) / 0.08 + 0.3);
+    actO = { sat: 0.3 * z, vig: 0.3 * z, ca: 0.004 * z, radial: 0, cx: 0.5, cy: 0.5 };
+  }
+  ui.actionFx(afx, !kinoAn);
+  app.actionFx = afx ? { art: act.M ? act.M.art : null, u: act.M ? +act.M.u.toFixed(3) : null, k: +act.physK.toFixed(3), white: +afx.white.toFixed(3), sat: +afx.sat.toFixed(3), ca: afx.ca, radial: +afx.radial.toFixed(3), fovK: +afx.fovK.toFixed(3), bars: +afx.bars.toFixed(2), fov: +camera.fov.toFixed(1) } : null;
+  drawFrame({ run: running, speed: spd * (afx ? Math.min(1, act.physK) : 1), boost, dt: rdt, cut: blurCut, cockpit: inCockpit, heat: !inCockpit && pose && mode !== 'menu' ? heatOf(spd, boost) : null, dof: cdof, shutter, flash, white: Math.max(cfx ? cfx.white : 0, afx && kinoAn ? afx.white : 0), whip: cfx ? cfx.whip : null, action: actO, flareK: (cine ? 1.5 : 1) * (env && env.zeitLook ? env.zeitLook.flare : 1) });
   // Video-Aufnahme: Bild direkt nach dem Zeichnen kopieren (Balken wie im CSS: 2,39:1, mindestens 8,5 %)
   if (cine && cine.rec) { const W = innerWidth, H = innerHeight; cine.rec.frame(H > W ? 0 : Math.max(0.085, (H - W / 2.39) / 2 / H), ui.capState()); }
   blurCut = false;
@@ -1529,6 +1652,26 @@ function cineCamera(rdt, pose) {
   camera.position.set(O.pos[0], O.pos[1], O.pos[2]);
   camera.up.set(O.up[0], O.up[1], O.up[2]);
   camera.lookAt(O.look[0], O.look[1], O.look[2]);
+  // n36 Bullet-Time im Film: im Standbild fährt die Kamera im Halbkreis um das Auto (Drehsinn zur freieren Seite), danach
+  // ruckartig zurück in die Einstellung
+  const fz = P.clip && P.clip.freeze;
+  cine.bullet = null;
+  if (fz && fz.orbit && P.hold > 0 && P.frozeCi === P.ci) {
+    const c = [pose.pos.x, pose.pos.y + 0.5, pose.pos.z], B = cine.orb && cine.orb.ci === P.ci ? cine.orb : (cine.orb = { ci: P.ci, r: Math.max(4.5, Math.min(8, Math.hypot(O.pos[0] - c[0], O.pos[2] - c[2]))), a0: Math.atan2(O.pos[2] - c[2], O.pos[0] - c[0]), h: Math.max(0.8, Math.min(3.5, O.pos[1] - c[1])), sg: 1 });
+    if (B.sg === 1 && !B.gewaehlt) {
+      B.gewaehlt = true;
+      const f = (sg) => [0.4, 0.7, 1].reduce((n, q) => { const a = B.a0 + sg * Math.PI * q; return n + cine.cam.ray(c, [c[0] + Math.cos(a) * B.r, c[1] + B.h, c[2] + Math.sin(a) * B.r]); }, 0);
+      B.sg = f(-1) > f(1) + 1e-3 ? -1 : 1;
+    }
+    const q = Math.min(1, P.holdT / fz.dur), e = q * q * (3 - 2 * q), a = B.a0 + B.sg * Math.PI * e;
+    const want = [c[0] + Math.cos(a) * B.r, c[1] + B.h + 0.9 * Math.sin(Math.PI * e), c[2] + Math.sin(a) * B.r];
+    const fr = cine.cam.ray(c, want), k = fr >= 0.999 ? 1 : Math.max(0.35, fr - 0.08);
+    camera.position.set(c[0] + (want[0] - c[0]) * k, Math.max(cine.cam.floor(want[0], want[2]) + 0.9, c[1] + (want[1] - c[1]) * k), c[2] + (want[2] - c[2]) * k);
+    camera.up.set(0, 1, 0);
+    camera.lookAt(c[0], c[1], c[2]);
+    cine.bullet = { q };
+    blurCut = true;   // keine Bewegungsunschärfe aus der Kreisfahrt (Bild steht)
+  }
   if (Math.abs(camera.fov - O.fov) > 0.01) { camera.fov = O.fov; camera.updateProjectionMatrix(); }
   rig.view = 'cine';
 }
@@ -1579,7 +1722,7 @@ function drawFrame(o) {
   } : null;
   if (kino) {
     kino.setLevel(LOOK_FIX ?? quality.tier);
-    kino.render(scene, camera, { run: o.run, speed: o.speed, boost: o.boost, car: carVis.root, ghost: ghostVis.root, dt: o.dt, cut: o.cut, sunDir: sun.userData.dir, heat: o.heat, overlay, time: app.fixTime, dof: o.dof, shutter: o.shutter, flash: o.flash, white: o.white, whip: o.whip, flareK: o.flareK });
+    kino.render(scene, camera, { run: o.run, speed: o.speed, boost: o.boost, car: carVis.root, ghost: ghostVis.root, dt: o.dt, cut: o.cut, sunDir: sun.userData.dir, heat: o.heat, overlay, time: app.fixTime, dof: o.dof, shutter: o.shutter, flash: o.flash, white: o.white, whip: o.whip, action: o.action, flareK: o.flareK });
     karte.kopie(ui.karte);   // n39: nach dem fertigen Bild in die Ecke (selber Durchgang)
     return;
   }
@@ -1706,6 +1849,11 @@ window.__game = {
   drawOnce(o = {}) { renderer.info.reset(); drawFrame({ run: !!o.run, speed: o.speed || 0, boost: o.boost || 0, dt: 1 / 60, cut: false, cockpit: !!o.cockpit, heat: o.heat === false ? null : (o.cockpit ? null : heatOf(o.speed || 0, o.boost || 0)) }); },
   setLook(l) { if (kino) { kino.setLevel(l); } },
   hop() { race.requestHop(); }, nitro() { race.requestNitro(); },
+  // n36 Action-Momente (Tests): Regie, Moment erzwingen, Spiel bildweise (manuell = rAF zeichnet nicht mehr selbst)
+  get action() { return act; }, get weltUhr() { return weltUhr; },
+  actionStart(art) { if (!act) return null; act.stop(); act.letzt = -1e9; const M = act.starte(art, {}); act.log.push({ t: act.uhr, art, s: 0, recT: race.recFrames() / REC_HZ, ok: true, grund: 'test' }); race.actionMarks.push({ t: race.recFrames() / REC_HZ, art, schein: act.online }); return M; },
+  manuell(on = true) { app.manuell = !!on; },
+  bild(rdt = 1 / 60, n = 1) { for (let k = 0; k < n; k++) { const now = last + rdt * 1000; bild(now); } },
 };
 
 boot().catch((e) => { console.error(e); window.__errors && window.__errors.push(String(e && e.stack || e)); ui.fatal(e); });

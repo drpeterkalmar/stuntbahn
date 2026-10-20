@@ -916,7 +916,11 @@ export class GegnerFeld {
       const r = stoss(A.car, B.car, this.haerte, A.prev, B.prev, A.fremd || B.fremd ? { festA: !!A.fremd, festB: !!B.fremd } : undefined);
       if (!r) continue;
       this.stoesse++;
-      if (r.vn > 1.5) this.ereignis({ type: 'stoss', v: r.vn, p: r.p, n: r.n, spieler: !!(A.spieler || B.spieler), crash: r.crash });
+      if (r.vn > 1.5) {
+        // n36: welcher Gegner (bei Spieler-Stößen) und frontal (Fahrtrichtungen gegeneinander) – für den Takedown-Moment
+        const G = A.spieler ? B.g : B.spieler ? A.g : null, fa = A.car.frame.f, fb = B.car.frame.f;
+        this.ereignis({ type: 'stoss', v: r.vn, p: r.p, n: r.n, spieler: !!(A.spieler || B.spieler), crash: r.crash, id: G ? G.id : null, frontal: fa.x * fb.x + fa.y * fb.y + fa.z * fb.z < -0.7 });
+      }
       else if (this.uhr - (this.schleifT || -1) > 0.06) {
         // Schleifen (Seite an Seite): Funken, wenn die Autos schnell aneinander vorbeigleiten (höchstens ~16 × je s)
         const va = A.car.v, vb = B.car.v, rx = va.x - vb.x, ry = va.y - vb.y, rz = va.z - vb.z, rn = rx * r.n[0] + ry * r.n[1] + rz * r.n[2];

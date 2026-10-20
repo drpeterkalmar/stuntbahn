@@ -25,6 +25,8 @@ import { G_ON } from '../core/gforce.js';
 import { STAERKEN, GEGNER_ANZAHLEN, gegnerOptionen } from '../ai/gegner.js';   // n34 KI-Gegner
 import { STARTPLAETZE } from '../game/rennfeld.js';
 import { SCHADEN_MODI, schadenModus } from '../physics/schaden.js';   // n34-Nachtrag
+import { actionStufe } from '../game/action.js';   // n36 Action-Momente
+const ACTION_URL = typeof location !== 'undefined' && new URLSearchParams(location.search).has('action');
 
 const $ = (s, r = document) => r.querySelector(s);
 const h = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
@@ -64,6 +66,7 @@ export class UI {
     this.root.innerHTML = `
       <div id="loading" class="screen show"><div class="logo">STUNT<b>BAHN</b></div><div class="bar"><i></i></div><p>Laden …</p></div>
       <div id="menu" class="screen"></div>
+      <div id="actfx" aria-hidden="true"><b class="lb t"></b><b class="lb u"></b><i class="vig"></i><i class="lines"></i><i class="flash"></i></div>
       <div id="hud">
         <div class="tl"><div class="time">0:00,00</div><div class="pen"></div><div class="best"></div><div class="sp"></div><div class="dtm"><i></i></div><div class="gpos" aria-live="off"></div></div>
         <div id="stuntpop"></div>
@@ -534,6 +537,7 @@ export class UI {
       case 'clipshare': if (this.lastClip) shareClip(this.lastClip.blob, this.lastClip.name).then((r) => this.toast(r === 'geteilt' ? '📤 Geteilt' : r === 'gespeichert' ? '💾 Video gespeichert' : 'Abgebrochen')); break;
       case 'tbsize': S.tbsize = v; document.body.dataset.tbsize = v; this.store.save(); this.showSettings(); break;
       case 'karte': S.karte = v; this.store.save(); this.showSettings(); break;   // n39
+      case 'action': S.action = v; this.store.save(); if (window.__app && window.__app.action && !ACTION_URL && !window.__app.action.online) window.__app.action.stufe = v; if (this.screen === 'pause') this.showPause(true); else this.showSettings(); break;   // n36
       case 'blur': S.blur = v; this.store.save(); if (A.quality.post) A.quality.post.autoOff = false; this.showSettings(); break;
       case 'fahrstil': S.fahrstil = v; this.store.save(); if (window.__game && window.__game.race && !FAHRSTIL_URL) window.__game.race.fahrstil = v; if (this.screen === 'pause') this.showPause(true); else this.showSettings(); break;
       case 'brakehelp': S.brakeHelp = v; this.store.save(); if (window.__game && window.__game.race) window.__game.race.brakeHelp = v; this.showSettings(); break;
@@ -696,6 +700,11 @@ export class UI {
     }
     this.observeMinimaps();
   }
+  // n36: Action-Momente Aus/Selten/Oft (Optionen und Pause)
+  actionSeg() {
+    const st = actionStufe(location.search, this.store.settings);
+    return `<div class="seg" data-g="action">${[['aus', 'Aus'], ['selten', 'Selten'], ['oft', 'Oft']].map(([k, n]) => `<button data-a="action" data-v="${k}" class="${st === k ? 'on' : ''}">${n}</button>`).join('')}</div>`;
+  }
   showSettings() {
     const S = this.store.settings;
     const onoff = (k, label) => `<button data-a="toggle" data-v="${k}" class="${S[k] ? 'on' : ''}">${S[k] ? '✅' : '⬜'} ${label}</button>`;
@@ -717,6 +726,10 @@ export class UI {
       <div class="lbl">Replay</div>
       <div class="row">${onoff('cine', '🎬 Kino-Replay nach dem Ziel')}</div>
       <p class="hint">${S.cine ? '<b>An</b> (Standard): Nach dem Zieleinlauf läuft ein kurzer Highlight-Film (15–30 s) mit den besten Momenten deiner Fahrt – Zeitlupe, Drohne, Action-Cam, Tele. Antippen überspringt ihn, danach kommt das Ergebnis.' : '<b>Aus:</b> Nach dem Ziel gleich das Ergebnis. Den Film gibt es dort weiter über „🎬 Highlights“.'} Das Replay der ganzen Fahrt (📼) bleibt.</p>
+      <div class="lbl">🎬 Action-Momente im Rennen</div>
+      ${this.actionSeg()}
+      <div class="row">${onoff('blitzeArm', '⚡ Blitze reduzieren')}</div>
+      <p class="hint">${{ aus: '<b>Aus:</b> keine Zeitlupe im Rennen – nur im Highlight-Film nach dem Ziel.', selten: '<b>Selten</b> (Standard): Ab und zu ein kurzer Kino-Moment mitten in der Fahrt – Zeitlupe mit Ran-Zoom im Looping, beim knappen Überholen, nach dem weitesten Sprung, beim Foto-Finish; bei großen Sprüngen <b>Bullet-Time</b>: die Zeit steht fast, die Kamera fährt im Halbkreis um dein Auto, dann geht es ruckartig weiter.', oft: '<b>Oft:</b> wie Selten, aber häufiger (frühestens alle 8 s).' }[actionStufe(location.search, S)]} Höchstens gut 1 s, nie direkt vor einer Kurve oder Bremsstelle. Die Rennuhr läuft in der Zeitlupe genauso langsam mit – kein Vor- oder Nachteil, deine Eingaben zählen weiter. <b>Online</b> nur als Bild-Effekt (die anderen fahren ja weiter), die Bullet-Time gibt es dann im Highlight-Film. ${S.blitzeArm ? '<b>Blitze reduzieren:</b> statt Weißblitz nur leichtes Aufhellen.' : ''}${ACTION_URL ? ' (Link-Zusatz <code>?action=</code> gilt vorrangig.)' : ''}</p>
       <div class="lbl">Crash</div>
       <div class="row">${onoff('wreck', '💥 Totalschaden')}</div>
       <p class="hint">${S.wreck
@@ -972,6 +985,8 @@ export class UI {
       ${S.assist === 'easy' ? `<div class="lbl">Autopilot-Fahrstil</div>${this.fahrstilSeg()}` : ''}
       <div class="lbl">Ideallinie${S.assist === 'original' ? ' (nicht auf Original)' : ''}</div>
       ${this.lineSeg()}
+      <div class="lbl">🎬 Action-Momente</div>
+      ${this.actionSeg()}
       <div class="row"><button data-a="restart">🔁 Neustart</button><button data-a="menu">☰ Menü</button></div></div>`;
     this.show('pause');
   }
@@ -1084,6 +1099,21 @@ export class UI {
     const nx = cl ? c.film.clips[P.ci + 1] : null, fadeIn = !cl || !cl.trans || cl.trans === 'fade', fadeOut = nx && (!nx.trans || nx.trans === 'fade');
     const W = $('#wipe'), a = cl ? Math.max(0, fadeIn ? 1 - (P.t - cl.a) / 0.12 : 0, fadeOut ? 1 - (cl.b - P.t) / 0.1 : 0) : 0;
     W.style.transition = 'none'; W.style.background = '#000'; W.style.opacity = a > 0 ? Math.min(0.85, a).toFixed(2) : '0';
+  }
+  // n36 Action-Momente: Kino-Balken (alle Stufen), ohne Kino-Look (css) dazu Weißblitz, Vignette und Tempo-Streifen im DOM.
+  // a = act.out ({ white, vig, radial, bars, … }) oder null; DOM nur bei Änderung anfassen
+  actionFx(a, css) {
+    const r = (x) => Math.round(x * 50) / 50;
+    const k = a ? `${r(a.bars)}|${css ? `${r(a.white)}|${r(a.vig)}|${r(a.radial * 8)}` : ''}` : '';
+    if (k === this._actK) return;
+    this._actK = k;
+    const E = $('#actfx');
+    if (!a) { E.classList.remove('on'); return; }
+    E.classList.add('on');
+    E.style.setProperty('--bars', r(a.bars));
+    E.style.setProperty('--flash', css ? r(a.white) : 0);
+    E.style.setProperty('--vig', css ? r(a.vig * 1.6) : 0);
+    E.style.setProperty('--lines', css ? r(Math.min(1, a.radial * 12)) : 0);
   }
   // n27: Weißblitz ohne Kino-Look (Grafik Einfach: CSS statt Shader) und Zuschauer-Silhouetten der Fan-Cam
   cineFx(white, fan, css) {
