@@ -1437,7 +1437,8 @@ function render(rdt) {
   if (ghost && ghostVis.root.visible && mode === 'race') { ghost.sync(ghostVis); ghostVis.setNitro(ghost.nitro(), frozen ? 0 : rdt); }
   karteTick(rdt, pose);   // n39
   // n34 KI-Gegner: Rennen aus der Physik (interpoliert), Replay/Kino-Replay aus der Aufzeichnung (Rennzeit = Replay-Uhr)
-  if (onlR && mode === 'race') { gegnerVis.sync(onlVis, camera, prevPose && !frozen ? Math.min(1, acc / DT) : 1); rufeBild(); }   // n35: fremde Autos (+ KI des Gastgebers), Kurzrufe
+  if (onlR && mode === 'race' && GEGNER_VIS_AUS) gegnerVis.hide();   // ?gegnervis=0 auch online (Mess-Gate: Netz ohne Darstellung)
+  else if (onlR && mode === 'race') { gegnerVis.sync(onlVis, camera, prevPose && !frozen ? Math.min(1, acc / DT) : 1); rufeBild(); }   // n35: fremde Autos (+ KI des Gastgebers), Kurzrufe
   else if (gegner && mode === 'race' && GEGNER_VIS_AUS) gegnerVis.hide();   // Mess-Schalter ?gegnervis=0 (Mess-Gate: Anteil Darstellung)
   else if (gegner && mode === 'race') gegnerVis.sync(gegner, camera, prevPose && !frozen ? Math.min(1, acc / DT) : 1);
   else if (gegnerRec && mode === 'replay' && replay) gegnerVis.syncReplay(gegnerRec, replay.t, camera);

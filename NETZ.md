@@ -124,4 +124,4 @@ Browser (immer EIN Browser, mehrere Pages): `python3 tests/test_online_ui.py` (z
 über Relays), `test_online_abbruch.py` (Tab zu, Gastgeber reißt ab, Neu-Laden, Hintergrund), `test_online_blockiert.py`
 (Netz blockiert direkte Verbindung), `test_online_extras.py` (Kurzrufe, Aufgeben), Messungen `online_ping_mess.py`
 (Ping 0/50/150 ms: Abstand gezeigt↔wahr, Rempler), `online_echt_probe.py` (nur Transport über Relays),
-`online_profil.py` (CPU-Profil); Mess-Gate `tests/perf_szenen_online.json` (`?onlineprobe=3`).
+`online_profil.py` (CPU-Profil); Mess-Gate `tests/perf_szenen_online.json` (`?onlineprobe=3&probeart=linie&probeplatz=hinten&probeabstand=10` = 3 Mitspieler dicht vor dir, ungünstigster Fall; Ergebnis in ONLINE_BERICHT.md).

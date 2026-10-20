@@ -97,6 +97,9 @@ für spätere Spiele (WipeOut-Racer): `NETZ.md`.
   gedacht für Runden unter Freunden.
 - Regler: `?online=0` blendet den Knopf aus, `?netz=bc` (zwei Tabs im selben Browser, Test) bzw. `nostr`/`mqtt`,
   `?netzvoraus=0` = fremde Autos nicht vorausrechnen (reiner ~100-ms-Puffer).
+- Leistung (Mess-Gate Handy-Profil, 4 Autos, drei davon dicht vor dir): Rennmitte +4 … +15 % p95 gegenüber solo, Start im
+  Pulk +13 … +39 % (+1,4 … 2,3 ms; fast alles fürs Zeichnen der drei Autos, der Netz-Code selbst ≈ 0,2 ms). Mit 60 Hz bleibt
+  jede Szene weit im Budget. Mess-Probe: `?onlineprobe=3&probeart=linie&probeplatz=hinten&probeabstand=10`.
 
 ## 🏁 KI-Gegner und Schadensmodell (seit 18.10.2026, n34, Version 0.10)
 Peter 08.10.: „stuntbahn mit optionalem multiplayer oder npc-gegnern“, 15.10.: „egal wie schlecht man fährt, die npc Gegner sollten

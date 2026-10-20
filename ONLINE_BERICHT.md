@@ -90,7 +90,50 @@ Beide Seiten schreiben je Bild ihre wahre Lage und die gezeigte Lage des anderen
   kein Simulator-Netzcode.
 
 ## Mess-Gate „Mittelklasse-Android“ (CPU ×4, DPR 2,6, hoch + quer, ungedeckelt, 4 Runden, Median)
-MESSGATE_PLATZHALTER
+Ein Gerät, ein Browser: `?onlineprobe=3&probeart=linie&probeplatz=hinten&probeabstand=10` = **4 Autos online**. Drei
+Attrappen-Mitspieler schicken ihre Lage als echte Netz-Pakete (25 Hz, binär, Fake-Netz 20 ± 5 ms) an die eigene Sitzung,
+dort läuft der ganze Online-Pfad: Uhr, Puffer, Vorausrechnen, Darstellung, Kollision, Rangliste. Ihre Physik rechnen
+echte Mitspieler auf dem eigenen Gerät, deshalb gleiten die Attrappen ohne Physik. **Ungünstigster Fall:** Du startest
+hinten, die drei halten 10/16/22 m Abstand vor dir, sind also in jeder Messung alle im Bild (per Screenshot geprüft).
+Frühere Läufe hatten die Attrappen hinter oder weit vor der Kamera und maßen dadurch zu günstig, siehe unten.
+`tests/perf_gate.py --szenen tests/perf_szenen_online.json --ab solo= --ab vorn=<obige Regler> --runden 4`
+→ `tests/perf/2026-10-20_n35_gate_final.json`. p50 / p95 in ms, „nur Netz“ = derselbe Lauf mit `?gegnervis=0`
+(`…_gate_split.json`, 3 Runden).
+
+| Szene | Gerät | solo | online, 4 Autos | Δ p95 | Δ ms | nur Netz | Draw-Calls | ≤ +15 % |
+|---|---|---|---|---|---|---|---|---|
+| start_kino | quer | 8,15 / 10,9 | 10,15 / 12,35 | +13 % | +1,4 ms |  | 112 → 151 | ✓ |
+| start_kino | hoch | 7,4 / 10,05 | 9,55 / 12,25 | +22 % | +2,2 ms |  | 98 → 135 | ✗ |
+| mitte_kino | quer | 8,5 / 11,05 | 9,9 / 11,8 | +7 % | +0,8 ms |  | 118 → 153 | ✓ |
+| mitte_kino | hoch | 8,1 / 10,7 | 9,35 / 11,1 | +4 % | +0,4 ms |  | 106 → 134 | ✓ |
+| start_standard | quer | 4,55 / 6,1 | 6,3 / 8,4 | +38 % | +2,3 ms | +17 % | 99 → 135 | ✗ |
+| start_standard | hoch | 4,4 / 6,05 | 6,0 / 8,25 | +36 % | +2,2 ms | +16 % | 85 → 120 | ✗ |
+| mitte_standard | quer | 5,1 / 6,8 | 5,95 / 7,75 | +14 % | +1,0 ms |  | 106 → 134 | ✓ |
+| mitte_standard | hoch | 4,8 / 6,65 | 5,85 / 7,65 | +15,0 % | +1,0 ms |  | 94 → 119 | knapp ✗ |
+| start_einfach | quer | 2,85 / 4,25 | 4,05 / 5,9 | +39 % | +1,7 ms | +24 % | 69 → 81 | ✗ |
+| start_einfach | hoch | 2,75 / 4,25 | 3,8 / 5,75 | +35 % | +1,5 ms | +20 % | 56 → 68 | ✗ |
+| mitte_einfach | quer | 3,4 / 4,9 | 3,7 / 5,3 | +8 % | +0,4 ms |  | 76 → 85 | ✓ |
+| mitte_einfach | hoch | 3,25 / 4,8 | 3,7 / 5,35 | +11 % | +0,5 ms |  | 65 → 82 | ✓ |
+
+**Ergebnis, ehrlich:** **Rennmitte** besteht das Gate (+4 … +15 %; mitte_standard hoch genau auf der Grenze). Der **Start**
+(Pulk dicht vor dir, 1,5 s nach „Los!“) liegt mit +13 … +39 % darüber. Absolut sind es +1,4 … +2,3 ms p95 je Bild.
+- **Zerlegt** (CPU-Profil `tests/online_profil.py`, Einfach-Start, je Bild bei Drosselung ×4): Der eigentliche Netz-Code
+  (Puffer, Sitzung, Pakete, Online-Rennen, Vorausrechnen) kostet zusammen **≈ 0,2 ms**. Die Spalte „nur Netz“ liegt höher,
+  weil darin auch die Attrappen-Sitzungen und das Fake-Netz der Probe stecken (auf echten Geräten nicht vorhanden) sowie die
+  Matrix-Updates der ausgeblendeten Autos. Der Rest, etwa 1,2 … 1,5 ms, ist das **Zeichnen der drei zusätzlichen Autos**
+  (Draw-Calls, Matrizen, Sichtbarkeitstest). Das ist dieselbe Darstellung wie bei den KI-Gegnern aus n34 (GEGNER_BERICHT §5:
+  5 Gegner +1,1 … +3,1 ms). Doppelte Render-Durchgänge gibt es nicht (die fremden Autos stecken nur im Hauptbild plus
+  Schattenkarte), Namensschilder kosten messbar nichts (`?schilder=0`).
+- **Was half:** die Fern-Stufe fremder Autos zusammengefasst (15 → 5 Netze je Auto, Commit 7e91eb8; bei 3 Autos im Bild
+  147 → 117 Draw-Calls), dazu die Hebel aus n34 (nur aktive LOD-Stufe im Szenengraph, Echtzeit-Schatten nur Karosserie und nur
+  nah, auf „Einfach“ immer Fern-Modell ohne Schatten). Mehr ginge nur mit gröberen Autos in der Nähe. Das bleibt aus, weil
+  man den Zweikampf aus der Nähe sieht.
+- **Einordnung:** Gemessen wird ungedeckelt. Mit V-Sync (60 Hz, 16,7 ms Budget) bleibt jede Szene weit darunter: der
+  teuerste Online-Wert ist 12,35 ms p95 auf Kino bei vierfach gedrosselter CPU. Auf Standard/Einfach sind die Bilder
+  ungedeckelt nur 4–6 ms lang, deshalb wirken +2 ms prozentual groß.
+- **Messfallen, die korrigiert sind:** In den Läufen vom 19.10. standen die Attrappen hinter dir (du warst Gastgeber = Platz 1)
+  oder fuhren weit voraus hinter Kurven. Die Kino-Messung zählte dann exakt so viele Draw-Calls wie solo, maß also nichts.
+  Neu sind die Probe-Regler `?probeplatz=hinten` und `?probeabstand=10`, außerdem greift `?gegnervis=0` jetzt auch online.
 
 ## Grenzen (ehrlich)
 - **Kein TURN-Server:** Manche Mobilfunk- und Firmennetze (symmetrisches NAT, gesperrtes UDP) lassen keine direkte
