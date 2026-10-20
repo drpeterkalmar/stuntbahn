@@ -280,6 +280,7 @@ async function boot() {
   // „Gelände“; Schalter im Menü), ab n33 mit den neuen Hindernissen
   else await loadGenerated(q ? +q : daySeed(), +(params.get('d') || 2), q ? (params.get('g') === '1' ? 'gel' : params.get('3d') === '1' ? '3d' : 'flat') : store.settings.trackMode, false, q ? (params.get('h') === '1' ? 2 : 1) : GEN_V);
   reflexVorwaermen();
+  actionVorwaermen();
   await startAutopilot();
   ui.loading(1, 'Fertig');
   app.ready = true;
@@ -1703,6 +1704,14 @@ function reflexVorwaermen() {
   render(1 / 60);
 }
 
+// n36: Bild-Effekte der Action-Momente (Shader-Variante mit ACTION, mit und ohne Bewegungsunschärfe) beim Laden übersetzen –
+// sonst stockt das erste Bild eines Moments (gemessen ~0,4 s + ~0,2 s auf dem Mac)
+const ACT_WARM = { sat: 0.1, vig: 0.1, ca: 0.001, radial: 0.01, cx: 0.5, cy: 0.5 };
+function actionVorwaermen() {
+  if (!kino || !kino.pipeline || params.get('actionwarm') === '0') return;
+  for (const [run, speed] of [[false, 0], [true, 80], [true, 80]]) drawFrame({ run, speed, boost: 0, dt: 1 / 60, cut: false, cockpit: false, heat: null, action: ACT_WARM, white: 0.2 });
+  drawFrame({ run: false, speed: 0, boost: 0, dt: 1 / 60, cut: true, cockpit: false, heat: null });
+}
 // Bild zeichnen: Kino-Look (eine Pipeline: Szene, Unschärfe, Licht/Farbe, Cockpit darüber) bzw. ?look=alt wie bis n22
 function drawFrame(o) {
   karte.vorher(ui.karte);   // n39: Karten-Bild (20 Hz) vor dem Hauptbild ins eigene Render-Target

@@ -1,0 +1,179 @@
+{
+ "datum": "2026-10-20T12:12:25",
+ "stand": "n36_action",
+ "modus": "ab",
+ "runden": 3,
+ "varianten": [
+  {
+   "name": "aus",
+   "wurzel": "/Users/wohnzimmer/dev/stuntbahn",
+   "zusatz": ""
+  },
+  {
+   "name": "bullet",
+   "wurzel": "/Users/wohnzimmer/dev/stuntbahn",
+   "zusatz": "&actionprobe=bullet"
+  },
+  {
+   "name": "punch",
+   "wurzel": "/Users/wohnzimmer/dev/stuntbahn",
+   "zusatz": "&actionprobe=kopf"
+  }
+ ],
+ "profil": {
+  "drossel": 4,
+  "dpr": 2.6,
+  "sek": 10,
+  "start": "open",
+  "vsync": false
+ },
+ "szenen": {
+  "mitte_kino": {
+   "quer": {
+    "aus": {
+     "p50": 8.4,
+     "p95": 11.1,
+     "fps": 118.6,
+     "calls": 117,
+     "tris": 390086,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      11.1,
+      11.1,
+      11.1
+     ],
+     "fehler": []
+    },
+    "bullet": {
+     "p50": 7.7,
+     "p95": 10.1,
+     "fps": 125.4,
+     "calls": 116,
+     "tris": 381818,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      10.1,
+      10.1,
+      10.1
+     ],
+     "fehler": []
+    },
+    "punch": {
+     "p50": 7.8,
+     "p95": 10.5,
+     "fps": 126.7,
+     "calls": 106,
+     "tris": 381925,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      10.5,
+      10.6,
+      10.5
+     ],
+     "fehler": []
+    }
+   }
+  },
+  "mitte_std": {
+   "quer": {
+    "aus": {
+     "p50": 4.8,
+     "p95": 6.6,
+     "fps": 205.1,
+     "calls": 102,
+     "tris": 273983,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      6.3,
+      6.6,
+      6.6
+     ],
+     "fehler": []
+    },
+    "bullet": {
+     "p50": 4.1,
+     "p95": 5.6,
+     "fps": 240.8,
+     "calls": 103,
+     "tris": 269924,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      5.6,
+      5.9,
+      5.6
+     ],
+     "fehler": []
+    },
+    "punch": {
+     "p50": 4.1,
+     "p95": 5.8,
+     "fps": 237.2,
+     "calls": 90,
+     "tris": 266596,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      5.8,
+      5.9,
+      5.6
+     ],
+     "fehler": []
+    }
+   }
+  },
+  "mitte_einfach": {
+   "quer": {
+    "aus": {
+     "p50": 3.2,
+     "p95": 4.7,
+     "fps": 307.5,
+     "calls": 72,
+     "tris": 166412,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      4.8,
+      4.7,
+      4.6
+     ],
+     "fehler": []
+    },
+    "bullet": {
+     "p50": 2.7,
+     "p95": 4.2,
+     "fps": 358.1,
+     "calls": 75,
+     "tris": 163875,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      4.1,
+      4.2,
+      4.4
+     ],
+     "fehler": []
+    },
+    "punch": {
+     "p50": 2.8,
+     "p95": 4.5,
+     "fps": 339.7,
+     "calls": 61,
+     "tris": 160691,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      4.3,
+      4.5,
+      4.5
+     ],
+     "fehler": []
+    }
+   }
+  }
+ }
+}

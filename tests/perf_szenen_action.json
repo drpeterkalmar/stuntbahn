@@ -1,0 +1,77 @@
+{
+ "_kommentar": "n36 Action-Momente: Szenen für tests/perf_gate.py (A/B). Spieler fährt per Autopilot (Mittel), nach 20 s läuft ein Moment nach dem anderen (?actionprobe=bullet: Bullet-Time mit Kreisfahrt, Farbsäumen, Sättigung, Balken; =kopf: Speed-Ramp + Zoom-Punch mit Radial-Unschärfe) – ungünstigster Fall, im Spiel höchstens ~2 % der Fahrzeit. Aufruf: python3 tests/perf_gate.py --szenen tests/perf_szenen_action.json --stand n36 --geraete quer --ab aus= --ab bullet=&actionprobe=bullet --ab punch=&actionprobe=kopf",
+ "bereit": "window.__app && window.__app.ready && window.__app.frames > 3",
+ "init": "window.__noKino = true; window.__noShow = true",
+ "info": "() => { const i = __game.renderer.info, g = __game.quality.gpu; return { calls: i.render.calls, tris: i.render.triangles, tex: i.memory.textures, gpu: g ? g.ms : null }; }",
+ "zusatz": "() => { const G = __game.gegner; return { ...__game.info(), gegner: G ? { n: G.fahrer.length, physik: G.fahrer.filter((g) => g.modus === 'physik').length, stoesse: G.stoesse, platz: (G.stand(__game.race).find((e) => e.spieler) || {}).platz } : null }; }",
+ "ladeQuery": "?nosw&seed=4711&d=3&g=1",
+ "ladeNachlauf": 4,
+ "szenen": [
+  {
+   "name": "mitte_kino",
+   "query": "?nosw&q=2&startprobe=0&seed=4711&d=3&g=1&action=2",
+   "schritte": [
+    {
+     "bis": "(() => { const v = __game.info().vao; return !v || v.fertig; })()",
+     "max": 120
+    },
+    "__game.setAssist('medium'); __game.store.settings.fahrstil = 'sauber'",
+    "__game.start({ autopilot: true })",
+    "__game.cam('chase')",
+    {
+     "bis": "__game.race.state === 'running'",
+     "max": 30
+    },
+    "__game.sim(20)",
+    "(() => { const m = /actionprobe=(\\w+)/.exec(location.search); if (m) setInterval(() => { const A = __game.action; if (A && !A.M) __game.actionStart(m[1]); }, 30); })()",
+    {
+     "warte": 1.5
+    }
+   ]
+  },
+  {
+   "name": "mitte_std",
+   "query": "?nosw&q=1&startprobe=0&seed=4711&d=3&g=1&action=2",
+   "schritte": [
+    {
+     "bis": "(() => { const v = __game.info().vao; return !v || v.fertig; })()",
+     "max": 120
+    },
+    "__game.setAssist('medium'); __game.store.settings.fahrstil = 'sauber'",
+    "__game.start({ autopilot: true })",
+    "__game.cam('chase')",
+    {
+     "bis": "__game.race.state === 'running'",
+     "max": 30
+    },
+    "__game.sim(20)",
+    "(() => { const m = /actionprobe=(\\w+)/.exec(location.search); if (m) setInterval(() => { const A = __game.action; if (A && !A.M) __game.actionStart(m[1]); }, 30); })()",
+    {
+     "warte": 1.5
+    }
+   ]
+  },
+  {
+   "name": "mitte_einfach",
+   "query": "?nosw&q=0&startprobe=0&seed=4711&d=3&g=1&action=2",
+   "schritte": [
+    {
+     "bis": "(() => { const v = __game.info().vao; return !v || v.fertig; })()",
+     "max": 120
+    },
+    "__game.setAssist('medium'); __game.store.settings.fahrstil = 'sauber'",
+    "__game.start({ autopilot: true })",
+    "__game.cam('chase')",
+    {
+     "bis": "__game.race.state === 'running'",
+     "max": 30
+    },
+    "__game.sim(20)",
+    "(() => { const m = /actionprobe=(\\w+)/.exec(location.search); if (m) setInterval(() => { const A = __game.action; if (A && !A.M) __game.actionStart(m[1]); }, 30); })()",
+    {
+     "warte": 1.5
+    }
+   ]
+  }
+ ]
+}
