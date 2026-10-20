@@ -29,9 +29,9 @@ const ok = (c, m) => { console.log((c ? 'OK   ' : 'FAIL ') + m); if (!c) bad++; 
   ok(rampOk, 'Speed-Ramp: 1× → Tiefpunkt → 1,5× → 1× (fließend)');
   ok(bulletOk, 'Bullet-Time: ≤ 0,05×, ≤ 1,5 s, am Ende ruckartig 1×');
   ok(durOk, `Live-Momente ≤ 1,2 s (${Object.entries(ACTION.arten).filter(([, a]) => a.cam !== 'kreis').map(([k, a]) => `${k} ${a.dur}`).join(', ')})`);
-  const f0 = fxBei({ art: 'kopf', dur: 1.1 }, 0.01), fA = fxBei({ art: 'kopf', dur: 1.1 }, 0.01, true), fm = fxBei({ art: 'kopf', dur: 1.1 }, 0.5);
+  const f0 = fxBei({ art: 'kopf', dur: 1.1 }, 0.01), fA = fxBei({ art: 'kopf', dur: 1.1 }, 0.01, true), fm = fxBei({ art: 'vorbei', dur: 1.0 }, 0.5);
   ok(f0.white > 0.4 && fA.white <= ACTION.fx.whiteArm + 1e-9 && fm.white === 0, `Weißblitz am Anfang ${f0.white.toFixed(2)}, mit „Blitze reduzieren“ nur ${fA.white.toFixed(2)}`);
-  ok(fm.sat > 0.3 && fm.vig > 0.3 && fm.fovK < 0.75 && fm.ca === 0, 'Zoom-Punch: Sättigung, Vignette, Sichtfeld enger, keine Farbsäume');
+  ok(fm.sat >= 0.25 && fm.vig > 0.3 && fm.fovK < 0.75 && fm.ca === 0, 'Zoom-Punch: Sättigung, Vignette, Sichtfeld enger, keine Farbsäume');
   const fb = fxBei({ art: 'bullet', dur: 1.4 }, 0.6), fe = fxBei({ art: 'bullet', dur: 1.4 }, 1.45);
   ok(fb.ca > 0 && fb.bars === 1 && fe.shake > 0 && fe.ca === 0, 'Bullet-Time: Farbsäume + Kino-Balken, danach kurzes Wackeln');
 }

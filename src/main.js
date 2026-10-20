@@ -1620,6 +1620,11 @@ function render(rdt) {
     actO = { sat: 0.3 * z, vig: 0.3 * z, ca: 0.004 * z, radial: 0, cx: 0.5, cy: 0.5 };
   }
   ui.actionFx(afx, !kinoAn);
+  // Crash-Bullet-Time: das Aufblitzen vor dem Fahrbahn-Reset (ui.wipe) erst nach dem Moment – sonst stünde es die ganze Zeitlupe
+  if (act && race && mode === 'race') {
+    const cr = !!(act.M && act.M.art === 'crash' && act.M.u < act.M.dur);
+    if (cr && !act.wipeAus) { act.wipeAus = true; ui.wipe(false); } else if (!cr && act.wipeAus) { act.wipeAus = false; if (race.state === 'reset') ui.wipe(true); }
+  }
   app.actionFx = afx ? { art: act.M ? act.M.art : null, u: act.M ? +act.M.u.toFixed(3) : null, k: +act.physK.toFixed(3), white: +afx.white.toFixed(3), sat: +afx.sat.toFixed(3), ca: afx.ca, radial: +afx.radial.toFixed(3), fovK: +afx.fovK.toFixed(3), bars: +afx.bars.toFixed(2), fov: +camera.fov.toFixed(1) } : null;
   drawFrame({ run: running, speed: spd * (afx ? Math.min(1, act.physK) : 1), boost, dt: rdt, cut: blurCut, cockpit: inCockpit, heat: !inCockpit && pose && mode !== 'menu' ? heatOf(spd, boost) : null, dof: cdof, shutter, flash, white: Math.max(cfx ? cfx.white : 0, afx && kinoAn ? afx.white : 0), whip: cfx ? cfx.whip : null, action: actO, flareK: (cine ? 1.5 : 1) * (env && env.zeitLook ? env.zeitLook.flare : 1) });
   // Video-Aufnahme: Bild direkt nach dem Zeichnen kopieren (Balken wie im CSS: 2,39:1, mindestens 8,5 %)
@@ -1807,7 +1812,7 @@ window.__game = {
   toMenu,
   // Kino-Replay (Tests): Zustand, überspringen, an eine Stelle springen (Aufzeichnungszeit t im Clip ci)
   get cine() { return cine; },
-  cineInfo() { const f = cine ? cine.film : race && race.film; return f ? { duration: f.duration, clips: f.clips.map((c) => ({ kind: c.kind, label: c.label, a: c.a, b: c.b, c0: c.c0, c1: c.c1, tp: c.tp, film: c.film, shots: c.shots.map((s) => ({ cam: s.cam, t0: s.t0, t1: s.t1, vis: s.setup && s.setup.vis, side: s.setup && s.setup.side })) })) } : null; },
+  cineInfo() { const f = cine ? cine.film : race && race.film; return f ? { duration: f.duration, clips: f.clips.map((c) => ({ kind: c.kind, label: c.label, a: c.a, b: c.b, c0: c.c0, c1: c.c1, tp: c.tp, film: c.film, shots: c.shots.map((s) => ({ cam: s.cam, t0: s.t0, t1: s.t1, vis: s.setup && s.setup.vis, side: s.setup && s.setup.side })), freeze: c.freeze || null })) } : null; },
   cineState() { return cine ? { ci: cine.player.ci, t: cine.player.t, speed: cine.player.speed, cam: cine.cam.out.cam, fov: cine.cam.out.fov, focus: cine.cam.out.focus, frames: cine.stats.frames, progress: cine.player.progress() } : null; },
   cineSeek(ci, t) { if (!cine) return; ui._capClip = -1; ui._capShow = 0; const E = document.querySelector('#cine .cap'); if (E) E.className = 'cap'; const P = cine.player; P.ci = ci; P.t = t; P.done = false; P.cut = true; cine.cut = true; replay.t = t; blurCut = true; },
   // Kamera-Art im laufenden Clip erzwingen (Fotos jeder Art), null = wie geplant

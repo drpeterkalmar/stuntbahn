@@ -381,7 +381,7 @@ const COMP_FS = `
         for ( int i = 1; i < 8; i++ ) a += texture2D( tColor, uv - dc * uAct.z * float( i ) / 7.0 ).rgb;
         col = mix( col, a / 8.0, smoothstep( 0.08, 0.45, length( da ) ) );
       }
-      if ( uAct.y > 0.0 ) { float r = smoothstep( 0.1, 0.8, length( da ) ); vec2 o = dc * uAct.y * r * 8.0;
+      if ( uAct.y > 0.0 ) { float r = smoothstep( 0.1, 0.8, length( da ) ); vec2 o = normalize( dc + 1e-5 ) * uAct.y * r;
         col.r = mix( col.r, texture2D( tColor, uv + o ).r, r ); col.b = mix( col.b, texture2D( tColor, uv - o ).b, r ); } }
   #endif
   #ifdef WHIP

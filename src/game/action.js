@@ -33,7 +33,7 @@ export const ACTION = {
   arten: {
     bullet: { dur: 1.4, min: 0.03, cam: 'kreis', base: 4 },
     crash: { dur: 1.2, min: 0.04, cam: 'kreis', base: 3 },
-    kopf: { dur: 1.1, min: 0.15, cam: 'punch', base: 4 },
+    kopf: { dur: 1.1, min: 0.15, cam: 'punch', base: 4, fov: 0.84, blick: 0.8 },   // im Looping ist die Kamera schon dicht dran
     vorbei: { dur: 1.0, min: 0.2, cam: 'punch', base: 3 },
     takedown: { dur: 1.2, min: 0.12, cam: 'punch', base: 3.5 },
     landung: { dur: 0.9, min: 0.2, cam: 'punch', base: 3 },
@@ -46,7 +46,7 @@ export const ACTION = {
   nach: 0.28,                          // s Nachlauf (Wackeln nach der Rückkehr, Tempo schon 1×)
   shake: 0.14,                         // m Wackeln beim Zurückspringen
   // Effekte: Weißblitz am Anfang, Sättigung/Vignette in der Zeitlupe, Farbsäume in der Bullet-Time, Radial-Unschärfe beim Punch
-  fx: { white: 0.5, whiteT: 0.2, whiteArm: 0.08, sat: 0.35, vig: 0.38, ca: 0.0045, radial: 0.075, radialT: 0.32 },
+  fx: { white: 0.5, whiteT: 0.2, whiteArm: 0.08, sat: 0.3, vig: 0.38, ca: 0.0022, radial: 0.075, radialT: 0.32 },
   gefahr: { t: 1.7, min: 30, vt: 0.85 },   // Brems-Profil: in den nächsten max(min m, t s) unter vt × Tempo → keine Zeitlupe
   sprung: { luft: 1.5, minAuf: 0.45, minFall: 0.6, ruhig: 2.0 },
   vorbei: { abstand: 3.4, vMin: 15, sperr: 1.0 },
@@ -99,7 +99,7 @@ export function fxBei(M, u, arm = false) {
     o.radial = F.radial * 0.6 * Math.max(0, 1 - u / 0.2);
   } else {
     const pin = sstep(0, P.ein, u), pout = 1 - sstep(d - P.aus, d, u);
-    o.fovK = 1 + (P.fov - 1) * pin * pout;
+    o.fovK = 1 + ((A.fov ?? P.fov) - 1) * pin * pout;
     o.radial = F.radial * Math.max(0, 1 - u / F.radialT) + F.radial * 0.6 * sstep(d - ACTION.ramp.aus, d - ACTION.ramp.aus + 0.1, u) * (1 - sstep(d - 0.12, d, u));
     o.bars = M.art === 'ziel' ? sstep(0, 0.2, u) * 0.6 : 0;
   }
@@ -333,10 +333,15 @@ export class ActionRegie {
       const w = sstep(0, K.ein + 0.05, u);
       for (let k = 0; k < 3; k++) { C.pos[k] = rig.pos[k] + (C.pos[k] - rig.pos[k]) * w; C.look[k] = rig.look[k] + (car[k] - rig.look[k]) * w; }
       C.an = true;
-    } else if (M.cam === 'punch' && M.fokus && u < M.dur) {
-      // Blick ein Stück zum Fokus (Überholter, Takedown-Wrack)
-      const f = M.fokus(), w = 0.45 * sstep(0, 0.15, u) * (1 - sstep(M.dur - 0.25, M.dur, u));
-      for (let k = 0; k < 3; k++) C.look[k] = rig.look[k] + (f[k] - rig.look[k]) * w;
+    } else if (M.cam === 'punch' && u < M.dur) {
+      // Ran-Zoom auf die Szene: Blick ein Stück zum Auto (sonst rutscht es beim engeren Sichtfeld unten aus dem Bild) bzw. zum
+      // Fokus (Überholter, Takedown-Wrack) – zwischen Auto und Fokus
+      const w = sstep(0, 0.12, u) * (1 - sstep(M.dur - 0.25, M.dur, u));
+      const f = M.fokus ? M.fokus() : null;
+      for (let k = 0; k < 3; k++) {
+        const z = f ? (car[k] + f[k]) / 2 : car[k];
+        C.look[k] = rig.look[k] + (z - rig.look[k]) * w * (ACTION.arten[M.art].blick ?? 0.6);
+      }
       C.an = true;
     }
     // Rückkehr: kurzes Wackeln
