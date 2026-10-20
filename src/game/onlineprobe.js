@@ -27,6 +27,7 @@ export class OnlineProbe {
     // ?probetempo=1.15: Gleiter schneller als das Ziel-Tempo → sie fahren vor dir (alle im Bild, ungünstigster Fall)
     const pt = typeof location !== 'undefined' ? +new URLSearchParams(location.search).get('probetempo') : 0;
     this.linieTempo = opt.linieTempo || (pt > 0 ? Math.min(2, pt) : PROBE.linieTempo);
+    this.abstand = typeof location !== 'undefined' ? +new URLSearchParams(location.search).get('probeabstand') || 0 : 0;
     this.N = new FakeNetz({ latenz: PROBE.latenz, jitter: PROBE.jitter, seed: 5 });
     this.t0 = opt.jetzt ? opt.jetzt() : performance.now(); this.jetzt = opt.jetzt || (() => performance.now());
     const mk = (id, gast) => { const t = this.N.teilnehmer(id, { uhr: gast ? 1000 * id.length : 0 }); return new Sitzung(t, { jetzt: t.jetzt, sid: 'probe-' + id, info: { name: gast ? 'Probe ' + id.slice(1) : 'Du', stufe: 'medium' }, gastgeber: !gast, schema: AUTO_SCHEMA, lin: LIN }); };
@@ -41,6 +42,10 @@ export class OnlineProbe {
   }
   get aktiv() { return true; }
   rennenBauen(env, race) {
+    // ?probeplatz=hinten: du stehst hinten im Raster, die Attrappen vor dir (am Start alle im Bild, ungünstigster Fall)
+    if (typeof location !== 'undefined' && new URLSearchParams(location.search).get('probeplatz') === 'hinten') {
+      const m = this.S.mitglieder.get(this.S.sid); if (m) m.nummer = 99;
+    }
     const O = this.rennen = new OnlineRennen(this.S, env, race, { tempo: this.tempo });
     if (this.art === 'linie') {
       // Attrappen ohne Physik: Rasterplatz → Fortschritt längs der Mittellinie + seitlicher Versatz
@@ -65,7 +70,12 @@ export class OnlineProbe {
     if (!R || !this.feld) return;
     const laeuft = R.race.state !== 'countdown';
     if (this.linie) {
-      if (laeuft) for (const g of this.gleiter) this._gleite(g, dt / 1000 * this.tempo);
+      if (laeuft && this.abstand > 0) {
+        // ?probeabstand=10: Gleiter halten 10 / 16 / 22 m Abstand vor dir (immer im Bild, ungünstigster Fall fürs Mess-Gate)
+        const p = R.race.tracker.progress(), sek = dt / 1000 * this.tempo;
+        const vIch = sek > 0 && this.pLetzt != null ? Math.max(0, Math.min(120, (p - this.pLetzt) / sek)) : 0; this.pLetzt = p;
+        this.gleiter.forEach((g, k) => { g.soll = p + this.abstand * (1 + 0.6 * k); g.vIch = vIch; this._gleite(g, sek); });
+      } else if (laeuft) for (const g of this.gleiter) this._gleite(g, dt / 1000 * this.tempo);
       if (this.N.zeit - this.sendT >= 1000 / PROBE.hz - 2) { this.sendT = this.N.zeit; this.gleiter.forEach((g, k) => this.bots[k].sendeZustand(this._zustand(g))); }
       return;
     }
@@ -84,7 +94,8 @@ export class OnlineProbe {
   _gleite(g, dt) {
     const { L, vt, nI } = this.linie;
     const ziel = vt ? Math.max(8, vt[Math.min(vt.length - 1, Math.round(g.i * nI / L.n))] * this.linieTempo) : 30;
-    const v = g.v = Math.min(ziel, (g.v || 0) + PROBE.anfahren * dt);   // anfahren wie ein Auto (Pulk bleibt am Start beisammen)
+    const v = g.v = g.soll != null ? Math.max(0, Math.min(120, g.vIch + 2 * (g.soll - (g.lap * L.total + g.s))))
+      : Math.min(ziel, (g.v || 0) + PROBE.anfahren * dt);   // anfahren wie ein Auto (Pulk bleibt am Start beisammen)
     g.s += v * dt; g.weg += v * dt;
     if (g.s >= L.total) { if (L.closed) { g.s -= L.total; g.lap++; g.i = 0; } else g.s = L.total - 0.01; }
     while (g.i < L.n - 2 && L.s[g.i + 1] <= g.s) g.i++;
