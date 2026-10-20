@@ -2,6 +2,12 @@
 
 Kurzfassung je Version; Details in den Abschnitten der `README.md` und in den Berichten (`*_BERICHT.md`).
 
+## 0.12.2 – 20.10.2026 (Looping-Kamera)
+- **Verfolger im Looping höher** (Peter: „kamera in looping zu niedrig, clippt durch boden“): Neigt sich das Auto steiler als
+  ~32° (Looping, Korkenzieher, Röhre, Steilwand), steigt die Verfolger- bzw. Hubschrauberkamera weich um 1,2 m (voll ab
+  senkrecht), danach sinkt sie sanft zurück. Bisher blieb sie 1,75 m über dem Auto, und 5 m dahinter liegt die Bahn im Looping
+  schon über der Tangente → die Kamera tauchte in die Fahrbahn. Regler `?camloop=0` (alt) bis `?camloop=4` (Meter).
+
 ## 0.12.1 – 20.10.2026 (Scheinwerfer)
 - **Scheinwerfer in Lampenhöhe** (Peter: „Scheinwerferlichter sind zu hoch“): Die zwei Leuchtpunkte vorn saßen 1,14 m über
   dem Boden – auf Höhe der Windschutzscheibe, ~0,5 m über der Haube (sichtbar in Action-Momenten/Replays von vorn). Jetzt

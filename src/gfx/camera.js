@@ -44,6 +44,11 @@ const CP_SUSP = +(Q.get('cpsusp') ?? 1);   // Cockpit: Anteil Federungs-Ausgleic
 // Nicken, je G quer x m zur Seite und roll rad Neigen; Feder mit Eigenfrequenz w (kritisch gedämpft), höchstens maxG.
 // Bewusst klein (gegen Übelkeit am Handy). ?kopf=0 aus, ?kopf=2 doppelt
 export const HEAD = { z: 0.014, x: 0.011, pitch: 0.007, roll: 0.009, w: 7, maxG: 3, k: qnum('kopf', 0, 3) ?? 1 };
+// 0.12.2 (Peter 20.10.: „kamera in looping zu niedrig, clippt durch boden“): Verfolger/Hubschrauber steigen weich um LOOP_H m
+// (entlang Kamera-Oben), sobald das Auto steiler als ~32° geneigt ist (Looping, Korkenzieher, Röhre, steile Wand); voll ab
+// senkrecht. Bis 0.12.1 blieb die Kamera 1,75 m über dem Auto – 5 m hinter ihm liegt die Bahn im Looping schon höher als die
+// Tangente, die Kamera tauchte in die Fahrbahn. ?camloop=0 = alt, ?camloop=2 = 2 m.
+const LOOP_H = qnum('camloop', 0, 4) ?? 1.2;
 const LAG_MAX = 3.0; // m: größter Verzug des Verfolgers hinter dem Auto (Tempo-Nachführung)
 // Drift-Kamera (n25, Leicht „Brachial“ und Replays, rig.driftCam): rutscht das Auto quer (Winkel zwischen Fahrzeug-Längsachse
 // und Bewegungsrichtung ab b0 rad, voll ab b1), folgt der Verfolger zum Anteil k der Bewegungsrichtung statt der Karosserie –
@@ -246,7 +251,10 @@ export class CameraRig {
       // Bild, die Fahrbahn voraus liegt flacher im Bild statt als Strich am Horizont. Hochkant und in Stunts nicht (dort gilt ph)
       const sk = view === 'chase' && !crashed ? sl * (1 - pk) * this.hiK * Math.max(0, Math.min(1, (speed - SPEED_LOOK.v0) / (SPEED_LOOK.v1 - SPEED_LOOK.v0))) : 0;
       this.skK = (this.skK || 0) + (sk - (this.skK || 0)) * (1 - Math.exp(-dt * 1.5));
-      const dist = (this.mode === 'far' ? 11.5 : crashed ? 8 : 5.0) + ph * PT.dist + this.skK * SPEED_LOOK.dist, h = (this.mode === 'far' ? 3.8 : crashed ? 3.0 : 1.75) + ph * PT.h + this.skK * SPEED_LOOK.h;
+      // 0.12.2: Looping-Anteil aus der (geglätteten) Kamera-Oben-Richtung – 0 bis ~32° Neigung, 1 ab senkrecht/kopfüber
+      const lw = crashed ? 0 : Math.max(0, Math.min(1, (0.85 - this.up.y) / 0.85));
+      this.loopK = (this.loopK || 0) + (lw - (this.loopK || 0)) * (1 - Math.exp(-dt * (lw > (this.loopK || 0) ? 4 : 1.5)));
+      const dist = (this.mode === 'far' ? 11.5 : crashed ? 8 : 5.0) + ph * PT.dist + this.skK * SPEED_LOOK.dist, h = (this.mode === 'far' ? 3.8 : crashed ? 3.0 : 1.75) + ph * PT.h + this.skK * SPEED_LOOK.h + this.loopK * LOOP_H;
       // Flug: Blickrichtung waagrecht, 1,5 m weiter zurück, Höhe bleibt bei der Absprunghöhe (85 %)
       const a = this.airK, back = this._h.copy(this.fwd);
       if (a > 0) { back.y *= 1 - a; back.normalize(); }
