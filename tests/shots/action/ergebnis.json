@@ -1,0 +1,115 @@
+{
+ "bullet": {
+  "titel": "Bullet-Time am großen Sprung (Scheitel)",
+  "collage": "tests/shots/action/collage_bullet.jpg",
+  "bilder": 18,
+  "arten": [
+   "bullet"
+  ],
+  "k_min": 0.03,
+  "fov": [
+   67.9,
+   64.5,
+   61.1
+  ]
+ },
+ "kopf": {
+  "titel": "Looping-Scheitel: Speed-Ramp + Zoom-Punch",
+  "collage": "tests/shots/action/collage_kopf.jpg",
+  "bilder": 14,
+  "arten": [
+   "kopf"
+  ],
+  "k_min": 0.15,
+  "fov": [
+   66.4,
+   56.5,
+   55.7
+  ]
+ },
+ "vorbei": {
+  "titel": "Knappes Überholen: Speed-Ramp, Blick zum Gegner",
+  "collage": "tests/shots/action/collage_vorbei.jpg",
+  "bilder": 13,
+  "arten": [
+   "vorbei"
+  ],
+  "k_min": 0.2,
+  "fov": [
+   72.2,
+   51,
+   49.4
+  ]
+ },
+ "crash": {
+  "titel": "Crash/Überschlag: Bullet-Time um das Wrack",
+  "collage": "tests/shots/action/collage_crash.jpg",
+  "bilder": 14,
+  "arten": [
+   "crash"
+  ],
+  "k_min": 0.04,
+  "fov": [
+   67,
+   63.6,
+   60.2
+  ]
+ },
+ "ziel": {
+  "titel": "Foto-Finish (erzwungen): Zeitlupe, Fotoblitz, Balken",
+  "collage": "tests/shots/action/collage_ziel.jpg",
+  "bilder": 13,
+  "arten": [
+   "ziel"
+  ],
+  "k_min": 0.15,
+  "fov": [
+   46.3,
+   46.3,
+   46.3
+  ]
+ },
+ "einfach": {
+  "titel": "Grafik Einfach: Effekte per CSS (Balken, Blitz, Vignette)",
+  "collage": "tests/shots/action/collage_einfach.jpg",
+  "bilder": 14,
+  "arten": [
+   "bullet"
+  ],
+  "k_min": 0.03,
+  "fov": [
+   67.9,
+   63.7,
+   61.1
+  ]
+ },
+ "online": {
+  "titel": "Online: nur Schein (Zoom-Punch + Effekte, Physik echt)",
+  "collage": "tests/shots/action/collage_online.jpg",
+  "bilder": 13,
+  "arten": [
+   "bullet"
+  ],
+  "k_min": 1,
+  "fov": [
+   67.9,
+   63.7,
+   61.1
+  ]
+ },
+ "film": {
+  "titel": "Highlight-Film: Bullet-Time-Standbild mit Kreisfahrt",
+  "collage": "tests/shots/action/collage_film.jpg",
+  "bilder": 16,
+  "arten": [
+   "film",
+   "film-bullet"
+  ],
+  "k_min": 0,
+  "fov": [
+   40.48722659684687,
+   40.48722659684687,
+   40.48722659684687
+  ]
+ }
+}

@@ -72,6 +72,32 @@ spielbar am Handy (quer oder hochkant), mit Gamepad oder Tastatur. Als App insta
   Abstand zu jeder Fahrbahn (auch Hochstraßen/Rampen), nie im Wasser. Dosiert nach Grafikstufe; ruckelt es, blendet die
   Automatik (nach der Unschärfe) zuerst Gras/Büsche/Wolkenschatten aus. `?deko=aus` (bis n29 `?deko=0`) / `?wolken=0` zum Vergleich.
 
+## 🎬 Action-Momente: Zoom-Punch, Speed-Ramp und Bullet-Time live im Rennen (seit 20.10.2026, n36, Version 0.12)
+Peter 09.10.: „Schnelle Zoom-ins auf die Szene mit Effekten und Speed-Ramps … oder Bullet-Time!“ Bisher gab es Zeitlupe nur
+im Highlight-Film nach dem Ziel – jetzt gibt es ab und zu einen kurzen Kino-Moment mitten in der Fahrt. Bericht mit Bildfolgen
+und Messungen: `N36_ACTION_BERICHT.md`.
+- **Bullet-Time** am Scheitel eines großen Sprungs (erwartete Flugzeit ≥ 1,5 s): Die Zeit steht fast (0,03×), Nitro-Flammen
+  und Staub hängen in der Luft, die Kamera fährt in ~1 s im Halbkreis um dein Auto (zur Seite ohne Bauteile im Weg), Kino-
+  Balken, kräftigere Farben, leichte Farbsäume – dann ruckartig zurück ins normale Tempo mit kurzem Wackeln. Ebenso beim
+  **Crash/Überschlag** um das Wrack (abfallende Teile mit Schaden „Nur Optik“).
+- **Speed-Ramp + Zoom-Punch** (1× → 0,15–0,3× → 1,5× → 1×, höchstens 1,2 s): im **Looping/Korkenzieher kopfüber**, beim
+  **knappen Überholen** eines Gegners (Blick zum Überholten), nach einem **Takedown** (Gegner crasht ≤ 3 s nach deinem
+  Rempler), bei der **Landung nach dem weitesten Sprung** des Rennens, nach einer **Stunt-Kette** ab 3 Gliedern und beim
+  **Foto-Finish** (knapp vor/hinter einem Gegner bzw. knapp an der Bestzeit).
+- **Dosierung:** Optionen (und Pause) → **🎬 Action-Momente: Aus / Selten (Standard) / Oft**. Selten: frühestens alle 20 s,
+  gemessen ~0,5–0,8 Momente je Rennen; Oft: frühestens alle 8 s, ~1–1,6 je Rennen. Zufall × Spektakel-Wertung entscheidet
+  (Luft, Drehung, frontal, ruhige Hand, Landeschub zählen mehr; Deckel ×8). Nie, wenn gleich gebremst oder eingelenkt werden
+  muss („Bremsen!“ bzw. Brems-Profil der nächsten ~1,7 s).
+- **Fair:** Die Physik läuft im Moment nur langsamer – gleiche Schritte, gleiche Rennzeit wie ohne (die Uhr läuft genauso
+  langsam mit). Lenken, Gas, Tricks gelten weiter; ein kurzer Tipp in der Bullet-Time geht nicht verloren.
+- **⚡ Blitze reduzieren** (Optionen; auch bei „Bewegung reduzieren“ des Systems): statt Weißblitz nur leichtes Aufhellen.
+- **Online:** keine echte Zeitlupe (die anderen fahren ja weiter) – nur Zoom-Punch und Bild-Effekte, Physik in Echtzeit. Die
+  Bullet-Time gibt es dann im **Highlight-Film**: Momente mit Bullet-Time werden dort zum Standbild mit Kreisfahrt (auch
+  offline; sonst wird das Rekord-Standbild eines großen Sprungs/Crashs zur Bullet-Time).
+- Regler: `?action=0|1|2` (Aus/Selten/Oft, geht vor der Einstellung), `?actionwarm=0` (Effekte nicht beim Laden vorübersetzen).
+  Tests: `node tests/node/test_action.mjs`, `python3 tests/test_action_ui.py`, Bildfolgen `python3 tests/action_shots.py`,
+  Häufigkeit `node tools/action_mess.mjs 2`, Bildrate `tests/perf_szenen_action.json` (Aufruf im Kommentar).
+
 ## 👥 Mit Freunden fahren – Online für 2–4 Spieler (seit 18.10.2026, n35, Version 0.11)
 Peter 08.10.: „stuntbahn mit optionalem multiplayer“. Messwerte, Ping-Verhalten, Grenzen: `ONLINE_BERICHT.md`; Netz-Schicht
 für spätere Spiele (WipeOut-Racer): `NETZ.md`.
@@ -597,6 +623,9 @@ zurückgesetzt, an der er die Fahrbahn verlassen hat (Uhr läuft weiter). Ab 18 
 ## Entwicklung & Tests
 ```bash
 npm run test:node                         # alle Node-Tests (Parser, Import, Physik, Generator, Fahrhilfen)
+node tools/action_mess.mjs 2                # n36 Action-Momente: Häufigkeit je Rennen (Selten/Oft, mit/ohne Gegner), fair (Rennzeit gleich)
+python3 tests/action_shots.py              # n36 Bildfolgen je Moment als Collage → tests/shots/action/
+python3 tests/test_action_ui.py            # n36 Optionen, Eingabe in der Bullet-Time, Pause, Blitze reduzieren
 python3 tests/perf_gate.py --stand nachher # n30 Mess-Gate Handy-Profil (CPU ×4, DPR 2,6, hoch+quer) → tests/perf/<datum>_<stand>.json
 python3 tests/perf_gate.py --ab vorher=../stuntbahn_vorher:: --ab nachher=   # vorher/nachher im Wechsel (Median aus 3 Runden)
 python3 tests/test_autopilot.py           # n30 Grafik-Autopilot im Browser: Last rauf/runter, Reaktion ≤ 3 s, kein Pendeln

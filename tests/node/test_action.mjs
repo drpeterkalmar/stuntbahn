@@ -57,6 +57,19 @@ const ok = (c, m) => { console.log((c ? 'OK   ' : 'FAIL ') + m); if (!c) bad++; 
   N.versuch('bullet', 9); N.takt(0.3);
   ok(N.M && N.M.schein && N.physK === 1 && N.M.cam === 'punch', 'Online: nur Schein (Physik 1×, kein Kreis)');
 }
+// 2b. Takedown: Rempler des Spielers, Gegner crasht ≤ 3 s danach → Moment; später als 3 s → nichts
+{
+  const W = { race: null, env: null, gegner: { fahrer: [{ id: 'g1', car: { onGround: 0, pos: { x: 0, y: 0, z: 0 } } }] } };
+  W.race = { car: { fwdSpeed: () => 0 }, bhOn: false };
+  const R = new ActionRegie({ stufe: 'oft', rnd: () => 0 });
+  R.gegnerEreignis({ type: 'stoss', spieler: true, id: 'g1', v: 9, frontal: true }, W);
+  R.takt(1.5);
+  R.gegnerEreignis({ type: 'gegnerCrash', id: 'g1', v: 30 }, W);
+  ok(R.M && R.M.art === 'takedown' && R.log[0].s >= ACTION.arten.takedown.base * 4, `Takedown nach Rempler (frontal + Gegner in der Luft: Wertung ${R.log[0].s})`);
+  const R2 = new ActionRegie({ stufe: 'oft', rnd: () => 0 });
+  R2.gegnerEreignis({ type: 'stoss', spieler: true, id: 'g1', v: 9 }, W); R2.takt(3.5); R2.gegnerEreignis({ type: 'gegnerCrash', id: 'g1', v: 30 }, W);
+  ok(!R2.M && R2.log.length === 0, 'Crash später als 3 s nach dem Rempler → kein Takedown');
+}
 // 3. Kamera-Kreis
 {
   const R = new ActionRegie({ stufe: 'oft', rnd: () => 0 });

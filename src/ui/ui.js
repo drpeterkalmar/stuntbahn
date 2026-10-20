@@ -1107,7 +1107,8 @@ export class UI {
     const k = a ? `${r(a.bars)}|${css ? `${r(a.white)}|${r(a.vig)}|${r(a.radial * 8)}` : ''}` : '';
     if (k === this._actK) return;
     this._actK = k;
-    const E = $('#actfx');
+    const E = $('#actfx'), kreis = !!(a && a.bars > 0.5);
+    if (kreis !== !!document.body.dataset.actkreis) { if (kreis) document.body.dataset.actkreis = '1'; else delete document.body.dataset.actkreis; }
     if (!a) { E.classList.remove('on'); return; }
     E.classList.add('on');
     E.style.setProperty('--bars', r(a.bars));

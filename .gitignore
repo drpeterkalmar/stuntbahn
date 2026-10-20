@@ -58,3 +58,8 @@ tests/shots/n39/*
 !tests/shots/n34/
 tests/shots/n34/*
 !tests/shots/n34/*.jpg
+
+!tests/shots/action/
+tests/shots/action/*
+!tests/shots/action/*.jpg
+!tests/shots/action/ergebnis.json

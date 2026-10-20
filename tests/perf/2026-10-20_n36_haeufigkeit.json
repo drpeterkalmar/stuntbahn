@@ -1,0 +1,458 @@
+{
+ "selten|0|leicht": {
+  "rennen": 18,
+  "momente": 9,
+  "kand": 41,
+  "je": {
+   "kopf": {
+    "kand": 16,
+    "ok": 6
+   },
+   "bullet": {
+    "kand": 9,
+    "ok": 3
+   },
+   "landung": {
+    "kand": 10,
+    "ok": 0
+   },
+   "kette": {
+    "kand": 6,
+    "ok": 0
+   }
+  },
+  "abgelehnt": {
+   "zufall": 15,
+   "gefahr": 7,
+   "abkühlen": 10
+  },
+  "min": 23.596111111110154,
+  "zl": 9.349999999999998,
+  "maxDur": 1.3833333333333333,
+  "fair": 3,
+  "fairN": 3,
+  "proRennen": [
+   0,
+   0,
+   0,
+   0,
+   1,
+   1,
+   0,
+   0,
+   0,
+   1,
+   0,
+   0,
+   0,
+   0,
+   1,
+   2,
+   2,
+   1
+  ]
+ },
+ "selten|0|profi": {
+  "rennen": 18,
+  "momente": 9,
+  "kand": 39,
+  "je": {
+   "kopf": {
+    "kand": 16,
+    "ok": 5
+   },
+   "bullet": {
+    "kand": 9,
+    "ok": 4
+   },
+   "landung": {
+    "kand": 9,
+    "ok": 0
+   },
+   "kette": {
+    "kand": 5,
+    "ok": 0
+   }
+  },
+  "abgelehnt": {
+   "zufall": 13,
+   "gefahr": 4,
+   "abkühlen": 13
+  },
+  "min": 24.432777777776778,
+  "zl": 9.866666666666664,
+  "maxDur": 1.3833333333333333,
+  "fair": 3,
+  "fairN": 3,
+  "proRennen": [
+   0,
+   0,
+   0,
+   0,
+   1,
+   1,
+   0,
+   0,
+   0,
+   1,
+   0,
+   0,
+   0,
+   0,
+   1,
+   2,
+   2,
+   1
+  ]
+ },
+ "selten|3|leicht": {
+  "rennen": 18,
+  "momente": 10,
+  "kand": 59,
+  "je": {
+   "kopf": {
+    "kand": 16,
+    "ok": 6
+   },
+   "ziel": {
+    "kand": 3,
+    "ok": 1
+   },
+   "bullet": {
+    "kand": 9,
+    "ok": 3
+   },
+   "landung": {
+    "kand": 10,
+    "ok": 0
+   },
+   "vorbei": {
+    "kand": 15,
+    "ok": 0
+   },
+   "kette": {
+    "kand": 6,
+    "ok": 0
+   }
+  },
+  "abgelehnt": {
+   "zufall": 20,
+   "gefahr": 18,
+   "abkühlen": 11
+  },
+  "min": 23.84138888888792,
+  "zl": 10.316666666666665,
+  "maxDur": 1.3833333333333333,
+  "fair": 3,
+  "fairN": 3,
+  "proRennen": [
+   1,
+   0,
+   0,
+   0,
+   1,
+   1,
+   0,
+   0,
+   0,
+   1,
+   0,
+   0,
+   0,
+   0,
+   1,
+   2,
+   2,
+   1
+  ]
+ },
+ "selten|3|profi": {
+  "rennen": 18,
+  "momente": 15,
+  "kand": 58,
+  "je": {
+   "kopf": {
+    "kand": 16,
+    "ok": 6
+   },
+   "vorbei": {
+    "kand": 18,
+    "ok": 4
+   },
+   "bullet": {
+    "kand": 9,
+    "ok": 5
+   },
+   "landung": {
+    "kand": 9,
+    "ok": 0
+   },
+   "kette": {
+    "kand": 5,
+    "ok": 0
+   },
+   "ziel": {
+    "kand": 1,
+    "ok": 0
+   }
+  },
+  "abgelehnt": {
+   "zufall": 21,
+   "abkühlen": 16,
+   "gefahr": 6
+  },
+  "min": 24.905833333332307,
+  "zl": 15.183333333333326,
+  "maxDur": 1.3833333333333333,
+  "fair": 3,
+  "fairN": 3,
+  "proRennen": [
+   1,
+   0,
+   0,
+   0,
+   1,
+   1,
+   0,
+   1,
+   0,
+   2,
+   1,
+   0,
+   0,
+   1,
+   1,
+   3,
+   2,
+   1
+  ]
+ },
+ "oft|0|leicht": {
+  "rennen": 18,
+  "momente": 21,
+  "kand": 41,
+  "je": {
+   "kopf": {
+    "kand": 16,
+    "ok": 11
+   },
+   "bullet": {
+    "kand": 9,
+    "ok": 9
+   },
+   "landung": {
+    "kand": 10,
+    "ok": 1
+   },
+   "kette": {
+    "kand": 6,
+    "ok": 0
+   }
+  },
+  "abgelehnt": {
+   "zufall": 4,
+   "abkühlen": 14,
+   "gefahr": 2
+  },
+  "min": 23.783611111110144,
+  "zl": 22.64999999999997,
+  "maxDur": 1.3833333333333333,
+  "fair": 3,
+  "fairN": 3,
+  "proRennen": [
+   0,
+   0,
+   1,
+   1,
+   3,
+   2,
+   0,
+   0,
+   0,
+   2,
+   1,
+   0,
+   1,
+   0,
+   2,
+   2,
+   3,
+   3
+  ]
+ },
+ "oft|0|profi": {
+  "rennen": 18,
+  "momente": 19,
+  "kand": 39,
+  "je": {
+   "kopf": {
+    "kand": 16,
+    "ok": 10
+   },
+   "bullet": {
+    "kand": 9,
+    "ok": 8
+   },
+   "landung": {
+    "kand": 9,
+    "ok": 1
+   },
+   "kette": {
+    "kand": 5,
+    "ok": 0
+   }
+  },
+  "abgelehnt": {
+   "zufall": 5,
+   "abkühlen": 13,
+   "gefahr": 2
+  },
+  "min": 24.57666666666566,
+  "zl": 20.399999999999977,
+  "maxDur": 1.3833333333333333,
+  "fair": 3,
+  "fairN": 3,
+  "proRennen": [
+   0,
+   0,
+   1,
+   1,
+   3,
+   2,
+   0,
+   0,
+   0,
+   2,
+   1,
+   0,
+   1,
+   0,
+   2,
+   2,
+   3,
+   1
+  ]
+ },
+ "oft|3|leicht": {
+  "rennen": 18,
+  "momente": 26,
+  "kand": 59,
+  "je": {
+   "kopf": {
+    "kand": 16,
+    "ok": 11
+   },
+   "ziel": {
+    "kand": 3,
+    "ok": 3
+   },
+   "bullet": {
+    "kand": 9,
+    "ok": 9
+   },
+   "landung": {
+    "kand": 10,
+    "ok": 1
+   },
+   "vorbei": {
+    "kand": 15,
+    "ok": 2
+   },
+   "kette": {
+    "kand": 6,
+    "ok": 0
+   }
+  },
+  "abgelehnt": {
+   "zufall": 5,
+   "abkühlen": 17,
+   "gefahr": 11
+  },
+  "min": 24.068055555554572,
+  "zl": 27.083333333333297,
+  "maxDur": 1.3833333333333333,
+  "fair": 3,
+  "fairN": 3,
+  "proRennen": [
+   1,
+   1,
+   2,
+   2,
+   3,
+   2,
+   0,
+   0,
+   0,
+   2,
+   1,
+   0,
+   2,
+   0,
+   2,
+   2,
+   3,
+   3
+  ]
+ },
+ "oft|3|profi": {
+  "rennen": 18,
+  "momente": 28,
+  "kand": 58,
+  "je": {
+   "kopf": {
+    "kand": 16,
+    "ok": 10
+   },
+   "vorbei": {
+    "kand": 18,
+    "ok": 8
+   },
+   "bullet": {
+    "kand": 9,
+    "ok": 8
+   },
+   "landung": {
+    "kand": 9,
+    "ok": 1
+   },
+   "kette": {
+    "kand": 5,
+    "ok": 0
+   },
+   "ziel": {
+    "kand": 1,
+    "ok": 1
+   }
+  },
+  "abgelehnt": {
+   "zufall": 10,
+   "abkühlen": 15,
+   "gefahr": 5
+  },
+  "min": 25.061388888887855,
+  "zl": 27.499999999999968,
+  "maxDur": 1.3833333333333333,
+  "fair": 3,
+  "fairN": 3,
+  "proRennen": [
+   1,
+   0,
+   2,
+   1,
+   4,
+   2,
+   0,
+   1,
+   0,
+   3,
+   1,
+   0,
+   2,
+   1,
+   3,
+   3,
+   3,
+   1
+  ]
+ }
+}
