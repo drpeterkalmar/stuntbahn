@@ -249,8 +249,11 @@ async function boot() {
   // n32 Tageszeit: Scheinwerfer (EIN echtes SpotLight, dreht mit dem Auto – auch im Looping) und zwei Leuchtpunkte vorn.
   // Hängen nur abends/nachts am Auto (ein Licht mehr ändert alle Shader; tagsüber kostet es so nichts).
   headL = new THREE.SpotLight(0xffeedd, 0, 170, 0.46, 0.75, 1.3);   // flacher Abfall: nah nicht überbelichtet (Looping), fern noch hell
-  headL.position.set(0, 0.8, -2.0); headL.target.position.set(0, -1.6, -32); headL.name = 'scheinwerfer';
-  headGlow = glowMesh([-0.66, 0.66].map((x) => ({ x, y: 0.58, z: -2.12, s: 0.75, c: [7, 6.8, 6.2], kind: 4, ph: 0 })), 'scheinwerfer-glanz');
+  // Peter 20.10.: „Scheinwerferlichter sind zu hoch“ – Leuchtpunkte saßen bei y 0,58 (Höhe Windschutzscheibe, ~0,5 m über der
+  // Haube); jetzt vorn an der Nase in Lampenhöhe. Lichtquelle mit abgesenkt, Ziel so, dass die Kegelmitte die Fahrbahn wie
+  // bisher ~17 m vor dem Auto trifft (Lichtfleck unverändert). Alt: position (0, 0.8, -2.0), target (0, -1.6, -32), Leuchtpunkte x ±0.66, y 0.58, z -2.12.
+  headL.position.set(0, -0.08, -2.3); headL.target.position.set(0, -0.93, -32.3); headL.name = 'scheinwerfer';
+  headGlow = glowMesh([-0.52, 0.52].map((x) => ({ x, y: -0.08, z: -2.36, s: 0.6, c: [7, 6.8, 6.2], kind: 4, ph: 0 })), 'scheinwerfer-glanz');
   headGlow.visible = false; carVis.root.add(headGlow);
   post.setCarBox(rig.carBox);
   ghostVis = await makeCar({ color: 0xffffff, contact: false });

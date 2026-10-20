@@ -2,6 +2,12 @@
 
 Kurzfassung je Version; Details in den Abschnitten der `README.md` und in den Berichten (`*_BERICHT.md`).
 
+## 0.12.1 – 20.10.2026 (Scheinwerfer)
+- **Scheinwerfer in Lampenhöhe** (Peter: „Scheinwerferlichter sind zu hoch“): Die zwei Leuchtpunkte vorn saßen 1,14 m über
+  dem Boden – auf Höhe der Windschutzscheibe, ~0,5 m über der Haube (sichtbar in Action-Momenten/Replays von vorn). Jetzt
+  0,48 m, vorn an der Nase innerhalb der Karosserie; Lichtquelle mit abgesenkt, der Lichtfleck trifft die Fahrbahn wie
+  bisher ~17 m vor dem Auto. Test `tests/test_scheinwerfer.py`.
+
 ## 0.12.0 – 20.10.2026 (n36 Action-Momente)
 - **Neu: 🎬 Action-Momente live im Rennen** – Bullet-Time am Scheitel großer Sprünge und beim Crash (Zeit fast eingefroren,
   Kamera im Halbkreis ums Auto, ruckartig zurück), Speed-Ramp + Zoom-Punch im Looping/Korkenzieher kopfüber, beim knappen
