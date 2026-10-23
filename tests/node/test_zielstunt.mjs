@@ -35,15 +35,15 @@ function kunstLinie(n, opt = {}) {
 console.log('--- A: Ablauf ---');
 {
   let ok = true, recMax = 0, endMax = 0;
-  for (let v = 0; v <= 76; v += 2) {
+  for (let v = 0; v <= 82; v += 2) {
     const T = stuntZeit(v);
     if (!T.ok || !(T.tB >= 0 && T.tB <= ZSTUNT.tBmax + 1e-9 && T.tJ > T.tB && T.tL > T.tJ && T.cut > T.tL && T.end > T.cut && T.rec > T.end)) { ok = false; console.log('   ', v, T); }
     if (T.ok && T.dec && (T.dec < ZSTUNT.decMin - 1e-9 || T.dec > ZSTUNT.decMax + 1e-9)) ok = false;
     recMax = Math.max(recMax, T.rec || 0); endMax = Math.max(endMax, T.end || 0);
   }
-  check(ok, `Zeiten 0 … 274 km/h: Bremsen ≤ ${ZSTUNT.tBmax} s, Nitro → Absprung → Landung → Schnitt → Ende → Aufzeichnung in Reihe`);
+  check(ok, `Zeiten 0 … 295 km/h: Bremsen ≤ ${ZSTUNT.tBmax} s, Nitro → Absprung → Landung → Schnitt → Ende → Aufzeichnung in Reihe`);
   check(endMax <= 8.2 && recMax <= 8.6 && recMax >= ZIEL.rec, `Zielshow höchstens ${fmt(endMax)} s (bisher ${ZIEL.end}), Aufzeichnung höchstens ${fmt(recMax)} s (bisher ${ZIEL.rec})`);
-  check(!stuntZeit(77).ok && stuntZeit(77).why === 'tempo', 'schneller als 274 km/h: kein Stunt (Dreher/Ausrollen wie bisher)');
+  check(!stuntZeit(83).ok && stuntZeit(83).why === 'tempo', 'schneller als 295 km/h: kein Stunt (Dreher/Ausrollen wie bisher)');
 }
 
 console.log('--- B: Figur aus dem Seed ---');

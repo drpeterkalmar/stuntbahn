@@ -23,7 +23,7 @@ export const ZIELJUBEL = ['stunt', 'dreher', 'aus'];
 export const ZSTUNT = {
   // Absprung-Tempo vJ m/s: an der Linie kräftig herunterbremsen (Ziel in tBrake s, dabei decMin … decMax m/s², höchstens
   // tBmax s); schnellere Zieleinfahrten (> vMaxFin) bekommen keinen Stunt (Dreher/Ausrollen wie bisher)
-  vJ: 22, tBrake: 1.2, decMin: 9, decMax: 18, tBmax: 3.0, vMaxFin: 76,
+  vJ: 22, tBrake: 1.2, decMin: 9, decMax: 20, tBmax: 3.0, vMaxFin: 82,
   // Nitro-Schub nitro s vor dem Absprung (Flammen noch flame s in der Luft); Tempo im Flug vAir[0] … vAir[1] m/s
   nitro: 0.5, flame: 0.35, vAir: [15, 28],
   // Flugzeit air s (Scheitel g·air²/8 ≈ 2,8 m), Drehung von rot[0] bis rot[1] der Flugzeit, Landung mit sink m/s Einfedern
@@ -59,10 +59,12 @@ export function stuntZeit(v0) {
   return { ok: true, dec, tB, tJ, tL, cut, end, rec, dB, dJ, len, post };
 }
 
+// Test-Regler ?zstunt=schraube|front|back: Figur erzwingen (Fotos/Abnahme je Figur); ohne = Zufall aus dem Seed
+export const ZSTUNT_URL = (() => { const v = new URLSearchParams((globalThis.location && globalThis.location.search) || '').get('zstunt'); return ['schraube', 'front', 'back'].includes(v) ? v : null; })();
 // Figur aus dem Seed: { art: 'schraube'|'front'|'back', sg: ±1 } (sg: Drehsinn der Schraube; Flips: front −1, back +1)
-export function stuntArt(seed) {
+export function stuntArt(seed, force = ZSTUNT_URL) {
   const r = rng((hashStr(String(seed ?? 'ziel')) ^ 0x2a57) >>> 0);
-  const k = Math.floor(r() * 3) % 3, side = r() < 0.5 ? -1 : 1;
+  const k = force ? ['schraube', 'front', 'back'].indexOf(force) : Math.floor(r() * 3) % 3, side = r() < 0.5 ? -1 : 1;
   return k === 0 ? { art: 'schraube', sg: side } : k === 1 ? { art: 'front', sg: -1 } : { art: 'back', sg: 1 };
 }
 
