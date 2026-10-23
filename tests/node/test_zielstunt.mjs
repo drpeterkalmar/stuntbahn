@@ -46,6 +46,14 @@ console.log('--- A: Ablauf ---');
   check(!stuntZeit(83).ok && stuntZeit(83).why === 'tempo', 'schneller als 295 km/h: kein Stunt (Dreher/Ausrollen wie bisher)');
 }
 
+{
+  // Option „Zieljubel“ (ui/n40optionen.js): Standard Stunt, Einstellung, ?zieljubel= hat Vorrang; Optionen-Blatt
+  const { zieljubelArt, n40OptionenHtml } = await import('../../src/ui/n40optionen.js');
+  check(zieljubelArt('', {}) === 'stunt' && zieljubelArt('', { zieljubel: 'aus' }) === 'aus' && zieljubelArt('?zieljubel=dreher', { zieljubel: 'aus' }) === 'dreher' && zieljubelArt('?zieljubel=quatsch', {}) === 'stunt', 'Zieljubel: Standard Stunt, Option, ?zieljubel= vorrangig');
+  const h = n40OptionenHtml({}, '');
+  check(/data-a="zieljubel" data-v="stunt" class="on"/.test(h) && /data-a="zuschauer" data-v="tiere" class="on"/.test(h) && (h.match(/data-a="zieljubel"/g) || []).length === 3, 'Optionen-Blatt: Zuschauer (Tiere an) und Zieljubel (Stunt an), drei Stufen');
+}
+
 console.log('--- B: Figur aus dem Seed ---');
 {
   const n = { schraube: 0, front: 0, back: 0 };
