@@ -386,6 +386,8 @@ export class Sound {
     else if (e.type === 'land') this.shot(this.bank.thump, Math.min(1, e.v / 8));
     else if (e.type === 'nitro') this.shot(this.bank.nitroGo, R ? 0.6 : 0.9);
     else if (e.type === 'hop') this.shot(this.bank.hop, 0.9);
+    // n40 Zieljubel-Stunt: Nitro zünden, Absprung, Landung (TODO n40-Heavy: Lautstärke neben dem Feuerwerk abhören)
+    else if (e.type === 'zstunt') { if (e.ph === 'nitro') this.shot(this.bank.nitroGo, R ? 0.6 : 0.9); else if (e.ph === 'jump') this.shot(this.bank.hop, 0.9); else if (e.ph === 'land' && R) this.landRec(5); else if (e.ph === 'land') this.shot(this.bank.thump, 0.6); }
     else if (e.type === 'refill') this.shot(this.bank.cp, 0.5);
     else if (e.type === 'brakehint' && this.bank.brake) this.shot(this.bank.brake, 0.55);
   }
