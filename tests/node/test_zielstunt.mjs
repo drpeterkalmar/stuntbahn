@@ -114,7 +114,7 @@ if (!KURZ) {
   const { generate } = await import('../../src/track/generator.js');
   const { verifySync } = await import('../../src/track/verify.js');
   console.log('--- E: echte Fahrten ---');
-  let n = 0, done = 0, same = 0, why = {};
+  let n = 0, done = 0, same = 0, why = {}, probe = null;
   const arts = {};
   // (Strecken mit und ohne Platz hinter dem Ziel; generate(s, 1 + s % 3) hat bei 3, 4, 12, 3-3d, 7-g, 13-g, 10-g, 8-3d
   // mehrere hundert Meter frei, 2-2 einen Looping nach ~70 m)
@@ -135,6 +135,7 @@ if (!KURZ) {
     if (!S) { why[b.zstuntWhy || '?'] = (why[b.zstuntWhy || '?'] || 0) + 1; console.log(`     ${name}: kein Stunt (${b.zstuntWhy}), Ziel ${fmt(b.finV * 3.6, 0)} km/h, ${((Date.now() - t0) / 1000).toFixed(1)} s`); continue; }
     if (S.ph !== 'roll') { why[S.why || S.ph] = (why[S.why || S.ph] || 0) + 1; console.log(`     ${name}: Stunt abgebrochen (${S.why || S.ph})`); continue; }
     done++; arts[S.art] = (arts[S.art] || 0) + 1;
+    if (!probe) probe = { env, b, name };
     // nach der Landung: aufrecht, auf der Fahrbahn, kein Crash; Aufzeichnung bis rec
     const L = env.track.line, F = b.rec.length / REC_STRIDE, fL = b.finF + Math.round(S.tLand * REC_HZ);
     let off = -99, upMin = 1;
@@ -155,6 +156,20 @@ if (!KURZ) {
   }
   check(same === n, `Rennzeit, Geist und Aufzeichnung bis zur Linie bitgleich mit/ohne Stunt (${same}/${n})`);
   check(done >= 3, `Stunt auf ${done} von ${n} Strecken (${Object.entries(arts).map(([k, v]) => `${k} ${v}`).join(', ')}; ohne: ${Object.entries(why).map(([k, v]) => `${k} ${v}`).join(', ') || '–'})`);
+  // Highlight-Film: Zieleinlauf zeigt den Stunt (Tele bis nach der Landung, dann Zielbogen), Name im Titel
+  if (probe) {
+    const { buildFilm, FilmPlayer } = await import('../../src/game/highlights.js');
+    const { env, b } = probe, S = b.zstunt;
+    const zst = { f0: b.finF + Math.round(S.tAir * REC_HZ), f1: b.finF + Math.round(S.tLand * REC_HZ), art: S.art };
+    const film = buildFilm(b.rec, env, { ...marksOf(b), zstunt: zst });
+    const fin = film && film.clips.find((c) => c.kind === 'finish');
+    const tele = fin && fin.shots.find((x) => x.cam === 'tele'), arch = fin && fin.shots.find((x) => x.cam === 'arch');
+    check(fin && fin.zs && fin.b >= zst.f1 / REC_HZ + 2 && tele && tele.t1 >= zst.f1 / REC_HZ && arch && /Schraube|Frontflip|Backflip/.test(fin.label), `Film: „${fin && fin.label}“ ${fin ? fmt(fin.a, 1) + '–' + fmt(fin.b, 1) : ''} s, Tele bis ${tele ? fmt(tele.t1, 2) : '–'} s (Landung ${fmt(zst.f1 / REC_HZ, 2)} s), dann Zielbogen`);
+    const P = new FilmPlayer(film); let k = 0; while (!P.done && k < 20000) { P.advance(1 / 60); k++; }
+    check(P.done, `Film läuft durch (${fmt(k / 60)} s)`);
+    const ohne = buildFilm(b.rec, env, marksOf(b)), fo = ohne && ohne.clips.find((c) => c.kind === 'finish');
+    check(fo && !fo.zs && fo.label === '🏁 Ziel', 'ohne Stunt-Marke: Zieleinlauf wie bisher');
+  }
   // deterministisch
   {
     const env = verifySync(generate(2, 2, {})).env;

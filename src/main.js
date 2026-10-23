@@ -55,6 +55,8 @@ import { Sound } from './audio/sound.js';
 import { CarFX } from './gfx/fx.js';
 import { PyroFX } from './gfx/pyro.js';
 import { pyroGeo, ZIEL } from './game/zielshow.js';
+import { ZUSCHAUER, zuschauerModus } from './gfx/tierform.js';   // n40 Tier-Zuschauer
+import { zieljubelArt } from './ui/n40optionen.js';   // n40 Zieljubel-Stunt
 import { Post } from './gfx/post.js';
 import { KinoLook } from './gfx/kinolook.js';
 import { mipBiasEinbauen } from './gfx/kern/taau.js';
@@ -149,6 +151,8 @@ resize();
 
 const input = new Input();
 const store = new Store();
+// n40: Zuschauer Tiere/Menschen (Option, ?zuschauer=) – gilt beim Bauen der Welt (gfx/kulisse2.js, gfx/deco.js)
+ZUSCHAUER.tiere = zuschauerModus(location.search, store.settings) === 'tiere';
 // Gespeicherte Grafik-Wahl (Einfach/Standard/Kino) beim Start übernehmen; ohne Wahl startet die Automatik mit Kino
 { const q = String(store.settings.quality || 'auto');
   if (params.get('q') == null && LOOK_FIX == null && /^[012]$/.test(q)) { quality.forced = q; quality.tier = +q; resize(); } }
@@ -293,7 +297,7 @@ async function boot() {
   ui.bind({ startRace, newTrack, setAssist, toMenu, retry, startReplay, cycleCam, gegnerStand, gegnerGummi: () => !!(gegner && gegner.opt.aufholhilfe), rewind: () => race && race.requestRewind(), reset: () => resetCar(), pause: togglePause,
     skipCine: () => endCine(true), skipShow: () => endShow(true), replayCine: () => { if (race && race.film && ui.lastRes) startCine(ui.lastRes); },
     recordCine: () => { if (race && race.film && ui.lastRes) startCine(ui.lastRes, { record: true }); },
-    hop: () => { if (mode === 'race' && race && !frozen) race.requestHop(); }, nitro: () => { if (mode === 'race' && race && !frozen) race.requestNitro(); }, setLine, toggleLine, setPaint, setTheme, setWetter, setZeit, sound, input, quality, importFiles, playImported, deleteImported, trkLib, showcase: SHOWCASE, showcaseBytes, store, sammlung,
+    hop: () => { if (mode === 'race' && race && !frozen) race.requestHop(); }, nitro: () => { if (mode === 'race' && race && !frozen) race.requestNitro(); }, setLine, toggleLine, setPaint, setTheme, setWetter, setZeit, setZuschauer, sound, input, quality, importFiles, playImported, deleteImported, trkLib, showcase: SHOWCASE, showcaseBytes, store, sammlung,
     online: (a, v, el) => onlineAktion(a, v, el), onlineMenue: onlineOptionen().menue, onlineLabel: () => (onl && onl.aktiv ? onl.zustand().vorlesbar : null) });
   initDrop();
   ui.showMenu(env);
@@ -737,7 +741,7 @@ function startOnlineRace(spiel, opt = {}) {
   if (cine) { cine = null; ui.hideCine(); }
   if (fx) fx.reset();
   const S = store.settings, L = spiel.S.lobby;
-  race = new Race(env, { assist: S.assist, wreck: false, autopilot: !!opt.autopilot, extras: S.extras, autoExtras: S.autoExtras, brakeHelp: S.brakeHelp, fahrstil: FAHRSTIL_URL || S.fahrstil || 'brachial', seed: ((L.einst.seed || 1) + L.rennId) >>> 0, countdown: 1e9, splitRef: null });
+  race = new Race(env, { assist: S.assist, wreck: false, autopilot: !!opt.autopilot, extras: S.extras, autoExtras: S.autoExtras, brakeHelp: S.brakeHelp, fahrstil: FAHRSTIL_URL || S.fahrstil || 'brachial', zieljubel: zieljubelArt(location.search, S), seed: ((L.einst.seed || 1) + L.rennId) >>> 0, countdown: 1e9, splitRef: null });
   race.online = true;
   timeScale = L.einst.tempo || GAME_SPEED_STD;
   lookSchalten(false);
@@ -814,7 +818,7 @@ function startRace(opts = {}) {
   if (fx) fx.reset();
   const S = store.settings;
   // Fahrstil des Autopiloten auf Leicht (n25): Einstellung bzw. ?fahrstil=; Zufall für die Show-Momente je Rennen neu
-  race = new Race(env, { assist: S.assist, wreck: S.wreck, autopilot: !!opts.autopilot, extras: S.extras, autoExtras: S.autoExtras, brakeHelp: S.brakeHelp, fahrstil: FAHRSTIL_URL || S.fahrstil || 'brachial', seed: opts.seed ?? ((Math.random() * 1e9) >>> 0),
+  race = new Race(env, { assist: S.assist, wreck: S.wreck, autopilot: !!opts.autopilot, extras: S.extras, autoExtras: S.autoExtras, brakeHelp: S.brakeHelp, fahrstil: FAHRSTIL_URL || S.fahrstil || 'brachial', zieljubel: zieljubelArt(location.search, S), seed: opts.seed ?? ((Math.random() * 1e9) >>> 0),
     splitRef: opts.autopilot ? null : store.splitRef(env.meta.key, S.assist, !!S.wreck, S.extras !== false, gegnerOptionen(location.search, S).anzahl > 0) });   // n38 Zwischenzeiten
   timeScale = gameSpeed(S.assist);
   // Sammlung: „zuletzt gefahren“ / „noch nie gefahren“
@@ -880,6 +884,19 @@ async function setTheme(v) {
   ui.loading(1);
   if (mode === 'menu') ui.showMenu(env);
 }
+// n40: Option „Zuschauer“ – Welt der aktuellen Strecke neu bauen (Strecke/Physik/Bestzeiten unverändert)
+async function setZuschauer(v) {
+  store.settings.zuschauer = v === 'mensch' ? 'mensch' : 'tiere'; store.save();
+  const neu = zuschauerModus(location.search, store.settings) === 'tiere';
+  // (im Rennen/Replay nur merken – gilt beim nächsten Bau der Welt)
+  if (neu === ZUSCHAUER.tiere || !env || mode !== 'menu') { ZUSCHAUER.tiere = neu; return; }
+  ZUSCHAUER.tiere = neu;
+  ui.loading(0.5, 'Zuschauer …');
+  await new Promise((r) => setTimeout(r, 20));
+  await loadTrack(env.layout, env.meta, { track: env.track, world: env.world, ideal: env.ideal, prof: env.prof });
+  ui.loading(1);
+  if (mode === 'menu') ui.showMenu(env);
+}
 function setAssist(k) { store.settings.assist = k; store.save(); if (race) race.setAssist(k); timeScale = gameSpeed(k); if (k === 'easy' && ghostVis) ghostVis.root.visible = false; ui.refresh(); ui.assistChanged(); }
 function setPaint(c) { store.settings.paint = c; store.save(); carVis.setPaint(c); }
 function toMenu() { act = null; ui.actionFx(null); delete document.body.dataset.online; onlRufe.length = 0; ui.rufe([]); mode = 'menu'; replay = null; quitShow(); if (cine) { cine = null; ui.hideCine(); } sound.stop(); race = new Race(env, { assist: store.settings.assist, countdown: 1e9 }); gegnerAus(); ui.showMenu(env);
@@ -928,7 +945,9 @@ function startReplay() {
   ui.showReplay(replay);
 }
 // Kino-Replay (n18): Film aus der Aufzeichnung bauen (einmal je Rennen) und abspielen; danach das Ergebnis (res)
-function marksOf(r) { return { cuts: r.cuts, pens: r.pens, xev: r.xev, crashes: r.crashLog, fin: r.finF != null ? { f: r.finF, time: r.finalTime } : null, action: r.actionMarks || [] }; }
+function marksOf(r) { return { cuts: r.cuts, pens: r.pens, xev: r.xev, crashes: r.crashLog, fin: r.finF != null ? { f: r.finF, time: r.finalTime } : null, action: r.actionMarks || [], zstunt: zstuntMark(r) }; }
+// n40: Zieljubel-Stunt für den Highlight-Film (Absprung/Landung als Aufzeichnungs-Bild), null = keiner
+function zstuntMark(r) { const S = r.zstunt; return S && S.tLand != null && r.finF != null ? { f0: r.finF + Math.round(S.tAir * REC_HZ), f1: r.finF + Math.round(S.tLand * REC_HZ), art: S.art } : null; }
 // Film einmal je Rennen bauen (auch bei Einstellung „aus“ – dann über „🎬 Highlights“ im Ergebnis)
 function ensureFilm() {
   if (!race || !race.rec.length) return null;
@@ -995,22 +1014,24 @@ function startShow(res) {
   pyro.prepare(pyroGeo(env.track), race.pyroOpt);
   pyro.sndT = -1;
   show = { res, camOn: false, t0: performance.now() };
-  app.show = { running: true, best: race.pyroOpt.best, tier: race.pyroOpt.tier, particles: pyro.plan.n, spin: race.spinPlan ? race.spinPlan.ph : null };
+  app.show = { running: true, best: race.pyroOpt.best, tier: race.pyroOpt.tier, particles: pyro.plan.n, spin: race.spinPlan ? race.spinPlan.ph : null, zstunt: race.zstunt ? race.zstunt.art : null, zstuntWhy: race.zstuntWhy || null };   // n40
   if (window.__noShow || params.get('show') === '0') { endShow(true, true); return; }
   ui.showShow(race, res);
 }
 // je Bild (nach den Physikschritten): Kamera-Schnitt, Ende
+// n40: mit Zieljubel-Stunt Schnitt auf den Zielbogen erst nach der Landung, Ende/Aufzeichnung entsprechend später
+const showZeit = (k) => (race && race.zstunt && race.zstunt.why == null ? race.zstunt[k] : ZIEL[k]);
 function showTick() {
   const tau = showTau();
-  if (!show.camOn && tau >= ZIEL.cut) {
+  if (!show.camOn && tau >= showZeit('cut')) {
     show.cc = show.cc || new CineCam(env, race.rec, { clips: [] }, { carTop: rig.carBox ? rig.carBox.max.y : 0.75 });
     const t0 = race.finF / REC_HZ + tau;
-    show.shot = { cam: 'arch', t0, t1: race.finF / REC_HZ + ZIEL.end, ci: 0 };
+    show.shot = { cam: 'arch', t0, t1: race.finF / REC_HZ + showZeit('end'), ci: 0 };
     show.shot.setup = show.cc.setupArch();
     show.camOn = true; show.cut = true; blurCut = true;
     app.show.cam = { pos: show.shot.setup.pos, vis: show.shot.setup.vis, fallback: !!show.shot.setup.fallback };
   }
-  if (tau >= ZIEL.end) endShow(false);
+  if (tau >= showZeit('end')) endShow(false);
 }
 function showCamera(rdt, pose) {
   const tau = showTau(), t = race.finF / REC_HZ + tau;
@@ -1033,7 +1054,7 @@ function endShow(skipped = false, quiet = false) {
   show = null;
   if (!quiet) ui.hideShow();
   const zero = { steer: 0, throttle: 0, brake: 0 };
-  for (let k = 0; race.state === 'finished' && race.finT < ZIEL.rec && k < 2000; k++) { race.step(DT, zero); if (gegner) gegner.step(DT, race); }
+  for (let k = 0; race.state === 'finished' && race.finT < race.recEnd() && k < 2000; k++) { race.step(DT, zero); if (gegner) gegner.step(DT, race); }
   race.events.length = 0;
   rig.init = false; prevPose = null; blurCut = true;
   if (onlR && onlA) { onlA.zeigeErgebnis(); return; }   // n35: statt Film/Ergebnis die gemeinsame Zieltabelle

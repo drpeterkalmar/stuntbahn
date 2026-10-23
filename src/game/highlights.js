@@ -59,7 +59,9 @@ export const HL = {
   // Zielshow (n27, Aufzeichnung mit Auslaufen, marks.fin): Zieleinlauf pre s vor der Linie bis post s danach (Feuerwerk,
   // Auslaufen), Zeitlupe slow von core[0] bis core[1] s um die Linie, Schnitt Tele → Zielbogen tele s nach der Linie; der
   // Zieleinlauf kommt zum Film dazu (Momente weiter höchstens film.max s)
-  zshow: { pre: 2.4, post: 4.6, core: [-0.45, 0.5], slow: 0.4, tele: 0.6 },
+  zshow: { pre: 2.4, post: 4.6, core: [-0.45, 0.5], slow: 0.4, tele: 0.6,
+    // n40 Zieljubel-Stunt (marks.zstunt): Tele folgt bis tele s nach der Landung, Zieleinlauf endet post s nach der Landung
+    stunt: { tele: 0.35, post: 2.6 } },
   // n27 Effekte: Speed-Ramp (vor und nach der Zeitlupe schneller als echt: fast, Übergang fastRamp s Aufzeichnung),
   // Freeze-Frame beim Rekord-Stunt (bester Moment des Films ab freezeScore Punkten, freeze s Standbild mit Weißblitz),
   // Reißschwenk zwischen zwei Einstellungen eines Clips (whip s Filmzeit je Seite), Übergänge zwischen Clips im Wechsel
@@ -104,6 +106,8 @@ export const LABEL = {
   crash: (m) => `💥 ${m.reason === 'Abgestürzt' ? 'Absturz' : m.reason === 'Zu kurz' ? 'Zu kurz gesprungen' : 'Überschlag'}`,
   finish: () => '🏁 Ziel',
 };
+// n40 Zieljubel-Stunt im Zieleinlauf
+const ZSTUNT_NAME = { schraube: 'Schraube', front: 'Frontflip', back: 'Backflip' };
 
 // Kameras je Art: Folge von [Kamera, bis] – bis = 'peak' (Höhepunkt), 'end' (Ende des Clips) oder Sekunden ab Clip-Anfang.
 // drone = Drohne (seitlich oben, weich, Kreisfahrt), action = Action-Cam (tief am Auto, Wackeln), tele = Stativ/Tele an
@@ -529,7 +533,8 @@ function planShots(plan, c) {
 function makeShots(c, prevCam, used = null) {
   // Zieleinlauf mit Zielshow (n27): Tele an der Linie (Zeitlupe), dann Schwenk der Zielbogen-Kamera aufs Feuerwerk
   if (c.kind === 'finish' && c.fin != null) {
-    const tz = Math.min(c.b - 0.5, Math.max(c.a + 0.3, c.fin + HL.zshow.tele));
+    // n40: mit Zieljubel-Stunt bleibt das Tele bis kurz nach der Landung am Auto
+    const tz = Math.min(c.b - 0.5, Math.max(c.a + 0.3, c.zs ? c.zs.t1 + HL.zshow.stunt.tele : c.fin + HL.zshow.tele));
     const shots = [{ cam: 'tele', t0: c.a, t1: tz }, { cam: 'arch', t0: tz, t1: c.b }];
     if (prevCam === 'tele') shots[0].cam = 'drone';
     return shots;
@@ -572,9 +577,10 @@ export function buildFilm(rec, env, marks = {}, opt = {}) {
     let f;
     if (finT != null) {
       // Zielshow: über die Linie hinweg bis ins Auslaufen (Feuerwerk), Zeitlupe um die Linie
-      const b = Math.min(end, finT + Zs.post);
+      const zm = marks.zstunt && marks.zstunt.f1 > marks.fin.f ? marks.zstunt : null, zs = zm ? { t0: zm.f0 / REC_HZ, t1: zm.f1 / REC_HZ, art: zm.art } : null;
+      const b = Math.min(end, Math.max(finT + Zs.post, zs ? zs.t1 + Zs.stunt.post : 0));
       if (finT - fa < 0.6 || b - fa < 2) return null;
-      f = { kind: 'finish', label: LABEL.finish(), score: 0, m: { kind: 'finish' }, a: fa, b, c0: Math.max(fa, finT + Zs.core[0]), c1: Math.min(b, finT + Zs.core[1]), tp: finT, fin: finT, smin: Zs.slow };
+      f = { kind: 'finish', label: zs ? `${LABEL.finish()} · ${ZSTUNT_NAME[zs.art] || 'Stunt'}` : LABEL.finish(), score: 0, m: { kind: 'finish' }, a: fa, b, c0: Math.max(fa, finT + Zs.core[0]), c1: Math.min(b, finT + Zs.core[1]), tp: finT, fin: finT, smin: Zs.slow, zs };
     } else {
       if (end - fa < 1.5) return null;
       f = { kind: 'finish', label: LABEL.finish(), score: 0, m: { kind: 'finish' }, a: fa, b: end, c0: Math.max(fa, end - 1.1), c1: end, tp: end - 0.3, smin: Fm.finishSlow };

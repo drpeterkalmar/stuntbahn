@@ -26,6 +26,7 @@ import { STAERKEN, GEGNER_ANZAHLEN, gegnerOptionen } from '../ai/gegner.js';   /
 import { STARTPLAETZE } from '../game/rennfeld.js';
 import { SCHADEN_MODI, schadenModus } from '../physics/schaden.js';   // n34-Nachtrag
 import { actionStufe } from '../game/action.js';   // n36 Action-Momente
+import { n40OptionenHtml, zieljubelArt, fanOhren } from './n40optionen.js';   // n40 Zuschauer/Zieljubel
 const ACTION_URL = typeof location !== 'undefined' && new URLSearchParams(location.search).has('action');
 
 const $ = (s, r = document) => r.querySelector(s);
@@ -540,6 +541,8 @@ export class UI {
       case 'clipshare': if (this.lastClip) shareClip(this.lastClip.blob, this.lastClip.name).then((r) => this.toast(r === 'geteilt' ? '📤 Geteilt' : r === 'gespeichert' ? '💾 Video gespeichert' : 'Abgebrochen')); break;
       case 'tbsize': S.tbsize = v; document.body.dataset.tbsize = v; this.store.save(); this.showSettings(); break;
       case 'karte': S.karte = v; this.store.save(); this.showSettings(); break;   // n39
+      case 'zuschauer': if (A.setZuschauer) A.setZuschauer(v); this.showSettings(); break;   // n40 (Welt neu)
+      case 'zieljubel': S.zieljubel = v; this.store.save(); if (window.__game && window.__game.race) window.__game.race.zieljubel = zieljubelArt(location.search, S); this.showSettings(); break;   // n40
       case 'action': S.action = v; this.store.save(); if (window.__app && window.__app.action && !ACTION_URL && !window.__app.action.online) window.__app.action.stufe = v; if (this.screen === 'pause') this.showPause(true); else this.showSettings(); break;   // n36
       case 'blur': S.blur = v; this.store.save(); if (A.quality.post) A.quality.post.autoOff = false; this.showSettings(); break;
       case 'fahrstil': S.fahrstil = v; this.store.save(); if (window.__game && window.__game.race && !FAHRSTIL_URL) window.__game.race.fahrstil = v; if (this.screen === 'pause') this.showPause(true); else this.showSettings(); break;
@@ -729,6 +732,7 @@ export class UI {
       <div class="lbl">Replay</div>
       <div class="row">${onoff('cine', '🎬 Kino-Replay nach dem Ziel')}</div>
       <p class="hint">${S.cine ? '<b>An</b> (Standard): Nach dem Zieleinlauf läuft ein kurzer Highlight-Film (15–30 s) mit den besten Momenten deiner Fahrt – Zeitlupe, Drohne, Action-Cam, Tele. Antippen überspringt ihn, danach kommt das Ergebnis.' : '<b>Aus:</b> Nach dem Ziel gleich das Ergebnis. Den Film gibt es dort weiter über „🎬 Highlights“.'} Das Replay der ganzen Fahrt (📼) bleibt.</p>
+      ${n40OptionenHtml(S, location.search)}
       <div class="lbl">🎬 Action-Momente im Rennen</div>
       ${this.actionSeg()}
       <div class="row">${onoff('blitzeArm', '⚡ Blitze reduzieren')}</div>
@@ -1261,6 +1265,7 @@ function drawFans(C, t, hoch) {
   for (const [fx, k, ph] of heads) {
     const x = fx * W, b = Math.sin(t * 2.2 + ph) * s * 0.03, r = s * 0.3 * k, y = base - s * 0.62 * k + b;
     g.beginPath(); g.ellipse(x, y, r * 0.85, r, 0, 0, Math.PI * 2); g.fill();
+    fanOhren(g, x, y, r, fx);   // n40: Tier-Ohren
     g.beginPath(); g.ellipse(x, base + s * 0.25 * k + b, r * 2.3, s * 0.62 * k, 0, Math.PI, 0); g.fill();
   }
   // erhobene Arme mit Händen (jubeln)
