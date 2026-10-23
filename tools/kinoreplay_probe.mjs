@@ -31,7 +31,7 @@ export function samLayout(k) {
 
 // Fahrt bis ins Ziel: Leicht mit „Extras automatisch“ (Nitro + Hüpfer) bzw. Autopilot auf Mittel
 export function runRace(env, opts = {}) {
-  const race = new Race(env, { assist: opts.assist || 'easy', countdown: 0.05, autoExtras: opts.autoExtras ?? true, autopilot: !!opts.autopilot, wreck: !!opts.wreck, fahrstil: opts.fahrstil ?? arg('fahrstil') ?? undefined, seed: opts.seed });
+  const race = new Race(env, { assist: opts.assist || 'easy', countdown: 0.05, autoExtras: opts.autoExtras ?? true, autopilot: !!opts.autopilot, wreck: !!opts.wreck, fahrstil: opts.fahrstil ?? arg('fahrstil') ?? undefined, seed: opts.seed, zieljubel: opts.zieljubel });
   const lim = Math.max(120, env.track.line.total / 6);
   let t = 0;
   const inp = opts.autopilot ? () => zero : () => zero;
@@ -40,8 +40,8 @@ export function runRace(env, opts = {}) {
     if (opts.nitroAt && race.state === 'running' && Math.abs(race.time - opts.nitroAt) < DT) race.requestNitro();
     race.step(DT, inp()); t += DT; race.events.length = 0;
   }
-  // n27: Auslaufen nach dem Ziel mit aufzeichnen (wie im Spiel: ZIEL.rec s)
-  if (race.state === 'finished' && opts.runout !== false) while (race.finT < ZIEL.rec) { race.step(DT, zero); race.events.length = 0; }
+  // n27: Auslaufen nach dem Ziel mit aufzeichnen (wie im Spiel: ZIEL.rec s, n40: mit Zieljubel-Stunt länger)
+  if (race.state === 'finished' && opts.runout !== false) while (race.finT < race.recEnd()) { race.step(DT, zero); race.events.length = 0; }
   return race;
 }
 export const marksOf = (race) => ({ cuts: race.cuts, pens: race.pens, xev: race.xev, crashes: race.crashLog, fin: race.finF != null ? { f: race.finF, time: race.finalTime } : null });

@@ -12,6 +12,7 @@ import { showKmhMs } from '../core/showspeed.js';
 import { computeProfile } from '../ai/profile.js';
 import { DriftCtl, BRACHIAL } from '../ai/drift.js';
 import { ZIEL } from './zielshow.js';
+import { ZSTUNT, ZIELJUBEL, stuntRaum, stuntArt, stuntStart, stuntFlug, flugFrei, lineAhead, lineAt } from './zielstunt.js';
 import { ARCADE, arcadeAssist } from '../physics/arcade.js';
 import { StuntTracker, bauKinds } from './stunts.js';
 import { LOHN, cooldownGain, creditNitro, landBoostStage, landBoostLevel, splitDelta, DriftTurbo } from './lohn.js';
@@ -198,6 +199,9 @@ export class Race {
     // Fahrstil (n25): Node-Werkzeuge/Tests ohne Angabe fahren 'sauber' (Stand bis n24); das Spiel übergibt die Einstellung
     this.fahrstil = FAHRSTILE[opts.fahrstil] ? opts.fahrstil : 'sauber';
     this.driftSeed = opts.seed;
+    // n40 Zieljubel nach der Linie: 'stunt' (Nitro, Sprung, Schraube/Flip – zielstunt.js; ohne Platz wie 'dreher'), 'dreher'
+    // (wie bis n39: Jubel-Dreher auf Leicht + Brachial), 'aus' (gerade ausrollen). Ohne Angabe 'dreher' (Prüffahrt, Tests)
+    this.zieljubel = ZIELJUBEL.includes(opts.zieljubel) ? opts.zieljubel : 'dreher';
     this.drift = null; this.brachial = false;
     this.noCutRule = !!opts.noCutRule;
     this.maxProgress = 0;
@@ -931,7 +935,8 @@ export class Race {
     this.finF = this.recFrames(); this.finSim = this.simTime; this.finT = 0;
     this.finV = Math.max(0, this.car.fwdSpeed());
     this.ap.shift = 0; this.ap.extra = 0; this.ap.P = this.env.prof;
-    this.spinPlan = this.planSpin();
+    this.zstunt = this.zieljubel === 'stunt' ? this.planStunt() : null;
+    this.spinPlan = this.zieljubel === 'aus' || this.zstunt ? null : this.planSpin();
     this.splits.length = Math.min(this.splits.length, this.cps.length);
     this.emit('finish', { time: this.time, d: splitDelta(this.time, this.splitRef) });
   }
@@ -944,6 +949,9 @@ export class Race {
   runout(dt) {
     const car = this.car, Z = ZIEL, ap = this.ap;
     this.finT = (this.finT || 0) + dt;
+    const ZS = this.zstunt;
+    // n40 Zieljubel-Stunt im Flug: Lage gerechnet (zielstunt.js), keine Physik
+    if (ZS && ZS.ph === 'air') { this.zstuntAir(dt, ZS); if (this.finT <= this.recEnd() + 1e-6) this.record(dt); return; }
     const u = this.finT, v = car.fwdSpeed();
     const idx = ap.tr.idx;
     const k = Math.max(0, u - Z.hold), ramp = Math.min(1, k / Z.ramp);
@@ -953,22 +961,111 @@ export class Race {
     const z = this.zoneAhead(idx, 500);
     if (z) {
       if (!this.runZone || this.runZone.i0 !== z.i0) this.runZone = { i0: z.i0, thru: z.inside || v * v / (2 * Z.stopDecel * 0.75) > z.dist - Z.stopGap };
+      // n40: nach der Landung des Zieljubel-Stunts genau rechnen (Platz dafür hat stuntRaum geprüft) – anhalten statt durchfahren
+      if (ZS && ZS.ph === 'roll' && !z.inside && v * v / (2 * Z.stopDecel) <= z.dist - Z.stopGap) this.runZone.thru = false;
       if (this.runZone.thru) cap = Infinity;
       else cap = Math.min(cap, Math.sqrt(2 * Z.stopDecel * Math.max(0, z.dist - Z.stopGap)));
     }
     const S = this.spinPlan, spin = S && cap < Infinity ? this.spinStep(dt, S, idx) : null;
     // Jubel-Dreher geplant: kräftiger auf das Dreh-Tempo herunterbremsen
     if (S && S.ph === 'brake' && cap < Infinity) cap = Math.min(cap, Math.max(Z.spin.v - 2, this.finV - Z.spin.decel * Math.max(0, u - 0.35)));
+    if (ZS && ZS.ph !== 'done') cap = this.zstuntCap(ZS, u, cap);
     ap.vCap = cap;
     const c = ap.control(car);
     car.input.steer = c.steer; car.input.throttle = c.throttle; car.input.brake = c.brake; car.input.hold = true; car.input.hand = 0;
     car.assist.drift = null; car.assist.lock = 0; car.assist.rearGrip = 0; car.assist.driveFront = null;
     if (spin) { Object.assign(car.input, spin.input); Object.assign(car.assist, spin.assist); }
+    if (ZS && ZS.ph === 'nitro') { car.input.throttle = 1; car.input.brake = 0; car.boost = 1; }
+    else if (ZS) car.boost = 0;
     car.haftOff = haftOffAt(this.env.track, idx);
     car.step(dt, this.env.world);
     this.tracker.update(car.pos.x, car.pos.y, car.pos.z);
-    if (this.finT <= Z.rec + 1e-6) this.record(dt);
+    if (ZS && ZS.ph !== 'done' && ZS.ph !== 'roll') this.zstuntNext(ZS, u);
+    if (this.finT <= this.recEnd() + 1e-6) this.record(dt);
     ap.vCap = Infinity;
+  }
+  // Aufzeichnung nach der Linie (s): ZIEL.rec, mit Zieljubel-Stunt länger (Landung, Schwenk auf den Zielbogen)
+  recEnd() { return this.zstunt ? this.zstunt.rec : ZIEL.rec; }
+
+  // ---------- Zieljubel-Stunt (n40, zielstunt.js) ----------
+  // Geplant an der Linie: Platz (gerade, eben, breit, keine Stunts/Hindernisse/Hochstraße/Decke) für das Ziel-Tempo, Figur aus
+  // Strecke + Zielzeit. Nur Spieler-Rennen (nicht die reine Autopilot-Prüffahrt). null = kein Stunt (dann Dreher/Ausrollen)
+  planStunt() {
+    if (this.autopilotOnly) return null;
+    const W = this.env.world, L = this.env.track.line, idx = this.tracker.idx, lat = this.latAt(idx);
+    const R = stuntRaum(this.env.track, idx, this.finV, { lat, roof: this.zroof() });
+    this.zstuntWhy = R.ok ? null : R.why;
+    if (!R.ok) return null;
+    const seed = `${(this.env.meta && this.env.meta.key) || ''}|${this.finalTime.toFixed(3)}`;
+    return { ...R, ...stuntArt(seed), ph: 'brake', v0: this.finV, lat, L: L.n };
+  }
+  zroof() { const W = this.env.world; return W && W.rayTrack ? (x, y, z, h) => !!W.rayTrack(x, y, z, 0, 1, 0, h, false) : null; }
+  // Seitenversatz der Wagenmitte zur Linie (m, + = rechts) bzw. Abstand längs der Linie vor/hinter Punkt i
+  latAt(i) { const L = this.env.track.line, p = this.car.pos; return (p.x - L.px[i]) * L.bx[i] + (p.y - L.py[i]) * L.by[i] + (p.z - L.pz[i]) * L.bz[i]; }
+  lonAt(i) { const L = this.env.track.line, p = this.car.pos; return (p.x - L.px[i]) * L.tx[i] + (p.y - L.py[i]) * L.ty[i] + (p.z - L.pz[i]) * L.tz[i]; }
+  // Tempo-Obergrenze im Auslaufen: bremsen auf ZSTUNT.vJ, im Nitro frei, nach der Landung ausrollen
+  zstuntCap(S, u, cap) {
+    if (S.ph === 'brake') return Math.max(ZSTUNT.vJ, S.v0 - S.dec * u);
+    if (S.ph === 'nitro') return Infinity;
+    if (S.ph === 'roll') return Math.min(cap, Math.max(this.finV * ZIEL.vEnd, S.vL - ZSTUNT.rollDec * (u - S.tLand)));
+    return cap;
+  }
+  // Phasenwechsel nach dem Physikschritt: Bremsen → Nitro (Flammen, Replay-Ereignis) → Absprung
+  zstuntNext(S, u) {
+    const car = this.car;
+    if (S.ph === 'brake' && u >= S.tB) {
+      S.ph = 'nitro'; S.tN = u;
+      this.xev.push({ f: this.recFrames(), k: 'nitro', z: 1 });
+      this.emit('zstunt', { ph: 'nitro', art: S.art });
+    } else if (S.ph === 'nitro' && u >= S.tJ) {
+      // nur mit allen Rädern am Boden, ohne Crash und auf der Fahrbahn – sonst ausrollen wie bisher
+      const L = this.env.track.line, i = this.tracker.idx, lat = this.latAt(i), v = car.fwdSpeed();
+      const len = Math.max(ZSTUNT.vAir[0], Math.min(ZSTUNT.vAir[1], v)) * ZSTUNT.air;
+      const P = lineAhead(L, i, Math.max(0, len + this.lonAt(i)));
+      const why = car.crash ? 'crash' : car.onGround < 3 ? 'boden' : Math.abs(lat) > L.hw[i] - 2 ? 'rand' : v < ZSTUNT.vAir[0] * 0.8 ? 'langsam' : !P ? 'ende' : flugFrei(this.env.track, i, Math.max(0, this.lonAt(i)), len, lat, this.zroof());
+      if (why) { this.zstuntEnd(S); S.ph = 'done'; S.why = 'absprung:' + why; return; }
+      const land = lineAt(L, P);
+      land.p = [land.p[0] + land.b[0] * lat, land.p[1] + land.b[1] * lat, land.p[2] + land.b[2] * lat];
+      const d = car.def, h0 = d.wheelR + d.rest - d.mass * 9.81 / 4 / d.k - d.mountY;
+      S.st = stuntStart([car.pos.x, car.pos.y, car.pos.z], car.q, v, land, h0, S);
+      S.ph = 'air'; S.ta = 0; S.tAir = u;
+      this.emit('zstunt', { ph: 'jump', art: S.art });
+    }
+  }
+  // Nitro-Flammen enden (Replay-Ereignis schließen)
+  zstuntEnd(S) {
+    this.car.boost = 0;
+    const e = this.xev.filter((x) => x.k === 'nitro' && x.z).pop();
+    if (e && e.end == null) e.end = this.recFrames();
+    S.flameOff = true;
+  }
+  // Flug: Lage aus stuntFlug, Räder in der Luft (drehen weiter), Flammen noch ZSTUNT.flame s; Landung mit Car.place (alle Räder
+  // am Boden, keine Drehung, Tempo längs der Fahrbahn, leicht einfedern) – nie ein Crash
+  zstuntAir(dt, S) {
+    const car = this.car, st = S.st;
+    S.ta += dt;
+    if (!S.flameOff && S.ta >= ZSTUNT.flame) this.zstuntEnd(S);
+    car.boost = S.flameOff ? 0 : 1;
+    if (S.ta < st.T) {
+      const F = stuntFlug(st, S.ta);
+      car.pos.x = F.pos[0]; car.pos.y = F.pos[1]; car.pos.z = F.pos[2];
+      Object.assign(car.q, F.q);
+      car.v.x = F.v[0]; car.v.y = F.v[1]; car.v.z = F.v[2];
+      car.w.x = F.w[0]; car.w.y = F.w[1]; car.w.z = F.w[2];
+      car.updateFrame();
+      car.onGround = 0; car.steerAng = 0; car.time += dt;
+      const sv = st.v / car.def.wheelR;
+      for (const w of car.wheels) { w.contact = false; w.comp = w.prevComp = 0; w.spinV = sv; w.spin += sv * dt; }
+      S.vRec = st.v;
+    } else {
+      if (!S.flameOff) this.zstuntEnd(S);
+      const n = st.up1, h0 = st.h0;
+      car.place([st.p1[0] - n[0] * h0, st.p1[1] - n[1] * h0, st.p1[2] - n[2] * h0], st.fw1, n, st.v);
+      car.v.x -= n[0] * ZSTUNT.sink; car.v.y -= n[1] * ZSTUNT.sink; car.v.z -= n[2] * ZSTUNT.sink;
+      S.ph = 'roll'; S.tLand = this.finT; S.vL = st.v; S.vRec = null;
+      this.emit('zstunt', { ph: 'land', art: S.art });
+    }
+    this.tracker.update(car.pos.x, car.pos.y, car.pos.z);
   }
   // Jubel-Dreher möglich? Nur Leicht + Brachial (Spieler-Rennen); ob Platz ist, prüft spinStep, sobald das Auto auf das
   // Dreh-Tempo abgebremst hat
@@ -1550,6 +1647,6 @@ export class Race {
     const c = this.car;
     const w = c.wheels;
     this.rec.push(c.pos.x, c.pos.y, c.pos.z, c.q.x, c.q.y, c.q.z, c.q.w, c.steerAng, w[0].spin, w[2].spin,
-      w[0].comp, w[1].comp, w[2].comp, w[3].comp, c.fwdSpeed(), c.rpm);
+      w[0].comp, w[1].comp, w[2].comp, w[3].comp, this.zstunt && this.zstunt.vRec != null ? this.zstunt.vRec : c.fwdSpeed(), c.rpm);   // n40: im Stunt-Flug Bahntempo
   }
 }
