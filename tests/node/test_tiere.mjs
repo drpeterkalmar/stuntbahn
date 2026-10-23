@@ -25,6 +25,11 @@ const fmt = (x, d = 2) => x.toFixed(d).replace('.', ',');
 console.log('--- Figur ---');
 const F = T.tierForm(), nv = F.P.length / 3, nt = F.I.length / 3;
 check(nv <= 660 && nt <= 900, `Figur: ${nv} Ecken (≤ 660), ${nt} Dreiecke gesamt (Menschen: 260 / ~120)`);
+{
+  const G = T.tierForm(true), gv = G.P.length / 3;
+  let gt = 0; for (let q = 0; q < G.I.length; q += 3) if (G.M[G.I[q]] & 1 && G.M[G.I[q + 1]] & 1 && G.M[G.I[q + 2]] & 1) gt++;
+  check(gv <= 0.86 * nv && new Set(G.A).size === new Set(F.A).size && new Set(G.C).size === new Set(F.C).size, `grob (Grafik Standard): ${gv} Ecken, Bärchen ${gt} Dreiecke – gleiche Teile und Farbklassen`);
+}
 check([F.N.length, F.A.length * 3, F.C.length * 3, F.M.length * 3].every((x) => x === F.P.length) && F.I.every((i) => i >= 0 && i < nv), 'Attribute vollständig, Indizes gültig');
 {
   let bad = 0;

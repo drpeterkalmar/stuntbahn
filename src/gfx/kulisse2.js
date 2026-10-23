@@ -454,7 +454,7 @@ export function buildKulisse2(plan, ctx) {
   if (FF && plan.fans.length) {
     // n40: Tier-Zuschauer (Option „Zuschauer“, Standard Tiere; ZUSCHAUER setzt main.js) – gleiche Instanz-Daten, Art in iA.y
     const TI = ZUSCHAUER.tiere, arts = TI ? tierMischung(plan.fans, (plan.fans.length * 7919 + Math.round(plan.fans[0].x * 13 + plan.fans[0].z * 7)) >>> 0) : null;
-    const g = TI ? tierGeometry() : fanGeometry(), list = [], iA = [], iB = [];
+    const g = TI ? tierGeometry(tier < 2) : fanGeometry(), list = [], iA = [], iB = [];
     const blockFoot = (f) => { let m = gy(f.bx, f.bz); const r = Math.max(f.bw || 0, f.bd || 0) / 2; for (const [a, b] of [[-1, -1], [1, -1], [-1, 1], [1, 1], [0, 1], [1, 0], [0, -1], [-1, 0]]) m = Math.min(m, gy(f.bx + a * r, f.bz + b * r)); return m; };
     plan.fans.forEach((f, k) => {
       const y = f.roof != null ? blockFoot(f) + f.roof : gy(f.x, f.z) - 0.03;

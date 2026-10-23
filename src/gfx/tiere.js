@@ -10,8 +10,9 @@ import { fanPoseGlsl } from './kulisse2.js';
 import { patchStaticShadow } from './materials.js';
 import { tierForm, tierAtlasPlan, TIERE, TIER_FARBEN, TIER_J, POLE_X, KL } from './tierform.js';
 
-export function tierGeometry() {
-  const F = tierForm(), g = new THREE.BufferGeometry();
+// grob: Grafik Standard (Handy) – weniger Ecken (gfx/kulisse2.js wählt nach Grafikstufe)
+export function tierGeometry(grob = false) {
+  const F = tierForm(grob), g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(F.P, 3));
   g.setAttribute('normal', new THREE.Float32BufferAttribute(F.N, 3));
   g.setAttribute('aPart', new THREE.Float32BufferAttribute(F.A, 1));
@@ -88,7 +89,7 @@ export function tierMaterial() {
 const hex = (c) => '#' + c.map((x) => Math.round(Math.max(0, Math.min(1, x)) * 255).toString(16).padStart(2, '0')).join('');
 // Ein Tier (Canvas 2D) an x, Oberkante top, Maßstab s; seated = nur Oberkörper (Tribüne), up = jubelnd (Ärmchen hoch)
 export function drawTier(g, p, y0, seated, up) {
-  const s = p.s, art = TIERE[p.art], F = TIER_FARBEN[art], x = p.x;
+  const s = p.s * 1.3, art = TIERE[p.art], F = TIER_FARBEN[art], x = p.x;   // Tiere kleiner als Menschen: größer zeichnen
   const fell = hex(p.v2 ? F.fell2 : F.fell), hell = hex(F.hell), top = y0 + p.top - (up ? 6 : 0);
   const hy = top + 14 * s, hr = 9.5 * s;   // Kopf groß
   const circle = (cx, cy, rx, ry, col) => { g.fillStyle = col; g.beginPath(); g.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); g.fill(); };

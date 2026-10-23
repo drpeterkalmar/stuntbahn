@@ -34,12 +34,15 @@ export const POLE_X = 0.3;
 
 // ---------- Geometrie ----------
 // Teile (aPart wie bei den Menschen): 0 Rumpf/Kopf, 1/2 Bein links/rechts, 3/4 Arm links/rechts, 5 Fahnenstange, 6 Fahnentuch
-// Liefert { P, N, A (Teil), C (Klasse), M (Maske: Bits der Arten, die das Teil haben), I } – Fuß auf y = 0, Blick nach +z
-export function tierForm() {
+// Liefert { P, N, A (Teil), C (Klasse), M (Maske: Bits der Arten, die das Teil haben), I } – Fuß auf y = 0, Blick nach +z.
+// grob = true: weniger Unterteilung (Grafik Standard/Handy: ~15 % weniger Ecken, ~20 % weniger Dreiecke; Kopf und Augen bleiben fein), gleiche Teile und Maße
+export function tierForm(grob = false) {
   const P = [], N = [], A = [], C = [], M = [], I = [];
   const v = (p, n, part, cls, mask) => { P.push(...p); N.push(...n); A.push(part); C.push(cls); M.push(mask); return P.length / 3 - 1; };
   // Ellipsoid (glatte Normalen): Mitte c, Halbachsen r, seg × rings; cls(n) → Klasse je Ecke (Bauch hell usw.); rot: Kippen um x
-  const ell = (c, r, seg, rings, part, cls, mask, rot = 0) => {
+  // fest: auch grob voll unterteilt (Kopf, Augen – darauf schaut man)
+  const ell = (c, r, seg, rings, part, cls, mask, rot = 0, fest = false) => {
+    if (grob && !fest) { seg = Math.max(4, seg - 2); rings = Math.max(3, rings - 1); }
     const cs = Math.cos(rot), sn = Math.sin(rot);
     const put = (x, y, z) => { // lokal (Einheitskugel) → Welt mit Kippen um x
       const lx = x * r[0], ly = y * r[1], lz = z * r[2];
@@ -64,6 +67,7 @@ export function tierForm() {
   };
   // Scheibe (n-Eck) mit Blick nach n0, Halbachsen rx/ry in der Ebene (x seitlich, y oben) – Pupillen, Glanzpunkte, Bäckchen
   const disc = (c, rx, ry, segs, n0, part, cls, mask) => {
+    if (grob) segs = Math.max(4, segs - 1);
     let [nx, ny, nz] = n0; const l = Math.hypot(nx, ny, nz); nx /= l; ny /= l; nz /= l;
     // Achsen in der Scheibe: u = oben × n (waagrecht), w = n × u
     let ux = nz, uz = -nx; const lu = Math.hypot(ux, uz) || 1; ux /= lu; uz /= lu;
@@ -101,7 +105,7 @@ export function tierForm() {
   ell([0.06, 0.28, -0.36], [0.1, 0.1, 0.22], 6, 3, 0, (x, y, z) => (z < -0.45 ? KL.hell : KL.fell), B.fuchs, -0.6);
   ell([0.08, 0.6, -0.27], [0.045, 0.24, 0.045], 4, 3, 0, KL.fell, B.katze, -0.35);
   // Kopf: groß und rund, leicht vorn; Gesicht unten-vorn beim Pinguin weiß (Herzform angedeutet)
-  ell([0, 0.98, 0.0], [0.31, 0.28, 0.27], 8, 5, 0, KL.fell, ALLE);
+  ell([0, 0.98, 0.0], [0.31, 0.28, 0.27], 8, 5, 0, KL.fell, ALLE, 0, true);
   ell([0, 0.93, 0.16], [0.21, 0.17, 0.12], 6, 3, 0, KL.hell, B.pinguin);
   // Schnauze (nicht Pinguin), Fuchs spitzer, Kuh breit und rosa
   ell([0, 0.9, 0.2], [0.13, 0.09, 0.1], 6, 3, 0, KL.hell, OHNE_P & ~B.fuchs & ~B.kuh);
@@ -114,7 +118,7 @@ export function tierForm() {
   ell([0, 0.91, 0.31], [0.065, 0.04, 0.085], 5, 3, 0, KL.extra, B.pinguin);
   // Augen: groß, weiß, schwarze Pupille, Glanzpunkt oben außen – das Niedliche
   for (const s of [-1, 1]) {
-    ell([s * 0.105, 1.04, 0.225], [0.085, 0.1, 0.055], 6, 4, 0, KL.weiss, ALLE);
+    ell([s * 0.105, 1.04, 0.225], [0.085, 0.1, 0.055], 6, 4, 0, KL.weiss, ALLE, 0, true);
     disc([s * 0.1, 1.03, 0.282], 0.056, 0.07, 6, [s * 0.15, 0, 1], 0, KL.dunkel, ALLE);
     disc([s * 0.085, 1.065, 0.29], 0.02, 0.02, 4, [s * 0.15, 0.1, 1], 0, KL.glanz, ALLE);
     // Bäckchen
