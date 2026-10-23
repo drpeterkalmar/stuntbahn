@@ -118,9 +118,9 @@ Fahrbahn), Kuppe ≤ 0,8 m, Senke ≤ 4 m; keine Decke (Welt-Strahl bis Scheitel
 1. `python3 tests/n40_shots.py stunt quer 4-2` (je Figur über `?zstunt=` eine Bildfolge von der Linie bis nach der Landung +
    Zielbogen, Film-Titel; ungetestet): sieht man Nitro-Flammen, Sprung, Drehung, saubere Landung? Kein Ruck beim Absprung
    (Lage wechselt von Physik auf Rechnung) und bei der Landung (`Car.place`)?
-2. **Verfolger-Kamera im Flug:** Sie hält im Flug die Flugrichtung waagrecht und Welt-Oben, **nur wenn `ARCADE.on`**
-   (camera.js Z. 212) – ohne Arcade folgt `fwd` der Nase und dreht beim Flip mit. Prüfen, ggf. für `race.zstunt.ph === 'air'`
-   dieselbe Regel erzwingen. **Cockpit-Kamera** dreht beim Flip voll mit (Übelkeit?) – ggf. im Stunt auf Verfolger.
+2. **Verfolger-Kamera im Flug:** Sie hält im Flug die Flugrichtung waagrecht und Welt-Oben (camera.js Z. 212, `ARCADE.on` –
+   Standard, aus nur mit `?physik=alt`; dann folgt `fwd` der Nase und dreht beim Flip mit). Im Bild prüfen.
+   **Cockpit-Kamera** dreht beim Flip voll mit (Übelkeit?) – ggf. im Stunt auf Verfolger.
 3. Zielshow-Zeiten: Schnitt auf den Zielbogen erst nach der Landung (bis ~5,4 s), Feuerwerk (geplant 0–4,6 s) läuft
    währenddessen hinter dem Auto – passt das Bild? Ggf. `ZIEL`-Feuerwerk mit dem Stunt verschieben.
 4. Highlight-Film: Tele-Kamera beim Stunt (Bildausschnitt), evtl. Zeitlupe auf den Flip statt auf die Linie.
