@@ -13,6 +13,8 @@ import * as THREE from 'three';
 import { GB, instanced, decoUniforms, canvasTex, quadGeometry, once, fenceMaterial, signMaterial, AD_CELL, crowdNear } from './deco.js';
 import { patchStaticShadow } from './materials.js';
 import { MAT } from '../track/defs.js';
+import { ZUSCHAUER, tierMischung, tierCol } from './tierform.js';   // n40 Tier-Zuschauer
+import { tierGeometry, tierMaterial } from './tiere.js';
 
 // Entfernung (m), ab der 3D-Zuschauer ausgeblendet werden [Beginn, Ende] je Grafikstufe (0 = keine 3D-Figuren)
 export const FAN_FADE = [null, [36, 48], [58, 74]];
@@ -92,8 +94,10 @@ export function fanGeometry() {
   return g;
 }
 
-// Haltung und Jubel im Vertex-Shader (für Position und Normale dieselbe Drehung)
-const FAN_POSE_GLSL = `
+// Haltung und Jubel im Vertex-Shader (für Position und Normale dieselbe Drehung). n40: Gelenke als Parameter J (Menschen wie
+// bisher; Tier-Zuschauer gfx/tiere.js mit kurzen Beinen, Schultern tiefer) – für Menschen bleibt der Text Zeichen für Zeichen gleich
+export const FAN_J = { lift: '0.24', sitLift: '-0.8', armL: '-0.26, 1.45, 0.0', armR: '0.26, 1.45, 0.0', hip: '0.0, 0.88, 0.0' };
+export const fanPoseGlsl = (J) => `
   attribute float aPart, aCls; attribute vec4 iA; attribute vec2 iB;   // iA: Haltung, Farbe, Phase, Fahne; iB: Blitz, Größe
   uniform float uTime; uniform vec4 uCheer; uniform vec2 uFanFade;
   varying float vFlash;
@@ -116,13 +120,14 @@ const FAN_POSE_GLSL = `
       aL = mix( aL, 2.8 + pump, cheer ); aR = mix( aR, pose > 2.5 && pose < 3.5 ? 2.6 + 0.6 * sin( t * 5.0 + ph ) : 2.8 - pump, cheer );
       sL = mix( sL, 0.42, cheer ); sR = mix( sR, 0.42, cheer );
     }
-    lift = sit ? -0.8 : cheer * abs( sin( t * ( 6.0 + iA.z * 3.0 ) + ph ) ) * 0.24;
+    lift = sit ? ${J.sitLift} : cheer * abs( sin( t * ( 6.0 + iA.z * 3.0 ) + ph ) ) * ${J.lift};
     k = cheer;
     o = vec3( 0.0 ); m = mat3( 1.0 );
-    if ( aPart > 2.5 && aPart < 3.5 ) { o = vec3( -0.26, 1.45, 0.0 ); m = fRotZ( -sL ) * fRotX( -aL ); }
-    else if ( aPart > 3.5 ) { o = vec3( 0.26, 1.45, 0.0 ); m = fRotZ( sR ) * fRotX( -aR ); }
-    else if ( sit && aPart > 0.5 ) { o = vec3( 0.0, 0.88, 0.0 ); m = fRotX( -1.5 ); }
+    if ( aPart > 2.5 && aPart < 3.5 ) { o = vec3( ${J.armL} ); m = fRotZ( -sL ) * fRotX( -aL ); }
+    else if ( aPart > 3.5 ) { o = vec3( ${J.armR} ); m = fRotZ( sR ) * fRotX( -aR ); }
+    else if ( sit && aPart > 0.5 ) { o = vec3( ${J.hip} ); m = fRotX( -1.5 ); }
   }`;
+const FAN_POSE_GLSL = fanPoseGlsl(FAN_J);
 
 export function fanMaterial() {
   return once('fan3d', () => {
@@ -447,16 +452,18 @@ export function buildKulisse2(plan, ctx) {
   // ----- 3D-Zuschauer -----
   const FF = FANS3D ? FAN_FADE[tier] : null;
   if (FF && plan.fans.length) {
-    const g = fanGeometry(), list = [], iA = [], iB = [];
+    // n40: Tier-Zuschauer (Option „Zuschauer“, Standard Tiere; ZUSCHAUER setzt main.js) – gleiche Instanz-Daten, Art in iA.y
+    const TI = ZUSCHAUER.tiere, arts = TI ? tierMischung(plan.fans, (plan.fans.length * 7919 + Math.round(plan.fans[0].x * 13 + plan.fans[0].z * 7)) >>> 0) : null;
+    const g = TI ? tierGeometry() : fanGeometry(), list = [], iA = [], iB = [];
     const blockFoot = (f) => { let m = gy(f.bx, f.bz); const r = Math.max(f.bw || 0, f.bd || 0) / 2; for (const [a, b] of [[-1, -1], [1, -1], [-1, 1], [1, 1], [0, 1], [1, 0], [0, -1], [-1, 0]]) m = Math.min(m, gy(f.bx + a * r, f.bz + b * r)); return m; };
-    for (const f of plan.fans) {
+    plan.fans.forEach((f, k) => {
       const y = f.roof != null ? blockFoot(f) + f.roof : gy(f.x, f.z) - 0.03;
       list.push({ x: f.x, y, z: f.z, rot: f.rot, sx: f.s, sy: f.s, sz: f.s });
-      iA.push(f.pose, f.col, f.ph, f.flag); iB.push(f.blitz, f.s);
-    }
+      iA.push(f.pose, TI ? tierCol(arts[k], f.col) : f.col, f.ph, f.flag); iB.push(f.blitz, f.s);
+    });
     g.setAttribute('iA', new THREE.InstancedBufferAttribute(new Float32Array(iA), 4));
     g.setAttribute('iB', new THREE.InstancedBufferAttribute(new Float32Array(iB), 2));
-    const m = fanMaterial(); m.userData.uFanFade.value.set(FF[0], FF[1]);
+    const m = TI ? tierMaterial() : fanMaterial(); m.userData.uFanFade.value.set(FF[0], FF[1]);
     const im = instanced(g, m, list, 'kulisse2-zuschauer');
     put(im, false, list.length * g.index.count / 3);
     st.fans = list.length;

@@ -14,6 +14,8 @@ import { MAT } from '../track/defs.js';
 import { buildRand } from './kulisse.js';
 import { buildKulisse2, standGeometry } from './kulisse2.js';
 import { KULISSE2_URL } from '../track/kulisse2.js';
+import { ZUSCHAUER } from './tierform.js';   // n40 Tier-Zuschauer
+import { tierAtlas } from './tiere.js';
 
 export const decoUniforms = { uTime: { value: 0 }, uCheer: { value: new THREE.Vector4(0, 0, 1, 0) } };
 let assets = null;
@@ -483,7 +485,7 @@ export function buildDeco(track, M, surfaceY, add, opts = {}) {
   // Gruppen: 3,4 m breite Ausschnitte (Maßstab wie die 7,4-m-Streifen: 128 px = 1,85 m), je Karte ein anderer Ausschnitt
   (P.crowd || []).forEach((c, k) => crowdList.push({ x: c.x, y: gy(c.x, c.z) - 0.05, z: c.z, rot: c.rot, sx: 3.4, sy: 1.85, cell: [((k * 0.29 + c.v * 0.13) % 0.77), 1 - ((2 + c.v % 2) * 128 + 128) / 1024, 0.23, 128 / 1024] }));
   if (crowdList.length) {
-    const m = once('crowd2', () => crowdMaterial(crowdAtlas()));
+    const m = ZUSCHAUER.tiere ? once('crowd2t', () => crowdMaterial(tierAtlas())) : once('crowd2', () => crowdMaterial(crowdAtlas()));   // n40 Tier-Zuschauer
     const g = quadGeometry();
     const im = instanced(g, m, crowdList, 'deco-crowd', true);
     add(im, false); count(im, crowdList.length, 2);
