@@ -2,7 +2,7 @@
 
 Kurzfassung je Version; Details in den Abschnitten der `README.md` und in den Berichten (`*_BERICHT.md`).
 
-## __VERSION__ – 25.10.2026 (Reset-Knopf)
+## 0.12.4 – 25.10.2026 (Reset-Knopf)
 - **Neu: ↺ Reset-Knopf** (Peter 22.10.: „Bitte 1 Klick Reset auf die Strecke (statt Zurückspulen)“): ersetzt ⏪ im HUD, auf
   allen Stufen. Ein Tipp setzt das Auto wie der Crash-Reset zurück auf die Fahrbahn (mittig, in Fahrtrichtung, mit Schwung;
   vor einem Stunt mit dessen Anlauftempo) – +5 s wie ein Crash, nie eine Abkürzung, Doppeltipp-Schutz 1 s.
