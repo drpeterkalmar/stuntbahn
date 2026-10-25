@@ -2,7 +2,7 @@
 
 Kurzfassung je Version; Details in den Abschnitten der `README.md` und in den Berichten (`*_BERICHT.md`).
 
-## NEUE_VERSION – 25.10.2026 (Lack wie früher)
+## 0.12.3 – 25.10.2026 (Lack wie früher)
 - **Autos wieder fotorealistisch** (Peter 22.10.: „Autos sehen derzeit aus wie Comiczeichnungen“): Die dynamische
   Lack-Spiegelung aus n30 (nur Grafik „Kino“) legte rosa-weiße Glanzflächen und helle Kanten über den Lack. Jetzt Peters
   Variante D: Spiegelung standardmäßig aus, großes Umgebungs-HDR (1024×512, Float) wieder Standard – Bild wie am 07.10.
