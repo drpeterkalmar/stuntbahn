@@ -72,6 +72,20 @@ spielbar am Handy (quer oder hochkant), mit Gamepad oder Tastatur. Als App insta
   Abstand zu jeder Fahrbahn (auch Hochstraßen/Rampen), nie im Wasser. Dosiert nach Grafikstufe; ruckelt es, blendet die
   Automatik (nach der Unschärfe) zuerst Gras/Büsche/Wolkenschatten aus. `?deko=aus` (bis n29 `?deko=0`) / `?wolken=0` zum Vergleich.
 
+## ↺ Reset-Knopf: 1 Tipp zurück auf die Strecke (seit 25.10.2026, n41)
+- Peter 22.10.: „Bitte 1 Klick Reset auf die Strecke (statt Zurückspulen).“ Der HUD-Knopf ⏪ ist jetzt **↺ Reset** (alle
+  Stufen, auch Original): ein Tipp, kurzes Aufblitzen, das Auto steht wieder mitten auf der Fahrbahn (Ideallinie), in
+  Fahrtrichtung, mit Schwung – genau wie nach einem Crash; im oder kurz vor einem Stunt ~45 m davor mit dessen Anlauftempo.
+- **Fair:** gleiche Zeitstrafe wie ein Crash (**+5 s**, im HUD/Ergebnis/Replay/Geist). Neben der Fahrbahn zählt die Stelle, an
+  der man sie verlassen hat (Runde, Checkpoints wie dort) – ein Reset ist nie eine Abkürzung und überspringt nie ein Element.
+  Doppeltipp-Schutz 1 s. Mit Totalschaden im Wrack: sofort zurück statt Zurückspulen (Uhr + Restwartezeit).
+- **Tasten:** `T` oder `Backspace`, Gamepad **Y**. Zurückspulen bleibt: `R`, Gamepad Steuerkreuz ◀ und im Pause-Menü
+  („⏪ 3 s zurückspulen“, Leicht/Mittel); dort auch „↺ Reset“.
+- **Gegner/online:** Nach dem Reset ist das eigene Auto kurz ein Geist (wie nach einem Crash) – kein Einschlag in einen Gegner
+  am Rücksetzpunkt; online sehen die anderen den Sprung als Geist, die Strafe zählt in der Zieltabelle.
+- Tests: `node tests/node/test_reset.mjs` (Teil F), `node tests/node/test_onlinespiel.mjs`, `python3 tests/test_reset_knopf.py`.
+  Bericht `RESET_KNOPF_BERICHT.md`.
+
 ## 🚗 Lack wieder fotorealistisch (seit 25.10.2026, n40)
 - Peter 22.10.: „Autos sehen derzeit aus wie Comiczeichnungen, früher waren sie photorealistischer.“ Ursache (Bildvergleich
   07.10. gegen heute, WebKit/iPhone 15, `LACK_BERICHT.md`): die dynamische Lack-Spiegelung aus n30 (Grafik „Kino“) legte
@@ -584,7 +598,7 @@ Keile am Innenrand markieren die Scheitelpunkte. Loopings, Röhren, Korkenzieher
 Bausteinspur.
 
 **Abkürzen** lohnt nicht (alle Stufen): Wer neben der Fahrbahn mehr Strecke gutmacht, als er fährt, wird an die Stelle
-zurückgesetzt, an der er die Fahrbahn verlassen hat (Uhr läuft weiter). Ab 18 m Abstand erscheint „Zurück zur Strecke ↺“.
+zurückgesetzt, an der er die Fahrbahn verlassen hat (Uhr läuft weiter). Ab 18 m Abstand erscheint „Zurück zur Strecke – oder ↺ Reset“.
 
 **Crash** (Option „💥 Totalschaden“, gilt für alle Stufen):
 - **Aus (Standard):** kurzes Aufblitzen → Fahrbahn-Reset vor das Element mit Profil-Tempo, **+5 s** (groß angezeigt,
@@ -598,9 +612,9 @@ zurückgesetzt, an der er die Fahrbahn verlassen hat (Uhr läuft weiter). Ab 18 
   rechts 🔥 Nitro. **Tastengröße** (Optionen): Normal / **Groß** (Standard, +30 %) / Riesig; die Trefferfläche ist 6 px größer
   als die sichtbare Taste. Kein versehentlicher Doppeltipp-Zoom (auch iOS). Optional „Lenken durch Neigen“
   (hochkant: seitlich kippen oder wie ein Lenkrad drehen). Keine Wischgesten. Drehen im Rennen → kurze Pause mit „▶ Weiter“.
-- **Tastatur:** Pfeile/WASD (bremsen ↓/S), **Leertaste Hüpfer**, **Shift oder `N` Nitro**, `R` zurückspulen, `C` Kamera,
+- **Tastatur:** Pfeile/WASD (bremsen ↓/S), **Leertaste Hüpfer**, **Shift oder `N` Nitro**, **`T`/`Backspace` ↺ Reset**, `R` zurückspulen, `C` Kamera,
   `L` Ideallinie, `Esc` Pause. (Bis 28.09.2026 bremste die Leertaste.)
-- **Gamepad:** linker Stick lenken, RT/A Gas, LT/X Bremse, **B Hüpfer, RB Nitro**, Y zurückspulen, LB Kamera, Back Ideallinie, Start Pause.
+- **Gamepad:** linker Stick lenken, RT/A Gas, LT/X Bremse, **B Hüpfer, RB Nitro, Y ↺ Reset**, Steuerkreuz ◀ zurückspulen (bis 0.12.3: Y), LB Kamera, Back Ideallinie, Start Pause.
 - **In der Luft (n37, Mittel/Original):** Gas = Salto vorwärts, Bremse = Salto rückwärts, Lenken = Schraube, Gamepad-Stick
   vor/zurück = nicken. Mittel: antippen = ganzer Trick; Original: halten = drehen.
 - **Stunts laden Nitro (n38):** Nach dem Trick nichts mehr drücken = „ruhige Hand“ ×1,5 (Schweif gold). Goldener Ring um 🔥 =
@@ -734,6 +748,7 @@ python3 tests/hochformat_shots.py         # Fotos + Layout-Prüfung aller Bildsc
 python3 tests/hochformat_cam.py 4711      # Verfolger hoch vs. quer: Auto-Lage, Horizont, Strecke voraus (m)
 node tests/node/test_tilt.mjs             # Neigen: richtige Achse je Bildschirm-Ausrichtung
 python3 tests/test_reset_ui.py            # Totalschalter, „+5 s“, Strafen in Ergebnis/Replay, Bestzeit-Wertungen
+python3 tests/test_reset_knopf.py         # n41 ↺ Reset-Knopf quer + hoch: Tipp, Doppeltipp, Tasten, Gamepad, Pause-Menü, KI-Gegner
 node tests/node/test_cockpit.mjs          # Instrumente: Skalen, Vmax ≤ Tacho, Zeiger-Dynamik, Kulisse, Replay-Gang
 python3 tests/test_cockpit_ui.py          # Cockpit: Kamera-Knopf, gespeichert, Wrack → Verfolger, Replay, 0 Fehler
 python3 tests/cockpit_shots.py quer       # Cockpit-Fotos + Zeigerprüfung (quer|hoch|desktop|tablet) nach tests/shots/cockpit/

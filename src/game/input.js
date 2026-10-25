@@ -1,5 +1,5 @@
 // Eingabe: Tastatur, Gamepad, Touch (Tasten-Zonen bzw. Bildschirmhälften, optional Neigen).
-// Liefert Rohwerte steer (−1..1), throttle/brake (0..1) + Knöpfe (rewind, pause, cam, Ideallinie, Hüpfer, Nitro).
+// Liefert Rohwerte steer (−1..1), throttle/brake (0..1) + Knöpfe (Reset, Zurückspulen, Pause, Kamera, Ideallinie, Hüpfer, Nitro).
 
 // Neigen → Lenkwinkel in Grad (> 0 = rechts), für jede Bildschirm-Ausrichtung (0 hoch, 90/270 bzw. −90 quer,
 // 180 kopfüber). Aus beta/gamma wird die Richtung „oben“ im Geräte-System berechnet und auf die waagrechte
@@ -37,7 +37,7 @@ export class Input {
       if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
       this.keys.add(e.code);
       this.pressed.add(e.code);
-      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) e.preventDefault();
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'Backspace'].includes(e.code)) e.preventDefault();
     }, { passive: false });
     addEventListener('keyup', (e) => this.keys.delete(e.code));
     addEventListener('blur', () => this.keys.clear());
@@ -73,11 +73,13 @@ export class Input {
     this.pad.brake = Math.max(lt, b);
     this.pad.active = Math.abs(dz) > 0 || this.pad.throttle > 0 || this.pad.brake > 0;
     const was = this._padBtn || {};
-    // B (1) = Hüpfer, RB (5) = Nitro – A/X (Gas/Bremse), Y, LB, Back, Start bleiben wie bisher
-    const now = { y: p.buttons[3]?.pressed, b: p.buttons[1]?.pressed, rb: p.buttons[5]?.pressed, start: p.buttons[9]?.pressed, lb: p.buttons[4]?.pressed, back: p.buttons[8]?.pressed };
+    // B (1) = Hüpfer, RB (5) = Nitro – A/X (Gas/Bremse), LB, Back, Start bleiben wie bisher
+    // n41: Y (3) = ↺ Reset auf die Strecke (wie Taste T/Backspace; bis 0.12.3 Zurückspulen), Steuerkreuz links (14) = ⏪ Zurückspulen
+    const now = { y: p.buttons[3]?.pressed, b: p.buttons[1]?.pressed, rb: p.buttons[5]?.pressed, start: p.buttons[9]?.pressed, lb: p.buttons[4]?.pressed, back: p.buttons[8]?.pressed, dl: p.buttons[14]?.pressed };
     if (now.b && !was.b) this.pressed.add('Space');
     if (now.rb && !was.rb) this.pressed.add('KeyN');
-    if (now.y && !was.y) this.pressed.add('KeyR');
+    if (now.y && !was.y) this.pressed.add('KeyT');
+    if (now.dl && !was.dl) this.pressed.add('KeyR');
     if (now.start && !was.start) this.pressed.add('Escape');
     if (now.lb && !was.lb) this.pressed.add('KeyC');
     if (now.back && !was.back) this.pressed.add('KeyL');

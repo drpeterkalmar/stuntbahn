@@ -86,6 +86,21 @@ ok(A.spiel.starten(), 'Gastgeber startet (2 KI)');
 await lauf(SITZUNG.vorlauf / 1000 + 2);
 ok(A.gestartet === 1 && B.gestartet === 1 && A.los != null && B.los != null && Math.abs(A.los - B.los) <= 50, `beide gestartet, „Los!“ ${Math.abs(A.los - B.los).toFixed(0)} ms auseinander`);
 ok(B.race.assistKey === 'easy' && A.race.assistKey === 'original' && B.spiel.rennen.haerte.crash === Infinity, 'jeder mit eigener Stufe (Ben Leicht: weiche Rempler, nie Crash)');
+// n41 Reset-Knopf online: Ben setzt zurück → bei Peter als Geist (Crash-Flag, dann Sprung → 1,5 s ohne Kollision), +5 s bei Ben
+await lauf(4);
+{
+  const spB = B.spiel.rennen.sprung, pB = B.race.penalties;
+  const r1 = B.race.requestReset(), r2 = B.race.requestReset();
+  let geistA = false, geistBis = 0;
+  await lauf(1.2, () => {
+    const XB = [...A.spiel.rennen.autos.values()].find((X) => X.sid === B.spiel.S.sid);
+    if (XB && XB.auto.geist(A.spiel.rennen.tSim / 1000)) geistA = true;
+    if (XB) geistBis = Math.max(geistBis, XB.auto.geistBis);
+    return false;
+  });
+  ok(r1 && !r2 && B.race.state === 'running' && B.spiel.rennen.sprung === spB + 1 && B.race.penalties === pB + 1 && geistA && geistBis > 0,
+    `Online-Reset (Ben): Doppeltipp gesperrt, Sprung-Zähler ${spB} → ${B.spiel.rennen.sprung}, Strafe +5 s, bei Peter als Geist (${geistA})`);
+}
 const fertig = await lauf(V.apTime * 1.7 + 70, () => A.store.online.length && B.store.online.length);
 const e = (G) => G.store.online[0];
 ok(fertig && e(A).von === 4 && e(B).von === 4 && e(A).platz !== e(B).platz && e(A).t > 0 && e(B).t > 0 && A.store.best.solo === 1, `Zieltabelle → Liste „Online“: Peter Platz ${e(A) && e(A).platz}, Ben Platz ${e(B) && e(B).platz} von ${e(A) && e(A).von}; Solo-Bestzeiten unberührt`);

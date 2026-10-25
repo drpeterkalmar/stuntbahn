@@ -2,6 +2,14 @@
 
 Kurzfassung je Version; Details in den Abschnitten der `README.md` und in den Berichten (`*_BERICHT.md`).
 
+## __VERSION__ – 25.10.2026 (Reset-Knopf)
+- **Neu: ↺ Reset-Knopf** (Peter 22.10.: „Bitte 1 Klick Reset auf die Strecke (statt Zurückspulen)“): ersetzt ⏪ im HUD, auf
+  allen Stufen. Ein Tipp setzt das Auto wie der Crash-Reset zurück auf die Fahrbahn (mittig, in Fahrtrichtung, mit Schwung;
+  vor einem Stunt mit dessen Anlauftempo) – +5 s wie ein Crash, nie eine Abkürzung, Doppeltipp-Schutz 1 s.
+- Tasten `T`/`Backspace`, Gamepad Y = Reset; Zurückspulen weiter mit `R`, Gamepad Steuerkreuz ◀ und im Pause-Menü.
+- Mit KI-Gegnern und online: kurze Geist-Phase nach dem Reset (kein Einschlag), Strafe zählt in der Zieltabelle.
+- Hilfe/Steuerungsseite angepasst; Bericht `RESET_KNOPF_BERICHT.md`, Test `tests/test_reset_knopf.py`.
+
 ## 0.12.3 – 25.10.2026 (Lack wie früher)
 - **Autos wieder fotorealistisch** (Peter 22.10.: „Autos sehen derzeit aus wie Comiczeichnungen“): Die dynamische
   Lack-Spiegelung aus n30 (nur Grafik „Kino“) legte rosa-weiße Glanzflächen und helle Kanten über den Lack. Jetzt Peters

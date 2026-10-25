@@ -88,6 +88,11 @@ button.go { background: linear-gradient(180deg, #ff7a36, #e24e10); border-color:
 #hud .rb.line.off svg { opacity: .55; } #hud .rb.line.off .x { display: inline; }
 .seg.dis { opacity: .45; } .seg > button:disabled { cursor: not-allowed; }
 .rb { width: 52px; height: 52px; border-radius: 14px; background: rgba(12, 16, 22, .6); border: 1px solid #ffffff2a; font-size: 22px; pointer-events: auto; }
+/* n41 Reset-Knopf: ↺ mit „Reset“ darunter; kurz gedimmt nach dem Tipp (Doppeltipp-Schutz) */
+#hud .rb.reset { display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 0; padding: 0; line-height: 1; color: #fff; }
+#hud .rb.reset b { font-size: 26px; font-weight: 700; line-height: 26px; }
+#hud .rb.reset small { font-size: 10px; font-weight: 700; letter-spacing: .3px; opacity: .85; margin-top: 1px; }
+#hud .rb.reset.cool { opacity: .45; }
 #hud .speed { position: absolute; bottom: max(12px, var(--sab)); left: 50%; transform: translateX(-50%); text-shadow: 0 2px 6px #000; display: flex; align-items: baseline; gap: 6px; }
 #hud .speed b { font-size: 40px; font-weight: 900; font-variant-numeric: tabular-nums; min-width: 3ch; text-align: right; }
 #hud .speed span { font-size: 14px; opacity: .8; }

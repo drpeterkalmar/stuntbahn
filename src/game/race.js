@@ -64,6 +64,7 @@ export const GAME_SPEEDS = { get easy() { return ASSISTS.easy.speed || GAME_SPEE
 // vor das Element mit fliegendem Neustart und PENALTY Sekunden Zeitstrafe; an → Wrack wie bisher.
 export const PENALTY = 5;
 export const RESET_DELAY = 0.35; // kurzes Aufblitzen zwischen Crash und Reset (Spielzeit, s)
+export const RESET_GAP = 1;      // n41 Reset-Knopf: Doppeltipp-Schutz (Spielzeit, s)
 
 // Leicht: Spieler hat Vorrang (Peter 27.09.). Deutlicher Lenkeinschlag (> in, hold s gehalten) blendet den
 // Zug zur Linie in fadeOut s aus – dann frei, auch ins Gelände. Loslassen (< keep, 0,3 s): Hilfe blendet in
@@ -343,7 +344,7 @@ export class Race {
       this.time += dt;
       this.crashT += dt;
       this.record(dt);
-      if (this.crashT > (this.assist.autoRewind ? 1.4 : ARCADE.on ? ARCADE.respawn : 2.6)) this.recover();   // n37: alle Stufen ≤ 1,5 s
+      if (this.crashT > this.wreckWait()) this.recover();   // n37: alle Stufen ≤ 1,5 s
       return;
     }
     if (this.state === 'reset') {
@@ -353,7 +354,7 @@ export class Race {
       this.time += dt;
       this.crashT += dt;
       this.record(dt);
-      if (this.crashT >= RESET_DELAY) this.recover();
+      if (this.crashT >= RESET_DELAY) { if (this.manReset) { this.manReset = false; this.safeReset(); } else this.recover(); }
       return;
     }
     // ---- Rennen läuft ----
@@ -558,7 +559,7 @@ export class Race {
     }
     // Abseits: zu weit weg von der Linie (großzügig, OFF); Hinweis im HUD schon vorher
     if (this.tracker.dist > OFF.far) { this.offT += dt; if (this.offT > OFF.sec) { this.car.setCrash('Abseits'); } } else this.offT = 0;
-    if (this.tracker.dist > OFF.hint && !this.autopilotOnly) this.hud = { kind: 'off', text: 'Zurück zur Strecke ↺' };
+    if (this.tracker.dist > OFF.hint && !this.autopilotOnly) this.hud = { kind: 'off', text: 'Zurück zur Strecke – oder ↺ Reset' };   // n41: Hinweis auf den Reset-Knopf
     // Festgefahren: 5 s ohne nennenswerten Fortschritt. Wer frei durchs Gelände fährt (in Bewegung, selbst
     // lenkend), darf das – dort greift erst nach 20 s ohne Fortschritt die Sicherung (sonst die Abseits-Regel).
     if (prog > this.stuckProg + 2) { this.stuckProg = prog; this.stuckT = 0; }
@@ -1486,8 +1487,40 @@ export class Race {
       bank: COOLDOWN.nitro > 0 ? Math.min(1, this.nbank / COOLDOWN.nitro) : 0 };   // n38: Vorrat aus Stunts 0 … 1
   }
 
+  // Wartezeit im Wrack (Totalschaden an) bis zum automatischen recover()
+  wreckWait() { return this.assist.autoRewind ? 1.4 : ARCADE.on ? ARCADE.respawn : 2.6; }
+
   requestRewind() {
     if (this.state === 'running' || this.state === 'wreck') { this.rewind(3); }
+  }
+
+  // n41 Reset-Knopf (Peter 22.10.2026: „1 Klick Reset auf die Strecke (statt Zurückspulen)“): wie der Crash-Reset – kurz
+  // aufblitzen (Zustand 'reset', RESET_DELAY), dann safeReset (vor einem Stunt ~45 m davor mit dessen Anfahrtstempo, sonst
+  // ~12 m zurück, auf der Ideallinie, in Fahrtrichtung, mit Schwung) – und dieselbe Zeitstrafe +PENALTY s, damit ein Reset nie
+  // Zeit bringt. Neben der Fahrbahn (Ausflug, this.shortcut) zählt die Stelle, an der man sie verlassen hat (Runde, Checkpoints
+  // wie dort): so ist der Reset auch keine Abkürzung. Kein Mehrfach-Versetzen: an derselben Stelle wird nie übersprungen
+  // (skipAhead bleibt den Crashs vorbehalten). Im Wrack (Totalschaden an) nur die Restwartezeit auf die Uhr, dann sofort
+  // zurück auf die Fahrbahn statt Zurückspulen. Doppeltipp-Schutz RESET_GAP s. Rückgabe: true = ausgelöst
+  requestReset() {
+    if (this.state !== 'running' && this.state !== 'wreck') return false;
+    if (this.simTime - (this.manT ?? -99) < RESET_GAP) return false;
+    this.manT = this.simTime;
+    this.manResets = (this.manResets || 0) + 1;
+    if (this.state === 'wreck') {
+      this.time += Math.max(0, this.wreckWait() - this.crashT);
+      this.safeReset();
+      return true;
+    }
+    const S = this.shortcut;
+    if (S) { this.tracker.reset(S.idx); this.tracker.lap = S.lap; this.cpNext = S.cp; }
+    this.stopNitro(); this.lb = null;
+    this.time += PENALTY;
+    this.penalties++;
+    this.pens.push({ f: this.recFrames(), sec: PENALTY });
+    this.emit('mreset', { penalty: PENALTY });
+    this.crashT = 0; this.manReset = true;
+    this.state = 'reset';
+    return true;
   }
 
   // Aufzeichnung fürs Geisterauto: jede Zeitstrafe als Stillstand an der Crash-Stelle einfügen,

@@ -290,7 +290,7 @@ async function boot() {
   await startAutopilot();
   ui.loading(1, 'Fertig');
   app.ready = true;
-  ui.bind({ startRace, newTrack, setAssist, toMenu, retry, startReplay, cycleCam, gegnerStand, gegnerGummi: () => !!(gegner && gegner.opt.aufholhilfe), rewind: () => race && race.requestRewind(), pause: togglePause,
+  ui.bind({ startRace, newTrack, setAssist, toMenu, retry, startReplay, cycleCam, gegnerStand, gegnerGummi: () => !!(gegner && gegner.opt.aufholhilfe), rewind: () => race && race.requestRewind(), reset: () => resetCar(), pause: togglePause,
     skipCine: () => endCine(true), skipShow: () => endShow(true), replayCine: () => { if (race && race.film && ui.lastRes) startCine(ui.lastRes); },
     recordCine: () => { if (race && race.film && ui.lastRes) startCine(ui.lastRes, { record: true }); },
     hop: () => { if (mode === 'race' && race && !frozen) race.requestHop(); }, nitro: () => { if (mode === 'race' && race && !frozen) race.requestNitro(); }, setLine, toggleLine, setPaint, setTheme, setWetter, setZeit, sound, input, quality, importFiles, playImported, deleteImported, trkLib, showcase: SHOWCASE, showcaseBytes, store, sammlung,
@@ -1107,6 +1107,8 @@ function rotated(p) {
   }
 }
 // n35: online läuft die Zeit weiter – statt Pause ein Blatt „Weiterfahren / Aufgeben“
+// n41: ↺ Reset auf die Strecke (HUD-Knopf, Taste T/Backspace, Gamepad Y) – wie der Crash-Reset, +PENALTY s; nicht in der Pause
+function resetCar() { if (mode === 'race' && race && !frozen) race.requestReset(); }
 function togglePause() { if (mode !== 'race') return; if (onlR && !frozen) { if (onlA) { if (onlA.offen() && onlA.ansicht === 'pause') onlA.action('onweiter'); else onlA.zeigePause(); } return; } frozen = !frozen; ui.showPause(frozen); if (frozen) sound.stop(); else sound.start(); }
 
 // ---------- Schleife ----------
@@ -1135,6 +1137,7 @@ function bild(now) {
   if (input.consume('KeyL') && mode === 'race') toggleLine();
   if (input.consume('KeyM') && mode === 'race') ui.karteGross();   // n39: Minikarte groß/klein
   if (input.consume('KeyR') && mode === 'race' && race.assist.autoRewind !== undefined && store.settings.assist !== 'original') race.requestRewind();
+  if (input.consume('KeyT') | input.consume('Backspace')) resetCar();   // n41: ↺ Reset (Gamepad Y)
   // Extras: Leertaste (Gamepad B) = Hüpfer, Shift/N (Gamepad RB) = Nitro
   if (input.consume('Space') && mode === 'race' && !frozen) race.requestHop();
   if ((input.consume('KeyN') | input.consume('ShiftLeft') | input.consume('ShiftRight')) && mode === 'race' && !frozen) race.requestNitro();
@@ -1812,7 +1815,7 @@ window.__game = {
     vao: vaoJob ? { fertig: vaoJob.done, anteil: +vaoJob.anteil.toFixed(3), ...(vaoJob.stats || {}) } : null, apLog: quality.ap ? quality.ap.log.slice(-12) : null, startProbe: app.startProbe || null, gpuZeit: quality.gpu ? quality.gpu.ok : null }; },
   state() {
     const c = race && race.car;
-    return { mode, state: race && race.state, time: race && race.time, speed: c && c.speed(), pos: c && [c.pos.x, c.pos.y, c.pos.z], up: c && c.frame.u.y, cp: race && race.cpNext, cps: race && race.cps.length, lap: race && race.tracker.lap, idx: race && race.tracker.idx, n: env && env.track.line.n, crashes: race && race.crashes, rewinds: race && race.rewinds, penalties: race && race.penalties, wreck: race && race.wreckOn, crash: c && c.crash, assist: store.settings.assist, seed: env && env.meta.seed, diff: env && env.meta.diff, key: env && env.meta.key, frames: app.frames,
+    return { mode, state: race && race.state, time: race && race.time, speed: c && c.speed(), pos: c && [c.pos.x, c.pos.y, c.pos.z], up: c && c.frame.u.y, cp: race && race.cpNext, cps: race && race.cps.length, lap: race && race.tracker.lap, idx: race && race.tracker.idx, n: env && env.track.line.n, crashes: race && race.crashes, rewinds: race && race.rewinds, resets: race && (race.manResets || 0), penalties: race && race.penalties, wreck: race && race.wreckOn, crash: c && c.crash, assist: store.settings.assist, seed: env && env.meta.seed, diff: env && env.meta.diff, key: env && env.meta.key, frames: app.frames,
       charges: race && { ...race.charges }, used: race && { ...race.used }, x: race && race.xstate(), onGround: c && c.onGround, extras: race && race.extrasOn };
   },
   start: (o) => startRace(o || {}),
@@ -1868,7 +1871,7 @@ window.__game = {
   // ein Bild wie im Spiel zeichnen (Tests/Messung, Szene angehalten): o = { run, speed, boost, cockpit }
   drawOnce(o = {}) { renderer.info.reset(); drawFrame({ run: !!o.run, speed: o.speed || 0, boost: o.boost || 0, dt: 1 / 60, cut: false, cockpit: !!o.cockpit, heat: o.heat === false ? null : (o.cockpit ? null : heatOf(o.speed || 0, o.boost || 0)) }); },
   setLook(l) { if (kino) { kino.setLevel(l); } },
-  hop() { race.requestHop(); }, nitro() { race.requestNitro(); },
+  hop() { race.requestHop(); }, nitro() { race.requestNitro(); }, reset() { return race.requestReset(); },
   // n36 Action-Momente (Tests): Regie, Moment erzwingen, Spiel bildweise (manuell = rAF zeichnet nicht mehr selbst)
   get action() { return act; }, get weltUhr() { return weltUhr; },
   actionStart(art) { if (!act) return null; act.stop(); act.letzt = -1e9; const M = act.starte(art, {}); act.log.push({ t: act.uhr, art, s: 0, recT: race.recFrames() / REC_HZ, ok: true, grund: 'test' }); race.actionMarks.push({ t: race.recFrames() / REC_HZ, art, schein: act.online }); return M; },

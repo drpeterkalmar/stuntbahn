@@ -1,6 +1,6 @@
 // Bedienoberfläche (DOM): Laden, Menü, HUD, Touch-Steuerung, Pause, Ergebnis, Replay, Kino-Replay, Credits.
 import { fmtTime, daySeed } from '../core/util.js';
-import { ASSISTS, PENALTY, BRAKE_HELP_MODES, FAHRSTILE, FAHRSTIL_URL } from '../game/race.js';
+import { ASSISTS, PENALTY, RESET_GAP, BRAKE_HELP_MODES, FAHRSTILE, FAHRSTIL_URL } from '../game/race.js';
 import { DIFFS } from '../track/generator.js';
 import { PAINTS } from '../gfx/carmesh.js';
 import { PIECES } from '../track/pieces.js';
@@ -74,7 +74,7 @@ export class UI {
         <div class="hint2" aria-live="polite"></div>
         <div class="tr"><div class="rbs">
           <button class="rb line" data-a="linetoggle" aria-label="Ideallinie ein/aus" title="Ideallinie ein/aus (L)"><svg viewBox="0 0 24 24" aria-hidden="true"><defs><linearGradient id="lg" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#3bdc55"/><stop offset=".55" stop-color="#ffd21a"/><stop offset="1" stop-color="#ff4a2a"/></linearGradient></defs><path d="M4 21C6 13 18 15 20 3" fill="none" stroke="url(#lg)" stroke-width="3.2" stroke-linecap="round"/><path class="x" d="M4 4L20 20" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/></svg></button>
-          <button class="rb" data-a="rewind" aria-label="Zurückspulen" title="Zurückspulen (R)">⏪</button>
+          <button class="rb reset" data-a="reset" aria-label="Reset – zurück auf die Strecke" title="Reset: zurück auf die Strecke, +${PENALTY} s (T oder Backspace, Gamepad Y)"><b>↺</b><small>Reset</small></button>
           <button class="rb" data-a="cam" aria-label="Kamera wechseln" title="Kamera (C)">🎥</button>
           <button class="rb" data-a="pause" aria-label="Pause" title="Pause (Esc)">⏸</button>
           <button class="rb emo" data-a="onrufe" aria-label="Kurzruf an die Mitspieler" title="Kurzruf (Online)">💬</button>
@@ -517,6 +517,9 @@ export class UI {
       case 'toggle': S[v] = !S[v]; this.store.save(); if (v === 'sound' && S.sound) A.sound.unlock(); if (v === 'sound' && !S.sound) A.sound.stop(); if (v === 'tilt') A.input.enableTilt(S.tilt); this.showSettings(); break;
       case 'paint': A.setPaint(PAINTS[+v].color); this.showSettings(); break;
       case 'rewind': A.rewind(); break;
+      case 'reset': A.reset(); break;   // n41: ↺ Reset auf die Strecke (HUD)
+      case 'prewind': A.pause(); A.rewind(); break;   // n41: Pause-Menü → weiter + 3 s zurück
+      case 'preset': A.pause(); A.reset(); break;
       case 'linetoggle': A.toggleLine(); break;
       case 'line': if (S.assist !== 'original') A.setLine(v); if (this.screen === 'pause') this.showPause(true); else this.showSettings(); break;
       case 'cam': A.cycleCam(); break;
@@ -768,14 +771,15 @@ export class UI {
       <p><b>🤸 Stunts in der Luft</b> (Mittel und Original, seit 18.10.2026)${ARCADE.on ? '' : ' – mit <code>?physik=alt</code> aus'}: <b>Gas</b> = Salto vorwärts, <b>Bremse</b> = Salto rückwärts, <b>◀ ▶</b> = Schraube. Was du beim Absprung schon drückst, zählt erst, wenn du es einmal loslässt – wer mit Vollgas über die Schanze fährt, fliegt ganz normal. <b>Mittel:</b> kurz <b>antippen</b> = ein ganzer Salto bzw. eine ganze Schraube (nochmal tippen = noch eine), nur wenn die Flugzeit reicht (sonst „zu spät“); die Landehilfe richtet das Auto danach aus. <b>Original:</b> <b>halten</b> = drehen, loslassen = der Schwung bleibt – Gegenrichtung fängt ab, du landest selbst. Gamepad: linker Stick vor/zurück nickt. Wände streifen kostet nur etwas Tempo, frontal einschlagen bleibt ein Crash. Landen auf dem Dach oder auf der Seite = Crash.</p>
       <p><b>★ Stunt-Punkte</b>: 1 Punkt je 0,1 s Luft (ab 0,5 s), je halbem Salto 15, je halber Schraube 20, je halbem Dreher 10${LOHN.stuntpkt ? '; Hüpfer ohne Drehung zählen halb. <b>Bauwerke</b> zählen auch: Looping ~42, Korkenzieher ~48, Röhre ~28 (je nach Tempo)' : '; ohne Drehung die Hälfte'}. Saubere Landung (alle Räder auf einmal, gerade) ×1,25${LOHN.landung ? `, <b>ruhige Hand</b> (zusätzlich ${String(LOHN.calmT).replace('.', ',')} s vor dem Aufsetzen nichts mehr verändert an Lenken, Gas, Bremse) ×${String(LOHN.calm).replace('.', ',')}` : ''}. Folgt der nächste Stunt kurz danach, wächst die <b>Kette</b> (×1,2 … ×2)${LOHN.stuntpkt ? '; Hüpfer zählen dafür nicht' : ''}. Crash-Landung: halbe Punkte, Kette vorbei. Dieselbe Figur am selben Sprung in der nächsten Runde zählt halb.${LOHN.tank && COOLDOWN.on ? ` <b>🔥 Stunts laden Nitro nach:</b> ${LOHN.tank} Punkte = eine ganze Nitro-Ladezeit. Lädt der Nitro gerade, ist er entsprechend früher bereit; ist er schon bereit, füllt sich ein Vorrat (goldener Ring um den Knopf), der beim nächsten Zünden die Ladezeit verkürzt – Vorrat voll = nach dem Ausbrennen sofort wieder bereit. Nitro zünden verlängert eine laufende Kette um ${LOHN.nitroWin} s.` : ' Die Bestzeit zählt nach Zeit.'}${LOHN.landeschub ? ` <b>🚀 Landeschub:</b> sauber gelandet nach langem Flug (ab ${String(LOHN.schub[0][0]).replace('.', ',')} s) gibt es kurz Schub – nie schneller, als die nächste Schanze verträgt.` : ''}${LOHN.schweif ? ' In der Luft zeigt der <b>Schweif</b>, was noch geht: hell = „ruhige Hand“, matt = nur noch „sauber“.' : ''}</p>
       <p><b>🗺️ Minikarte:</b> In der Ecke siehst du die ganze Strecke schräg von oben – dein Auto als roter Pfeil, gelb leuchtet der Abschnitt bis zum nächsten Checkpoint, Checkpoints grün = geschafft. Antippen<span class="desk"> oder Taste <b>M</b></span> = groß/klein; 3D, 2D, Aus und „Norden oben“ in den Optionen.</p>
-      <p><b>Tastatur:</b> Pfeile oder WASD (bremsen: Pfeil runter/S), <b>Leertaste</b> Hüpfer, <b>Shift</b> oder <b>N</b> Nitro, <b>R</b> zurückspulen, <b>C</b> Kamera (Verfolger, Cockpit, Hubschrauber, Stoßstange, Strecke), <b>L</b> Ideallinie ein/aus, <b>Esc</b> Pause.</p>
-      <p><b>Gamepad:</b> linker Stick lenken (in der Luft vor/zurück = nicken), RT/A Gas, LT/X Bremse, <b>B</b> Hüpfer, <b>RB</b> Nitro, Y zurückspulen, LB Kamera, Back Ideallinie, Start Pause.</p>
+      <p><b>Tastatur:</b> Pfeile oder WASD (bremsen: Pfeil runter/S), <b>Leertaste</b> Hüpfer, <b>Shift</b> oder <b>N</b> Nitro, <b>T</b> oder <b>Backspace</b> ↺ Reset auf die Strecke, <b>R</b> zurückspulen, <b>C</b> Kamera (Verfolger, Cockpit, Hubschrauber, Stoßstange, Strecke), <b>L</b> Ideallinie ein/aus, <b>Esc</b> Pause.</p>
+      <p><b>Gamepad:</b> linker Stick lenken (in der Luft vor/zurück = nicken), RT/A Gas, LT/X Bremse, <b>B</b> Hüpfer, <b>RB</b> Nitro, <b>Y</b> ↺ Reset, Steuerkreuz ◀ zurückspulen, LB Kamera, Back Ideallinie, Start Pause.</p>
       <p><b>Extras 🦘 🔥</b> (${COOLDOWN.on ? `unbegrenzt, nach jedem Einsatz lädt der Knopf nach – Ring füllt sich: Hüpfer ${COOLDOWN.hop} s, Nitro ${COOLDOWN.nitro} s nach dem Ausbrennen` : 'je 1 pro Runde, an Start/Ziel wieder voll'}): <b>Hüpfer</b> – das Auto springt aus der Fahrt ~3,5 m hoch und bleibt dabei waagrecht; nur mit Bodenkontakt, in Looping, Röhre, Korkenzieher und an Schanzen gesperrt (Knopf ausgegraut). <b>Nitro</b> – ${NITRO.dur} s lang deutlich mehr Schub (+70–80 % Beschleunigung, bis ~700 km/h), danach sanft zurück. Handy: runde Knöpfe über den Daumen (links 🦘, rechts 🔥). Abschaltbar in den Optionen.</p>
       <p><b>Tacho & G-Kräfte:</b> Der Tacho ist ein <i>Show-Tacho</i> – langsame Tempi zeigt er größer (echte 40 km/h stehen als ~${Math.round(showKmh(40))}), ab 250 km/h zeigt er genau. Auf der Wiese (echt höchstens 30 km/h) steht deshalb ~${Math.round(showKmh(30) / 5) * 5}. Das G-Meter (Cockpit, Replay, Highlights) zeigt die Kräfte aufs Auto: Punkt = Kurve/Bremsen/Gas, Zahl = gesamt, „max“ = Spitze der Runde.</p>
       <p><b>Crash:</b> Standardmäßig kein Totalschaden – das Auto steht sofort wieder auf der Fahrbahn vor dem Stunt, mit Schwung, und du bekommst <b>+${PENALTY} s</b> auf die Zeit. Klappt ein Stunt mehrmals nicht, wirst du dahinter gesetzt (auch dann je +${PENALTY} s). Wer es hart mag: Optionen → <b>💥 Totalschaden</b> (Wrack wie im Original).</p>
-      <p><b>⏪ Zurückspulen</b> (Leicht/Mittel): 3 s zurück, um einen Crash zu vermeiden. Ohne Totalschaden läuft die Uhr dabei weiter – es kostet die Zeit, die du neu fährst, aber keine Strafe.</p>
+      <p><b>↺ Reset</b> (Knopf oben rechts, alle Stufen, seit 25.10.2026): ein Tipp, und das Auto steht sofort wieder mitten auf der Fahrbahn, in Fahrtrichtung und mit Schwung – vor einem Stunt ein Stück davor mit dem passenden Anlauftempo. Kostet wie ein Crash <b>+${PENALTY} s</b>, bringt also nie Zeit; wer neben der Fahrbahn ist, kommt an die Stelle zurück, an der er sie verlassen hat. Praktisch, wenn du feststeckst, falsch herum stehst oder dich verfahren hast.</p>
+      <p><b>⏪ Zurückspulen</b> (Leicht/Mittel; Taste R, Gamepad Steuerkreuz ◀ oder im Pause-Menü): 3 s zurück, um einen Crash zu vermeiden. Ohne Totalschaden läuft die Uhr dabei weiter – es kostet die Zeit, die du neu fährst, aber keine Strafe.</p>
       <p><b>Ziel:</b> Alle Checkpoints der Reihe nach, dann über die Ziellinie. Bestzeiten und Geisterautos gibt es auf <i>Mittel</i> und <i>Original</i>, getrennt je Fahrhilfe und Totalschaden-Einstellung. Auf <i>Leicht</i> wird nur deine Zeit notiert (die letzten 5 je Strecke, mit Datum) – ohne Bestzeit und Geisterauto. Nach der Ziellinie läuft eine kurze <b>Zielshow</b> mit Feuerwerk (bei Bestzeit golden), das Auto rollt aus – Antippen überspringt.</p>
-      <p><b>Abkürzen</b> lohnt nicht (alle Stufen): Wer quer durchs Gelände Strecke spart, wird an die Stelle zurückgesetzt, an der er die Fahrbahn verlassen hat – die Uhr läuft weiter. Herumfahren im Gelände ist erlaubt; wer sich zu weit entfernt, sieht „Zurück zur Strecke ↺“ und wird nach einigen Sekunden zurückgesetzt.</p>`);
+      <p><b>Abkürzen</b> lohnt nicht (alle Stufen): Wer quer durchs Gelände Strecke spart, wird an die Stelle zurückgesetzt, an der er die Fahrbahn verlassen hat – die Uhr läuft weiter. Herumfahren im Gelände ist erlaubt; wer sich zu weit entfernt, sieht „Zurück zur Strecke – oder ↺ Reset“ und wird nach einigen Sekunden zurückgesetzt.</p>`);
   }
   showCredits() {
     this.sheet('Credits', `
@@ -799,7 +803,6 @@ export class UI {
     $('#replayui').classList.remove('show');
     const A = ASSISTS[this.store.settings.assist];
     $('#hud .assistTag').textContent = A.icon + ' ' + A.name;
-    $('#hud [data-a=rewind]').style.display = this.store.settings.assist === 'original' ? 'none' : '';
     this.lineChanged();
     this.hudBest(race, env);
     $('#hud .pen').textContent = '';
@@ -821,7 +824,7 @@ export class UI {
     $('#hud .best').textContent = b ? 'Beste ' + fmtTime(b.time) : '';
   }
   hud(race, env, ghost) {
-    // Hinweis-Zeile: Stunt-Ansage (Leicht: „Looping voraus – Autopilot lenkt“) bzw. „Zurück zur Strecke ↺“
+    // Hinweis-Zeile: Stunt-Ansage (Leicht: „Looping voraus – Autopilot lenkt“) bzw. „Zurück zur Strecke – oder ↺ Reset“
     const hd = race.state === 'running' && race.hud ? race.hud : null, ht = hd ? hd.text : '';
     if (ht !== this._hint) {
       this._hint = ht;
@@ -900,6 +903,11 @@ export class UI {
     else if (e.type === 'crash' && e.penalty) { this.big(`+${e.penalty} s<small>💥 ${e.reason}</small>`, 'pen', 1600); this.wipe(true); }
     else if (e.type === 'crash') this.big(`💥 ${e.reason}`, 'crash', 1400);
     else if (e.type === 'rewind') { this.toast(e.keepClock ? '⏪ Zurückgespult – Uhr läuft weiter' : '⏪ Zurückgespult'); if (e.keepClock) this.flash(); }
+    // n41 Reset-Knopf: „+5 s ↺ Reset“, Aufblitzen wie beim Crash; Knopf kurz gedimmt (Doppeltipp-Schutz RESET_GAP)
+    else if (e.type === 'mreset') {
+      this.big(`+${e.penalty} s<small>↺ Reset</small>`, 'pen', 1300); this.wipe(true);
+      const B = $('#hud [data-a=reset]'); B.classList.add('cool'); clearTimeout(this._rst); this._rst = setTimeout(() => B.classList.remove('cool'), RESET_GAP * 1000);
+    }
     else if (e.type === 'reset') { this.wipe(false); if (!race.wreckOn) return; this.toast('Zurück auf die Strecke'); }
     else if (e.type === 'skip') { this.wipe(false); this.toast('⏭ Stelle übersprungen', 1800); }
     else if (e.type === 'shortcut') { this.wipe(false); this.big('Abkürzung ↺<small>zurück an die Stelle, wo du die Strecke verlassen hast</small>', 'crash', 1800); }
@@ -954,7 +962,6 @@ export class UI {
   assistChanged() {
     const k = this.store.settings.assist, A = ASSISTS[k];
     $('#hud .assistTag').textContent = A.icon + ' ' + A.name;
-    $('#hud [data-a=rewind]').style.display = k === 'original' ? 'none' : '';
     this.lineChanged();
     if (document.body.dataset.mode === 'race') { this.setTouchMode(true); if (window.__game && window.__game.race) this.hudBest(window.__game.race, this.env); }
   }
@@ -987,6 +994,7 @@ export class UI {
       ${this.lineSeg()}
       <div class="lbl">🎬 Action-Momente</div>
       ${this.actionSeg()}
+      <div class="row">${S.assist !== 'original' ? '<button data-a="prewind">⏪ 3 s zurückspulen</button>' : ''}<button data-a="preset">↺ Reset (+${PENALTY} s)</button></div>
       <div class="row"><button data-a="restart">🔁 Neustart</button><button data-a="menu">☰ Menü</button></div></div>`;
     this.show('pause');
   }

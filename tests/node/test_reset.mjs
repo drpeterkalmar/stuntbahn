@@ -182,6 +182,125 @@ console.log('--- D: ⏪ ohne Totalschaden ---');
   check(leg.time < l0 - 2.5, `Totalschaden an (bisher): Rückspulen dreht die Uhr zurück ${fmtTime(l0)} → ${fmtTime(leg.time)}`);
 }
 
+// ---- F: n41 Reset-Knopf (↺, 1 Tipp zurück auf die Strecke, +PENALTY s) ----
+console.log('--- F: ↺ Reset-Knopf ---');
+const prog = (R) => R.tracker.progress();
+const settle = (R, who = 'perfekt') => { let t = 0; while (R.state === 'reset' && t < 2) { R.step(DT, player(who, R, null)); t += DT; } R.step(DT, player(who, R, null)); return t; };
+for (const [assist, who] of [['easy', 'nichts'], ['medium', 'perfekt'], ['original', 'perfekt']]) {
+  const race = new Race(v0.env, { assist, wreck: false, countdown: 0.3 });
+  check(!race.requestReset(), `${assist.padEnd(8)} im Countdown kein Reset`);
+  while (race.state === 'countdown') race.step(DT, { steer: 0, throttle: 0, brake: 0 });
+  let runT = 0;
+  for (let k = 0; k < 120 * 6; k++) { race.step(DT, player(who, race, null)); runT += DT; }
+  race.events.length = 0;
+  const t0 = race.time, p0 = prog(race), cp0 = race.cpNext, lap0 = race.tracker.lap;
+  const first = race.requestReset(), second = race.requestReset();
+  const jump = race.time - t0;
+  const ev0 = race.events.map((e) => e.type);
+  runT += settle(race, who) + DT;
+  const c = race.car, ev = race.events.map((e) => e.type);
+  const ok = first && !second && Math.abs(jump - PENALTY) < 1e-9 && race.penalties === 1 && race.crashes === 0 && ev0.includes('mreset') && ev.includes('reset') && !ev.includes('skip')
+    && race.state === 'running' && race.ap.tr.dist < 2.5 && c.frame.u.y > 0.9 && c.fwdSpeed() > 4 && prog(race) < p0 && race.cpNext === cp0 && race.tracker.lap <= lap0 && race.cuts.length === 1;
+  check(ok, `${assist.padEnd(8)} Reset: Uhr +${jump.toFixed(2)} s, 2. Tipp sofort danach gesperrt (${!second}), zurück ${(p0 - prog(race)).toFixed(1)} m auf die Linie (Abstand ${race.ap.tr.dist.toFixed(2)} m, oben ${c.frame.u.y.toFixed(2)}, ${(c.fwdSpeed() * 3.6).toFixed(0)} km/h), Checkpoints ${cp0} → ${race.cpNext}, Ereignisse ${ev.join(',')}`);
+  // nach RESET_GAP wieder möglich; dreimal hintereinander an derselben Stelle: nie übersprungen, nie nach vorn
+  let skips = 0, fwd = 0;
+  for (let n = 0; n < 3; n++) {
+    for (let k = 0; k < 120 * 1.2; k++) { race.step(DT, player(who, race, null)); runT += DT; }
+    const pb = prog(race);
+    race.events.length = 0;
+    if (!race.requestReset()) { fwd += 100; continue; }
+    runT += settle(race, who) + DT;
+    if (race.events.some((e) => e.type === 'skip')) skips++;
+    if (prog(race) > pb) fwd++;
+  }
+  check(skips === 0 && fwd === 0 && race.penalties === 4, `${assist.padEnd(8)} 3 weitere Resets im Abstand von 1,2 s: übersprungen ${skips}×, nach vorn ${fwd}×, Strafen ${race.penalties} (+${race.penalties * PENALTY} s)`);
+  // bis ins Ziel: Rennzeit = gefahrene Zeit + Strafen (Reset bringt nie Zeit)
+  while (runT < (v0.apTime || 80) * 4 && race.state !== 'finished') { race.step(DT, player(who, race, null)); runT += DT; }
+  const clk = race.state === 'finished' && Math.abs(race.finalTime - (runT + race.penalties * PENALTY)) < 0.02;
+  check(clk, `${assist.padEnd(8)} Ziel ${race.state === 'finished' ? fmtTime(race.finalTime) : '—'} = gefahren ${fmtTime(runT)} + ${race.penalties} × ${PENALTY} s`);
+  check(!race.requestReset(), `${assist.padEnd(8)} nach dem Ziel kein Reset`);
+}
+// Reset mitten im Looping / über der Sprunglücke → vor das Element mit dessen Anfahrtstempo, dann sauber hindurch
+for (const kind of ['loop', 'jump']) {
+  for (const [assist, who] of [['easy', 'nichts'], ['medium', 'perfekt']]) {
+    const T = v0.env.track, L = T.line;
+    const pc = kind === 'loop' ? T.pieces.find((p) => p.type === 'loop') : T.pieces[L.piece[T.jumps[0].lipIdx + 3]];
+    const race = new Race(v0.env, { assist, wreck: false, countdown: 0 });
+    race.step(DT, { steer: 0, throttle: 0, brake: 0 });
+    const mid = kind === 'loop' ? pc.lineStart + ((pc.lineEnd - pc.lineStart) >> 1) : T.jumps[0].lipIdx + 3;
+    race.place(mid, v0.env.prof.vt[mid]);
+    race.step(DT, player(who, race, null));
+    race.requestReset(); settle(race, who);
+    const back = L.s[pc.lineStart] - L.s[race.tracker.idx], v = race.car.fwdSpeed(), want = Math.min(v0.env.prof.vt[race.tracker.idx] || 10, 26) * 0.95;
+    let t = 0, passed = false;
+    while (t < 30 && !passed && race.crashes === 0) { race.step(DT, player(who, race, null)); t += DT; if (race.state === 'running' && race.tracker.idx > pc.lineEnd + 10) passed = true; }
+    check(back > 30 && back < 60 && Math.abs(v - want) < 2 && passed && race.crashes === 0, `${kind.padEnd(5)} ${assist.padEnd(8)} Reset im Element → ${back.toFixed(0)} m davor mit ${(v * 3.6).toFixed(0)} km/h (Anlauf ${(want * 3.6).toFixed(0)}), danach hindurch ohne Crash (${passed})`);
+  }
+}
+// Ausflug neben die Fahrbahn: Reset zählt ab der Stelle, an der man sie verlassen hat (keine Abkürzung)
+{
+  const race = new Race(v0.env, { assist: 'medium', wreck: false, countdown: 0 });
+  race.step(DT, { steer: 0, throttle: 0, brake: 0 });
+  for (let k = 0; k < 120 * 6; k++) race.step(DT, player('perfekt', race, null));
+  const S0 = { ...race.onRoad }, L = v0.env.track.line;
+  race.shortcut = { ...race.onRoad, driven: 0 };
+  // Ortung schon weit voraus und ein Checkpoint mehr (wie nach einer Fahrt quer durchs Gelände)
+  race.tracker.reset(Math.min(L.n - 3, S0.idx + 400)); race.cpNext = Math.min(race.cps.length, S0.cp + 1);
+  race.requestReset(); settle(race);
+  check(prog(race) < S0.prog && race.cpNext === S0.cp && race.tracker.lap === S0.lap && race.penalties === 1, `Reset im Gelände: zurück vor die Ausfahrt-Stelle (${(S0.prog - prog(race)).toFixed(1)} m davor), Checkpoints wie dort (${race.cpNext}), +${PENALTY} s`);
+}
+// Totalschaden an: im Wrack nur die Restwartezeit, dann sofort auf die Fahrbahn (kein Zurückspulen)
+for (const assist of ['medium', 'original']) {
+  const race = new Race(v0.env, { assist, wreck: true, countdown: 0 });
+  race.step(DT, { steer: 0, throttle: 0, brake: 0 });
+  for (let k = 0; k < 240; k++) race.step(DT, player('perfekt', race, null));
+  induce(race, 'Looping');
+  let t = 0; while (race.state !== 'wreck' && t < 5) { race.step(DT, player('perfekt', race, null)); t += DT; }
+  for (let k = 0; k < 24; k++) race.step(DT, player('perfekt', race, null));
+  race.events.length = 0;
+  const t0 = race.time, rest = race.wreckWait() - race.crashT;
+  const ok0 = race.requestReset();
+  const ev = race.events.map((e) => e.type);
+  check(ok0 && race.state === 'running' && Math.abs(race.time - t0 - rest) < 1e-9 && race.rewinds === 0 && race.penalties === 0 && ev.includes('reset'),
+    `${assist.padEnd(8)} Totalschaden an, Reset im Wrack: sofort auf der Fahrbahn, Uhr +${(race.time - t0).toFixed(2)} s (Restwartezeit), kein Zurückspulen (${race.rewinds}), Ereignisse ${ev.join(',')}`);
+}
+// KI-Gegner: Reset genau in einen Gegner hinein → Geist-Phase, kein Stoß, kein Crash
+{
+  const { GegnerFeld } = await import('../../src/ai/gegner.js');
+  const race = new Race(v0.env, { assist: 'medium', wreck: false, countdown: 0.5 });
+  const F = new GegnerFeld(v0.env, { anzahl: 1, staerke: 'ebenbuertig', seed: 3, assist: 'medium', schiene: 'nie', startplatz: 'hinten' });
+  F.spielerAufstellen(race);
+  for (let k = 0; k < 120 * 6; k++) { race.step(DT, player('perfekt', race, null)); F.step(DT, race); }
+  race.events.length = 0; F.events.length = 0;
+  race.requestReset();
+  let t = 0, geist = 0, stoss = 0, crash = 0;
+  while (t < 4) {
+    race.step(DT, player('perfekt', race, null));
+    const ev = race.events.splice(0);
+    if (ev.some((e) => e.type === 'reset')) {
+      // Gegner exakt auf den Rücksetzpunkt (gleiche Lage, gleiches Tempo) – schlimmster Fall
+      const g = F.fahrer[0], c = race.car;
+      g.car.place([c.pos.x, c.pos.y, c.pos.z], [c.frame.f.x, c.frame.f.y, c.frame.f.z], [c.frame.u.x, c.frame.u.y, c.frame.u.z], c.fwdSpeed());
+      g.ap.tr.reset(race.tracker.idx); g.zustand = 'fahrt';
+    }
+    F.step(DT, race); t += DT;
+    if (F.spGeistT > 0) geist = Math.max(geist, t);
+    for (const e of F.events.splice(0)) if (e.type === 'stoss' && e.spieler) stoss++;
+    if (race.crashes) crash++;
+  }
+  check(geist > 0.4 && stoss === 0 && race.crashes === 0 && F.fahrer[0].zustand !== 'crash', `KI-Gegner auf dem Rücksetzpunkt: Spieler Geist bis ${geist.toFixed(2)} s, Stöße ${stoss}, Crashs Spieler ${race.crashes}, Gegner ${F.fahrer[0].zustand}`);
+}
+// Online: eigener Zustand meldet den Reset (Crash-Flag → Geist bei den anderen)
+{
+  const { zustandEigen } = await import('../../src/game/online.js');
+  const race = new Race(v0.env, { assist: 'original', wreck: false, countdown: 0 });
+  race.step(DT, { steer: 0, throttle: 0, brake: 0 });
+  for (let k = 0; k < 120 * 3; k++) race.step(DT, player('perfekt', race, null));
+  race.requestReset();
+  const z1 = zustandEigen(race, 0); settle(race); const z2 = zustandEigen(race, 1);
+  check(z1.f.crash && !z2.f.crash && race.events.some((e) => e.type === 'reset'), `Online: während des Resets Crash-Flag (${z1.f.crash}), danach Ereignis „reset“ (Sprung-Zähler) und frei (${!z2.f.crash})`);
+}
+
 // ---- E: Wertungs-Schlüssel (n21: ohne Physik-/Welt-Version – Fahrhilfe × Totalschaden × Extras) ----
 console.log('--- E: Bestzeiten-Schlüssel ---');
 {

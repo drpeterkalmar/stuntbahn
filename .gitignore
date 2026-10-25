@@ -67,3 +67,6 @@ tests/shots/action/*
 !tests/shots/lack/
 tests/shots/lack/*
 !tests/shots/lack/vergleich_*.jpg
+# n41 Reset-Knopf: nur die Bericht-Collage
+!tests/shots/n41/
+tests/shots/n41/*.png
