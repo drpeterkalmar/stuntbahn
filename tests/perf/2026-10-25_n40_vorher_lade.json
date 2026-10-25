@@ -1,0 +1,65 @@
+{
+ "datum": "2026-10-25T18:10:16",
+ "stand": "n40_vorher_lade",
+ "wurzel": "/Users/wohnzimmer/dev/.wt/stuntbahn-stuntbahn-n40-lack",
+ "git": "14863df",
+ "profil": {
+  "drossel": 4,
+  "dpr": 2.6,
+  "sek": 10,
+  "geraete": "hoch,quer",
+  "gpu": "ANGLE/Metal headless",
+  "start": "open",
+  "vsync": false,
+  "zusatz": ""
+ },
+ "szenen": {},
+ "ladegroesse": {
+  "dateien": 147,
+  "roh_mb": 6.35,
+  "gzip_mb": 3.77,
+  "extern": [],
+  "groesste_gzip_kb": [
+   [
+    "assets/tex/veg_atlas.webp",
+    326
+   ],
+   [
+    "assets/snd/sfx.m4a",
+    271
+   ],
+   [
+    "lib/addons/libs/basis/basis_transcoder.wasm",
+    245
+   ],
+   [
+    "assets/themes/alpen/env_512.hdr",
+    192
+   ],
+   [
+    "assets/car/goblin_mid.glb",
+    191
+   ],
+   [
+    "assets/tex/fir_card_0.webp",
+    190
+   ],
+   [
+    "assets/tex/fir_card_1.webp",
+    186
+   ],
+   [
+    "assets/tex/metal_diff.ktx2",
+    166
+   ],
+   [
+    "assets/themes/veg/berg.webp",
+    138
+   ],
+   [
+    "assets/tex/gravel_nor.webp",
+    134
+   ]
+  ]
+ }
+}

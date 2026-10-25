@@ -2,6 +2,14 @@
 
 Kurzfassung je Version; Details in den Abschnitten der `README.md` und in den Berichten (`*_BERICHT.md`).
 
+## NEUE_VERSION – 25.10.2026 (Lack wie früher)
+- **Autos wieder fotorealistisch** (Peter 22.10.: „Autos sehen derzeit aus wie Comiczeichnungen“): Die dynamische
+  Lack-Spiegelung aus n30 (nur Grafik „Kino“) legte rosa-weiße Glanzflächen und helle Kanten über den Lack. Jetzt Peters
+  Variante D: Spiegelung standardmäßig aus, großes Umgebungs-HDR (1024×512, Float) wieder Standard – Bild wie am 07.10.
+  Kino 14–19 % flüssiger (p95, Handy-Profil, 3 Gegner), Standard gleich. Alt per `?reflex=1` / `?reflex=standard` / `?hdr=512`.
+- Mess-Gate schließt seine Browser jetzt sicher (blieben vorher nach jeder Messung offen).
+- Bericht `LACK_BERICHT.md`, Vergleich `tests/lack_vergleich.py`, Collagen `tests/shots/lack/`.
+
 ## 0.12.2 – 20.10.2026 (Looping-Kamera)
 - **Verfolger im Looping höher** (Peter: „kamera in looping zu niedrig, clippt durch boden“): Neigt sich das Auto steiler als
   ~32° (Looping, Korkenzieher, Röhre, Steilwand), steigt die Verfolger- bzw. Hubschrauberkamera weich um 1,2 m (voll ab

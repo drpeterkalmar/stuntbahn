@@ -12,8 +12,8 @@ pre = [size(f) for f in sorted(set(files)) if os.path.exists(os.path.join(root, 
 th = []
 for dp, dn, fn in os.walk(os.path.join(root, 'assets', 'themes')):
     for f in fn:
-        # n30: das alte 1k-HDR liegt nur noch für ?hdr=1k (A/B) im Repo, geladen wird env_512.hdr
-        if f == 'env.hdr' and os.path.exists(os.path.join(dp, 'env_512.hdr')): continue
+        # n40: geladen wird wieder env.hdr (1k); env_512.hdr liegt nur noch für ?hdr=512 (A/B) im Repo
+        if f == 'env_512.hdr' and os.path.exists(os.path.join(dp, 'env.hdr')): continue
         th.append(size(os.path.relpath(os.path.join(dp, f), root)))
 # n30: Impostor-Atlanten der Themen-Bäume (nicht vorab gecacht, laden mit der Landschaft)
 imp = os.path.join(root, 'assets', 'tex', 'imp')

@@ -1,5 +1,5 @@
 // Service-Worker: offline spielbar, Cache-Busting über Inhalts-Hash (tools/update_sw.py)
-const VERSION = '98d9167930';
+const VERSION = 'b9d03b7d46';
 const CACHE = 'stuntbahn-' + VERSION;
 const ASSETS = [
   './',
@@ -8,7 +8,7 @@ const ASSETS = [
   'assets/car/goblin_lod.glb',
   'assets/car/goblin_mid.glb',
   'assets/deco/rocks.glb',
-  'assets/hdr/sky_512.hdr',
+  'assets/hdr/sky_1k.hdr',
   'assets/sammlung.bin',
   'assets/sammlung.json',
   'assets/sky/sky.jpg',

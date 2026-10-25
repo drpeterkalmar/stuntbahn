@@ -63,3 +63,7 @@ tests/shots/n34/*
 tests/shots/action/*
 !tests/shots/action/*.jpg
 !tests/shots/action/ergebnis.json
+# n40 Lack: nur die Vergleichs-Collagen für den Bericht (Einzelbilder und der Quellbaum vom 07.10. bleiben lokal)
+!tests/shots/lack/
+tests/shots/lack/*
+!tests/shots/lack/vergleich_*.jpg

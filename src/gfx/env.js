@@ -81,8 +81,10 @@ export function makeSky(skyInfo, tex = null, opts = {}) {
 }
 
 // n30 HDR-Diät: Umgebungs-HDRs als 512×256 (tools/hdr_diaet.mjs, Sonne schon gekappt, −6 MB), Halbfloat statt Float
-// (halber Speicher, schnellere PMREM-Erzeugung beim Themenwechsel). ?hdr=1k = die bisherigen 1024×512-Dateien mit Float.
-export const HDR_KLEIN = typeof location === 'undefined' || new URLSearchParams(location.search).get('hdr') !== '1k';
+// (halber Speicher, schnellere PMREM-Erzeugung beim Themenwechsel).
+// n40 (Variante D, Peter): wieder die 1024×512-Dateien mit Float als Standard – schärfere Glanzpunkte im Klarlack (PMREM
+// 256 statt 128 je Würfelseite, Sonnenfleck nicht vor dem Kappen verwischt), Bild wie am 07.10.; ?hdr=512 = n30-Diät.
+export const HDR_KLEIN = typeof location !== 'undefined' && new URLSearchParams(location.search).get('hdr') === '512';
 export function envUrl(url) {
   if (!HDR_KLEIN) return url;
   return url.replace(/\/env\.hdr$/, '/env_512.hdr').replace(/\/sky_1k\.hdr$/, '/sky_512.hdr');
@@ -93,7 +95,7 @@ export async function makeEnvironment(renderer, url = 'assets/hdr/sky_1k.hdr') {
   const hdr = await loader.loadAsync(envUrl(url));
   // Sonnenscheibe kappen: Sonnenlicht kommt von der DirectionalLight (mit Schatten),
   // sonst steckt fast die ganze Sonne im unbeschattbaren Umgebungslicht. (Die kleinen Dateien sind schon gekappt – die
-  // Schleife ändert dann nichts, bleibt aber für ?hdr=1k und andere Himmel.)
+  // Schleife ändert dann nichts, wirkt aber auf die 1k-Standarddateien und andere Himmel – wie am 07.10.)
   const d = hdr.image.data, ch = d.length / (hdr.image.width * hdr.image.height);
   if (d instanceof Uint16Array) {
     const H = THREE.DataUtils;

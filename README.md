@@ -72,6 +72,17 @@ spielbar am Handy (quer oder hochkant), mit Gamepad oder Tastatur. Als App insta
   Abstand zu jeder Fahrbahn (auch Hochstraßen/Rampen), nie im Wasser. Dosiert nach Grafikstufe; ruckelt es, blendet die
   Automatik (nach der Unschärfe) zuerst Gras/Büsche/Wolkenschatten aus. `?deko=aus` (bis n29 `?deko=0`) / `?wolken=0` zum Vergleich.
 
+## 🚗 Lack wieder fotorealistisch (seit 25.10.2026, n40)
+- Peter 22.10.: „Autos sehen derzeit aus wie Comiczeichnungen, früher waren sie photorealistischer.“ Ursache (Bildvergleich
+  07.10. gegen heute, WebKit/iPhone 15, `LACK_BERICHT.md`): die dynamische Lack-Spiegelung aus n30 (Grafik „Kino“) legte
+  rosa-weiße Glanzflächen und helle Kanten über den ganzen Lack. Auf „Standard“ war sie nie an – dort sah das Auto schon
+  aus wie am 07.10.
+- Jetzt (Peters Variante D): **Lack-Spiegelung standardmäßig aus**, **großes Umgebungs-HDR (1024×512, Float)** wieder Standard
+  (schärfere kleine Glanzpunkte). Kino läuft dadurch im Handy-Profil 14–19 % flüssiger (p95), Standard gleich; Ladegröße
+  siehe Bericht.
+- **A/B:** `?reflex=1` = Spiegelung wie bis 0.12.2 (nur Kino), `?reflex=standard` = auch auf Standard, `?hdr=512` = kleine
+  HDRs der n30-Diät. Vergleichsbilder: `python3 tests/lack_vergleich.py` → `tests/shots/lack/vergleich_*.jpg`.
+
 ## 🎬 Action-Momente: Zoom-Punch, Speed-Ramp und Bullet-Time live im Rennen (seit 20.10.2026, n36, Version 0.12)
 Peter 09.10.: „Schnelle Zoom-ins auf die Szene mit Effekten und Speed-Ramps … oder Bullet-Time!“ Bisher gab es Zeitlupe nur
 im Highlight-Film nach dem Ziel – jetzt gibt es ab und zu einen kurzen Kino-Moment mitten in der Fahrt. Bericht mit Bildfolgen
@@ -336,6 +347,7 @@ bleiben (mit Extras wird man jetzt meist schneller). Test: `tests/node/test_extr
   Einfach gleich, Standard 0,1–0,4 ms langsamer; Ladegröße gesamt −4,2 MB. Details, Fotos, Grenzen: `TECHNIK_BERICHT.md`.
 - **A/B:** `?reflex=0` (bzw. `=1` auch auf Standard), `?impostor=0`, `?detail=0`, `?vao=0`, `?lod=0`, `?autopilot=0`,
   `?hdr=1k`, `?schattenkam=0`, `?startprobe=0`. Handy: App einmal ganz schließen und neu öffnen.
+  **Seit n40 (25.10.):** Lack-Spiegelung aus und 1k-HDR Standard – `?reflex=1` (Kino) / `?reflex=standard`, `?hdr=512`.
 - **Grafik-Kern `src/gfx/kern/`** für die anderen Spiele (Autopilot, Kurzmessung, Impostors, Spiegelung) +
   `tests/perf_gate.py` + Asset-Skripte: Anleitung `src/gfx/kern/LIESMICH.md` und `KINOLOOK.md`.
 
@@ -630,6 +642,7 @@ python3 tests/perf_gate.py --stand nachher # n30 Mess-Gate Handy-Profil (CPU ×4
 python3 tests/perf_gate.py --ab vorher=../stuntbahn_vorher:: --ab nachher=   # vorher/nachher im Wechsel (Median aus 3 Runden)
 python3 tests/test_autopilot.py           # n30 Grafik-Autopilot im Browser: Last rauf/runter, Reaktion ≤ 3 s, kein Pendeln
 python3 tests/technik_shots.py hdr,lod,schatten,detail,reflex,vao2,baeume,looping hoch,quer   # n30 Vergleichs-Collagen
+python3 tests/lack_vergleich.py      # n40 Lack: 07.10. / vor n40 / B / C / D, WebKit iPhone 15 → tests/shots/lack/
 python3 tools/build_impostor.py           # n30 Baum-Impostors backen (assets_src/ nötig) → assets/tex/imp/
 node tests/node/test_trk_parser.mjs       # .TRK-Parser + Elementtabelle (Byte-Layout, alle Codes)
 node tests/node/test_trk_import.mjs       # jedes Element baubar, Wegverfolgung, Gelände, Beispielstrecke

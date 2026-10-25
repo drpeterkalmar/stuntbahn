@@ -1,0 +1,61 @@
+{
+ "datum": "2026-10-25T18:30:54",
+ "stand": "n40_ab_mitte_standard_hoch",
+ "modus": "ab",
+ "runden": 3,
+ "varianten": [
+  {
+   "name": "vorher",
+   "wurzel": "/Users/wohnzimmer/dev/.wt/stuntbahn-stuntbahn-n40-lack",
+   "zusatz": "&reflex=1&hdr=512&gegner=3&staerke=ebenbuertig"
+  },
+  {
+   "name": "nachher",
+   "wurzel": "/Users/wohnzimmer/dev/.wt/stuntbahn-stuntbahn-n40-lack",
+   "zusatz": "&gegner=3&staerke=ebenbuertig"
+  }
+ ],
+ "profil": {
+  "drossel": 4,
+  "dpr": 2.6,
+  "sek": 10,
+  "start": "open",
+  "vsync": false
+ },
+ "szenen": {
+  "mitte_standard": {
+   "hoch": {
+    "vorher": {
+     "p50": 5.1,
+     "p95": 7.3,
+     "fps": 190.9,
+     "calls": 97,
+     "tris": 268767,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      7.4,
+      7.1,
+      7.3
+     ],
+     "fehler": []
+    },
+    "nachher": {
+     "p50": 5.2,
+     "p95": 7.1,
+     "fps": 188.6,
+     "calls": 100,
+     "tris": 270582,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      7,
+      7.2,
+      7.1
+     ],
+     "fehler": []
+    }
+   }
+  }
+ }
+}

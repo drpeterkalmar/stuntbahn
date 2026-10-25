@@ -93,8 +93,11 @@ class OffenerBrowser:
         except Exception: pass
         t0 = time.time()
         while time.time() - t0 < 10 and subprocess.run(['pgrep', '-f', self.prof], capture_output=True).stdout.strip(): time.sleep(0.3)
-        if subprocess.run(['pgrep', '-f', self.prof], capture_output=True).stdout.strip():
-            subprocess.run(['pkill', '-f', self.prof])   # nur genau dieser Browser (eindeutiger Profil-Ordner)
+        # nur genau dieser Browser (eindeutiger Profil-Ordner). n40: ein einzelnes TERM kurz nach Browser.close verpufft
+        # manchmal (Browser blieb hängen, sammelten sich je Messung an) → wiederholen, zuletzt KILL
+        for sig in ['-TERM'] * 10 + ['-KILL']:
+            if not subprocess.run(['pgrep', '-f', self.prof], capture_output=True).stdout.strip(): break
+            subprocess.run(['pkill', sig, '-f', self.prof]); time.sleep(1)
         shutil.rmtree(self.prof, ignore_errors=True)
 
 START = 'open' if sys.platform == 'darwin' else 'direkt'

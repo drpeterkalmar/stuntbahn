@@ -112,9 +112,12 @@ const post = kino || new Post(renderer);
 quality.post = post; quality.kino = kino;
 let sun, M, carVis, ghostVis, sky, cockpit, themes, air = null, brakeLights = null, brakeV = null, scheibe = null, headL = null, headGlow = null;
 // n30: dynamische Lack-Spiegelung (gfx/kern/reflex.js) nur auf Kino: dort kostet sie im Handy-Profil 0–3 % p95, auf
-// Standard +26–31 % (Draw-Calls der Würfelseite, CPU) – Regel des Auftrags „> +8 % → nur Kino“. ?reflex=0 aus,
-// ?reflex=1 auch auf Standard. Der Autopilot darf sie als „teure Deko“ abschalten (reflexOff)
-const REFLEX_MIN = params.get('reflex') === '0' ? 9 : params.get('reflex') === '1' ? 1 : 2;
+// Standard +26–31 % (Draw-Calls der Würfelseite, CPU) – Regel des Auftrags „> +8 % → nur Kino“. Der Autopilot darf sie
+// als „teure Deko“ abschalten (reflexOff).
+// n40 (Peter 22.10.: „Autos sehen aus wie Comiczeichnungen“): Standard AUS – der Würfel (8-bit-Himmel ×3, Strecke) legte
+// rosa-weiße Glanzflächen und helle Kanten über den ganzen Lack (LACK_BERICHT.md). ?reflex=1 = an auf Kino (bis 0.12.2),
+// ?reflex=standard = auch auf Standard.
+const REFLEX_MIN = params.get('reflex') === '1' ? 2 : params.get('reflex') === 'standard' ? 1 : 9;
 let reflex = null, reflexOff = false;
 const REFLEX_LAYER = 2, REFLEX_OBJ = /^(trk|terrain|kulisse-(meer|horizont|nah|fern)|trees)/;   // nur große Flächen: jeder Draw-Call der Spiegel-Seite kostet am Handy CPU
 // n30: Bäume als Oktaeder-Impostors (Standard/Kino), sobald assets/tex/imp/impostor.json da ist; ?impostor=0 = Karten
