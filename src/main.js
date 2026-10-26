@@ -1559,6 +1559,9 @@ function render(rdt) {
     rig.boost = boost;
     rig.speedLook = mode === 'race' && race && race.assistKey === 'medium' && !race.autopilotOnly ? 1 : 0;   // Mittel (n23): weiter voraus
     rig.driftCam = mode === 'replay' || (mode === 'race' && race && race.brachial);   // n25: Drift-Kamera (Leicht Brachial, Replays)
+    { const zs = mode === 'race' && !!race && race.state === 'finished' && !!race.zstunt && race.zstunt.tN != null;   // n40: Flip nicht im Cockpit
+      if (zs && !rig.zielStunt && (rig.mode === 'cockpit' || rig.mode === 'bumper')) rig.init = false;   // harter Schnitt hinter das Auto
+      rig.zielStunt = zs; }
     if (cine) cineCamera(rdt, pose);
     else if (show && show.camOn && !app.freezeCam) showCamera(rdt, pose);
     else if (!frozen || !app.freezeCam) { rig.update(rdt, pose, crashed, env && env.world, sp); if (mode === 'race' && !frozen) actionKamera(pose, rdt); }

@@ -18,6 +18,8 @@ DEV = sys.argv[2] if len(sys.argv) > 2 else 'quer'
 CODE = sys.argv[3] if len(sys.argv) > 3 else ('4711-2-g' if WAS == 'tiere' else '4-2')
 EXTRA = sys.argv[4] if len(sys.argv) > 4 else ''
 QSTUFE = os.environ.get('N40_Q', '2')   # Grafik: 2 Kino (feine Figur), 1 Standard (grobe Figur)
+KAM = os.environ.get('N40_CAM', 'chase')   # Kamera im Rennen (Stunt: cockpit/bumper → Verfolger ab dem Nitro)
+FIGUREN = os.environ.get('N40_FIGUREN', 'schraube,front,back').split(',')
 QTAG = '' if QSTUFE == '2' else f'_q{QSTUFE}'
 # Code wie im Spiel: 4-2 (flach), 4711-2-g (Gelände), 2-2-3d (Hochstraße), Zusatz „h“ = Generator mit Hindernissen (4-2-h, 13-2-gh)
 sd, dd, *rest = CODE.split('-')
@@ -89,7 +91,7 @@ def finish(s):
 
 def stunt(s, figur):
     """Leicht (Spieler-Rennen, kein Autopilot-Prüflauf) ins Ziel, Zielshow in Zeitlupe bis nach der Landung"""
-    s.ev("__game.setAssist('easy')"); s.ev("__game.start({ seed: 11 })"); s.ev("__game.cam('chase')"); s.frames(3)
+    s.ev("__game.setAssist('easy')"); s.ev("__game.start({ seed: 11 })"); s.ev(f"__game.cam('{KAM}')"); s.frames(3)
     st = finish(s)
     out = {'ziel': st and st['state'], 'show': s.ev("window.__app.show"), 'plan': s.ev("(() => { const z = __game.race.zstunt; return z ? { art: z.art, tB: z.tB, tJ: z.tJ, tL: z.tL, cut: z.cut, end: z.end, rec: z.rec } : null; })()")}
     if not out['plan']: return out, []
@@ -101,7 +103,8 @@ def stunt(s, figur):
         t0 = time.time()
         while s.ev("__game.showTau()") < T and s.ev("!!__game.show") and time.time() - t0 < 60: time.sleep(0.03)
         if not s.ev("!!__game.show"): break
-        paths.append(s.shot(f'stunt_{figur}_{len(paths)}_{DEV}', SUB))
+        paths.append(s.shot(f'stunt_{figur}_{len(paths)}_{DEV}' + ('' if KAM == 'chase' else '_' + KAM), SUB))
+        out.setdefault('ansicht', []).append(s.ev("__game.rig.view"))
     out['kamera'] = s.ev("__game.rig.view")
     s.ev("__game.setTimeScale(1)")
     t0 = time.time()
@@ -125,11 +128,11 @@ with Server() as srv, sync_playwright() as pw:
         ok = bool(alle) and not res['fehler']
     else:
         ok = True
-        for figur in ('schraube', 'front', 'back'):
+        for figur in FIGUREN:
             s = Session(pw, srv.base, device=DEVICES[DEV], kino=True)
             s.open(Q + f'&zieljubel=stunt&zstunt={figur}')
             r, paths = stunt(s, figur)
-            r['collage'] = collage(paths, os.path.join(OUT, f'stunt_{figur}_{DEV}.jpg')) if paths else None
+            r['collage'] = collage(paths, os.path.join(OUT, f'stunt_{figur}_{DEV}' + ('' if KAM == 'chase' else '_' + KAM) + '.jpg')) if paths else None
             r['fehler'] = s.errors[:8]
             res[figur] = r
             ok = ok and bool(r['plan']) and r['plan']['art'] == figur and not r['fehler'] and r['aufzeichnung_nach_ziel_s'] >= r['plan']['tL'] + 2 \

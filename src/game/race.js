@@ -1060,8 +1060,14 @@ export class Race {
     } else {
       if (!S.flameOff) this.zstuntEnd(S);
       const n = st.up1, h0 = st.h0;
-      car.place([st.p1[0] - n[0] * h0, st.p1[1] - n[1] * h0, st.p1[2] - n[2] * h0], st.fw1, n, st.v);
-      car.v.x -= n[0] * ZSTUNT.sink; car.v.y -= n[1] * ZSTUNT.sink; car.v.z -= n[2] * ZSTUNT.sink;
+      // n40 Heavy: den Rest des Bildes nach dem Aufsetzen (S.ta − T) schon weiterfahren – sonst nur ein halber Schritt im
+      // Landebild (Ruck im Replay, G-Spitze)
+      const ov = Math.max(0, S.ta - st.T) * st.v, fw = st.fw1;
+      car.place([st.p1[0] - n[0] * h0 + fw[0] * ov, st.p1[1] - n[1] * h0 + fw[1] * ov, st.p1[2] - n[2] * h0 + fw[2] * ov], fw, n, st.v);
+      // n40 Heavy: mit der Sinkrate der Flugbahn weiter (mindestens ZSTUNT.sink) – kein Sprung im Tempo, die Federung fängt ab
+      // (sonst zeigt der G-Messer im Replay/Film eine harte Landung)
+      const vE = stuntFlug(st, st.T).v, sink = Math.max(ZSTUNT.sink, -(vE[0] * n[0] + vE[1] * n[1] + vE[2] * n[2]));
+      car.v.x -= n[0] * sink; car.v.y -= n[1] * sink; car.v.z -= n[2] * sink;
       S.ph = 'roll'; S.tLand = this.finT; S.vL = st.v; S.vRec = null;
       this.emit('zstunt', { ph: 'land', art: S.art });
     }

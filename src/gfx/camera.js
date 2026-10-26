@@ -209,7 +209,9 @@ export class CameraRig {
     }
     // n37 Arcade: im Flug folgt der Verfolger (auch Hubschrauber) der Flugrichtung waagrecht statt der Nase – bei Saltos und
     // Schrauben dreht die Kamera nicht mit, die Figur bleibt lesbar (Vorbild: Blick entlang der Flugbahn, Welt-Oben)
-    if (ARCADE.on && this.airK > 0.01 && !crashed && (this.mode === 'chase' || this.mode === 'far') && P.vel) {
+    // n40: beim Zieljubel-Stunt zeigen Cockpit/Stoßstange den Verfolger (s. u.) – dann gelten auch dessen Flug-Regeln
+    const chaseFlug = this.mode === 'chase' || this.mode === 'far' || (this.zielStunt && (this.mode === 'cockpit' || this.mode === 'bumper'));
+    if (ARCADE.on && this.airK > 0.01 && !crashed && chaseFlug && P.vel) {
       const d = this._av || (this._av = V());
       d.set(P.vel.x, 0, P.vel.z);
       const l = d.length();
@@ -219,7 +221,7 @@ export class CameraRig {
     if (!crashed) this.fwd.lerp(fT, kf).normalize();
     else { this.fwd.y *= 0.9; this.fwd.normalize(); }
     // im Flug: Oben → Welt-Oben (Kamera kippt nicht mit der Nase des Autos)
-    if (this.airK > 0.01 && (this.mode === 'chase' || this.mode === 'far')) u.lerp(this._h.set(0, 1, 0), this.airK).normalize();
+    if (this.airK > 0.01 && chaseFlug) u.lerp(this._h.set(0, 1, 0), this.airK).normalize();
     this.up.lerp(u, ku).normalize();
     // Tempo-Sichtfeld: bis ~315 km/h wie bisher +14°, darüber (seit Vmax ~580 km/h) sanft bis +20°
     const pk = portraitK(cam.aspect), PT = PORTRAIT;
@@ -231,8 +233,9 @@ export class CameraRig {
     targetFov += (this.boost || 0) * (8 - 4 * pk);
     // Drehen (quer ↔ hoch): Sichtfeld sofort umstellen statt langsam nachzuziehen
     if (this.aspect !== cam.aspect) { if (this.aspect != null && Math.abs(portraitK(this.aspect) - pk) > 0.05) this.fov = targetFov; this.aspect = cam.aspect; }
-    // Cockpit beim Wrack: kurz in den Verfolger (wie im Original), danach wieder zurück ins Cockpit
-    const view = this.mode === 'cockpit' && crashed ? 'chase' : this.mode;
+    // Cockpit beim Wrack: kurz in den Verfolger (wie im Original), danach wieder zurück ins Cockpit. n40: beim Zieljubel-Stunt
+    // (main.js setzt zielStunt ab dem Nitro) Cockpit und Stoßstange im Verfolger – sonst überschlägt sich das ganze Bild
+    const view = (this.mode === 'cockpit' && crashed) || (this.zielStunt && (this.mode === 'cockpit' || this.mode === 'bumper')) ? 'chase' : this.mode;
     if (view !== this.view && view === 'cockpit') this.cInit = false;
     this.view = view;
     if (view !== 'cockpit') clearLens(cam);

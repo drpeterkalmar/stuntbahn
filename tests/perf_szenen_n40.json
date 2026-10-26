@@ -1,0 +1,88 @@
+{
+ "_kommentar": "n40 Tier-Zuschauer: Szenen mit vielen Zuschauern (4711-3-g, 509 Figuren) – A/B per --ab mensch=&zuschauer=mensch --ab tiere=&zuschauer=tiere",
+ "bereit": "window.__app && window.__app.ready && window.__app.frames > 3",
+ "init": "window.__noKino = true; window.__noShow = true",
+ "info": "() => { const i = __game.renderer.info, g = __game.quality.gpu; return { calls: i.render.calls, tris: i.render.triangles, tex: i.memory.textures, gpu: g ? g.ms : null }; }",
+ "zusatz": "() => __game.info()",
+ "ladeQuery": "?nosw&seed=4711&d=3&g=1",
+ "ladeNachlauf": 4,
+ "szenen": [
+  {
+   "name": "start_kino",
+   "query": "?nosw&q=2&startprobe=0&seed=4711&d=3&g=1",
+   "schritte": []
+  },
+  {
+   "name": "startlinie_kino",
+   "query": "?nosw&q=2&startprobe=0&seed=4711&d=3&g=1",
+   "schritte": [
+    {
+     "bis": "(() => { const v = __game.info().vao; return !v || v.fertig; })()",
+     "max": 120
+    },
+    "__game.setAssist('easy'); __game.store.settings.fahrstil = 'sauber'",
+    "__game.start({ autopilot: true })",
+    "__game.cam('chase')",
+    {
+     "warte": 0.8
+    },
+    "__game.freeze(true)",
+    {
+     "bilder": 10
+    }
+   ]
+  },
+  {
+   "name": "startlinie_standard",
+   "query": "?nosw&q=1&startprobe=0&seed=4711&d=3&g=1",
+   "schritte": [
+    {
+     "bis": "(() => { const v = __game.info().vao; return !v || v.fertig; })()",
+     "max": 120
+    },
+    "__game.setAssist('easy'); __game.store.settings.fahrstil = 'sauber'",
+    "__game.start({ autopilot: true })",
+    "__game.cam('chase')",
+    {
+     "warte": 0.8
+    },
+    "__game.freeze(true)",
+    {
+     "bilder": 10
+    }
+   ]
+  },
+  {
+   "name": "rennen_kino",
+   "query": "?nosw&q=2&startprobe=0&seed=4711&d=3&g=1",
+   "schritte": [
+    {
+     "bis": "(() => { const v = __game.info().vao; return !v || v.fertig; })()",
+     "max": 120
+    },
+    "__game.setAssist('easy'); __game.store.settings.fahrstil = 'sauber'",
+    "__game.start({ autopilot: true })",
+    "__game.cam('chase')",
+    {
+     "warte": 3
+    }
+   ]
+  },
+  {
+   "name": "rennen_standard",
+   "query": "?nosw&q=1&startprobe=0&seed=4711&d=3&g=1",
+   "schritte": [
+    {
+     "bis": "(() => { const v = __game.info().vao; return !v || v.fertig; })()",
+     "max": 120
+    },
+    "__game.setAssist('easy'); __game.store.settings.fahrstil = 'sauber'",
+    "__game.start({ autopilot: true })",
+    "__game.cam('chase')",
+    {
+     "warte": 3
+    }
+   ]
+  }
+ ]
+}

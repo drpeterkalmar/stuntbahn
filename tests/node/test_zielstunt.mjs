@@ -66,7 +66,7 @@ console.log('--- B: Figur aus dem Seed ---');
 console.log('--- C: Flug ---');
 {
   const h0 = 0.539, T = kunstLinie(200), L = T.line;
-  let minF = Infinity, worst = '', landOk = true, angOk = true, wMax = 0, stepMax = 0;
+  let minF = Infinity, worst = '', minA = Infinity, worstA = '', landOk = true, angOk = true, wMax = 0, stepMax = 0;
   for (const art of [{ art: 'schraube', sg: 1 }, { art: 'schraube', sg: -1 }, { art: 'front', sg: -1 }, { art: 'back', sg: 1 }])
     for (const v of [ZSTUNT.vAir[0], 24, ZSTUNT.vAir[1]]) for (const lat of [0, 2.5]) {
       const q0 = qLook([1, 0, 0], [0, 1, 0]), len = v * ZSTUNT.air;
@@ -74,8 +74,10 @@ console.log('--- C: Flug ---');
       const st = stuntStart([20, h0, lat], q0, v, land, h0, art);
       let prev = null;
       for (let t = 0.02 * st.T; t <= 0.98 * st.T; t += 1 / 120) {
-        const f = stuntFreiheit(st, t);
-        if (f < minF) { minF = f; worst = `${art.art} ${art.sg > 0 ? '+' : '−'} ${v} m/s bei ${fmt(t / st.T * 100, 0)} %`; }
+        const f = stuntFreiheit(st, t), u = t / st.T;
+        // n40 Heavy (weiche Landung): während der Drehung (bis 4 % danach) Schutzabstand, im Anflug aufrecht nur > 0
+        if (u <= ZSTUNT.rot[1] + 0.04) { if (f < minF) { minF = f; worst = `${art.art} ${art.sg > 0 ? '+' : '−'} ${v} m/s bei ${fmt(u * 100, 0)} %`; } }
+        else if (f < minA) { minA = f; worstA = `${art.art} ${art.sg > 0 ? '+' : '−'} ${v} m/s bei ${fmt(u * 100, 0)} %`; }
         const F = stuntFlug(st, t);
         wMax = Math.max(wMax, Math.hypot(...F.w));
         if (prev) stepMax = Math.max(stepMax, Math.hypot(F.pos[0] - prev[0], F.pos[1] - prev[1], F.pos[2] - prev[2]));
@@ -91,10 +93,11 @@ console.log('--- C: Flug ---');
       if (um[1] > -0.99) angOk = false;
     }
   check(minF >= 0.25, `Bodenfreiheit im Flug mindestens ${fmt(minF, 2)} m (tiefste Ecke, schlimmster Fall ${worst})`);
+  check(minA > 0.1, `Bodenfreiheit im Anflug (aufrecht) mindestens ${fmt(minA, 2)} m (tiefste Ecke, schlimmster Fall ${worstA})`);
   check(landOk, 'Landung exakt in Fahrtlage am Landepunkt (Dach oben, Nase längs der Fahrbahn)');
   check(angOk, 'volle Drehung 360° (Mitte kopfüber)');
   check(stepMax < ZSTUNT.vAir[1] / 120 * 1.6, `kein Sprung in der Bahn (größter Schritt je 1/120 s ${fmt(stepMax, 2)} m)`);
-  check(wMax < 11, `Drehrate höchstens ${fmt(wMax)} rad/s`);
+  check(wMax < 12, `Drehrate höchstens ${fmt(wMax)} rad/s`);   // n40 Heavy: Drehfenster kürzer (weiche Landung) → bis ~11,2
 }
 
 console.log('--- D: Platz ---');
@@ -121,8 +124,9 @@ if (!KURZ) {
   const { Replay } = await import('../../src/game/replay.js');
   const { generate } = await import('../../src/track/generator.js');
   const { verifySync } = await import('../../src/track/verify.js');
+  const { gTrack } = await import('../../src/core/gforce.js');
   console.log('--- E: echte Fahrten ---');
-  let n = 0, done = 0, same = 0, why = {}, probe = null;
+  let n = 0, done = 0, same = 0, why = {}, probe = null, gMax = 0;
   const arts = {};
   // (Strecken mit und ohne Platz hinter dem Ziel; generate(s, 1 + s % 3) hat bei 3, 4, 12, 3-3d, 7-g, 13-g, 10-g, 8-3d
   // mehrere hundert Meter frei, 2-2 einen Looping nach ~70 m)
@@ -160,8 +164,13 @@ if (!KURZ) {
     rp.t = b.finF / REC_HZ + S.tN + 0.2;
     const flame = rp.nitro() > 0.5;
     const after = (F - b.finF) / REC_HZ;
+    // n40 Heavy: saubere Landung auch im G-Messer (Replay/Film): kein Ruck im Landebild, Anzeige rund um die Landung < 4 G
+    const G = gTrack(b.rec, b.cuts || []);
+    let gL = 0; for (let f = fL - 3; f < Math.min(F, fL + 30); f++) gL = Math.max(gL, G.g[f]);
+    gMax = Math.max(gMax, gL);
     check(!b.car.crash && off < -1 && upMin > 0.9 && upside && flame && after >= S.end - 0.05, `${name}: ${S.art}${S.art === 'schraube' ? (S.sg > 0 ? ' rechts' : ' links') : ''} bei ${fmt(S.v0 * 3.6, 0)} km/h, Absprung ${fmt(S.tAir, 2)} s, Landung ${fmt(S.tLand, 2)} s, danach ${fmt(-off)} m innerhalb der Kante, aufrecht ${fmt(upMin, 3)}, kopfüber im Replay ${upside ? 'ja' : 'nein'}, Flammen ${flame ? 'ja' : 'nein'}, Aufzeichnung ${fmt(after, 2)} s (${((Date.now() - t0) / 1000).toFixed(1)} s)`);
   }
+  check(gMax < 4, `Landung im G-Messer höchstens ${fmt(gMax)} G (weiche Landung, kein Ruck im Landebild)`);
   check(same === n, `Rennzeit, Geist und Aufzeichnung bis zur Linie bitgleich mit/ohne Stunt (${same}/${n})`);
   check(done >= 3, `Stunt auf ${done} von ${n} Strecken (${Object.entries(arts).map(([k, v]) => `${k} ${v}`).join(', ')}; ohne: ${Object.entries(why).map(([k, v]) => `${k} ${v}`).join(', ') || '–'})`);
   // Highlight-Film: Zieleinlauf zeigt den Stunt (Tele bis nach der Landung, dann Zielbogen), Name im Titel

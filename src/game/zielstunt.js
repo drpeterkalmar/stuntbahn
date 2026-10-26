@@ -27,7 +27,10 @@ export const ZSTUNT = {
   // Nitro-Schub nitro s vor dem Absprung (Flammen noch flame s in der Luft); Tempo im Flug vAir[0] … vAir[1] m/s
   nitro: 0.5, flame: 0.35, vAir: [15, 28],
   // Flugzeit air s (Scheitel g·air²/8 ≈ 2,8 m), Drehung von rot[0] bis rot[1] der Flugzeit, Landung mit sink m/s Einfedern
-  air: 1.5, g: 9.81, rot: [0.1, 0.86], sink: 1.2,
+  air: 1.5, g: 9.81, rot: [0.08, 0.78], sink: 1.2,   // n40 Heavy: Drehung früher (rot bis n40-Vorbau [0.1, 0.86]) – Scheitel des weichen Bogens bei ~37 %
+  // n40 Heavy: weiche Landung – Anteil soft der Bahn sinkt zum Ende hin langsamer (u·(1−u)², Scheitel früher), Sinkrate beim
+  // Aufsetzen (1 − soft)·g·air/2 ≈ 2,2 m/s statt 7,4 m/s (sonst zeigt der G-Messer bei der „sauberen“ Landung ~10 G)
+  soft: 0.7,
   // Platz: pre m vor dem Absprung frei, nach der Landung Anhalteweg vor dem nächsten Stunt (ZIEL.stopDecel, ZIEL.stopGap) + post m; Fahrbahn höchstens bank Querneigung (|by|), mindestens
   // wMin m breit; Linie unter der Flugbahn höchstens dev m seitlich neben der Sehne Absprung → Landung (und die Wagenmitte
   // dabei mindestens edge m innerhalb der Kante), höchstens devY m darüber (Kuppe; Senken stören nicht, bis dip m);
@@ -201,8 +204,9 @@ export function stuntStart(p0, q0, v, land, h0, art) {
 export function stuntFlug(st, t, out = {}) {
   const Z = ZSTUNT, T = st.T, u = clamp(t / T, 0, 1);
   const P = (uu) => {
-    // Bogen über der Sehne: Höhe g/2 · t · (T − t) entlang „Oben“ (Mittel aus Welt-Oben und Lande-Oben)
-    const h = Z.g / 2 * (uu * T) * (T - uu * T), up = [st.up1[0] * 0.5, 0.5 + st.up1[1] * 0.5, st.up1[2] * 0.5], l = Math.hypot(up[0], up[1], up[2]) || 1;
+    // Bogen über der Sehne entlang „Oben“ (Mittel aus Welt-Oben und Lande-Oben): Wurfparabel g/2 · t · (T − t) (Scheitel
+    // H = g·T²/8), Anteil Z.soft davon als u·(1−u)²-Bogen gleicher Höhe (setzt weich auf)
+    const H = Z.g * T * T / 8, h = H * ((1 - Z.soft) * 4 * uu * (1 - uu) + Z.soft * 6.75 * uu * (1 - uu) * (1 - uu)), up = [st.up1[0] * 0.5, 0.5 + st.up1[1] * 0.5, st.up1[2] * 0.5], l = Math.hypot(up[0], up[1], up[2]) || 1;
     return [st.p0[0] + (st.p1[0] - st.p0[0]) * uu + up[0] / l * h, st.p0[1] + (st.p1[1] - st.p0[1]) * uu + up[1] / l * h, st.p0[2] + (st.p1[2] - st.p0[2]) * uu + up[2] / l * h];
   };
   const A = (uu) => 2 * Math.PI * smootherstep((uu - Z.rot[0]) / (Z.rot[1] - Z.rot[0]));
