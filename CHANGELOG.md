@@ -2,6 +2,14 @@
 
 Kurzfassung je Version; Details in den Abschnitten der `README.md` und in den Berichten (`*_BERICHT.md`).
 
+## __VERSION__ – 26.10.2026 (Tier-Zuschauer)
+- **Neu: herzige Tier-Zuschauer** (Peter 20.10.: „niedlichere Zuschauer (herzige Tiere)“): Bärchen, Häschen, Füchse, Pinguine,
+  Kätzchen und Kühe statt Menschen – am Rand, auf den Tribünen, in der Ferne und als Ohren in der Fan-Cam. Sie jubeln mit
+  hochgerissenen Pfoten. Option „Zuschauer: Tiere/Menschen“ (Standard Tiere), `?zuschauer=mensch`.
+- Vorbereitet (noch nicht Standard): Option „Zieljubel: Stunt/Dreher/Aus“ – Stunt nach der Ziellinie (Nitro, Sprung, Schraube
+  oder Front-/Backflip), `?zieljubel=stunt`. Standard bleibt der bisherige Dreher.
+- Bericht `N40_BERICHT.md`, Tests `test_tiere.mjs`, `test_zielstunt.mjs`.
+
 ## 0.12.4 – 25.10.2026 (Reset-Knopf)
 - **Neu: ↺ Reset-Knopf** (Peter 22.10.: „Bitte 1 Klick Reset auf die Strecke (statt Zurückspulen)“): ersetzt ⏪ im HUD, auf
   allen Stufen. Ein Tipp setzt das Auto wie der Crash-Reset zurück auf die Fahrbahn (mittig, in Fahrtrichtung, mit Schwung;

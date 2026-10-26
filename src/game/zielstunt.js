@@ -12,12 +12,14 @@
 // Der Flug ist absichtlich gerechnet statt simuliert: so landet das Auto immer gerade (nie Crash), und Live, Replay und
 // Highlight-Film zeigen dasselbe (das Replay spielt die aufgezeichneten Lagen ab). Rennzeit, Bestzeit, Geist und Online-
 // Wertung enden weiter an der Linie (finF) – der Stunt liegt nur in der Aufzeichnung danach.
-// Regler: ?zieljubel=stunt|dreher|aus (main.js), Option „Zieljubel“ im Menü (Standard Stunt). Race ohne Angabe = 'dreher'
+// Regler: ?zieljubel=stunt|dreher|aus (main.js), Option „Zieljubel“ im Menü (Standard ZIELJUBEL_STD). Race ohne Angabe = 'dreher'
 // (Verhalten wie bis n39 – Prüffahrten, Generator und die Node-Tests bleiben bitgleich).
 import { clamp, smootherstep, rng, hashStr } from '../core/util.js';
 import { ZIEL } from './zielshow.js';
 
 export const ZIELJUBEL = ['stunt', 'dreher', 'aus'];
+// Standard der Option (Spiel): 0.13.0 noch 'dreher' (Tier-Zuschauer zuerst live), ab 0.14.0 'stunt'
+export const ZIELJUBEL_STD = 'dreher';
 
 // TODO n40-Heavy: Flugzeit, Tempo, Drehfenster und Kamera-Zeiten am Bild abstimmen (Startwerte)
 export const ZSTUNT = {

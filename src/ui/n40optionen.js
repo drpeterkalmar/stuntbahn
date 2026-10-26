@@ -1,13 +1,13 @@
-// n40 Optionen „Zuschauer“ (Tiere/Menschen, Standard Tiere) und „Zieljubel“ (Stunt/Dreher/aus, Standard Stunt) – eigenes Modul,
+// n40 Optionen „Zuschauer“ (Tiere/Menschen, Standard Tiere) und „Zieljubel“ (Stunt/Dreher/aus, Standard ZIELJUBEL_STD) – eigenes Modul,
 // damit ui.js nur wenige Zeilen braucht (n41 baut dort parallel um). Dazu die Tier-Ohren für die Fan-Cam-Silhouetten.
 import { zuschauerModus, ZUSCHAUER } from '../gfx/tierform.js';
-import { ZIELJUBEL } from '../game/zielstunt.js';
+import { ZIELJUBEL, ZIELJUBEL_STD } from '../game/zielstunt.js';
 
-// Zieljubel: URL ?zieljubel=stunt|dreher|aus hat Vorrang vor der Option; Standard Stunt
+// Zieljubel: URL ?zieljubel=stunt|dreher|aus hat Vorrang vor der Option; Standard ZIELJUBEL_STD
 export function zieljubelArt(search, S = {}) {
   const u = new URLSearchParams(search || '').get('zieljubel');
   if (ZIELJUBEL.includes(u)) return u;
-  return ZIELJUBEL.includes(S.zieljubel) ? S.zieljubel : 'stunt';
+  return ZIELJUBEL.includes(S.zieljubel) ? S.zieljubel : ZIELJUBEL_STD;
 }
 
 // Optionen-Blatt: zwei Umschalter mit Hinweis (data-a „zuschauer“ / „zieljubel“, ui.js leitet weiter)
@@ -20,7 +20,7 @@ export function n40OptionenHtml(S, search) {
       <p class="hint">${zu === 'tiere' ? '<b>Tiere</b> (Standard): Bärchen, Häschen, Füchse, Pinguine, Kätzchen und Kühe jubeln am Rand und auf den Tribünen.' : '<b>Menschen:</b> Zuschauer wie bis Oktober 2026.'}${q.has('zuschauer') ? ' (Link-Zusatz <code>?zuschauer=</code> gilt vorrangig.)' : ''}</p>
       <div class="lbl">Zieljubel</div>
       ${seg('zieljubel', zj, [['stunt', '🤸 Stunt'], ['dreher', '🌀 Dreher'], ['aus', 'Aus']])}
-      <p class="hint">${{ stunt: '<b>Stunt</b> (Standard): Nach der Ziellinie zündet dein Auto den Nitro, springt und zeigt eine Schraube, einen Front- oder Backflip – wenn hinter dem Ziel genug Platz ist, sonst wie „Dreher“.', dreher: '<b>Dreher:</b> wie bisher – auf Leicht mit Fahrstil Brachial ab und zu ein Jubel-Dreher, sonst ausrollen.', aus: '<b>Aus:</b> nach dem Ziel einfach ausrollen.' }[zj]} Nur Show: Zeit, Bestzeit und Geisterauto enden an der Linie.${q.has('zieljubel') ? ' (Link-Zusatz <code>?zieljubel=</code> gilt vorrangig.)' : ''}</p>`;
+      <p class="hint">${{ stunt: `<b>Stunt</b>${ZIELJUBEL_STD === 'stunt' ? ' (Standard)' : ''}: Nach der Ziellinie zündet dein Auto den Nitro, springt und zeigt eine Schraube, einen Front- oder Backflip – wenn hinter dem Ziel genug Platz ist, sonst wie „Dreher“.`, dreher: `<b>Dreher</b>${ZIELJUBEL_STD === 'dreher' ? ' (Standard)' : ''}: wie bisher – auf Leicht mit Fahrstil Brachial ab und zu ein Jubel-Dreher, sonst ausrollen.`, aus: '<b>Aus:</b> nach dem Ziel einfach ausrollen.' }[zj]} Nur Show: Zeit, Bestzeit und Geisterauto enden an der Linie.${q.has('zieljubel') ? ' (Link-Zusatz <code>?zieljubel=</code> gilt vorrangig.)' : ''}</p>`;
 }
 
 // Fan-Cam (ui.js drawFans): bei Tier-Zuschauern Ohren an die Kopf-Silhouette (Kopf-Mitte x, y, Radius r; Art aus fx)

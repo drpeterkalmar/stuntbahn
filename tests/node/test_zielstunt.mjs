@@ -3,7 +3,7 @@
 // Geist und Aufzeichnung bis zur Linie bitgleich mit/ohne Stunt, Stunt läuft durch (Nitro → Flug → Landung), Auto nach der
 // Landung aufrecht, auf der Fahrbahn, kein Crash, im Replay die volle Drehung, deterministisch.
 // Aufruf: node tests/node/test_zielstunt.mjs   (Kurz-Lauf ohne Fahrten: --kurz)
-import { ZSTUNT, CAR_BOX, stuntZeit, stuntArt, stuntRaum, stuntStart, stuntFlug, stuntFreiheit, lineAhead, lineAt, qLook, qrot } from '../../src/game/zielstunt.js';
+import { ZSTUNT, ZIELJUBEL_STD, CAR_BOX, stuntZeit, stuntArt, stuntRaum, stuntStart, stuntFlug, stuntFreiheit, lineAhead, lineAt, qLook, qrot } from '../../src/game/zielstunt.js';
 import { ZIEL } from '../../src/game/zielshow.js';
 
 let fails = 0;
@@ -47,11 +47,11 @@ console.log('--- A: Ablauf ---');
 }
 
 {
-  // Option „Zieljubel“ (ui/n40optionen.js): Standard Stunt, Einstellung, ?zieljubel= hat Vorrang; Optionen-Blatt
+  // Option „Zieljubel“ (ui/n40optionen.js): Standard ZIELJUBEL_STD, Einstellung, ?zieljubel= hat Vorrang; Optionen-Blatt
   const { zieljubelArt, n40OptionenHtml } = await import('../../src/ui/n40optionen.js');
-  check(zieljubelArt('', {}) === 'stunt' && zieljubelArt('', { zieljubel: 'aus' }) === 'aus' && zieljubelArt('?zieljubel=dreher', { zieljubel: 'aus' }) === 'dreher' && zieljubelArt('?zieljubel=quatsch', {}) === 'stunt', 'Zieljubel: Standard Stunt, Option, ?zieljubel= vorrangig');
+  check(zieljubelArt('', {}) === ZIELJUBEL_STD && zieljubelArt('', { zieljubel: 'aus' }) === 'aus' && zieljubelArt('?zieljubel=dreher', { zieljubel: 'aus' }) === 'dreher' && zieljubelArt('?zieljubel=quatsch', {}) === ZIELJUBEL_STD, `Zieljubel: Standard ${ZIELJUBEL_STD}, Option, ?zieljubel= vorrangig`);
   const h = n40OptionenHtml({}, '');
-  check(/data-a="zieljubel" data-v="stunt" class="on"/.test(h) && /data-a="zuschauer" data-v="tiere" class="on"/.test(h) && (h.match(/data-a="zieljubel"/g) || []).length === 3, 'Optionen-Blatt: Zuschauer (Tiere an) und Zieljubel (Stunt an), drei Stufen');
+  check(new RegExp(`data-a="zieljubel" data-v="${ZIELJUBEL_STD}" class="on"`).test(h) && /data-a="zuschauer" data-v="tiere" class="on"/.test(h) && (h.match(/data-a="zieljubel"/g) || []).length === 3, `Optionen-Blatt: Zuschauer (Tiere an) und Zieljubel (${ZIELJUBEL_STD} an), drei Stufen`);
 }
 
 console.log('--- B: Figur aus dem Seed ---');

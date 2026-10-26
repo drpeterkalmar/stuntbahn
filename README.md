@@ -72,6 +72,18 @@ spielbar am Handy (quer oder hochkant), mit Gamepad oder Tastatur. Als App insta
   Abstand zu jeder Fahrbahn (auch Hochstraßen/Rampen), nie im Wasser. Dosiert nach Grafikstufe; ruckelt es, blendet die
   Automatik (nach der Unschärfe) zuerst Gras/Büsche/Wolkenschatten aus. `?deko=aus` (bis n29 `?deko=0`) / `?wolken=0` zum Vergleich.
 
+## 🐻 Herzige Tier-Zuschauer (seit 26.10.2026, n40, Version 0.13)
+- Peter 20.10.: „niedlichere Zuschauer (herzige Tiere)“. Statt Menschen jubeln jetzt **Bärchen, Häschen, Füchse, Pinguine,
+  Kätzchen und Kühe** am Streckenrand und auf den Tribünen – Cartoon-Stil mit großem Kopf, großen Augen mit Glanzpunkt, rosa
+  Bäckchen und kurzen Ärmchen. Sie winken, schwenken Fahnen, sitzen beim Picknick und hüpfen mit hochgerissenen Pfoten, wenn
+  ein Stunt kommt. Mischung je Strecke fest (Seed), zwei gleiche Tiere stehen nie direkt nebeneinander. In der Ferne und auf den
+  Tribünen-Streifen gezeichnete Tiere, in der Fan-Cam des Highlight-Films Tier-Ohren an den Köpfen.
+- **Option** „Zuschauer: 🐻 Tiere / 🧑 Menschen“ (Optionen, Standard Tiere), Link-Zusatz `?zuschauer=mensch` bzw. `=tiere`.
+- Gleiche Technik wie die Menschen (1 Draw-Call, gleiche Vorauswahl); gemessen im Handy-Profil +0 bis +4 % Bildzeit (Streuung
+  ±5 %), Draw-Calls gleich. Alles im Spiel erzeugt (keine neuen Dateien zum Laden).
+- Tests: `node tests/node/test_tiere.mjs`, Fotos `python3 tests/n40_shots.py tiere quer|hoch|desktop [Code]` (`N40_Q=1` für Grafik
+  Standard). Bericht `N40_BERICHT.md`.
+
 ## ↺ Reset-Knopf: 1 Tipp zurück auf die Strecke (seit 25.10.2026, n41)
 - Peter 22.10.: „Bitte 1 Klick Reset auf die Strecke (statt Zurückspulen).“ Der HUD-Knopf ⏪ ist jetzt **↺ Reset** (alle
   Stufen, auch Original): ein Tipp, kurzes Aufblitzen, das Auto steht wieder mitten auf der Fahrbahn (Ideallinie), in
