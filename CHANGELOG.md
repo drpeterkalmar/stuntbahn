@@ -2,7 +2,7 @@
 
 Kurzfassung je Version; Details in den Abschnitten der `README.md` und in den Berichten (`*_BERICHT.md`).
 
-## __VERSION__ – 27.10.2026 (Ruckeln + Start, n42 Etappe 1)
+## 0.15.0 – 27.10.2026 (Ruckeln + Start, n42 Etappe 1)
 - **Kein Ruckeln mehr, wenn die Grafik-Automatik nachregelt** (Peter 26.10.: „ruckeln zeitweise und starten langsam“): Auto-
   Schatten aus übersetzte bisher alle Shader neu (bis 1,7 s Standbild, Mac mit CPU ×4) – jetzt 0 Hänger über 50 ms.
 - **Kein Ruck** beim Losfahren, beim ersten Action-Moment, bei Kulissen, die erst im Rennen ins Bild kommen, beim Feuerwerk
