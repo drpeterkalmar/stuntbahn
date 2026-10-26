@@ -7,6 +7,7 @@
 // Anzeige-Stufe (Einstellung „Ideallinie“): Aus / Dezent / Kräftig. Breite, Deckkraft, weicher Rand und
 // Ausblenden in der Ferne sind Uniforms – ein Stufenwechsel baut nichts neu.
 import * as THREE from 'three';
+import { GLATT } from '../core/glatt.js';   // n42: durchsichtig + beidseitig in einem Durchgang
 import { WORLD_SCALE } from '../track/defs.js';
 import { pedalPlan } from '../ai/profile.js';
 import { BRAKE_WARN } from '../game/warn.js';
@@ -85,7 +86,7 @@ export class LineViz {
     this.mat = new THREE.ShaderMaterial({
       vertexShader: VERT, fragmentShader: FRAG,
       uniforms: { uFocus: { value: new THREE.Vector3() }, uHalf: { value: 0.24 }, uOpacity: { value: 0.28 }, uEdge: { value: 0.2 }, uNear: { value: 60 }, uFar: { value: 115 } },
-      transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4, side: THREE.DoubleSide,
+      transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4, side: THREE.DoubleSide, forceSinglePass: GLATT.einseitig,
     });
     this.level = null;
   }

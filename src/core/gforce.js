@@ -110,17 +110,22 @@ export class GMeter {
 
 // ganze Aufzeichnung auf einmal (Replay, Kino-Replay, Highlights): Arrays je Bild
 // cuts: Bildnummern, ab denen neu angesetzt wird (erstes Bild nach dem Versetzen)
-export function gTrack(rec, cuts = [], opt = {}) {
+export function gTrack(rec, cuts = [], opt = {}) { return fertigRechnen(gTrackG(rec, cuts, opt)); }
+// n42: dasselbe in Häppchen (Generator: pausiert alle 256 Bilder, Ergebnis gleich) – Highlight-Film während der Zielshow
+export function* gTrackG(rec, cuts = [], opt = {}) {
   const S = opt.stride || GF.stride, F = Math.floor(rec.length / S), cutSet = new Set(cuts);
   const T = { F, lon: new Float32Array(F), lat: new Float32Array(F), vert: new Float32Array(F), g: new Float32Array(F), now: new Float32Array(F), raw: new Float32Array(F), rLat: new Float32Array(F), rVert: new Float32Array(F) };
   const m = new GMeter(opt);
   for (let i = 0; i < F; i++) {
+    if ((i & 255) === 255) yield;
     if (cutSet.has(i)) m.reset();
     m.push(rec, i);
     T.lon[i] = m.sLon; T.lat[i] = m.sLat; T.vert[i] = m.sVert; T.g[i] = m.show; T.now[i] = m.now; T.raw[i] = m.tot; T.rLat[i] = m.lat; T.rVert[i] = m.vert;
   }
   return T;
 }
+// Generator bis zum Ende laufen lassen (synchron) → Rückgabewert
+export function fertigRechnen(g) { for (;;) { const r = g.next(); if (r.done) return r.value; } }
 // Spitzenwerte (angezeigt, ohne Halten) in [i0, i1]: Betrag, quer, vertikal
 export function gPeak(T, i0, i1) {
   let g = 0, lat = 0, vert = 0, ig = i0;

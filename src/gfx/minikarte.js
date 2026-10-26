@@ -14,6 +14,7 @@
 // derselben Geometrie. Ganze Strecke im Bild; sehr große Strecken (Radius > 620 m) im kleinen Bild als Ausschnitt um das
 // Auto, weich nachgeführt. Groß (Tippen/Taste M): immer die ganze Strecke.
 import * as THREE from 'three';
+import { GLATT } from '../core/glatt.js';   // n42: durchsichtig + beidseitig in einem Durchgang
 import { karteGeo } from '../track/kartegeo.js';
 import { GpuZeit } from './kern/autopilot.js';
 
@@ -219,7 +220,7 @@ export class Minikarte {
     // vormultipliertes Alpha in den Shadern → Mischung ONE / ONE_MINUS_SRC_ALPHA
     const pm = { blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor, blendSrcAlpha: THREE.OneFactor, blendDstAlpha: THREE.OneMinusSrcAlphaFactor };
     this.uBand.uZwei = U(0);
-    this.matBand = new THREE.ShaderMaterial({ uniforms: this.uBand, vertexShader: vsBand, fragmentShader: fsBand, transparent: true, side: THREE.DoubleSide, depthWrite: true, depthTest: true, ...pm });
+    this.matBand = new THREE.ShaderMaterial({ uniforms: this.uBand, vertexShader: vsBand, fragmentShader: fsBand, transparent: true, side: THREE.DoubleSide, forceSinglePass: GLATT.einseitig, depthWrite: true, depthTest: true, ...pm });
     this.uPlatte = { uPl: U(new THREE.Vector3(0, 0, 1)), uPlY: U(0), uRaster: U(80), uInvVP: U(new THREE.Matrix4()) };
     // Punkte
     const pg = new THREE.BufferGeometry();

@@ -22,7 +22,8 @@ import { Input } from './game/input.js';
 import { Race, ASSISTS, GAME_SPEEDS, GAME_SPEED_STD, FAHRSTIL_URL, REC_HZ, REC_STRIDE } from './game/race.js';
 import { UI } from './ui/ui.js';
 import { generate, demoLayout, galleryLayout, galleryGelLayout } from './track/generator.js';
-import { verify, prepare, probeLap } from './track/verify.js';
+import { prepare, probeLap } from './track/verify.js';
+import { genOpt, pruefeZufall } from './track/pruefung.js';   // n42: Autopilot-Prüfung (Worker bzw. Hauptthread)
 import { parseTrk } from './track/trk.js';
 import { trkToLayout } from './track/trkimport.js';
 import { KIND_NAMES } from './track/trkelems.js';
@@ -39,7 +40,7 @@ import { schadenModus, SchadenAuto, neuerSchaden } from './physics/schaden.js'; 
 import { schadenZeigen, TruemmerVis } from './gfx/schadenvis.js';
 import { lookSchalten } from './gfx/schadenlook.js';
 import { Replay } from './game/replay.js';
-import { buildFilm, FilmPlayer, HL } from './game/highlights.js';
+import { buildFilm, buildFilmG, FilmPlayer, HL } from './game/highlights.js';
 import { CineCam } from './game/cinecam.js';
 import { ActionRegie, actionStufe } from './game/action.js';   // n36 Action-Momente (Zoom-Punch, Speed-Ramp, Bullet-Time live)
 import { ClipRecorder, clipMime } from './ui/cliprec.js';
@@ -64,6 +65,7 @@ import { loadDecoAssets, decoUniforms, GB } from './gfx/deco.js';
 import { kulisseTick } from './gfx/kulisse.js';
 import { DEKO, REDUCED, makeBirds, AirMotes, makeBrakeLights } from './gfx/deko.js';
 import { daySeed } from './core/util.js';
+import { GLATT } from './core/glatt.js';   // n42 Ruckeln + langsamer Start: Schalter der Maßnahmen
 import { showKmhMs } from './core/showspeed.js';
 import { GMeter, G_ON } from './core/gforce.js';
 import { WORLD_TAG, WORLD_SCALE, STUNT_TAG, TUBE_TAG, MAT, GEN_V, HIND_TAG } from './track/defs.js';
@@ -252,6 +254,8 @@ async function boot() {
   carVis = await makeCar({ color: store.settings.paint, contact: !!kino });
   scene.add(carVis.root);
   rig.carBox = carLocalBox(carVis);
+  // n42: Auto-Schatten der Automatik aus → das Auto wirft keinen Schatten mehr (castShadow der Sonne bleibt, gfx/quality.js)
+  quality.onSchatten = (an) => { for (const L of carVis.lodMeshes) for (const o of L) { if (o.userData.cast0 === undefined) o.userData.cast0 = o.castShadow; o.castShadow = an && o.userData.cast0; } };
   if (DEKO) brakeLights = makeBrakeLights(carVis.root);   // n28 (nach der Auto-Box: zählt nicht zur Karosserie)   // Stoßstangen-Kamera: vor die Nase
   // n32 Tageszeit: Scheinwerfer (EIN echtes SpotLight, dreht mit dem Auto – auch im Looping) und zwei Leuchtpunkte vorn.
   // Hängen nur abends/nachts am Auto (ein Licht mehr ändert alle Shader; tagsüber kostet es so nichts).
@@ -293,7 +297,8 @@ async function boot() {
   actionVorwaermen();
   await startAutopilot();
   ui.loading(1, 'Fertig');
-  app.ready = true;
+  // n42: Menü ist schon da; „bereit“ (Tests, Mess-Skripte) erst mit geprüfter Strecke – wie bisher
+  if (pruefOffen) pruefungAbwarten().then(() => { app.ready = true; }); else app.ready = true;
   ui.bind({ startRace, newTrack, setAssist, toMenu, retry, startReplay, cycleCam, gegnerStand, gegnerGummi: () => !!(gegner && gegner.opt.aufholhilfe), rewind: () => race && race.requestRewind(), reset: () => resetCar(), pause: togglePause,
     skipCine: () => endCine(true), skipShow: () => endShow(true), replayCine: () => { if (race && race.film && ui.lastRes) startCine(ui.lastRes); },
     recordCine: () => { if (race && race.film && ui.lastRes) startCine(ui.lastRes, { record: true }); },
@@ -301,6 +306,11 @@ async function boot() {
     online: (a, v, el) => onlineAktion(a, v, el), onlineMenue: onlineOptionen().menue, onlineLabel: () => (onl && onl.aktiv ? onl.zustand().vorlesbar : null) });
   initDrop();
   ui.showMenu(env);
+  setTimeout(() => { vorwaermenHintergrund().catch((e) => console.warn('Vorwärmen', e)); if (GLATT.vorwaermen) ui.textVorwaermen(); }, 250);   // n42
+  // n42: Service Worker erst jetzt (index.html: __swStart) – der Vorab-Cache holt sich dann die eben geladenen Dateien per
+  // Nachfrage (304) statt sie parallel zum Start ein zweites Mal zu laden
+  if (GLATT.swSpaet && window.__swStart) setTimeout(() => window.__swStart(), 2000);
+  if (GLATT.tonSpaet) setTimeout(() => sound.vorladen(), 600);   // n42: Ton-Aufnahmen nach dem Menü
   mode = params.has('race') ? 'race' : 'menu';
   if (mode === 'race') startRace();
   // n35: Link mit ?raum=CODE → Online-Menü mit vorbelegtem Code; App aus dem Hintergrund → neu verbinden
@@ -312,6 +322,7 @@ async function boot() {
     if (gegnerVis) gegnerVis.addLods([mid, far]);
     ghostify(ghostVis.root, 'lod');
     app.carLod = { mid: carVis.lodMeshes[1].length, far: carVis.lodMeshes[2].length };
+    if (GLATT.vorwaermen && renderer.compileAsync) renderer.compileAsync(scene, camera).then(() => erstzeichnung([...carVis.lodMeshes[1], ...carVis.lodMeshes[2], ...ghostVis.lodMeshes[1], ...ghostVis.lodMeshes[2]])).catch(() => {});   // n42
   }).catch((e) => console.warn('Auto-LOD nicht geladen', e));
   // n31 Messhaken: ?gpumess=1 misst die GPU-Zeit je Bild auch bei fester Stufe (tests/perf_taau.py; sonst nur mit Autopilot)
   if (GPU_MESS && !quality.gpu) quality.gpu = new GpuZeit(renderer.getContext());
@@ -460,29 +471,91 @@ function pickRandomThema(rnd = Math.random) {
 }
 const modeOf = (m) => (m === true ? '3d' : m === false ? 'flat' : m === '3d' || m === 'gel' || m === 'flat' ? m : store.settings.trackMode || 'gel');
 // gv: Generator-Version (n33: 2 = mit Zickzack, Röhre mit Wand, Spiralen-Hochstraße; Code-Zusatz „h“). ?hindernis2=0 → immer 1
+// n42: noch nicht geprüft → Strecke sofort bauen und zeigen, der Autopilot prüft nebenher im Worker (track/pruefung_worker.js;
+// vorher lief die Probefahrt ~1,7 s im Ladebildschirm, Mac mit CPU ×4). Entschärft er (selten) oder braucht er eine andere
+// Variante, wird die geprüfte Fassung gebaut, bevor jemand losfährt (startRace wartet). ?pruefung=alt = bisher.
 async function loadGenerated(seed, diff, mode = 'flat', randomTheme = false, gv = GEN_V) {
   mode = modeOf(mode);
   gv = Math.min(gv || 1, GEN_V);
-  const gopt = (variant) => ({ ...(mode === '3d' ? { d3: true, variant } : mode === 'gel' ? { gel: true, variant } : {}), ...(gv >= 2 ? { gv } : {}) });
+  const gopt = (variant) => genOpt(mode, variant, gv);
   let lay = generate(seed, diff, gopt(0));
   if (randomTheme) RANDOM_THEMA = { key: lay.meta.key, id: typeof randomTheme === 'string' && THEMES[randomTheme] ? randomTheme : pickRandomThema() };
   themes.prefetch(themeOf(lay));   // Kulissen-Paket lädt, während der Autopilot prüft
   const key = lay.meta.key;
   const cached = store.getVerified(key + WORLD_TAG, VBUILD);
+  if (pruefOffen && pruefOffen.key !== key) pruefungAbbrechen();
   if (cached) {
     if (cached.variant) lay = generate(seed, diff, gopt(cached.variant));
     lay.pieces = cached.pieces;
     return loadTrack(lay, { apTime: cached.ap, fixes: cached.fixes });
   }
-  for (let variant = 0; ; variant++) {
-    if (variant) lay = generate(seed, diff, gopt(variant));
-    ui.loading(0.82, 'Autopilot prüft die Strecke …');
-    const res = await verify(lay, (p, f) => ui.loading(0.82 + 0.16 * p, `Autopilot prüft die Strecke … ${Math.round(p * 100)} %${f ? ' (entschärft: ' + f + ')' : ''}`));
-    if (res.ok || mode === 'flat' || variant >= 3) {
-      store.setVerified(key + WORLD_TAG, VBUILD, res.layout.pieces, res.apTime, res.fixes, variant);
-      return loadTrack(res.layout, { apTime: res.apTime, fixes: res.fixes }, res.env);
+  if (GLATT.pruefungWorker) {
+    const job = pruefungStarten(seed, diff, mode, gv, key);
+    if (job) return loadTrack(lay, { apTime: null, fixes: 0, pruefung: true });
+  }
+  ui.loading(0.82, 'Autopilot prüft die Strecke …');
+  const res = await pruefeZufall(seed, diff, mode, gv, (p, f) => ui.loading(0.82 + 0.16 * p, `Autopilot prüft die Strecke … ${Math.round(p * 100)} %${f ? ' (entschärft: ' + f + ')' : ''}`), lay);
+  store.setVerified(key + WORLD_TAG, VBUILD, res.layout.pieces, res.apTime, res.fixes, res.variant);
+  return loadTrack(res.layout, { apTime: res.apTime, fixes: res.fixes }, res.env);
+}
+// n42 Prüfung im Worker: pruefOffen = { key, id, fortschritt, promise, done, warten, weiter } solange sie läuft
+let pruefW = null, pruefN = 0, pruefOffen = null;
+function pruefungAbbrechen() { if (pruefW) { pruefW.terminate(); pruefW = null; } pruefOffen = null; }
+function pruefungStarten(seed, diff, mode, gv, key) {
+  pruefungAbbrechen();
+  let W;
+  try { W = new Worker(new URL('./track/pruefung_worker.js' + location.search, import.meta.url), { type: 'module' }); } catch (e) { console.warn('Prüf-Worker', e); return null; }
+  pruefW = W;
+  const id = ++pruefN, job = { key, id, fortschritt: 0, t0: performance.now(), done: false, warten: false, weiter: null };
+  const imHaupt = () => pruefeZufall(seed, diff, mode, gv).then((r) => ({ ok: r.ok, variant: r.variant, pieces: r.layout.pieces, apTime: r.apTime, fixes: r.fixes }));
+  job.promise = new Promise((res, rej) => {
+    W.onmessage = (e) => {
+      const d = e.data;
+      if (d.id !== id) return;
+      if (d.fehler) { rej(new Error(d.fehler)); return; }
+      if (!d.fertig) { job.fortschritt = d.fortschritt; if (job.warten) ui.loading(0.82 + 0.16 * d.fortschritt, `Autopilot prüft die Strecke … ${Math.round(d.fortschritt * 100)} %`); return; }
+      res(d);
+    };
+    W.onerror = (e) => { e.preventDefault && e.preventDefault(); rej(new Error(e.message || 'Worker nicht ladbar')); };
+  }).catch((e) => { console.warn('Prüfung im Worker gescheitert – im Hauptthread', e); return imHaupt(); })
+    .then((r) => pruefungFertig(job, r, { seed, diff, mode, gv }))
+    .catch((e) => { console.warn('Prüfung', e); job.done = true; if (pruefOffen === job) pruefOffen = null; if (job.weiter) job.weiter(); });
+  W.postMessage({ id, seed, diff, mode, gv });
+  pruefOffen = job;
+  app.pruefung = { laeuft: true, key };
+  return job;
+}
+async function pruefungFertig(job, r, g) {
+  if (W_ist(job)) { pruefW.terminate(); pruefW = null; }
+  store.setVerified(job.key + WORLD_TAG, VBUILD, r.pieces, r.apTime, r.fixes, r.variant);
+  const ms = Math.round(performance.now() - job.t0);
+  if (pruefOffen !== job) return;   // inzwischen andere Strecke: nur merken
+  const gleich = r.variant === 0 && !r.fixes;
+  if (env && env.meta.key === job.key) {
+    if (gleich) {
+      env.meta.apTime = r.apTime; env.meta.fixes = 0; delete env.meta.pruefung;
+      if (mode === 'menu' && ui.screen === 'menu' && !job.warten) ui.showMenu(env);
+    } else {
+      // entschärft bzw. andere Variante: geprüfte Fassung bauen (aus dem eben gefüllten Speicher)
+      ui.loading(0.85, 'Strecke anpassen …');
+      await new Promise((res) => setTimeout(res, 20));
+      pruefOffen = null;
+      await loadGenerated(g.seed, g.diff, g.mode, false, g.gv);
+      ui.loading(1);
+      if (mode === 'menu' && !job.warten) ui.showMenu(env);
     }
   }
+  if (pruefOffen === job) pruefOffen = null;
+  job.done = true;
+  app.pruefung = { laeuft: false, key: job.key, ms, gleich, fixes: r.fixes, variant: r.variant };
+  if (job.weiter) job.weiter();
+}
+const W_ist = (job) => pruefW && pruefOffen === job;
+// läuft eine Prüfung der gezeigten Strecke? → Promise, das danach erfüllt ist (sofort, wenn keine läuft)
+function pruefungAbwarten() {
+  const job = pruefOffen;
+  if (!job || job.done || !env || env.meta.key !== job.key) return Promise.resolve();
+  return new Promise((res) => { const w = job.weiter; job.weiter = () => { if (w) w(); res(); }; });
 }
 
 // ---------- Importierte .TRK-Strecken ----------
@@ -641,8 +714,14 @@ async function loadTrack(layout, meta = {}, pre = null) {
   lineViz.build(ideal, prof, track);
   karte.setTrack(track);   // n39: Karten-Geometrie einmal je Strecke
   env.buildMs = performance.now() - t0;
+  if (GLATT.programmfest) app.programmfest = programmfest(scene);   // n42 (ganze Szene: auch Dinge außerhalb der Welt-Gruppe)
+  quality.schattenNeu(); quality.apply(sun, renderer);   // n42: Schatten-Regel wieder voll (Shader werden hier ohnehin übersetzt)
   try { if (renderer.compileAsync) await renderer.compileAsync(scene, camera); } catch { /* optional */ }
   if (quality.ap) quality.ap.schonen(1.5);   // n30: Shader/Texturen der neuen Strecke – erste Bilder zählen nicht
+  // n42: Feuerwerk-Objekt schon jetzt (kleiner Plan, unsichtbar) – Shader, Puffer-Aufbau und erste Zeichnung (Erst-Zeichnung
+  // unten) sind dann beim Zieldurchgang schon da; der echte Plan ersetzt nur die Daten (sonst ~70–180 ms Hänger im Ziel)
+  if (GLATT.vorwaermen) { pyro.prepare(pyroGeo(track), { tier: quality.tier, best: false, easy: true, seed: 'vorwaermen' }); pyro.hide(); }
+  erstFaellig = GLATT.vorwaermen;   // n42: im nächsten Bild alles einmal unsichtbar zeichnen
   // Vorschau: Auto an den Start
   quitShow();
   gegnerAus();
@@ -681,7 +760,7 @@ async function onlineLaden() {
     kurzruf: (e) => { if (onlR) onlR.emoji(e); },
   });
 }
-async function onlineAktion(a, v, el) { await onlineLaden(); return onlA.action(a, v, el); }
+async function onlineAktion(a, v, el) { await pruefungAbwarten(); await onlineLaden(); return onlA.action(a, v, el); }   // n42: erst geprüfte Strecke beschreiben
 function onlineAnzeige(art, d) {
   if (!onlA) return;
   // Zieltabelle: sofort, außer die eigene Zielshow läuft noch (endShow zeigt sie dann)
@@ -810,6 +889,16 @@ function onlineNachFrame() {
 }
 
 function startRace(opts = {}) {
+  // n42: Prüfung der Zufallsstrecke läuft noch (Worker) → kurz „Autopilot prüft …“, danach geht es los
+  if (pruefOffen && !pruefOffen.done && env && env.meta.key === pruefOffen.key) {
+    const job = pruefOffen;
+    if (!job.warten) {
+      job.warten = true;
+      ui.loading(0.82 + 0.16 * job.fortschritt, `Autopilot prüft die Strecke … ${Math.round(job.fortschritt * 100)} %`);
+      pruefungAbwarten().then(() => { ui.loading(1); startRace(opts); });
+    }
+    return;
+  }
   if (PROBE_N) { startOnlineProbe(opts).catch((e) => console.error('Online-Probe', e)); return; }   // n35 Mess-Probe
   delete document.body.dataset.online;
   replay = null;
@@ -951,12 +1040,34 @@ function zstuntMark(r) { const S = r.zstunt; return S && S.tLand != null && r.fi
 // Film einmal je Rennen bauen (auch bei Einstellung „aus“ – dann über „🎬 Highlights“ im Ergebnis)
 function ensureFilm() {
   if (!race || !race.rec.length) return null;
+  if (filmJob && filmJob.race === race) filmSchritt(1e9);   // n42: angefangener Häppchen-Bau → fertig rechnen
   if (race.film === undefined) {
     const t0 = performance.now();
     try { race.film = buildFilm(race.rec, env, marksOf(race), { max: HL.film.max * timeScale }); } catch (e) { console.warn('Kino-Replay', e); race.film = null; }
     app.cineBuildMs = performance.now() - t0;
   }
   return race.film;
+}
+// n42: Film in Häppchen während der letzten Show-Bilder (Generator buildFilmG, gleiches Ergebnis wie buildFilm): je Bild höchstens
+// FILM_MS Rechenzeit, die Zielbogen-Kamera läuft so lange weiter. ?filmhaeppchen=0 = in einem Stück am Show-Ende.
+let filmJob = null;
+const FILM_MS = 6;
+function filmStart() {
+  const zero = { steer: 0, throttle: 0, brake: 0 };
+  for (let k = 0; race.state === 'finished' && race.finT < race.recEnd() && k < 2000; k++) { race.step(DT, zero); if (gegner) gegner.step(DT, race); }
+  race.events.length = 0;
+  filmJob = { race, g: buildFilmG(race.rec, env, marksOf(race), { max: HL.film.max * timeScale }), ms: 0, bilder: 0, fertig: false };
+}
+function filmSchritt(ms) {
+  const J = filmJob;
+  if (!J || J.fertig) return true;
+  const t0 = performance.now();
+  try {
+    for (;;) { const r = J.g.next(); if (r.done) { J.race.film = r.value; J.fertig = true; break; } if (performance.now() - t0 >= ms) break; }
+  } catch (e) { console.warn('Kino-Replay', e); J.race.film = null; J.fertig = true; }
+  J.ms += performance.now() - t0; J.bilder++;
+  if (J.fertig) { app.cineBuildMs = J.ms; app.filmHaeppchen = { ms: +J.ms.toFixed(1), bilder: J.bilder }; filmJob = null; }
+  return J.fertig;
 }
 function startCine(res, opt = {}) {
   if (!ensureFilm()) return false;
@@ -1031,7 +1142,14 @@ function showTick() {
     show.camOn = true; show.cut = true; blurCut = true;
     app.show.cam = { pos: show.shot.setup.pos, vis: show.shot.setup.vis, fallback: !!show.shot.setup.fallback };
   }
-  if (tau >= showZeit('end')) endShow(false);
+  if (tau >= showZeit('end')) {
+    // n42: Film in Häppchen bauen, solange die Show noch läuft (die Aufzeichnung ist jetzt vollständig)
+    if (GLATT.filmHaeppchen && !onlR && race.film === undefined) {
+      if (!filmJob || filmJob.race !== race) filmStart();
+      if (!filmSchritt(FILM_MS)) return;
+    }
+    endShow(false);
+  }
 }
 function showCamera(rdt, pose) {
   const tau = showTau(), t = race.finF / REC_HZ + tau;
@@ -1207,6 +1325,8 @@ function bild(now) {
   if (app.testLast > 0) { const tE = performance.now() + app.testLast; while (performance.now() < tE); }
   // GPU-Zeit nur messen, wenn der Autopilot regelt (feste Nutzerwahl: keine Abfragen, kostet sonst je Bild)
   const gpuMess = quality.gpu && (!quality.forced || GPU_MESS);
+  // n42 (vor dem Bild, das alles überdeckt): im Menü erst, wenn es ein paar Bilder steht (Menü zuerst zeigen), sonst sofort
+  if (erstFaellig && kino && kino.rt && (mode !== 'menu' || ++erstWarte > 12)) { erstFaellig = false; erstWarte = 0; erstzeichnung(); }
   if (gpuMess) quality.gpu.anfang();
   render(rdt);
   if (gpuMess) quality.gpu.ende();
@@ -1741,9 +1861,110 @@ function reflexVorwaermen() {
 // sonst stockt das erste Bild eines Moments (gemessen ~0,4 s + ~0,2 s auf dem Mac)
 const ACT_WARM = { sat: 0.1, vig: 0.1, ca: 0.001, radial: 0.01, cx: 0.5, cy: 0.5 };
 function actionVorwaermen() {
-  if (!kino || !kino.pipeline || params.get('actionwarm') === '0') return;
+  if (!kino || !kino.pipeline || params.get('actionwarm') === '0' || GLATT.vorwaermen) return;   // n42: übernimmt vorwaermenHintergrund (ohne Zeichnen, nach dem Menü)
   for (const [run, speed] of [[false, 0], [true, 80], [true, 80]]) drawFrame({ run, speed, boost: 0, dt: 1 / 60, cut: false, cockpit: false, heat: null, action: ACT_WARM, white: 0.2 });
   drawFrame({ run: false, speed: 0, boost: 0, dt: 1 / 60, cut: true, cockpit: false, heat: null });
+}
+// n42: Shader, die erst im Rennen auftauchen (Bild-Effekt-Varianten aller Grafikstufen: Unschärfe, Hitze, Action-Moment,
+// Kantenglättung bei Renderskala < 1, Film; Cockpit), im Hintergrund übersetzen, während das Menü läuft – sonst stockt das
+// erste Bild mit der neuen Variante (gemessen: Losfahren 0,22 s, Action-Moment im Looping 0,47 + 0,25 s, Stufenwechsel 0,19 s,
+// Mac mit CPU-Drossel ×4). Das Feuerwerk hängt als Platzhalter in der Szene (gfx/pyro.js). ?vorwaermen=0 = aus.
+// n42 Erst-Zeichnung: übersetzt ≠ fertig – ANGLE/Treiber bauen die Pipeline je Material und Zielformat erst beim ersten
+// Zeichnen (gemessen 0,08–0,29 s je Hänger: Ampel-Kulisse, die erst mitten im Rennen ins Bild kommt; Endbild-Variante beim
+// Losfahren). Deshalb einmal je Strecke alles (auch Verstecktes: Geist, Auto-LOD, Flammen, Feuerwerk) ohne Sicht-Prüfung in
+// 1×1-Ziele zeichnen: Kino-Format (MSAA 4) und Standard-Format (ohne MSAA, Stufenwechsel der Automatik), Bildschirm (Einfach),
+// dazu Cockpit, Cockpit-Spiegel und Minikarte. Läuft am Anfang eines Bilds (das Bild danach überdeckt alles).
+// nur = Liste von Objekten (z. B. nachgeladene Auto-LOD): nur diese zeichnen.
+const warmZiele = {};
+function warmZiel(samples) {
+  if (!warmZiele[samples]) {
+    const dt = new THREE.DepthTexture(1, 1); dt.type = THREE.UnsignedIntType;
+    const t = new THREE.WebGLRenderTarget(1, 1, { samples, depthTexture: dt, depthBuffer: true, stencilBuffer: false, type: THREE.UnsignedByteType });
+    t.isXRRenderTarget = true; t.texture.colorSpace = THREE.SRGBColorSpace; t.texture.internalFormat = 'RGBA8';   // wie kino.rt (gfx/kinolook.js)
+    warmZiele[samples] = t;
+  }
+  return warmZiele[samples];
+}
+let erstFaellig = false, erstWarte = 0;
+function erstzeichnung(nur = null) {
+  if (!GLATT.vorwaermen || !env || !worldGroup) return null;
+  const t0 = performance.now(), merk = [], sicht = new Set();
+  if (nur) for (const o of nur) o.traverseAncestors((a) => sicht.add(a));
+  scene.traverse((o) => {
+    const zeichnen = o.isMesh || o.isInstancedMesh || o.isPoints || o.isLine || o.isSprite;
+    merk.push([o, o.visible, o.frustumCulled]);
+    if (nur) o.visible = o.isLight || o === scene || sicht.has(o) || nur.some((x) => x === o || (x.isObject3D && isUnter(o, x)));
+    else o.visible = true;
+    if (zeichnen) o.frustumCulled = false;
+  });
+  const rt0 = renderer.getRenderTarget(), ac = renderer.autoClear, vp = renderer.getViewport(new THREE.Vector4()), sc0 = renderer.getScissorTest();
+  const shAuto = sun.shadow.autoUpdate; sun.shadow.autoUpdate = false;   // Schattenkarte nicht mit dem Sonderbild überschreiben
+  const ziele = [...new Set([4, 0].map((s) => (kino && kino.supported ? s : null)).filter((s) => s != null))];
+  for (const s of ziele) { renderer.setRenderTarget(warmZiel(s)); renderer.render(scene, camera); }
+  // Bildschirm (Grafik Einfach zeichnet direkt): 1 Pixel unten links
+  renderer.setRenderTarget(null); renderer.setViewport(0, 0, 1, 1); renderer.setScissor(0, 0, 1, 1); renderer.setScissorTest(true);
+  renderer.render(scene, camera);
+  if (!nur && cockpit) {
+    renderer.autoClear = false; cockpit.render(renderer); renderer.autoClear = ac;
+    renderer.setScissorTest(sc0); renderer.setViewport(vp);
+    if (cockpit.mirror) { cockpit.mirror.n = 0; cockpit.renderMirror(renderer, scene, camera); }
+  }
+  renderer.setScissorTest(sc0); renderer.setViewport(vp); renderer.setRenderTarget(rt0);
+  sun.shadow.autoUpdate = shAuto;
+  for (const [o, v, f] of merk) { o.visible = v; o.frustumCulled = f; }
+  // Minikarte (eigene Szene): einmal klein zeichnen und in die Ecke kopieren (das Bild danach überdeckt die Ecke)
+  if (!nur && race && karte && karte.geo) {
+    const c = race.car, rect = { x: 0, y: 0, w: 24, h: 24, rad: 4 };
+    const kz = { yaw: karte.yaw, ziel: karte.ziel, kurs: karte.kurs, t: karte.t, z: karte.z };   // Nachführ-Zustand bleibt unberührt
+    karte.update(0, { sichtbar: true, rect, car: { pos: c.pos, vel: c.v, fwd: c.frame.f }, idx: race.tracker.idx, zielIdx: race.startIdx, cps: race.cps, cpNext: 0, startIdx: race.startIdx, geist: null });
+    karte.vorher(rect); karte.kopie(rect);
+    karte.update(0, null);
+    Object.assign(karte, kz);
+    renderer.setRenderTarget(rt0);
+  }
+  const r = { ms: Math.round(performance.now() - t0), nur: nur ? nur.length : 0 };
+  app.erstzeichnung = [...(app.erstzeichnung || []), r].slice(-6);
+  return r;
+}
+// n42: Hängt ein Material an Objekten mit verschiedenen Programm-Merkmalen (einfach/instanziert, mit/ohne Instanzfarbe,
+// Vertex-Alpha, Tangenten …; z. B. Lack: nahe Kulisse, Bauernhöfe, Reifenstapel), wechselt three.js beim Zeichnen je
+// Übergang das Shader-Programm (getProgram: neue Parameter + Schlüssel-Text je Aufruf, gemessen bis 4 Aufrufe je Bild →
+// GC-Druck). Je weitere Merkmal-Kombination bekommt das Material einen Klon (gleiche Werte, gleiche Shader-Erweiterung,
+// gemeinsame Uniform-Objekte) – gleiches Bild, gleiche Draw-Calls. ShaderMaterials bleiben (Klone kopierten ihre Uniforms).
+// ?programmfest=0 = bisher.
+let programmKlone = [];
+function programmfest(root) {
+  for (const c of programmKlone) c.dispose();
+  programmKlone = [];
+  const merkmal = (o) => { const g = o.geometry, a = g ? g.attributes : {};
+    return `${o.isInstancedMesh ? 1 : 0}${o.isInstancedMesh && o.instanceColor ? 1 : 0}${o.isSkinnedMesh ? 1 : 0}${o.isBatchedMesh ? 1 : 0}${a.color && a.color.itemSize === 4 ? 1 : 0}${a.tangent ? 1 : 0}${g && g.morphAttributes && (g.morphAttributes.position || g.morphAttributes.normal || g.morphAttributes.color) ? 1 : 0}${o.isPoints ? 'p' : o.isLine ? 'l' : ''}`; };
+  const je = new Map();   // Material → Map(Merkmal → [Objekt, Index im Material-Feld oder -1])
+  root.traverse((o) => {
+    if (!(o.isMesh || o.isPoints || o.isLine) || !o.material) return;
+    const mk = merkmal(o), L = Array.isArray(o.material) ? o.material : [o.material];
+    L.forEach((m, i) => { if (!m || m.isShaderMaterial) return; if (!je.has(m)) je.set(m, new Map()); const M2 = je.get(m); if (!M2.has(mk)) M2.set(mk, []); M2.get(mk).push([o, Array.isArray(o.material) ? i : -1]); });
+  });
+  const out = [];
+  for (const [m, M2] of je) {
+    if (M2.size < 2) continue;
+    const gruppen = [...M2.values()].sort((a, b) => b.length - a.length);
+    for (const g of gruppen.slice(1)) {
+      const c = m.clone();
+      c.onBeforeCompile = m.onBeforeCompile; c.customProgramCacheKey = m.customProgramCacheKey; c.name = m.name;
+      programmKlone.push(c);
+      for (const [o, i] of g) { if (i < 0) o.material = c; else o.material[i] = c; }
+      out.push((m.name || m.type) + '@' + (g[0][0].name || '?'));
+    }
+  }
+  return out;
+}
+const isUnter = (o, x) => { for (let p = o.parent; p; p = p.parent) if (p === x) return true; return false; };
+async function vorwaermenHintergrund() {
+  if (!GLATT.vorwaermen || !renderer.compileAsync) return;
+  const t0 = performance.now(), p0 = renderer.info.programs ? renderer.info.programs.length : 0;
+  if (kino) await kino.vorwaermen([quality.tier, ...[2, 1].filter((l) => l !== quality.tier)], { setting: params.get('blur') || store.settings.blur || 'light' });
+  if (cockpit && cockpit.scene) { const rt0 = renderer.getRenderTarget(); renderer.setRenderTarget(null); const p = renderer.compileAsync(cockpit.scene, cockpit.cam); renderer.setRenderTarget(rt0); await p; }
+  app.vorwaermen = { programme: (renderer.info.programs ? renderer.info.programs.length : 0) - p0, ms: Math.round(performance.now() - t0) };
 }
 // Bild zeichnen: Kino-Look (eine Pipeline: Szene, Unschärfe, Licht/Farbe, Cockpit darüber) bzw. ?look=alt wie bis n22
 function drawFrame(o) {
@@ -1846,7 +2067,8 @@ window.__game = {
   // G-Kräfte (n24): live (Rennen) bzw. Replay an der aktuellen Stelle; Lage des runden G-Meters
   gState() { if (mode === 'replay' && replay) return { ...replay.gState() }; if (!race) return null; gLiveSync(); return gLive.m.state(); },
   gmeterBox() { const e = document.getElementById('gmeter'); if (!e || !e.classList.contains('show')) return null; const b = e.getBoundingClientRect(); return [b.left, b.top, b.right, b.bottom]; },
-  newTrack: (s, d, mode, randomTheme, gv) => newTrack(s, d, mode, randomTheme, gv),
+  newTrack: async (s, d, mode, randomTheme, gv) => { const e = await newTrack(s, d, mode, randomTheme, gv); await pruefungAbwarten(); return e; },   // n42: Tests bekommen wie bisher die geprüfte Strecke
+  pruefungAbwarten: () => pruefungAbwarten(),
   setAssist,
   setLine,
   toggleLine,

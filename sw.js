@@ -1,5 +1,5 @@
 // Service-Worker: offline spielbar, Cache-Busting über Inhalts-Hash (tools/update_sw.py)
-const VERSION = '0527196459';
+const VERSION = 'd81265f882';
 const CACHE = 'stuntbahn-' + VERSION;
 const ASSETS = [
   './',
@@ -71,6 +71,7 @@ const ASSETS = [
   'src/audio/sound.js',
   'src/build.js',
   'src/core/gforce.js',
+  'src/core/glatt.js',
   'src/core/showspeed.js',
   'src/core/util.js',
   'src/game/action.js',
@@ -164,6 +165,8 @@ const ASSETS = [
   'src/track/pieces_gel.js',
   'src/track/pieces_hind.js',
   'src/track/pieces_trk.js',
+  'src/track/pruefung.js',
+  'src/track/pruefung_worker.js',
   'src/track/scenery.js',
   'src/track/showcase.js',
   'src/track/terrgrid.js',
@@ -188,7 +191,9 @@ const ASSETS = [
   'src/ui/ui.js'
 ];
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS.map((u) => new Request(u, { cache: 'reload' })))).then(() => self.skipWaiting()));
+  // n42: 'no-cache' statt 'reload' – fragt mit ETag nach (304 ohne Inhalt, wenn die Datei schon im HTTP-Cache liegt, z. B.
+  // gerade vom ersten Spielstart geladen); vorher lud der Vorab-Cache alles ein zweites Mal
+  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS.map((u) => new Request(u, { cache: 'no-cache' })))).then(() => self.skipWaiting()));
 });
 self.addEventListener('activate', (e) => {
   e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k.startsWith('stuntbahn-') && k !== CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim()));

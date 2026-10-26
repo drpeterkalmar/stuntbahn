@@ -1,0 +1,291 @@
+{
+ "datum": "2026-10-26T21:03:25",
+ "modus": "alloc",
+ "profil": {
+  "drossel": 4,
+  "dpr": 2.6,
+  "geraet": "quer",
+  "rtt": 165,
+  "kbit": 9000,
+  "sek": 30.0,
+  "strecke": "seed=20261026&d=2&g=1&h=1",
+  "js_profil": false
+ },
+ "varianten": {
+  "nachher1": {
+   "wurzel": "/Users/wohnzimmer/dev/.wt/stuntbahn-stuntbahn-n42-tempo-hindernisse",
+   "zusatz": "",
+   "laeufe": [
+    {
+     "sek": 30,
+     "mb": 239.7,
+     "mb_s": 7.95,
+     "top": [
+      [
+       "Uc three.module.min.js:4118",
+       31.36
+      ],
+      [
+       "_contacts car.js:557",
+       23.04
+      ],
+      [
+       "W three.module.min.js:4169",
+       21.2
+      ],
+      [
+       "step car.js:240",
+       17.92
+      ],
+      [
+       "join :0",
+       13.02
+      ],
+      [
+       "bc three.module.min.js:4118",
+       12.79
+      ],
+      [
+       "Lc three.module.min.js:4118",
+       9.19
+      ],
+      [
+       "dynamic lineviz.js:177",
+       7.23
+      ],
+      [
+       "rayTerrain collide.js:132",
+       7.11
+      ],
+      [
+       "addForce car.js:261",
+       6.97
+      ],
+      [
+       "set :0",
+       3.8
+      ],
+      [
+       "i three.module.min.js:4220",
+       3.77
+      ],
+      [
+       "next :0",
+       3.72
+      ],
+      [
+       "s three.module.min.js:4169",
+       3.58
+      ],
+      [
+       "Vn three.module.min.js:4220",
+       3.28
+      ],
+      [
+       "push gforce.js:59",
+       2.87
+      ],
+      [
+       "ho three.module.min.js:4220",
+       2.74
+      ],
+      [
+       "sort :0",
+       2.71
+      ],
+      [
+       "ai three.core.min.js:5",
+       2.6
+      ],
+      [
+       "control autopilot.js:105",
+       2.49
+      ],
+      [
+       "update fx.js:181",
+       2.49
+      ],
+      [
+       "dynColor lineviz.js:23",
+       2.38
+      ],
+      [
+       "hypot :0",
+       2.24
+      ],
+      [
+       "Yf three.module.min.js:4169",
+       2.06
+      ],
+      [
+       "occlude camera.js:342",
+       1.86
+      ],
+      [
+       "snapshot car.js:815",
+       1.81
+      ],
+      [
+       "(anonym) fx.js:227",
+       1.8
+      ],
+      [
+       "render main.js:1471",
+       1.75
+      ],
+      [
+       "$c three.module.min.js:4118",
+       1.7
+      ],
+      [
+       "step race.js:332",
+       1.7
+      ],
+      [
+       "seqWithValue three.module.min.js:4118",
+       1.65
+      ],
+      [
+       "mix lineviz.js:25",
+       1.51
+      ],
+      [
+       "update camera.js:180",
+       1.46
+      ],
+      [
+       "render kinolook.js:731",
+       1.29
+      ],
+      [
+       "get alphaTest three.core.min.js:5",
+       1.1
+      ],
+      [
+       "_tri collide.js:99",
+       1.01
+      ],
+      [
+       "record race.js:1649",
+       0.86
+      ],
+      [
+       "values :0",
+       0.86
+      ],
+      [
+       "(anonym) carmesh.js:424",
+       0.85
+      ],
+      [
+       "mat.customProgramCacheKey materials.js:115",
+       0.83
+      ]
+     ],
+     "three_aufrufer": [
+      [
+       "Uc ← ho three.module.min.js:4220 < renderBufferDirect three.module.min.js:4220 < dr three.module.min.js:4220 ⇐ render kinolook.js:731",
+       27.47
+      ],
+      [
+       "W ← Sn three.module.min.js:4220 < ho three.module.min.js:4220 < renderBufferDirect three.module.min.js:4220 ⇐ render kinolook.js:731",
+       21.2
+      ],
+      [
+       "Lc ← ho three.module.min.js:4220 < renderBufferDirect three.module.min.js:4220 < dr three.module.min.js:4220 ⇐ render kinolook.js:731",
+       9.02
+      ],
+      [
+       "bc ← ho three.module.min.js:4220 < renderBufferDirect three.module.min.js:4220 < dr three.module.min.js:4220 ⇐ render kinolook.js:731",
+       6.55
+      ],
+      [
+       "bc ← setValue three.module.min.js:4118 < setValue three.module.min.js:4118 < ho three.module.min.js:4220 ⇐ render kinolook.js:731",
+       5.33
+      ],
+      [
+       "i ← ho three.module.min.js:4220 < renderBufferDirect three.module.min.js:4220 < dr three.module.min.js:4220 ⇐ render kinolook.js:731",
+       3.77
+      ],
+      [
+       "s ← f three.module.min.js:4169 < Sn three.module.min.js:4220 < ho three.module.min.js:4220 ⇐ render kinolook.js:731",
+       3.58
+      ],
+      [
+       "ai ← i three.module.min.js:4220 < ho three.module.min.js:4220 < renderBufferDirect three.module.min.js:4220 ⇐ render kinolook.js:731",
+       2.6
+      ],
+      [
+       "Uc ← ho three.module.min.js:4220 < renderBufferDirect three.module.min.js:4220 < h three.module.min.js:4196 ⇐ render kinolook.js:731",
+       2.41
+      ],
+      [
+       "$c ← ho three.module.min.js:4220 < renderBufferDirect three.module.min.js:4220 < dr three.module.min.js:4220 ⇐ render kinolook.js:731",
+       1.7
+      ],
+      [
+       "seqWithValue ← ho three.module.min.js:4220 < renderBufferDirect three.module.min.js:4220 < dr three.module.min.js:4220 ⇐ render kinolook.js:731",
+       1.65
+      ],
+      [
+       "Vn ← Vn three.module.min.js:4220 < Vn three.module.min.js:4220 < render three.module.min.js:4220 ⇐ render kinolook.js:731",
+       1.57
+      ],
+      [
+       "ho ← renderBufferDirect three.module.min.js:4220 < dr three.module.min.js:4220 < vn three.module.min.js:4220 ⇐ render kinolook.js:731",
+       1.41
+      ],
+      [
+       "ho ← renderBufferDirect three.module.min.js:4220 < dr three.module.min.js:4220 < cr three.module.min.js:4220 ⇐ render kinolook.js:731",
+       1.33
+      ],
+      [
+       "Vn ← Vn three.module.min.js:4220 < render three.module.min.js:4220 < pass kinolook.js:667 ⇐ pass kinolook.js:667",
+       1.21
+      ],
+      [
+       "Yf ← sort :0 < render three.module.min.js:4220 < render kinolook.js:731 ⇐ render kinolook.js:731",
+       1.1
+      ],
+      [
+       "Uc ← ho three.module.min.js:4220 < renderBufferDirect three.module.min.js:4220 < dr three.module.min.js:4220 ⇐ pass kinolook.js:667",
+       1.06
+      ],
+      [
+       "get ← o three.module.min.js:4220 < l three.module.min.js:4220 < ho three.module.min.js:4220 ⇐ render kinolook.js:731",
+       0.97
+      ],
+      [
+       "Yf ← sort :0 < H three.module.min.js:4169 < render three.module.min.js:4220 ⇐ render kinolook.js:731",
+       0.96
+      ],
+      [
+       "bc ← ho three.module.min.js:4220 < renderBufferDirect three.module.min.js:4220 < dr three.module.min.js:4220 ⇐ pass kinolook.js:667",
+       0.87
+      ],
+      [
+       "l ← ho three.module.min.js:4220 < renderBufferDirect three.module.min.js:4220 < dr three.module.min.js:4220 ⇐ render kinolook.js:731",
+       0.78
+      ],
+      [
+       "f ← Sn three.module.min.js:4220 < ho three.module.min.js:4220 < renderBufferDirect three.module.min.js:4220 ⇐ render kinolook.js:731",
+       0.68
+      ],
+      [
+       "Rc ← ho three.module.min.js:4220 < renderBufferDirect three.module.min.js:4220 < dr three.module.min.js:4220 ⇐ pass kinolook.js:667",
+       0.48
+      ],
+      [
+       "clone ← add fx.js:69 < (anonym) fx.js:227 < forEach :0 ⇐ add fx.js:69",
+       0.45
+      ],
+      [
+       "Uc ← ho three.module.min.js:4220 < renderBufferDirect three.module.min.js:4220 < dr three.module.min.js:4220 ⇐ zeichneKarte minikarte.js:369",
+       0.31
+      ]
+     ]
+    }
+   ]
+  }
+ }
+}

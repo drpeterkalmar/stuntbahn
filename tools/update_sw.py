@@ -19,6 +19,32 @@ for d in ['src', 'lib', 'icons', 'assets']:
             if f.endswith(('.js', '.png', '.css', '.webp', '.jpg', '.json', '.glb', '.hdr', '.bin', '.m4a', '.ktx2', '.wasm')) and not f.startswith('.') and not twin and rel != os.path.join('assets', 'sammlung_stil.json'):
                 files.append(rel)
 files = sorted(set(files))
+# n42: <link rel="modulepreload"> für alle statisch importierten Module ab src/main.js in index.html (Import-Map wie dort:
+# 'three' → lib/three.module.min.js, 'three/addons/' → lib/addons/). Dynamische import(…) (Online) bleiben draußen.
+import re
+def _modul(dep, von):
+    if dep == 'three': return 'lib/three.module.min.js'
+    if dep.startswith('three/addons/'): return 'lib/addons/' + dep[len('three/addons/'):]
+    if dep.startswith('.'): return os.path.normpath(os.path.join(os.path.dirname(von), dep)).replace(os.sep, '/')
+    return None
+_RX = re.compile(r'''(?:\bfrom\s*|\bimport\s*)["']([^"']+\.js|three)["']''')
+def _ohne_kommentare(t): return re.sub(r'(?m)^\s*//.*$', '', t)
+graph, todo = [], ['src/main.js']
+while todo:
+    f = todo.pop()
+    if f in graph or not os.path.isfile(os.path.join(ROOT, f)): continue
+    graph.append(f)
+    for dep in _RX.findall(_ohne_kommentare(open(os.path.join(ROOT, f), encoding='utf-8').read())):
+        m = _modul(dep, f)
+        if m and m not in graph: todo.append(m)
+graph = sorted(graph, key=lambda x: (not x.startswith('lib/three'), x))
+ix = os.path.join(ROOT, 'index.html'); html = open(ix, encoding='utf-8').read()
+a, b = '<!-- n42-modulepreload', '<!-- /n42-modulepreload -->'
+if a in html and b in html:
+    i = html.index(a); i = html.index('-->', i) + 3; j = html.index(b)
+    html = html[:i] + '\n' + ''.join(f'<link rel="modulepreload" href="{g}">\n' for g in graph) + html[j:]
+    open(ix, 'w', encoding='utf-8').write(html)
+    print('modulepreload', len(graph), 'Module')
 # Inhalts-Hash auch über die Themen-Pakete (nicht vorab gecacht, aber eine Änderung muss die Version wechseln)
 hashed = list(files)
 for dp, dn, fn in os.walk(os.path.join(ROOT, 'assets', 'themes')):

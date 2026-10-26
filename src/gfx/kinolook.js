@@ -446,6 +446,30 @@ const COMP_FS = `
     gl_FragColor = vec4( col, 1.0 );
   }`;
 
+// Defines des Endbilds (n42: eine Stelle für render() und das Vorwärmen). z = { whip, taa ('taa'|'fxaa'|'aus'), sc (Renderskala),
+// msaa, sun, k (Unschärfe), actVig, act, haze, dof, taps, debugAo }
+function compDefs(st, P, z) {
+  const defs = {};
+  if (z.whip) defs.WHIP = 1;
+  if (z.taa === 'taa') defs.TAA = 1;                                       // n31: History statt Renderskala, nur CAS
+  else if (z.taa === 'fxaa' || st.aa && z.sc < 0.999 || st.aa && z.msaa === 0) defs.AA = 1;   // Rückfall: FXAA-Art
+  if (st.sharpen) defs.SHARP = 1;
+  if (st.ssao) defs.AO = 1;
+  if (st.bloom) defs.BLOOM = 1;
+  if (st.flare && z.sun) defs.FLARE = 1;
+  if (st.aerial) defs.AERIAL = 1;
+  if (st.grade) defs.GRADE = 1;
+  if (st.vignette || z.k > 0 || z.actVig) defs.VIGNETTE = 1;
+  if (z.act) defs.ACTION = 1;
+  if (st.dither) defs.DITHER = 1;
+  if (z.haze) defs.HAZE = 1;
+  if (z.dof) defs.DOF = 1;
+  if (z.k > 0) { if (st.blur && P.blurHalf) defs.BLUR_HALF = 1; else { defs.BLUR_FULL = 1; defs.TAPS = z.taps; } }
+  if (z.debugAo) defs.DEBUG_AO = 1;
+  if (!defs.TAPS) defs.TAPS = 1;
+  return defs;
+}
+
 function rtOpts(extra = {}) {
   return { depthBuffer: false, stencilBuffer: false, type: THREE.UnsignedByteType, generateMipmaps: false, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, ...extra };
 }
@@ -503,6 +527,7 @@ export class KinoLook {
       uAct: { value: new THREE.Vector4() }, uActC: { value: new THREE.Vector2(0.5, 0.5) },   // n36 Action-Momente
     };
     this.mats = new Map();
+    this.warmQ = []; this.warmRT = null;   // n42: vorgewärmte Varianten, die noch einmal gezeichnet werden (je Bild eine)
     this.rt = null; this.aoRT = null; this.blurRT = null; this.bloomRT = []; this.dofRT = null;
     this.sunRT = new THREE.WebGLRenderTarget(1, 1, rtOpts({ minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter }));
     this._sz = new THREE.Vector2(); this._v = new THREE.Vector3(); this._v2 = new THREE.Vector3(); this._m = new THREE.Matrix4(); this._m2 = new THREE.Matrix4();
@@ -520,6 +545,61 @@ export class KinoLook {
     for (const k of STAGES) this.stages[k] = k in this.overrides ? this.overrides[k] : !!(this.preset.stages && this.preset.stages[k]);
     this.scaleRange = this.scaleRangeOf(level);
     this.renderScale = this.stages.scale ? this.scaleRange[0] : 1;
+  }
+  // Stufen-Schalter einer Grafikstufe (wie setLevel, ohne umzuschalten)
+  stagesOf(level) {
+    const P = PRESETS[level], st = {};
+    for (const k of STAGES) st[k] = k in this.overrides ? this.overrides[k] : !!(P.stages && P.stages[k]);
+    return st;
+  }
+  // ---------- n42: Vorwärmen ----------
+  // Alle Varianten des Endbilds (Unschärfe an/aus, Hitzeflimmern, Action-Moment, Kantenglättung bei Renderskala < 1, im Film
+  // Tiefenschärfe und Reißschwenk) und die Durchgänge einer Stufe übersetzen, ohne zu zeichnen. Mit KHR_parallel_shader_compile
+  // übersetzt der Treiber im Hintergrund, die Bilder laufen weiter (renderer.compileAsync). Ohne Vorwärmen stockt das erste
+  // Bild mit einer neuen Variante (gemessen 0,2–0,5 s am Mac mit CPU-Drossel ×4: Losfahren, Action-Moment, Stufenwechsel).
+  // levels: Grafikstufen (Reihenfolge = Vorrang), film: auch die Film-Varianten. → Promise mit der Zahl neuer Programme
+  async vorwaermen(levels, { film = true, setting = this.setting } = {}) {
+    if (!this.supported || !this.r.compileAsync) return 0;
+    const r = this.r, n0 = r.info.programs ? r.info.programs.length : 0;
+    const charge = async (mats, target) => {
+      if (!mats.length) return;
+      const sc = new THREE.Scene();
+      for (const m of mats) { const q = new THREE.Mesh(this.quad.geometry, m); q.frustumCulled = false; sc.add(q); }
+      const rt0 = r.getRenderTarget();
+      r.setRenderTarget(target);   // Programm-Schlüssel hängt am Ziel (Tonemapping/Farbraum): wie beim echten Durchgang
+      const p = r.compileAsync(sc, this.fsCam);
+      r.setRenderTarget(rt0);
+      await p;
+    };
+    for (const pass of film ? [false, true] : [false]) {
+      for (const L of levels) {
+        const P = PRESETS[L];
+        if (!P || !P.pipeline) continue;
+        const st = this.stagesOf(L), taps = (BLUR_TAPS[P.blurHalf ? 1 : 2] || BLUR_TAPS[1])[setting] || 5;
+        const taaL = st.taa && this.taaTechnik() ? ['taa', 'fxaa'] : ['aus'];
+        const msaa = this.samples != null ? this.samples : (P.msaa || 0);
+        const comp = [], rtm = [];
+        for (const taa of taaL) for (const sc of st.aa && msaa > 0 && taa === 'aus' ? [1, 0.9] : [1]) for (const k of st.blur ? [0, 1] : [0])
+          for (const haze of st.haze ? [false, true] : [false]) for (const act of [false, true])
+            for (const dof of pass && st.dof ? [false, true] : [false]) for (const whip of pass ? [false, true] : [false]) {
+              if (pass && !dof && !whip) continue;   // Rennen-Varianten kamen im ersten Durchgang
+              comp.push(this.mat('comp', compDefs(st, P, { whip, taa, sc, msaa: taa === 'aus' ? msaa : 0, sun: true, k, actVig: act, act, haze, dof, taps }), COMP_FS));
+            }
+        if (!pass) {
+          if (st.ssao) { const A = P.ao || PRESETS[2].ao; rtm.push(this.mat('ao', { TAPS: A.taps }, AO_FS)); }
+          if (st.bloom) rtm.push(this.mat('bpre', {}, BLOOM_PRE_FS), this.mat('bdown', {}, BLOOM_DOWN_FS), this.mat('bup', {}, BLOOM_UP_FS, { blending: THREE.AdditiveBlending, transparent: true }));
+          if (st.blur && P.blurHalf) rtm.push(this.mat('blurh', { TAPS: taps }, BLUR_HALF_FS));
+          if (st.flare) rtm.push(this.mat('sunvis', {}, SUNVIS_FS, { blending: THREE.CustomBlending, blendSrc: THREE.SrcAlphaFactor, blendDst: THREE.OneMinusSrcAlphaFactor, transparent: true }));
+        } else if (st.dof) rtm.push(this.mat('dof', { TAPS: 1 }, DOF_FS));
+        await charge(comp, null);
+        await charge(rtm, this.sunRT);
+        // übersetzt ≠ fertig: ANGLE/Treiber bauen die Pipeline (Programm × Zielformat × Mischung) erst beim ersten Zeichnen –
+        // je Bild eine Variante 1 Pixel groß zeichnen (render(), vor dem echten Endbild, das alles überdeckt)
+        for (const m of comp) if (!m.userData.gezeichnet) this.warmQ.push([m, null]);
+        for (const m of rtm) if (!m.userData.gezeichnet) this.warmQ.push([m, 'pass']);
+      }
+    }
+    return (r.info.programs ? r.info.programs.length : 0) - n0;
   }
   // ---------- n31: TAAU ----------
   // Stufe `taa` für eine Grafikstufe gewünscht? (URL-Überschreibung vor Preset)
@@ -773,26 +853,14 @@ export class KinoLook {
     // n27: Lichtblitz (Feuerwerk), Weißblitz-Übergang, Reißschwenk (o.whip = { len Anteil der Bildbreite, ang rad })
     U.uFx.value.set(o.flash ? o.flash.k : 0, o.white || 0, o.whip ? o.whip.len : 0, o.whip ? o.whip.ang : 0);
     if (o.flash && o.flash.col) U.uFlashCol.value.fromArray(o.flash.col);
-    const defs = {};
-    if (o.whip && o.whip.len > 0.002) defs.WHIP = 1;
-    if (taa === 'taa') defs.TAA = 1;                                       // n31: History statt Renderskala, nur CAS
-    else if (taa === 'fxaa' || st.aa && sc < 0.999 || st.aa && this.msaa() === 0) defs.AA = 1;   // Rückfall: FXAA-Art
-    if (st.sharpen) defs.SHARP = 1;
-    if (st.ssao) defs.AO = 1;
-    if (st.bloom) defs.BLOOM = 1;
-    if (st.flare && sun) defs.FLARE = 1;
-    if (st.aerial) defs.AERIAL = 1;
-    if (st.grade) defs.GRADE = 1;
-    if (st.vignette || k > 0 || (act && act.vig > 0)) defs.VIGNETTE = 1;
     // n36 Action-Momente: o.action = { sat, vig, ca, radial, cx, cy } (nur solange ein Moment läuft – sonst keine Kosten)
-    if (act && (act.sat > 0.002 || act.ca > 0 || act.radial > 0.001)) { defs.ACTION = 1; U.uAct.value.set(act.sat, act.ca, act.radial, 0); U.uActC.value.set(act.cx ?? 0.5, act.cy ?? 0.5); }
-    if (st.dither) defs.DITHER = 1;
-    if (haze) defs.HAZE = 1;
-    if (dof) defs.DOF = 1;
-    if (k > 0) { if (this.blurNeedsHalf()) defs.BLUR_HALF = 1; else { defs.BLUR_FULL = 1; defs.TAPS = taps; } }
-    if (this.debug === 'ao' && st.ssao) defs.DEBUG_AO = 1;
-    if (!defs.TAPS) defs.TAPS = 1;
-    this.pass(this.mat('comp', defs, COMP_FS), null);
+    const actOn = !!(act && (act.sat > 0.002 || act.ca > 0 || act.radial > 0.001));
+    if (actOn) { U.uAct.value.set(act.sat, act.ca, act.radial, 0); U.uActC.value.set(act.cx ?? 0.5, act.cy ?? 0.5); }
+    const defs = compDefs(st, P, { whip: !!(o.whip && o.whip.len > 0.002), taa, sc, msaa: this.msaa(), sun: !!sun, k, actVig: !!(act && act.vig > 0), act: actOn, haze, dof: !!dof, taps, debugAo: this.debug === 'ao' && st.ssao });
+    if (this.warmQ.length) this.warmZeichnen();
+    const cm = this.mat('comp', defs, COMP_FS);
+    cm.userData.gezeichnet = true;
+    this.pass(cm, null);
     if (o.overlay) o.overlay(r);
     this.active = k > 0;
     if (this.active) {
@@ -802,6 +870,23 @@ export class KinoLook {
     this.stats.drawn++;
     this.savePrev(camera);
     return true;
+  }
+  // n42: eine vorgewärmte Variante 1 Pixel groß zeichnen (Endbild: Bildschirm, unten links, wird gleich überdeckt; Durchgänge:
+  // eigenes 1×1-Ziel im selben Format)
+  warmZeichnen() {
+    const [m, ziel] = this.warmQ.shift(), r = this.r;
+    if (m.userData.gezeichnet) return;
+    m.userData.gezeichnet = true;
+    if (ziel === 'pass') {
+      if (!this.warmRT) this.warmRT = new THREE.WebGLRenderTarget(1, 1, rtOpts());
+      this.pass(m, this.warmRT);
+      return;
+    }
+    const vp = r.getViewport(this._vpW || (this._vpW = new THREE.Vector4())).clone(), st = r.getScissorTest();
+    r.setRenderTarget(null);
+    r.setViewport(0, 0, 1, 1); r.setScissor(0, 0, 1, 1); r.setScissorTest(true);
+    this.pass(m, null, false);
+    r.setScissorTest(st); r.setViewport(vp);
   }
   savePrev(camera) { const P = this.prev; P.pos.copy(camera.position); P.q.copy(camera.quaternion); P.proj.copy(camera.projectionMatrix); P.ok = true; }
 

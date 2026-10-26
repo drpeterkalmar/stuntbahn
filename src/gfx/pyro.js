@@ -4,6 +4,7 @@
 // verglüht, Konfetti flattert deckend, der Bodenschein liegt flach auf der Fahrbahn und leuchtet mit den Fontänen bzw.
 // den Blitzen. Mischung „vormultipliziert“ (eins + eins − Alpha): leuchtende Teile addieren (Alpha 0), Konfetti deckt.
 import * as THREE from 'three';
+import { GLATT } from '../core/glatt.js';   // n42: durchsichtig + beidseitig in einem Durchgang
 import { pyroPlan, flashAt, KIND } from '../game/zielshow.js';
 
 const VS = `
@@ -110,7 +111,7 @@ export class PyroFX {
     this.mat = new THREE.ShaderMaterial({
       uniforms: { uT: { value: -1 }, uFlash: { value: 0 }, uPxK: { value: 1 } },
       vertexShader: VS, fragmentShader: FS,
-      transparent: true, depthWrite: false, depthTest: true, fog: false, toneMapped: false, side: THREE.DoubleSide,
+      transparent: true, depthWrite: false, depthTest: true, fog: false, toneMapped: false, side: THREE.DoubleSide, forceSinglePass: GLATT.einseitig,
       blending: THREE.CustomBlending, blendEquation: THREE.AddEquation, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor,
     });
   }

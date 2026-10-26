@@ -1,0 +1,258 @@
+{
+ "datum": "2026-10-26T20:17:10",
+ "modus": "rennen",
+ "profil": {
+  "drossel": 4,
+  "dpr": 2.6,
+  "geraet": "quer",
+  "rtt": 165,
+  "kbit": 9000,
+  "sek": 180,
+  "strecke": "seed=20261026&d=2&g=1&h=1",
+  "js_profil": false
+ },
+ "varianten": {
+  "vorher": {
+   "wurzel": "/Users/wohnzimmer/dev/.wt/stuntbahn-stuntbahn-n42-tempo-hindernisse",
+   "zusatz": "",
+   "laeufe": [
+    {
+     "n": 29201,
+     "p50": 5.9,
+     "p95": 8.5,
+     "p99": 10.5,
+     "ueber50": 9,
+     "ueber100": 6,
+     "max": 469.4,
+     "starts": 2,
+     "haenger": [
+      {
+       "t": 0.0,
+       "ms": 61,
+       "ursache": "unklar (GPU/Browser)",
+       "stueck": null,
+       "renn_t": null,
+       "vorbild": [
+        1.4,
+        9.7,
+        58.3
+       ]
+      },
+      {
+       "t": 3.8,
+       "ms": 231.3,
+       "ursache": "shader+1, Zeichnen 228 ms",
+       "stueck": "start",
+       "renn_t": 1.7,
+       "vorbild": [
+        0.1,
+        227.6,
+        236.5
+       ]
+      },
+      {
+       "t": 75.5,
+       "ms": 179.1,
+       "ursache": "shader+1 zustand finished, Zeichnen 125 ms",
+       "stueck": "start",
+       "renn_t": 91.1,
+       "vorbild": [
+        1.1,
+        124.6,
+        157.3
+       ]
+      },
+      {
+       "t": 79.2,
+       "ms": 127.2,
+       "ursache": "Aufgabe außerhalb des Bilds 138 ms",
+       "stueck": null,
+       "renn_t": null,
+       "vorbild": [
+        2.7,
+        3.6,
+        102.1
+       ]
+      },
+      {
+       "t": 153.6,
+       "ms": 469.4,
+       "ursache": "shader+1 shader+1, Zeichnen 457 ms",
+       "stueck": "loop",
+       "renn_t": 87.8,
+       "vorbild": [
+        1,
+        457.1,
+        470.8
+       ]
+      },
+      {
+       "t": 153.9,
+       "ms": 252,
+       "ursache": "shader+1, Zeichnen 257 ms",
+       "stueck": "loop",
+       "renn_t": 87.8,
+       "vorbild": [
+        1.6,
+        257.2,
+        264.1
+       ]
+      },
+      {
+       "t": 160.7,
+       "ms": 57.5,
+       "ursache": "unklar (GPU/Browser)",
+       "stueck": null,
+       "renn_t": null,
+       "vorbild": [
+        2.4,
+        4.3,
+        63.7
+       ]
+      },
+      {
+       "t": 173.6,
+       "ms": 62.4,
+       "ursache": "Aufgabe außerhalb des Bilds 67 ms",
+       "stueck": null,
+       "renn_t": null,
+       "vorbild": [
+        0,
+        12.2,
+        30
+       ]
+      },
+      {
+       "t": 173.7,
+       "ms": 108.6,
+       "ursache": "unklar (GPU/Browser)",
+       "stueck": null,
+       "renn_t": null,
+       "vorbild": [
+        1.7,
+        9.7,
+        71.9
+       ]
+      }
+     ],
+     "lt_anzahl": 8,
+     "apLog": [
+      {
+       "t": 175.69,
+       "was": "vorab",
+       "richtung": -1,
+       "skala": 1,
+       "fps": 96.8,
+       "arbeit": 22.53
+      },
+      {
+       "t": 177.19,
+       "was": "skala",
+       "richtung": -1,
+       "skala": 0.88,
+       "fps": 166.4,
+       "arbeit": 22.53
+      },
+      {
+       "t": 180.22,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.94,
+       "fps": 174.6,
+       "arbeit": 4.86
+      }
+     ],
+     "info": {
+      "calls": 96,
+      "tris": 333284,
+      "geometries": 182,
+      "textures": 69,
+      "programs": 84,
+      "pixelRatio": 2,
+      "tier": 2,
+      "fps": 171.58818834796782,
+      "ap": {
+       "skala": 0.94,
+       "bereich": [
+        0.7,
+        1
+       ],
+       "stufen": {
+        "deko": 1,
+        "autoschatten": 1,
+        "stufe": 2
+       },
+       "fps": 174.6,
+       "arbeit": 4.86,
+       "cpu": 4.63,
+       "gpu": 4.86,
+       "engpass": "gpu",
+       "gedeckelt": false,
+       "gesperrtBis": 0,
+       "aenderungen": 3,
+       "t": 180.7
+      },
+      "carLod": 0,
+      "ghostLod": 0,
+      "impostor": {
+       "atlas": true,
+       "arten": [
+        "tanne0",
+        "tanne1",
+        "laub1",
+        "laub2"
+       ],
+       "fehler": null
+      },
+      "reflex": null,
+      "vao": {
+       "fertig": true,
+       "anteil": 1,
+       "ecken": 30768,
+       "gerechnet": 20173,
+       "strahlen": 121038,
+       "strahlenJe": 6,
+       "ms": 264
+      },
+      "apLog": [
+       {
+        "t": 175.69,
+        "was": "vorab",
+        "richtung": -1,
+        "skala": 1,
+        "fps": 96.8,
+        "arbeit": 22.53
+       },
+       {
+        "t": 177.19,
+        "was": "skala",
+        "richtung": -1,
+        "skala": 0.88,
+        "fps": 166.4,
+        "arbeit": 22.53
+       },
+       {
+        "t": 180.22,
+        "was": "skala",
+        "richtung": 1,
+        "skala": 0.94,
+        "fps": 174.6,
+        "arbeit": 4.86
+       }
+      ],
+      "startProbe": {
+       "n": 20,
+       "median": 9,
+       "p90": 9.599999904632568,
+       "min": 8.299999952316284,
+       "max": 9.600000143051147,
+       "skala": 1
+      },
+      "gpuZeit": true
+     },
+     "fehler": []
+    }
+   ]
+  }
+ }
+}

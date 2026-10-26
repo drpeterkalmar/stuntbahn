@@ -1,0 +1,398 @@
+{
+ "datum": "2026-10-26T20:21:15",
+ "modus": "rennen",
+ "profil": {
+  "drossel": 4,
+  "dpr": 2.6,
+  "geraet": "quer",
+  "rtt": 165,
+  "kbit": 9000,
+  "sek": 180,
+  "strecke": "seed=20261026&d=2&g=1&h=1",
+  "js_profil": true
+ },
+ "varianten": {
+  "vorher_profil": {
+   "wurzel": "/Users/wohnzimmer/dev/.wt/stuntbahn-stuntbahn-n42-tempo-hindernisse",
+   "zusatz": "",
+   "laeufe": [
+    {
+     "n": 30328,
+     "p50": 5.8,
+     "p95": 8.2,
+     "p99": 9.6,
+     "ueber50": 4,
+     "ueber100": 2,
+     "max": 217.2,
+     "starts": 2,
+     "haenger": [
+      {
+       "t": 3.8,
+       "ms": 217.2,
+       "ursache": "shader+1 [ShaderMaterial], Zeichnen 221 ms",
+       "stueck": "start",
+       "renn_t": 1.7,
+       "vorbild": [
+        0.1,
+        221.2,
+        231.9
+       ],
+       "profil": [
+        [
+         "bild src/main.js:1143",
+         19
+        ],
+        [
+         "frame src/main.js:1138",
+         19
+        ],
+        [
+         "render src/gfx/kinolook.js:651",
+         18
+        ],
+        [
+         "drawFrame src/main.js:1749",
+         18
+        ],
+        [
+         "render src/main.js:1463",
+         18
+        ],
+        [
+         "ho lib/three.module.min.js:4220",
+         15
+        ],
+        [
+         "(anonym) lib/three.module.min.js:4220",
+         15
+        ],
+        [
+         "dr lib/three.module.min.js:4220",
+         15
+        ]
+       ]
+      },
+      {
+       "t": 75.4,
+       "ms": 74.6,
+       "ursache": "shader+1 [ShaderMaterial] gc-23MB zustand finished, Aufgabe außerhalb des Bilds 76 ms",
+       "stueck": "start",
+       "renn_t": 91.1,
+       "vorbild": [
+        1.4,
+        9.9,
+        38.7
+       ],
+       "profil": [
+        [
+         "bild src/main.js:1143",
+         6
+        ],
+        [
+         "frame src/main.js:1138",
+         6
+        ],
+        [
+         "render src/main.js:1463",
+         4
+        ],
+        [
+         "(anonym) lib/three.module.min.js:4220",
+         3
+        ],
+        [
+         "render src/gfx/kinolook.js:651",
+         3
+        ],
+        [
+         "drawFrame src/main.js:1749",
+         3
+        ],
+        [
+         "multiplyMatrices lib/three.core.min.js:5",
+         1
+        ],
+        [
+         "updateMatrixWorld lib/three.core.min.js:5",
+         1
+        ]
+       ]
+      },
+      {
+       "t": 79.1,
+       "ms": 109,
+       "ursache": "unklar (GPU/Browser)",
+       "stueck": null,
+       "renn_t": null,
+       "vorbild": [
+        3,
+        2.8,
+        84.1
+       ],
+       "profil": [
+        [
+         "bild src/main.js:1143",
+         20
+        ],
+        [
+         "frame src/main.js:1138",
+         20
+        ],
+        [
+         "endShow src/main.js:1050",
+         16
+        ],
+        [
+         "showTick src/main.js:1024",
+         16
+        ],
+        [
+         "buildFilm src/game/highlights.js:561",
+         15
+        ],
+        [
+         "ensureFilm src/main.js:952",
+         15
+        ],
+        [
+         "findMoments src/game/highlights.js:246",
+         10
+        ],
+        [
+         "frameData src/game/highlights.js:195",
+         5
+        ]
+       ]
+      },
+      {
+       "t": 159.5,
+       "ms": 75.6,
+       "ursache": "unklar (GPU/Browser)",
+       "stueck": null,
+       "renn_t": null,
+       "vorbild": [
+        1.9,
+        4.1,
+        66.8
+       ],
+       "profil": [
+        [
+         "bild src/main.js:1143",
+         10
+        ],
+        [
+         "frame src/main.js:1138",
+         10
+        ],
+        [
+         "buildFilm src/game/highlights.js:561",
+         7
+        ],
+        [
+         "ensureFilm src/main.js:952",
+         7
+        ],
+        [
+         "endShow src/main.js:1050",
+         7
+        ],
+        [
+         "showTick src/main.js:1024",
+         7
+        ],
+        [
+         "findMoments src/game/highlights.js:246",
+         6
+        ],
+        [
+         "frameData src/game/highlights.js:195",
+         4
+        ]
+       ]
+      }
+     ],
+     "lt_anzahl": 4,
+     "apLog": [
+      {
+       "t": 10.06,
+       "was": "vorab",
+       "richtung": -1,
+       "skala": 1,
+       "fps": 202.7,
+       "arbeit": 18.67
+      },
+      {
+       "t": 11.57,
+       "was": "skala",
+       "richtung": -1,
+       "skala": 0.88,
+       "fps": 170.5,
+       "arbeit": 18.67
+      },
+      {
+       "t": 13.08,
+       "was": "skala",
+       "richtung": -1,
+       "skala": 0.76,
+       "fps": 173.2,
+       "arbeit": 18.67
+      },
+      {
+       "t": 16.11,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.82,
+       "fps": 184.9,
+       "arbeit": 4.56
+      },
+      {
+       "t": 19.12,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.88,
+       "fps": 160.5,
+       "arbeit": 5.14
+      },
+      {
+       "t": 22.13,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.94,
+       "fps": 178,
+       "arbeit": 10.07
+      },
+      {
+       "t": 25.15,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 1,
+       "fps": 173.5,
+       "arbeit": 10.07
+      }
+     ],
+     "info": {
+      "calls": 123,
+      "tris": 338076,
+      "geometries": 182,
+      "textures": 69,
+      "programs": 82,
+      "pixelRatio": 2,
+      "tier": 2,
+      "fps": 171.81672882258857,
+      "ap": {
+       "skala": 1,
+       "bereich": [
+        0.7,
+        1
+       ],
+       "stufen": {
+        "deko": 1,
+        "autoschatten": 1,
+        "stufe": 2
+       },
+       "fps": 160.8,
+       "arbeit": 9.2,
+       "cpu": 5.25,
+       "gpu": 9.2,
+       "engpass": "gpu",
+       "gedeckelt": false,
+       "gesperrtBis": 0,
+       "aenderungen": 7,
+       "t": 181.4
+      },
+      "carLod": 0,
+      "ghostLod": 0,
+      "impostor": {
+       "atlas": true,
+       "arten": [
+        "tanne0",
+        "tanne1",
+        "laub1",
+        "laub2"
+       ],
+       "fehler": null
+      },
+      "reflex": null,
+      "vao": {
+       "fertig": true,
+       "anteil": 1,
+       "ecken": 30768,
+       "gerechnet": 20173,
+       "strahlen": 121038,
+       "strahlenJe": 6,
+       "ms": 259
+      },
+      "apLog": [
+       {
+        "t": 10.06,
+        "was": "vorab",
+        "richtung": -1,
+        "skala": 1,
+        "fps": 202.7,
+        "arbeit": 18.67
+       },
+       {
+        "t": 11.57,
+        "was": "skala",
+        "richtung": -1,
+        "skala": 0.88,
+        "fps": 170.5,
+        "arbeit": 18.67
+       },
+       {
+        "t": 13.08,
+        "was": "skala",
+        "richtung": -1,
+        "skala": 0.76,
+        "fps": 173.2,
+        "arbeit": 18.67
+       },
+       {
+        "t": 16.11,
+        "was": "skala",
+        "richtung": 1,
+        "skala": 0.82,
+        "fps": 184.9,
+        "arbeit": 4.56
+       },
+       {
+        "t": 19.12,
+        "was": "skala",
+        "richtung": 1,
+        "skala": 0.88,
+        "fps": 160.5,
+        "arbeit": 5.14
+       },
+       {
+        "t": 22.13,
+        "was": "skala",
+        "richtung": 1,
+        "skala": 0.94,
+        "fps": 178,
+        "arbeit": 10.07
+       },
+       {
+        "t": 25.15,
+        "was": "skala",
+        "richtung": 1,
+        "skala": 1,
+        "fps": 173.5,
+        "arbeit": 10.07
+       }
+      ],
+      "startProbe": {
+       "n": 20,
+       "median": 8.900000095367432,
+       "p90": 9.300000190734863,
+       "min": 8.299999952316284,
+       "max": 9.5,
+       "skala": 1
+      },
+      "gpuZeit": true
+     },
+     "fehler": []
+    }
+   ]
+  }
+ }
+}

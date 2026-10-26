@@ -291,7 +291,8 @@ export class UI {
       : `Code <b>${m.key}</b> · ${m.diffName || ''} · ${km} km${m.d3 ? ` · 3D, ${m.levels} ${m.levels === 1 ? 'Ebene' : 'Ebenen'} hoch` : ''}${m.gel ? ` · <span title="Gelände-Strecke: Höhenunterschied der Fahrbahn">⛰️ ${Math.round(hDiff(env))} m</span>` : ''}`;
     const stuntsHtml = m.imported ? stuntSummary(lay.pieces) : stuntTxt;
     const apLine = m.apTime ? `<div class="tmeta">🤖 Autopilot-Referenz ${fmtTime(m.apTime)}${m.fixes ? ' · ' + m.fixes + '× entschärft' : ''}</div>`
-      : m.apFail ? `<div class="tmeta">🤖 Probefahrt ohne Hilfen: ${m.apFail} – Fahrhilfe Leicht hilft</div>` : '';
+      : m.apFail ? `<div class="tmeta">🤖 Probefahrt ohne Hilfen: ${m.apFail} – Fahrhilfe Leicht hilft</div>`
+      : m.pruefung ? '<div class="tmeta">🤖 Autopilot prüft die Strecke …</div>' : '';   // n42: Prüfung läuft nebenher (Worker)
     $('#menu').innerHTML = `
       <div class="col left">
         <div class="logo">STUNT<b>BAHN</b></div>
@@ -1068,6 +1069,20 @@ export class UI {
     requestAnimationFrame(() => Z.classList.add('on'));
   }
   hideShow() { const Z = $('#zshow'); Z.classList.remove('show', 'on'); }
+  // n42: Zielzeit-Anzeige und Highlight-Leiste einmal unsichtbar setzen (Schrift 78 px fett-kursiv, Emoji): der erste Text-Satz
+  // kostete beim Zieldurchgang ~40 ms (Mac, CPU ×4) – jetzt im Menü
+  textVorwaermen() {
+    const Z = $('#zshow'), C = $('#cine');
+    if (!Z || Z.classList.contains('show')) return;
+    const merk = [Z.querySelector('.ztime').textContent, Z.querySelector('.zsub').textContent];
+    Z.style.visibility = 'hidden'; Z.classList.add('show', 'on', 'best');
+    Z.querySelector('.ztime').textContent = '🏁 1:23.45'; Z.querySelector('.zsub').textContent = '🏆 Neue Bestzeit! Bestzeit 0:59.08 · Deine Zeit';
+    if (C && !C.classList.contains('show')) { C.style.visibility = 'hidden'; C.classList.add('show'); }
+    void Z.offsetWidth; void Z.querySelector('.ztime').getBoundingClientRect(); if (C) void C.offsetWidth;
+    Z.querySelector('.ztime').textContent = merk[0]; Z.querySelector('.zsub').textContent = merk[1];
+    Z.classList.remove('show', 'on', 'best'); Z.style.visibility = '';
+    if (C && C.style.visibility === 'hidden') { C.classList.remove('show'); C.style.visibility = ''; }
+  }
   // ---------- Kino-Replay (n18) ----------
   showCine(c) {
     this.cineObj = c; this._cineT0 = performance.now(); this._capClip = -1;

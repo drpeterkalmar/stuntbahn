@@ -141,10 +141,15 @@ export function tunnelAttr(batches, laeufe) {
   for (const b of batches) {
     const P = b.pos, nv = P.length / 3;
     let a = null;
+    // n42: Hüllquader des Batches einmal – Batches weit weg vom Tunnel überspringen den Eckpunkt-Durchlauf je Lauf (gleiches
+    // Ergebnis; gemessen 0,58 s beim Laden einer Gelände-Strecke mit Tunneln, Mac mit CPU ×4)
+    let bx0 = Infinity, bx1 = -Infinity, bz0 = Infinity, bz1 = -Infinity;
+    for (let v = 0; v < nv; v++) { const x = P[v * 3], z = P[v * 3 + 2]; if (x < bx0) bx0 = x; if (x > bx1) bx1 = x; if (z < bz0) bz0 = z; if (z > bz1) bz1 = z; }
     for (const R of laeufe) {
       // grob: Hüllquader des Laufs
       const x0 = Math.min(R.A[0], R.A[0] + R.D[0] * R.len) - R.tw - 2, x1 = Math.max(R.A[0], R.A[0] + R.D[0] * R.len) + R.tw + 2;
       const z0 = Math.min(R.A[2], R.A[2] + R.D[1] * R.len) - R.tw - 2, z1 = Math.max(R.A[2], R.A[2] + R.D[1] * R.len) + R.tw + 2;
+      if (bx1 < x0 || bx0 > x1 || bz1 < z0 || bz0 > z1) continue;
       for (let v = 0; v < nv; v++) {
         const x = P[v * 3], y = P[v * 3 + 1], z = P[v * 3 + 2];
         if (x < x0 || x > x1 || z < z0 || z > z1) continue;

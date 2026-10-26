@@ -1,0 +1,230 @@
+{
+ "datum": "2026-10-26T20:44:52",
+ "modus": "rennen",
+ "profil": {
+  "drossel": 4,
+  "dpr": 2.6,
+  "geraet": "quer",
+  "rtt": 165,
+  "kbit": 9000,
+  "sek": 95.0,
+  "strecke": "seed=20261026&d=2&g=1&h=1",
+  "js_profil": false
+ },
+ "varianten": {
+  "probe2": {
+   "wurzel": "/Users/wohnzimmer/dev/.wt/stuntbahn-stuntbahn-n42-tempo-hindernisse",
+   "zusatz": "",
+   "laeufe": [
+    {
+     "n": 15660,
+     "p50": 5.8,
+     "p95": 8.5,
+     "p99": 10.1,
+     "ueber50": 4,
+     "ueber100": 4,
+     "max": 290.4,
+     "starts": 1,
+     "haenger": [
+      {
+       "t": 3.8,
+       "ms": 216.4,
+       "ursache": "Zeichnen 215 ms",
+       "stueck": null,
+       "renn_t": null,
+       "vorbild": [
+        0.1,
+        215,
+        223.1
+       ]
+      },
+      {
+       "t": 25.4,
+       "ms": 290.4,
+       "ursache": "Zeichnen 280 ms",
+       "stueck": null,
+       "renn_t": null,
+       "vorbild": [
+        0.1,
+        279.6,
+        290
+       ]
+      },
+      {
+       "t": 75.7,
+       "ms": 271.7,
+       "ursache": "shader+1 [ShaderMaterial] zustand finished, Zeichnen 209 ms, Aufgabe außerhalb des Bilds 276 ms",
+       "stueck": "start",
+       "renn_t": 91.1,
+       "vorbild": [
+        1.2,
+        208.6,
+        240.3
+       ]
+      },
+      {
+       "t": 79.4,
+       "ms": 110.2,
+       "ursache": "unklar (GPU/Browser)",
+       "stueck": null,
+       "renn_t": null,
+       "vorbild": [
+        3.1,
+        4.2,
+        95.6
+       ]
+      }
+     ],
+     "lt_anzahl": 4,
+     "apLog": [],
+     "info": {
+      "calls": 117,
+      "tris": 327992,
+      "geometries": 182,
+      "textures": 69,
+      "programs": 125,
+      "pixelRatio": 2,
+      "tier": 2,
+      "fps": 159.96800639872038,
+      "ap": {
+       "skala": 1,
+       "bereich": [
+        0.7,
+        1
+       ],
+       "stufen": {
+        "deko": 1,
+        "autoschatten": 1,
+        "stufe": 2
+       },
+       "fps": 182.1,
+       "arbeit": 10.92,
+       "cpu": 4.55,
+       "gpu": 10.92,
+       "engpass": "gpu",
+       "gedeckelt": false,
+       "gesperrtBis": 0,
+       "aenderungen": 0,
+       "t": 96.1
+      },
+      "carLod": 0,
+      "ghostLod": 0,
+      "impostor": {
+       "atlas": true,
+       "arten": [
+        "tanne0",
+        "tanne1",
+        "laub1",
+        "laub2"
+       ],
+       "fehler": null
+      },
+      "reflex": null,
+      "vao": {
+       "fertig": true,
+       "anteil": 1,
+       "ecken": 30768,
+       "gerechnet": 20173,
+       "strahlen": 121038,
+       "strahlenJe": 6,
+       "ms": 261
+      },
+      "apLog": [],
+      "startProbe": {
+       "n": 20,
+       "median": 9.599999904632568,
+       "p90": 9.900000095367432,
+       "min": 8.5,
+       "max": 11.900000095367432,
+       "skala": 1
+      },
+      "gpuZeit": true
+     },
+     "fehler": [],
+     "neuP": [
+      {
+       "t": 129,
+       "name": "",
+       "stapel": "Zt.traverse lib/three.core.min.js:5:63975 < ph.traverse lib/three.core.min.js:5:64041 < charge src/gfx/kinolook.js:569:19 < KinoLook.vorwaermen src/gfx/kinolook.js:593:15 < async vorwaermenHintergrund src/main.js:1760:13",
+       "uniforms": "morphTexture tColor uSrcTexel uTime uInvProj uCamRot uCamPos uSunDir uAerial uSunScr"
+      },
+      {
+       "t": 130,
+       "name": "",
+       "stapel": "Zt.traverse lib/three.core.min.js:5:63975 < ph.traverse lib/three.core.min.js:5:64041 < charge src/gfx/kinolook.js:569:19 < KinoLook.vorwaermen src/gfx/kinolook.js:593:15 < async vorwaermenHintergrund src/main.js:1760:13",
+       "uniforms": "morphTexture tColor uSrcTexel uTime uInvProj uCamRot uCamPos uSunDir uAerial uSunScr"
+      },
+      {
+       "t": 131,
+       "name": "",
+       "stapel": "Zt.traverse lib/three.core.min.js:5:63975 < ph.traverse lib/three.core.min.js:5:64041 < charge src/gfx/kinolook.js:569:19 < KinoLook.vorwaermen src/gfx/kinolook.js:593:15 < async vorwaermenHintergrund src/main.js:1760:13",
+       "uniforms": "morphTexture tColor uSrcTexel uTime uInvProj uCamRot uCamPos uSunDir uAerial uSunScr"
+      },
+      {
+       "t": 132,
+       "name": "",
+       "stapel": "Zt.traverse lib/three.core.min.js:5:63975 < ph.traverse lib/three.core.min.js:5:64041 < charge src/gfx/kinolook.js:569:19 < KinoLook.vorwaermen src/gfx/kinolook.js:593:15 < async vorwaermenHintergrund src/main.js:1760:13",
+       "uniforms": "morphTexture tColor uSrcTexel uTime uInvProj uCamRot uCamPos uSunDir uAerial uSunScr"
+      },
+      {
+       "t": 133,
+       "name": "",
+       "stapel": "Zt.traverse lib/three.core.min.js:5:63975 < ph.traverse lib/three.core.min.js:5:64041 < charge src/gfx/kinolook.js:569:19 < KinoLook.vorwaermen src/gfx/kinolook.js:593:15 < async vorwaermenHintergrund src/main.js:1760:13",
+       "uniforms": "morphTexture tColor uSrcTexel uTime uInvProj uCamRot uCamPos uSunDir uAerial uSunScr"
+      },
+      {
+       "t": 133,
+       "name": "",
+       "stapel": "Zt.traverse lib/three.core.min.js:5:63975 < ph.traverse lib/three.core.min.js:5:64041 < charge src/gfx/kinolook.js:569:19 < KinoLook.vorwaermen src/gfx/kinolook.js:593:15 < async vorwaermenHintergrund src/main.js:1760:13",
+       "uniforms": "morphTexture tColor uSrcTexel uTime uInvProj uCamRot uCamPos uSunDir uAerial uSunScr"
+      },
+      {
+       "t": 134,
+       "name": "",
+       "stapel": "Zt.traverse lib/three.core.min.js:5:63975 < ph.traverse lib/three.core.min.js:5:64041 < charge src/gfx/kinolook.js:569:19 < KinoLook.vorwaermen src/gfx/kinolook.js:593:15 < async vorwaermenHintergrund src/main.js:1760:13",
+       "uniforms": "morphTexture tColor uSrcTexel uTime uInvProj uCamRot uCamPos uSunDir uAerial uSunScr"
+      },
+      {
+       "t": 134,
+       "name": "",
+       "stapel": "Zt.traverse lib/three.core.min.js:5:63975 < ph.traverse lib/three.core.min.js:5:64041 < charge src/gfx/kinolook.js:569:19 < KinoLook.vorwaermen src/gfx/kinolook.js:593:15 < async vorwaermenHintergrund src/main.js:1760:13",
+       "uniforms": "morphTexture tColor uSrcTexel uTime uInvProj uCamRot uCamPos uSunDir uAerial uSunScr"
+      },
+      {
+       "t": 135,
+       "name": "",
+       "stapel": "Zt.traverse lib/three.core.min.js:5:63975 < ph.traverse lib/three.core.min.js:5:64041 < charge src/gfx/kinolook.js:569:19 < KinoLook.vorwaermen src/gfx/kinolook.js:593:15 < async vorwaermenHintergrund src/main.js:1760:13",
+       "uniforms": "morphTexture tColor uSrcTexel uTime uInvProj uCamRot uCamPos uSunDir uAerial uSunScr"
+      },
+      {
+       "t": 136,
+       "name": "",
+       "stapel": "Zt.traverse lib/three.core.min.js:5:63975 < ph.traverse lib/three.core.min.js:5:64041 < charge src/gfx/kinolook.js:569:19 < KinoLook.vorwaermen src/gfx/kinolook.js:593:15 < async vorwaermenHintergrund src/main.js:1760:13",
+       "uniforms": "morphTexture tColor uSrcTexel uTime uInvProj uCamRot uCamPos uSunDir uAerial uSunScr"
+      },
+      {
+       "t": 136,
+       "name": "",
+       "stapel": "Zt.traverse lib/three.core.min.js:5:63975 < ph.traverse lib/three.core.min.js:5:64041 < charge src/gfx/kinolook.js:569:19 < KinoLook.vorwaermen src/gfx/kinolook.js:593:15 < async vorwaermenHintergrund src/main.js:1760:13",
+       "uniforms": "morphTexture tColor uSrcTexel uTime uInvProj uCamRot uCamPos uSunDir uAerial uSunScr"
+      },
+      {
+       "t": 137,
+       "name": "",
+       "stapel": "Zt.traverse lib/three.core.min.js:5:63975 < ph.traverse lib/three.core.min.js:5:64041 < charge src/gfx/kinolook.js:569:19 < KinoLook.vorwaermen src/gfx/kinolook.js:593:15 < async vorwaermenHintergrund src/main.js:1760:13",
+       "uniforms": "morphTexture tColor uSrcTexel uTime uInvProj uCamRot uCamPos uSunDir uAerial uSunScr"
+      },
+      {
+       "t": 75514,
+       "name": "",
+       "stapel": "R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:767:7 < drawFrame src/main.js:1788:10 < render src/main.js:1668:3 < bild src/main.js:1216:3",
+       "uniforms": "morphTexture uT uFlash uPxK"
+      }
+     ],
+     "gc": 58,
+     "ap_aenderungen": 0
+    }
+   ]
+  }
+ }
+}

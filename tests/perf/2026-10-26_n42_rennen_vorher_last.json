@@ -1,0 +1,828 @@
+{
+ "datum": "2026-10-26T20:31:22",
+ "modus": "rennen",
+ "profil": {
+  "drossel": 4,
+  "dpr": 2.6,
+  "geraet": "quer",
+  "rtt": 165,
+  "kbit": 9000,
+  "sek": 180,
+  "strecke": "seed=20261026&d=2&g=1&h=1",
+  "js_profil": false
+ },
+ "varianten": {
+  "vorher_last": {
+   "wurzel": "/Users/wohnzimmer/dev/.wt/stuntbahn-stuntbahn-n42-tempo-hindernisse",
+   "zusatz": "",
+   "laeufe": [
+    {
+     "n": 28440,
+     "p50": 4.3,
+     "p95": 19.1,
+     "p99": 34.8,
+     "ueber50": 6,
+     "ueber100": 4,
+     "max": 1727,
+     "starts": 2,
+     "haenger": [
+      {
+       "t": 3.8,
+       "ms": 217.8,
+       "ursache": "shader+1 [ShaderMaterial], Zeichnen 220 ms",
+       "stueck": "start",
+       "renn_t": 1.7,
+       "vorbild": [
+        0.1,
+        219.5,
+        227
+       ]
+      },
+      {
+       "t": 16.0,
+       "ms": 1727,
+       "ursache": "shader+31 [MeshStandardMaterial,MeshStandardMaterial,MeshStandardMaterial,MeshStandardMaterial,MeshStandardMaterial,MeshStandardMaterial,MeshStandardMaterial,MeshStandardMaterial,MeshPhysicalMaterial,MeshStandardMaterial,car_rim,car_body,MeshStandardMaterial,impostor_tanne0,impostor_laub1,MeshStandardMaterial,MeshStandardMaterial,MeshStandardMaterial,MeshStandardMaterial,MeshStandardMaterial,MeshStandardMaterial,rock_moss_set_01,MeshStandardMaterial,MeshStandardMaterial,MeshStandardMaterial,MeshStandardMaterial,MeshStandardMaterial,MeshPhysicalMaterial,MeshBasicMaterial,MeshBasicMaterial,MeshStandardMaterial], Zeichnen 1722 ms",
+       "stueck": "jump",
+       "renn_t": 14.9,
+       "vorbild": [
+        0.8,
+        1721.7,
+        1737.9
+       ]
+      },
+      {
+       "t": 17.7,
+       "ms": 192.4,
+       "ursache": "shader+1 [ShaderMaterial] tex-1 aufl 1.26 stufe 1, Zeichnen 170 ms",
+       "stueck": "jump",
+       "renn_t": 16.8,
+       "vorbild": [
+        0.1,
+        170.4,
+        198
+       ]
+      },
+      {
+       "t": 77.1,
+       "ms": 56.2,
+       "ursache": "shader+1 [ShaderMaterial] zustand finished, Aufgabe außerhalb des Bilds 68 ms",
+       "stueck": "start",
+       "renn_t": 91.1,
+       "vorbild": [
+        1.2,
+        7.7,
+        36.7
+       ]
+      },
+      {
+       "t": 80.8,
+       "ms": 125.1,
+       "ursache": "gc-17MB",
+       "stueck": "straight",
+       "renn_t": 91.1,
+       "vorbild": [
+        2.5,
+        2.1,
+        114.6
+       ]
+      },
+      {
+       "t": 161.2,
+       "ms": 56.5,
+       "ursache": "aufl 1.29",
+       "stueck": "straight",
+       "renn_t": 91.1,
+       "vorbild": [
+        1.8,
+        2.5,
+        66
+       ]
+      }
+     ],
+     "lt_anzahl": 6,
+     "apLog": [
+      {
+       "t": 23.8,
+       "was": "stufe",
+       "richtung": 1,
+       "skala": 0.62,
+       "fps": 332.7,
+       "arbeit": 2.43
+      },
+      {
+       "t": 26.81,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.68,
+       "fps": 219,
+       "arbeit": 3.85
+      },
+      {
+       "t": 29.83,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.74,
+       "fps": 205.1,
+       "arbeit": 3.98
+      },
+      {
+       "t": 32.85,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.8,
+       "fps": 199.7,
+       "arbeit": 3.97
+      },
+      {
+       "t": 35.86,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.86,
+       "fps": 229,
+       "arbeit": 3.73
+      },
+      {
+       "t": 38.88,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.92,
+       "fps": 259.9,
+       "arbeit": 3.2
+      },
+      {
+       "t": 40.93,
+       "was": "skala",
+       "richtung": -1,
+       "skala": 0.86,
+       "fps": 58,
+       "arbeit": 17.53
+      },
+      {
+       "t": 42.46,
+       "was": "stufe",
+       "richtung": -1,
+       "skala": 1,
+       "fps": 56.9,
+       "arbeit": 17.71
+      },
+      {
+       "t": 54.2,
+       "was": "stufe",
+       "richtung": 1,
+       "skala": 0.62,
+       "fps": 291.1,
+       "arbeit": 2.89
+      },
+      {
+       "t": 57.21,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.68,
+       "fps": 230.1,
+       "arbeit": 3.67
+      },
+      {
+       "t": 60.22,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.74,
+       "fps": 263,
+       "arbeit": 3.22
+      },
+      {
+       "t": 63.23,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.8,
+       "fps": 242.3,
+       "arbeit": 3.47
+      },
+      {
+       "t": 66.24,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.86,
+       "fps": 252.8,
+       "arbeit": 3.28
+      },
+      {
+       "t": 69.25,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.92,
+       "fps": 217.3,
+       "arbeit": 3.97
+      },
+      {
+       "t": 70.78,
+       "was": "skala",
+       "richtung": -1,
+       "skala": 0.86,
+       "fps": 57.3,
+       "arbeit": 17.74
+      },
+      {
+       "t": 72.31,
+       "was": "stufe",
+       "richtung": -1,
+       "skala": 1,
+       "fps": 49.2,
+       "arbeit": 19.71
+      },
+      {
+       "t": 84,
+       "was": "stufe",
+       "richtung": 1,
+       "skala": 0.62,
+       "fps": 323.2,
+       "arbeit": 2.59
+      },
+      {
+       "t": 87.01,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.68,
+       "fps": 254.7,
+       "arbeit": 3.32
+      },
+      {
+       "t": 90.02,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.74,
+       "fps": 265.8,
+       "arbeit": 3.1
+      },
+      {
+       "t": 93.04,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.8,
+       "fps": 230.3,
+       "arbeit": 3.7
+      },
+      {
+       "t": 96.05,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.86,
+       "fps": 244.9,
+       "arbeit": 3.42
+      },
+      {
+       "t": 99.07,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.92,
+       "fps": 226.8,
+       "arbeit": 3.66
+      },
+      {
+       "t": 101.11,
+       "was": "skala",
+       "richtung": -1,
+       "skala": 0.86,
+       "fps": 59.2,
+       "arbeit": 17.46
+      },
+      {
+       "t": 102.65,
+       "was": "stufe",
+       "richtung": -1,
+       "skala": 1,
+       "fps": 57.6,
+       "arbeit": 17.55
+      },
+      {
+       "t": 113.88,
+       "was": "stufe",
+       "richtung": 1,
+       "skala": 0.62,
+       "fps": 248.5,
+       "arbeit": 3.32
+      },
+      {
+       "t": 116.89,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.68,
+       "fps": 239.9,
+       "arbeit": 3.58
+      },
+      {
+       "t": 119.9,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.74,
+       "fps": 257.3,
+       "arbeit": 3.24
+      },
+      {
+       "t": 122.91,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.8,
+       "fps": 240.6,
+       "arbeit": 3.46
+      },
+      {
+       "t": 125.92,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.86,
+       "fps": 257.3,
+       "arbeit": 3.26
+      },
+      {
+       "t": 130.95,
+       "was": "stufe",
+       "richtung": -1,
+       "skala": 1,
+       "fps": 57.8,
+       "arbeit": 17.43
+      },
+      {
+       "t": 144.18,
+       "was": "stufe",
+       "richtung": 1,
+       "skala": 0.62,
+       "fps": 336.9,
+       "arbeit": 2.46
+      },
+      {
+       "t": 147.19,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.68,
+       "fps": 247.6,
+       "arbeit": 3.43
+      },
+      {
+       "t": 150.21,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.74,
+       "fps": 201.9,
+       "arbeit": 4.12
+      },
+      {
+       "t": 153.23,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.8,
+       "fps": 180.2,
+       "arbeit": 5
+      },
+      {
+       "t": 156.24,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.86,
+       "fps": 209.4,
+       "arbeit": 3.91
+      },
+      {
+       "t": 159.25,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.92,
+       "fps": 256.9,
+       "arbeit": 3.39
+      },
+      {
+       "t": 160.82,
+       "was": "skala",
+       "richtung": -1,
+       "skala": 0.86,
+       "fps": 58.5,
+       "arbeit": 16.62
+      },
+      {
+       "t": 162.37,
+       "was": "stufe",
+       "richtung": -1,
+       "skala": 1,
+       "fps": 58.4,
+       "arbeit": 17.26
+      },
+      {
+       "t": 174.1,
+       "was": "stufe",
+       "richtung": 1,
+       "skala": 0.62,
+       "fps": 267.9,
+       "arbeit": 3.2
+      },
+      {
+       "t": 177.11,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.68,
+       "fps": 258.8,
+       "arbeit": 3.27
+      }
+     ],
+     "info": {
+      "calls": 80,
+      "tris": 254047,
+      "geometries": 182,
+      "textures": 68,
+      "programs": 118,
+      "pixelRatio": 1.5,
+      "tier": 1,
+      "fps": 236.27287853577405,
+      "ap": {
+       "skala": 0.68,
+       "bereich": [
+        0.62,
+        0.92
+       ],
+       "stufen": {
+        "deko": 0,
+        "autoschatten": 0,
+        "stufe": 1
+       },
+       "fps": 232.8,
+       "arbeit": 3.55,
+       "cpu": 3.55,
+       "gpu": 2.64,
+       "engpass": "cpu",
+       "gedeckelt": false,
+       "gesperrtBis": 45.2,
+       "aenderungen": 45,
+       "t": 179.6
+      },
+      "carLod": 0,
+      "ghostLod": 0,
+      "impostor": {
+       "atlas": true,
+       "arten": [
+        "tanne0",
+        "tanne1",
+        "laub1",
+        "laub2"
+       ],
+       "fehler": null
+      },
+      "reflex": null,
+      "vao": {
+       "fertig": true,
+       "anteil": 1,
+       "ecken": 30768,
+       "gerechnet": 20173,
+       "strahlen": 121038,
+       "strahlenJe": 6,
+       "ms": 254
+      },
+      "apLog": [
+       {
+        "t": 125.92,
+        "was": "skala",
+        "richtung": 1,
+        "skala": 0.86,
+        "fps": 257.3,
+        "arbeit": 3.26
+       },
+       {
+        "t": 130.95,
+        "was": "stufe",
+        "richtung": -1,
+        "skala": 1,
+        "fps": 57.8,
+        "arbeit": 17.43
+       },
+       {
+        "t": 144.18,
+        "was": "stufe",
+        "richtung": 1,
+        "skala": 0.62,
+        "fps": 336.9,
+        "arbeit": 2.46
+       },
+       {
+        "t": 147.19,
+        "was": "skala",
+        "richtung": 1,
+        "skala": 0.68,
+        "fps": 247.6,
+        "arbeit": 3.43
+       },
+       {
+        "t": 150.21,
+        "was": "skala",
+        "richtung": 1,
+        "skala": 0.74,
+        "fps": 201.9,
+        "arbeit": 4.12
+       },
+       {
+        "t": 153.23,
+        "was": "skala",
+        "richtung": 1,
+        "skala": 0.8,
+        "fps": 180.2,
+        "arbeit": 5
+       },
+       {
+        "t": 156.24,
+        "was": "skala",
+        "richtung": 1,
+        "skala": 0.86,
+        "fps": 209.4,
+        "arbeit": 3.91
+       },
+       {
+        "t": 159.25,
+        "was": "skala",
+        "richtung": 1,
+        "skala": 0.92,
+        "fps": 256.9,
+        "arbeit": 3.39
+       },
+       {
+        "t": 160.82,
+        "was": "skala",
+        "richtung": -1,
+        "skala": 0.86,
+        "fps": 58.5,
+        "arbeit": 16.62
+       },
+       {
+        "t": 162.37,
+        "was": "stufe",
+        "richtung": -1,
+        "skala": 1,
+        "fps": 58.4,
+        "arbeit": 17.26
+       },
+       {
+        "t": 174.1,
+        "was": "stufe",
+        "richtung": 1,
+        "skala": 0.62,
+        "fps": 267.9,
+        "arbeit": 3.2
+       },
+       {
+        "t": 177.11,
+        "was": "skala",
+        "richtung": 1,
+        "skala": 0.68,
+        "fps": 258.8,
+        "arbeit": 3.27
+       }
+      ],
+      "startProbe": {
+       "n": 20,
+       "median": 9.099999904632568,
+       "p90": 9.599999904632568,
+       "min": 8.399999856948853,
+       "max": 9.900000095367432,
+       "skala": 1
+      },
+      "gpuZeit": true
+     },
+     "fehler": [],
+     "neuP": [
+      {
+       "t": 3624,
+       "name": "",
+       "stapel": "R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.pass src/gfx/kinolook.js:592:12 < KinoLook.render src/gfx/kinolook.js:795:10 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3",
+       "uniforms": "morphTexture tColor uSrcTexel uTime uInvProj uCamRot uCamPos uSunDir uAerial uSunScr"
+      },
+      {
+       "t": 4273,
+       "name": "",
+       "stapel": "R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.pass src/gfx/kinolook.js:592:12 < KinoLook.render src/gfx/kinolook.js:795:10 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3",
+       "uniforms": "morphTexture tColor uSrcTexel uTime uInvProj uCamRot uCamPos uSunDir uAerial uSunScr"
+      },
+      {
+       "t": 14339,
+       "name": "",
+       "stapel": "R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:692:7 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3 < bild src/main.js:1211:3",
+       "uniforms": "morphTexture _gl_DrawID sampler2D usampler2D batchingColorTexture mapTransform alphaMapTransform lightMapTransform aoMapTransform bumpMapTransform"
+      },
+      {
+       "t": 14363,
+       "name": "",
+       "stapel": "R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:692:7 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3 < bild src/main.js:1211:3",
+       "uniforms": "morphTexture _gl_DrawID sampler2D usampler2D batchingColorTexture mapTransform alphaMapTransform lightMapTransform aoMapTransform bumpMapTransform"
+      },
+      {
+       "t": 14384,
+       "name": "",
+       "stapel": "R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:692:7 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3 < bild src/main.js:1211:3",
+       "uniforms": "morphTexture _gl_DrawID sampler2D usampler2D batchingColorTexture mapTransform alphaMapTransform lightMapTransform aoMapTransform bumpMapTransform"
+      },
+      {
+       "t": 14405,
+       "name": "",
+       "stapel": "R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:692:7 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3 < bild src/main.js:1211:3",
+       "uniforms": "morphTexture _gl_DrawID sampler2D usampler2D batchingColorTexture mapTransform alphaMapTransform lightMapTransform aoMapTransform bumpMapTransform"
+      },
+      {
+       "t": 14423,
+       "name": "",
+       "stapel": "R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:692:7 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3 < bild src/main.js:1211:3",
+       "uniforms": "morphTexture _gl_DrawID sampler2D usampler2D batchingColorTexture mapTransform alphaMapTransform lightMapTransform aoMapTransform bumpMapTransform"
+      },
+      {
+       "t": 14442,
+       "name": "",
+       "stapel": "R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:692:7 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3 < bild src/main.js:1211:3",
+       "uniforms": "morphTexture _gl_DrawID sampler2D usampler2D batchingColorTexture mapTransform alphaMapTransform lightMapTransform aoMapTransform bumpMapTransform"
+      },
+      {
+       "t": 14462,
+       "name": "",
+       "stapel": "R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:692:7 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3 < bild src/main.js:1211:3",
+       "uniforms": "morphTexture _gl_DrawID sampler2D usampler2D batchingColorTexture mapTransform alphaMapTransform lightMapTransform aoMapTransform bumpMapTransform"
+      },
+      {
+       "t": 14482,
+       "name": "",
+       "stapel": "R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:692:7 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3 < bild src/main.js:1211:3",
+       "uniforms": "morphTexture _gl_DrawID sampler2D usampler2D batchingColorTexture mapTransform alphaMapTransform lightMapTransform aoMapTransform bumpMapTransform"
+      },
+      {
+       "t": 14506,
+       "name": "",
+       "stapel": "R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:692:7 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3 < bild src/main.js:1211:3",
+       "uniforms": "morphTexture _gl_DrawID sampler2D usampler2D batchingColorTexture mapTransform alphaMapTransform lightMapTransform aoMapTransform bumpMapTransform"
+      },
+      {
+       "t": 14525,
+       "name": "",
+       "stapel": "R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:692:7 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3 < bild src/main.js:1211:3",
+       "uniforms": "morphTexture _gl_DrawID sampler2D usampler2D batchingColorTexture mapTransform alphaMapTransform lightMapTransform aoMapTransform bumpMapTransform"
+      },
+      {
+       "t": 14543,
+       "name": "car_rim",
+       "stapel": "R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:692:7 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3 < bild src/main.js:1211:3",
+       "uniforms": "morphTexture _gl_DrawID sampler2D usampler2D batchingColorTexture mapTransform alphaMapTransform lightMapTransform aoMapTransform bumpMapTransform"
+      },
+      {
+       "t": 14562,
+       "name": "car_body",
+       "stapel": "R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:692:7 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3 < bild src/main.js:1211:3",
+       "uniforms": "morphTexture _gl_DrawID sampler2D usampler2D batchingColorTexture mapTransform alphaMapTransform lightMapTransform aoMapTransform bumpMapTransform"
+      },
+      {
+       "t": 14579,
+       "name": "",
+       "stapel": "R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:692:7 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3 < bild src/main.js:1211:3",
+       "uniforms": "morphTexture _gl_DrawID sampler2D usampler2D batchingColorTexture mapTransform alphaMapTransform lightMapTransform aoMapTransform bumpMapTransform"
+      },
+      {
+       "t": 14594,
+       "name": "impostor_tanne0",
+       "stapel": "R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:692:7 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3 < bild src/main.js:1211:3",
+       "uniforms": "morphTexture impN _gl_DrawID sampler2D usampler2D batchingColorTexture mapTransform alphaMapTransform lightMapTransform aoMapTransform"
+      },
+      {
+       "t": 14612,
+       "name": "impostor_laub1",
+       "stapel": "R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:692:7 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3 < bild src/main.js:1211:3",
+       "uniforms": "morphTexture impN _gl_DrawID sampler2D usampler2D batchingColorTexture mapTransform alphaMapTransform lightMapTransform aoMapTransform"
+      },
+      {
+       "t": 15032,
+       "name": "",
+       "stapel": "R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:692:7 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3 < bild src/main.js:1211:3",
+       "uniforms": "morphTexture _gl_DrawID sampler2D usampler2D batchingColorTexture mapTransform alphaMapTransform lightMapTransform aoMapTransform bumpMapTransform"
+      },
+      {
+       "t": 15160,
+       "name": "",
+       "stapel": "R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:692:7 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3 < bild src/main.js:1211:3",
+       "uniforms": "morphTexture uTime uCheer uFanFade _gl_DrawID sampler2D usampler2D batchingColorTexture mapTransform alphaMapTransform"
+      },
+      {
+       "t": 15378,
+       "name": "",
+       "stapel": "R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:692:7 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3 < bild src/main.js:1211:3",
+       "uniforms": "morphTexture uFade uWind _gl_DrawID sampler2D usampler2D batchingColorTexture mapTransform alphaMapTransform lightMapTransform"
+      },
+      {
+       "t": 15395,
+       "name": "",
+       "stapel": "R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:692:7 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3 < bild src/main.js:1211:3",
+       "uniforms": "morphTexture _gl_DrawID sampler2D usampler2D batchingColorTexture mapTransform alphaMapTransform lightMapTransform aoMapTransform bumpMapTransform"
+      },
+      {
+       "t": 15412,
+       "name": "",
+       "stapel": "R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:692:7 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3 < bild src/main.js:1211:3",
+       "uniforms": "morphTexture uFade uWind uCheer uNear _gl_DrawID sampler2D usampler2D batchingColorTexture mapTransform"
+      },
+      {
+       "t": 15427,
+       "name": "",
+       "stapel": "R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:692:7 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3 < bild src/main.js:1211:3",
+       "uniforms": "morphTexture uFade uWind _gl_DrawID sampler2D usampler2D batchingColorTexture mapTransform alphaMapTransform lightMapTransform"
+      },
+      {
+       "t": 15643,
+       "name": "rock_moss_set_01",
+       "stapel": "R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:692:7 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3 < bild src/main.js:1211:3",
+       "uniforms": "morphTexture _gl_DrawID sampler2D usampler2D batchingColorTexture mapTransform alphaMapTransform lightMapTransform aoMapTransform bumpMapTransform"
+      },
+      {
+       "t": 15715,
+       "name": "",
+       "stapel": "R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:692:7 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3 < bild src/main.js:1211:3",
+       "uniforms": "morphTexture uFade uWind _gl_DrawID sampler2D usampler2D batchingColorTexture mapTransform alphaMapTransform lightMapTransform"
+      },
+      {
+       "t": 15730,
+       "name": "",
+       "stapel": "R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:692:7 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3 < bild src/main.js:1211:3",
+       "uniforms": "morphTexture uTime _gl_DrawID sampler2D usampler2D batchingColorTexture mapTransform alphaMapTransform lightMapTransform aoMapTransform"
+      },
+      {
+       "t": 15892,
+       "name": "",
+       "stapel": "R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:692:7 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3 < bild src/main.js:1211:3",
+       "uniforms": "morphTexture uTime _gl_DrawID sampler2D usampler2D batchingColorTexture mapTransform alphaMapTransform lightMapTransform aoMapTransform"
+      },
+      {
+       "t": 15949,
+       "name": "",
+       "stapel": "R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:692:7 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3 < bild src/main.js:1211:3",
+       "uniforms": "morphTexture _gl_DrawID sampler2D usampler2D batchingColorTexture mapTransform alphaMapTransform lightMapTransform aoMapTransform bumpMapTransform"
+      },
+      {
+       "t": 15968,
+       "name": "",
+       "stapel": "R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:692:7 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3 < bild src/main.js:1211:3",
+       "uniforms": "morphTexture _gl_DrawID sampler2D usampler2D batchingColorTexture mapTransform alphaMapTransform lightMapTransform aoMapTransform bumpMapTransform"
+      },
+      {
+       "t": 15986,
+       "name": "",
+       "stapel": "R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:692:7 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3 < bild src/main.js:1211:3",
+       "uniforms": "morphTexture _gl_DrawID sampler2D usampler2D batchingColorTexture mapTransform alphaMapTransform lightMapTransform aoMapTransform bumpMapTransform"
+      },
+      {
+       "t": 16028,
+       "name": "",
+       "stapel": "R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:692:7 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3 < bild src/main.js:1211:3",
+       "uniforms": "morphTexture _gl_DrawID sampler2D usampler2D batchingColorTexture mapTransform alphaMapTransform lightMapTransform aoMapTransform bumpMapTransform"
+      },
+      {
+       "t": 16033,
+       "name": "",
+       "stapel": "R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:692:7 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3 < bild src/main.js:1211:3",
+       "uniforms": "morphTexture _gl_DrawID sampler2D usampler2D batchingColorTexture mapTransform alphaMapTransform lightMapTransform aoMapTransform bumpMapTransform"
+      },
+      {
+       "t": 16040,
+       "name": "",
+       "stapel": "R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:692:7 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3 < bild src/main.js:1211:3",
+       "uniforms": "morphTexture _gl_DrawID sampler2D usampler2D batchingColorTexture mapTransform alphaMapTransform lightMapTransform aoMapTransform bumpMapTransform"
+      },
+      {
+       "t": 16270,
+       "name": "",
+       "stapel": "R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:692:7 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3 < bild src/main.js:1211:3",
+       "uniforms": "morphTexture _gl_DrawID sampler2D usampler2D batchingColorTexture mapTransform alphaMapTransform lightMapTransform aoMapTransform bumpMapTransform"
+      },
+      {
+       "t": 16274,
+       "name": "",
+       "stapel": "R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:692:7 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3 < bild src/main.js:1211:3",
+       "uniforms": "morphTexture _gl_DrawID sampler2D usampler2D batchingColorTexture mapTransform alphaMapTransform lightMapTransform aoMapTransform bumpMapTransform"
+      },
+      {
+       "t": 17505,
+       "name": "",
+       "stapel": "R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.pass src/gfx/kinolook.js:592:12 < KinoLook.render src/gfx/kinolook.js:795:10 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3",
+       "uniforms": "morphTexture tColor uSrcTexel uTime uInvProj uCamRot uCamPos uSunDir uAerial uSunScr"
+      },
+      {
+       "t": 20530,
+       "name": "",
+       "stapel": "R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:657:34 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3 < bild src/main.js:1211:3",
+       "uniforms": "morphTexture _gl_DrawID sampler2D usampler2D batchingColorTexture mapTransform alphaMapTransform lightMapTransform aoMapTransform bumpMapTransform"
+      },
+      {
+       "t": 26877,
+       "name": "",
+       "stapel": "R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:692:7 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3 < bild src/main.js:1211:3",
+       "uniforms": "morphTexture _gl_DrawID sampler2D usampler2D batchingColorTexture mapTransform alphaMapTransform lightMapTransform aoMapTransform bumpMapTransform"
+      },
+      {
+       "t": 77032,
+       "name": "",
+       "stapel": "R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:657:34 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3 < bild src/main.js:1211:3",
+       "uniforms": "morphTexture uT uFlash uPxK"
+      }
+     ],
+     "gc": 113,
+     "ap_aenderungen": 42
+    }
+   ]
+  }
+ }
+}

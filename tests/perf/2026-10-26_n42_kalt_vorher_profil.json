@@ -1,0 +1,5640 @@
+{
+ "datum": "2026-10-26T20:14:36",
+ "modus": "kalt",
+ "profil": {
+  "drossel": 4,
+  "dpr": 2.6,
+  "geraet": "quer",
+  "rtt": 165,
+  "kbit": 9000,
+  "sek": 180,
+  "strecke": "seed=20261026&d=2&g=1&h=1",
+  "js_profil": true
+ },
+ "varianten": {
+  "vorher_profil": {
+   "wurzel": "/Users/wohnzimmer/dev/.wt/stuntbahn-stuntbahn-n42-tempo-hindernisse",
+   "zusatz": "",
+   "laeufe": [
+    {
+     "leer": {
+      "dcl": 2416,
+      "erstesBild": 17743,
+      "bereit": 17680,
+      "menu": 17772,
+      "klick": 18740,
+      "fahrt": 21674,
+      "lade": [
+       [
+        2415,
+        "Himmel und Licht"
+       ],
+       [
+        11049,
+        "Auto"
+       ],
+       [
+        11064,
+        "Auto lackieren"
+       ],
+       [
+        12449,
+        "Autopilot prüft die Strecke"
+       ],
+       [
+        16907,
+        "Grafik einstellen"
+       ]
+      ],
+      "lt": [
+       [
+        2148,
+        272
+       ],
+       [
+        2420,
+        80
+       ],
+       [
+        3935,
+        76
+       ],
+       [
+        10157,
+        146
+       ],
+       [
+        11046,
+        1403
+       ],
+       [
+        13279,
+        57
+       ],
+       [
+        13342,
+        60
+       ],
+       [
+        14908,
+        1562
+       ],
+       [
+        16517,
+        389
+       ],
+       [
+        17294,
+        379
+       ],
+       [
+        17680,
+        61
+       ],
+       [
+        17991,
+        72
+       ],
+       [
+        18739,
+        388
+       ],
+       [
+        19128,
+        134
+       ],
+       [
+        21575,
+        98
+       ]
+      ],
+      "res": [
+       {
+        "u": "css/style.css",
+        "s": 203,
+        "e": 396,
+        "n": 13199,
+        "roh": 49389,
+        "typ": "link"
+       },
+       {
+        "u": "src/main.js",
+        "s": 204,
+        "e": 432,
+        "n": 46612,
+        "roh": 130117,
+        "typ": "script"
+       },
+       {
+        "u": "src/game/lohn.js",
+        "s": 436,
+        "e": 658,
+        "n": 5227,
+        "roh": 11237,
+        "typ": "script"
+       },
+       {
+        "u": "lib/three.module.min.js",
+        "s": 436,
+        "e": 1665,
+        "n": 93279,
+        "roh": 376189,
+        "typ": "script"
+       },
+       {
+        "u": "src/build.js",
+        "s": 436,
+        "e": 658,
+        "n": 355,
+        "roh": 35,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/materials.js",
+        "s": 437,
+        "e": 982,
+        "n": 14954,
+        "roh": 44420,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/themes.js",
+        "s": 437,
+        "e": 660,
+        "n": 3795,
+        "roh": 8441,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/env.js",
+        "s": 437,
+        "e": 660,
+        "n": 4346,
+        "roh": 9236,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/tunnel.js",
+        "s": 437,
+        "e": 659,
+        "n": 9202,
+        "roh": 24338,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/zeit.js",
+        "s": 437,
+        "e": 660,
+        "n": 2196,
+        "roh": 4148,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/wetter.js",
+        "s": 437,
+        "e": 660,
+        "n": 3840,
+        "roh": 7981,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/themes.js",
+        "s": 437,
+        "e": 660,
+        "n": 4962,
+        "roh": 12629,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/zeit.js",
+        "s": 437,
+        "e": 660,
+        "n": 9035,
+        "roh": 22170,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/scheibe.js",
+        "s": 437,
+        "e": 660,
+        "n": 2389,
+        "roh": 4442,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/world.js",
+        "s": 437,
+        "e": 675,
+        "n": 6225,
+        "roh": 16363,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/kulisse2.js",
+        "s": 437,
+        "e": 988,
+        "n": 14742,
+        "roh": 39483,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/carmesh.js",
+        "s": 438,
+        "e": 683,
+        "n": 8869,
+        "roh": 23204,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/camera.js",
+        "s": 438,
+        "e": 988,
+        "n": 11220,
+        "roh": 29433,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/cockpit.js",
+        "s": 438,
+        "e": 993,
+        "n": 15229,
+        "roh": 42668,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/gauges.js",
+        "s": 438,
+        "e": 705,
+        "n": 2320,
+        "roh": 4242,
+        "typ": "script"
+       },
+       {
+        "u": "src/game/input.js",
+        "s": 438,
+        "e": 709,
+        "n": 3364,
+        "roh": 7625,
+        "typ": "script"
+       },
+       {
+        "u": "src/game/race.js",
+        "s": 438,
+        "e": 1361,
+        "n": 36682,
+        "roh": 106733,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/verify.js",
+        "s": 438,
+        "e": 737,
+        "n": 1643,
+        "roh": 3716,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/generator.js",
+        "s": 438,
+        "e": 737,
+        "n": 8145,
+        "roh": 22367,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/trk.js",
+        "s": 438,
+        "e": 741,
+        "n": 3032,
+        "roh": 6394,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/trkimport.js",
+        "s": 438,
+        "e": 744,
+        "n": 4802,
+        "roh": 11423,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/trkelems.js",
+        "s": 438,
+        "e": 749,
+        "n": 5081,
+        "roh": 15620,
+        "typ": "script"
+       },
+       {
+        "u": "src/ui/ui.js",
+        "s": 438,
+        "e": 1368,
+        "n": 38450,
+        "roh": 111864,
+        "typ": "script"
+       },
+       {
+        "u": "src/game/trklib.js",
+        "s": 438,
+        "e": 751,
+        "n": 2106,
+        "roh": 3798,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/showcase.js",
+        "s": 439,
+        "e": 751,
+        "n": 1371,
+        "roh": 2475,
+        "typ": "script"
+       },
+       {
+        "u": "src/game/sammlung.js",
+        "s": 439,
+        "e": 753,
+        "n": 2918,
+        "roh": 5749,
+        "typ": "script"
+       },
+       {
+        "u": "src/game/ghost.js",
+        "s": 439,
+        "e": 761,
+        "n": 1122,
+        "roh": 1700,
+        "typ": "script"
+       },
+       {
+        "u": "src/game/store.js",
+        "s": 439,
+        "e": 761,
+        "n": 6921,
+        "roh": 17942,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/gegnervis.js",
+        "s": 439,
+        "e": 777,
+        "n": 4871,
+        "roh": 11398,
+        "typ": "script"
+       },
+       {
+        "u": "src/ai/gegner.js",
+        "s": 439,
+        "e": 1290,
+        "n": 23525,
+        "roh": 68086,
+        "typ": "script"
+       },
+       {
+        "u": "src/game/online.js",
+        "s": 439,
+        "e": 786,
+        "n": 9688,
+        "roh": 24692,
+        "typ": "script"
+       },
+       {
+        "u": "src/game/onlinestrecke.js",
+        "s": 439,
+        "e": 786,
+        "n": 1331,
+        "roh": 2128,
+        "typ": "script"
+       },
+       {
+        "u": "src/physics/schaden.js",
+        "s": 440,
+        "e": 794,
+        "n": 8497,
+        "roh": 20223,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/schadenvis.js",
+        "s": 440,
+        "e": 799,
+        "n": 4507,
+        "roh": 10163,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/schadenlook.js",
+        "s": 440,
+        "e": 802,
+        "n": 4221,
+        "roh": 10157,
+        "typ": "script"
+       },
+       {
+        "u": "src/game/replay.js",
+        "s": 440,
+        "e": 805,
+        "n": 2863,
+        "roh": 6385,
+        "typ": "script"
+       },
+       {
+        "u": "src/game/highlights.js",
+        "s": 440,
+        "e": 1049,
+        "n": 16007,
+        "roh": 44648,
+        "typ": "script"
+       },
+       {
+        "u": "src/game/action.js",
+        "s": 440,
+        "e": 837,
+        "n": 8560,
+        "roh": 21947,
+        "typ": "script"
+       },
+       {
+        "u": "src/ui/cliprec.js",
+        "s": 440,
+        "e": 838,
+        "n": 2552,
+        "roh": 4869,
+        "typ": "script"
+       },
+       {
+        "u": "src/game/cinecam.js",
+        "s": 440,
+        "e": 1052,
+        "n": 12649,
+        "roh": 36658,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/quality.js",
+        "s": 440,
+        "e": 839,
+        "n": 4099,
+        "roh": 10237,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/kern/autopilot.js",
+        "s": 440,
+        "e": 845,
+        "n": 7306,
+        "roh": 19623,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/kern/startprobe.js",
+        "s": 441,
+        "e": 848,
+        "n": 2710,
+        "roh": 4908,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/kern/reflex.js",
+        "s": 441,
+        "e": 850,
+        "n": 3106,
+        "roh": 6208,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/kern/impostor.js",
+        "s": 441,
+        "e": 857,
+        "n": 4286,
+        "roh": 9786,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/lineviz.js",
+        "s": 441,
+        "e": 871,
+        "n": 6091,
+        "roh": 14353,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/kulisse.js",
+        "s": 441,
+        "e": 1119,
+        "n": 13536,
+        "roh": 37883,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/fx.js",
+        "s": 441,
+        "e": 898,
+        "n": 8371,
+        "roh": 25918,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/pyro.js",
+        "s": 441,
+        "e": 902,
+        "n": 3950,
+        "roh": 8802,
+        "typ": "script"
+       },
+       {
+        "u": "src/game/zielshow.js",
+        "s": 441,
+        "e": 916,
+        "n": 6463,
+        "roh": 14539,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/minikarte.js",
+        "s": 441,
+        "e": 1119,
+        "n": 10468,
+        "roh": 27933,
+        "typ": "script"
+       },
+       {
+        "u": "src/audio/sound.js",
+        "s": 441,
+        "e": 1121,
+        "n": 12707,
+        "roh": 40608,
+        "typ": "script"
+       },
+       {
+        "u": "src/ui/n40optionen.js",
+        "s": 441,
+        "e": 917,
+        "n": 1848,
+        "roh": 3257,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/tierform.js",
+        "s": 441,
+        "e": 917,
+        "n": 6767,
+        "roh": 15914,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/post.js",
+        "s": 442,
+        "e": 920,
+        "n": 4910,
+        "roh": 11882,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/kern/taau.js",
+        "s": 442,
+        "e": 940,
+        "n": 9331,
+        "roh": 23535,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/kinolook.js",
+        "s": 442,
+        "e": 1212,
+        "n": 18265,
+        "roh": 52996,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/deco.js",
+        "s": 442,
+        "e": 1217,
+        "n": 14096,
+        "roh": 41676,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/deko.js",
+        "s": 442,
+        "e": 959,
+        "n": 9158,
+        "roh": 23558,
+        "typ": "script"
+       },
+       {
+        "u": "src/core/util.js",
+        "s": 442,
+        "e": 959,
+        "n": 1542,
+        "roh": 2631,
+        "typ": "script"
+       },
+       {
+        "u": "src/core/showspeed.js",
+        "s": 442,
+        "e": 961,
+        "n": 1455,
+        "roh": 2089,
+        "typ": "script"
+       },
+       {
+        "u": "src/core/gforce.js",
+        "s": 442,
+        "e": 965,
+        "n": 3852,
+        "roh": 8429,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/defs.js",
+        "s": 442,
+        "e": 969,
+        "n": 4464,
+        "roh": 9942,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/wetter.js",
+        "s": 665,
+        "e": 1056,
+        "n": 4568,
+        "roh": 10269,
+        "typ": "script"
+       },
+       {
+        "u": "lib/addons/loaders/HDRLoader.js",
+        "s": 665,
+        "e": 1056,
+        "n": 1920,
+        "roh": 3429,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/pieces_gel.js",
+        "s": 665,
+        "e": 1071,
+        "n": 3577,
+        "roh": 7933,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/gelaende.js",
+        "s": 665,
+        "e": 1294,
+        "n": 16406,
+        "roh": 45263,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/terrgrid.js",
+        "s": 666,
+        "e": 1072,
+        "n": 2286,
+        "roh": 4213,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/pieces_hind.js",
+        "s": 666,
+        "e": 1079,
+        "n": 5825,
+        "roh": 13212,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/jumpdeck.js",
+        "s": 676,
+        "e": 1080,
+        "n": 2939,
+        "roh": 5860,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/vao.js",
+        "s": 676,
+        "e": 1084,
+        "n": 3221,
+        "roh": 6295,
+        "typ": "script"
+       },
+       {
+        "u": "lib/addons/libs/meshopt_decoder.module.js",
+        "s": 685,
+        "e": 1101,
+        "n": 7563,
+        "roh": 26491,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/carlod.js",
+        "s": 685,
+        "e": 1111,
+        "n": 848,
+        "roh": 794,
+        "typ": "script"
+       },
+       {
+        "u": "lib/addons/loaders/GLTFLoader.js",
+        "s": 685,
+        "e": 1299,
+        "n": 13967,
+        "roh": 45403,
+        "typ": "script"
+       },
+       {
+        "u": "src/physics/car.js",
+        "s": 685,
+        "e": 1313,
+        "n": 18470,
+        "roh": 52258,
+        "typ": "script"
+       },
+       {
+        "u": "lib/addons/utils/BufferGeometryUtils.js",
+        "s": 685,
+        "e": 1116,
+        "n": 4882,
+        "roh": 13537,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/build.js",
+        "s": 739,
+        "e": 1321,
+        "n": 19475,
+        "roh": 58053,
+        "typ": "script"
+       },
+       {
+        "u": "src/physics/collide.js",
+        "s": 739,
+        "e": 1133,
+        "n": 3002,
+        "roh": 8403,
+        "typ": "script"
+       },
+       {
+        "u": "src/ai/ideal.js",
+        "s": 739,
+        "e": 1143,
+        "n": 9015,
+        "roh": 23120,
+        "typ": "script"
+       },
+       {
+        "u": "src/ai/profile.js",
+        "s": 739,
+        "e": 1321,
+        "n": 10856,
+        "roh": 26837,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/pieces_3d.js",
+        "s": 740,
+        "e": 1171,
+        "n": 8611,
+        "roh": 20779,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/pieces.js",
+        "s": 740,
+        "e": 1335,
+        "n": 10755,
+        "roh": 27618,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/pieces_trk.js",
+        "s": 740,
+        "e": 1179,
+        "n": 8838,
+        "roh": 22886,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/generator3d.js",
+        "s": 740,
+        "e": 1187,
+        "n": 7900,
+        "roh": 20719,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/generatorG.js",
+        "s": 740,
+        "e": 1194,
+        "n": 7406,
+        "roh": 19393,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/trkdesign.js",
+        "s": 752,
+        "e": 1194,
+        "n": 1952,
+        "roh": 3626,
+        "typ": "script"
+       },
+       {
+        "u": "src/physics/extras.js",
+        "s": 763,
+        "e": 1198,
+        "n": 2768,
+        "roh": 4866,
+        "typ": "script"
+       },
+       {
+        "u": "src/game/zielstunt.js",
+        "s": 763,
+        "e": 1204,
+        "n": 7048,
+        "roh": 16195,
+        "typ": "script"
+       },
+       {
+        "u": "src/net/paket.js",
+        "s": 787,
+        "e": 1217,
+        "n": 2927,
+        "roh": 6528,
+        "typ": "script"
+       },
+       {
+        "u": "src/net/puffer.js",
+        "s": 788,
+        "e": 1223,
+        "n": 4997,
+        "roh": 12042,
+        "typ": "script"
+       },
+       {
+        "u": "src/game/rennfeld.js",
+        "s": 788,
+        "e": 1226,
+        "n": 3903,
+        "roh": 8422,
+        "typ": "script"
+       },
+       {
+        "u": "src/physics/autoauto.js",
+        "s": 788,
+        "e": 1231,
+        "n": 4766,
+        "roh": 11239,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/kern/oktaeder.js",
+        "s": 858,
+        "e": 1262,
+        "n": 2162,
+        "roh": 3917,
+        "typ": "script"
+       },
+       {
+        "u": "src/game/warn.js",
+        "s": 872,
+        "e": 1286,
+        "n": 3208,
+        "roh": 6227,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/kern/taau_mathe.js",
+        "s": 941,
+        "e": 1304,
+        "n": 6908,
+        "roh": 15979,
+        "typ": "script"
+       },
+       {
+        "u": "src/ai/autopilot.js",
+        "s": 989,
+        "e": 1325,
+        "n": 4417,
+        "roh": 9880,
+        "typ": "script"
+       },
+       {
+        "u": "src/physics/arcade.js",
+        "s": 989,
+        "e": 1330,
+        "n": 3905,
+        "roh": 7949,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/tiere.js",
+        "s": 989,
+        "e": 1333,
+        "n": 3892,
+        "roh": 9552,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/cockpitmat.js",
+        "s": 994,
+        "e": 1335,
+        "n": 2576,
+        "roh": 5851,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/kartegeo.js",
+        "s": 1121,
+        "e": 1391,
+        "n": 2938,
+        "roh": 6125,
+        "typ": "script"
+       },
+       {
+        "u": "src/physics/air.js",
+        "s": 1173,
+        "e": 1392,
+        "n": 2009,
+        "roh": 3364,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/deco.js",
+        "s": 1218,
+        "e": 1433,
+        "n": 9130,
+        "roh": 25100,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/kulisse2.js",
+        "s": 1218,
+        "e": 1440,
+        "n": 8009,
+        "roh": 20740,
+        "typ": "script"
+       },
+       {
+        "u": "lib/addons/utils/SkeletonUtils.js",
+        "s": 1300,
+        "e": 1501,
+        "n": 1883,
+        "roh": 4123,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/obstacles.js",
+        "s": 1323,
+        "e": 1528,
+        "n": 6147,
+        "roh": 15673,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/trkterrain.js",
+        "s": 1323,
+        "e": 1532,
+        "n": 4132,
+        "roh": 10009,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/scenery.js",
+        "s": 1324,
+        "e": 1536,
+        "n": 5402,
+        "roh": 15337,
+        "typ": "script"
+       },
+       {
+        "u": "src/game/jumpassist.js",
+        "s": 1363,
+        "e": 1579,
+        "n": 3048,
+        "roh": 5925,
+        "typ": "script"
+       },
+       {
+        "u": "src/ai/drift.js",
+        "s": 1363,
+        "e": 1586,
+        "n": 8097,
+        "roh": 19504,
+        "typ": "script"
+       },
+       {
+        "u": "src/game/stunts.js",
+        "s": 1364,
+        "e": 1592,
+        "n": 5440,
+        "roh": 13276,
+        "typ": "script"
+       },
+       {
+        "u": "src/ui/minimap.js",
+        "s": 1371,
+        "e": 1594,
+        "n": 4157,
+        "roh": 10442,
+        "typ": "script"
+       },
+       {
+        "u": "src/ui/gmeter.js",
+        "s": 1371,
+        "e": 1598,
+        "n": 2768,
+        "roh": 6064,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/kulisse.js",
+        "s": 1435,
+        "e": 1642,
+        "n": 5735,
+        "roh": 14113,
+        "typ": "script"
+       },
+       {
+        "u": "lib/three.core.min.js",
+        "s": 1667,
+        "e": 2143,
+        "n": 105587,
+        "roh": 389591,
+        "typ": "script"
+       },
+       {
+        "u": "assets/snd/sfx.json",
+        "s": 2361,
+        "e": 2577,
+        "n": 847,
+        "roh": 1532,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/snd/sfx.m4a",
+        "s": 2361,
+        "e": 8288,
+        "n": 274054,
+        "roh": 273754,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/themes/herbst/sky.json",
+        "s": 2407,
+        "e": 2630,
+        "n": 572,
+        "roh": 407,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/themes/herbst/env.hdr",
+        "s": 2413,
+        "e": 10151,
+        "n": 644665,
+        "roh": 1092974,
+        "typ": "fetch"
+       },
+       {
+        "u": "lib/addons/loaders/KTX2Loader.js",
+        "s": 2413,
+        "e": 2634,
+        "n": 9333,
+        "roh": 36567,
+        "typ": "script"
+       },
+       {
+        "u": "assets/car/goblin.glb",
+        "s": 2414,
+        "e": 11000,
+        "n": 871976,
+        "roh": 871676,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/tex/veg_atlas.json",
+        "s": 2414,
+        "e": 2644,
+        "n": 648,
+        "roh": 1384,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/deco/rocks.glb",
+        "s": 2415,
+        "e": 3928,
+        "n": 87364,
+        "roh": 87064,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/themes/herbst/sky.jpg",
+        "s": 2415,
+        "e": 4074,
+        "n": 90597,
+        "roh": 90297,
+        "typ": "img"
+       },
+       {
+        "u": "assets/tex/veg_atlas.webp",
+        "s": 2416,
+        "e": 8878,
+        "n": 326936,
+        "roh": 326636,
+        "typ": "img"
+       },
+       {
+        "u": "assets/tex/gravel_diff.webp",
+        "s": 2416,
+        "e": 4381,
+        "n": 99700,
+        "roh": 99400,
+        "typ": "img"
+       },
+       {
+        "u": "assets/tex/gravel_nor.webp",
+        "s": 2416,
+        "e": 5420,
+        "n": 134446,
+        "roh": 134146,
+        "typ": "img"
+       },
+       {
+        "u": "lib/addons/utils/WorkerPool.js",
+        "s": 2638,
+        "e": 2902,
+        "n": 1364,
+        "roh": 3110,
+        "typ": "script"
+       },
+       {
+        "u": "lib/addons/libs/ktx-parse.module.js",
+        "s": 2638,
+        "e": 2906,
+        "n": 5992,
+        "roh": 19932,
+        "typ": "script"
+       },
+       {
+        "u": "lib/addons/libs/zstddec.module.js",
+        "s": 2638,
+        "e": 3025,
+        "n": 17327,
+        "roh": 39754,
+        "typ": "script"
+       },
+       {
+        "u": "lib/addons/math/ColorSpaces.js",
+        "s": 2638,
+        "e": 2919,
+        "n": 1539,
+        "roh": 4290,
+        "typ": "script"
+       },
+       {
+        "u": "assets/themes/tex/ScatteredLeaves009_diff.ktx2",
+        "s": 3037,
+        "e": 8580,
+        "n": 236726,
+        "roh": 236426,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/themes/tex/ScatteredLeaves009_nor.ktx2",
+        "s": 3038,
+        "e": 8932,
+        "n": 276035,
+        "roh": 275735,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/themes/tex/ScatteredLeaves009_arm.ktx2",
+        "s": 3038,
+        "e": 8368,
+        "n": 214220,
+        "roh": 213920,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/tex/asphalt_diff.ktx2",
+        "s": 3039,
+        "e": 8071,
+        "n": 200931,
+        "roh": 200631,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/tex/asphalt_arm.ktx2",
+        "s": 3040,
+        "e": 8257,
+        "n": 211028,
+        "roh": 210728,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/tex/asphalt_nor.ktx2",
+        "s": 3040,
+        "e": 8497,
+        "n": 231271,
+        "roh": 230971,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/tex/concrete_diff.ktx2",
+        "s": 3040,
+        "e": 7909,
+        "n": 182707,
+        "roh": 182407,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/tex/concrete_nor.ktx2",
+        "s": 3040,
+        "e": 7711,
+        "n": 176594,
+        "roh": 176294,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/tex/concrete_arm.ktx2",
+        "s": 3041,
+        "e": 3399,
+        "n": 5484,
+        "roh": 5184,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/tex/grass_diff.ktx2",
+        "s": 3041,
+        "e": 8601,
+        "n": 234920,
+        "roh": 234620,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/tex/grass_nor.ktx2",
+        "s": 3041,
+        "e": 8940,
+        "n": 282092,
+        "roh": 281792,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/tex/grass_arm.ktx2",
+        "s": 3041,
+        "e": 8118,
+        "n": 201174,
+        "roh": 200874,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/tex/pad_diff.ktx2",
+        "s": 3041,
+        "e": 8278,
+        "n": 203561,
+        "roh": 203261,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/tex/pad_arm.ktx2",
+        "s": 3042,
+        "e": 6850,
+        "n": 138749,
+        "roh": 138449,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/tex/pad_nor.ktx2",
+        "s": 3042,
+        "e": 7952,
+        "n": 187123,
+        "roh": 186823,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/tex/metal_diff.ktx2",
+        "s": 3042,
+        "e": 7546,
+        "n": 167103,
+        "roh": 166803,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/tex/metal_nor.ktx2",
+        "s": 3042,
+        "e": 6624,
+        "n": 130549,
+        "roh": 130249,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/tex/metal_arm.ktx2",
+        "s": 3043,
+        "e": 7768,
+        "n": 179807,
+        "roh": 179507,
+        "typ": "fetch"
+       },
+       {
+        "u": "lib/addons/libs/basis/basis_transcoder.js",
+        "s": 3404,
+        "e": 4140,
+        "n": 15469,
+        "roh": 57529,
+        "typ": "fetch"
+       },
+       {
+        "u": "lib/addons/libs/basis/basis_transcoder.wasm",
+        "s": 3405,
+        "e": 8818,
+        "n": 247919,
+        "roh": 527333,
+        "typ": "fetch"
+       },
+       {
+        "u": "icons/icon-192.png",
+        "s": 8882,
+        "e": 9091,
+        "n": 1857,
+        "roh": 1557,
+        "typ": "other"
+       },
+       {
+        "u": "assets/tex/asphalt_detail_nor.webp",
+        "s": 11064,
+        "e": 11409,
+        "n": 39604,
+        "roh": 39304,
+        "typ": "img"
+       },
+       {
+        "u": "assets/tex/fir_card_0.webp",
+        "s": 11064,
+        "e": 12107,
+        "n": 190292,
+        "roh": 189992,
+        "typ": "img"
+       },
+       {
+        "u": "assets/tex/fir_card_1.webp",
+        "s": 11064,
+        "e": 12136,
+        "n": 186698,
+        "roh": 186398,
+        "typ": "img"
+       },
+       {
+        "u": "assets/tex/imp/impostor.json",
+        "s": 13424,
+        "e": 13682,
+        "n": 680,
+        "roh": 1659,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/tex/imp/tanne0_farbe.webp",
+        "s": 13684,
+        "e": 14265,
+        "n": 54546,
+        "roh": 54246,
+        "typ": "img"
+       },
+       {
+        "u": "assets/tex/imp/tanne0_nor.webp",
+        "s": 13684,
+        "e": 14015,
+        "n": 24926,
+        "roh": 24626,
+        "typ": "img"
+       },
+       {
+        "u": "assets/tex/imp/tanne1_nor.webp",
+        "s": 13684,
+        "e": 14031,
+        "n": 25904,
+        "roh": 25604,
+        "typ": "img"
+       },
+       {
+        "u": "assets/tex/imp/tanne1_farbe.webp",
+        "s": 13684,
+        "e": 14379,
+        "n": 56494,
+        "roh": 56194,
+        "typ": "img"
+       },
+       {
+        "u": "assets/tex/imp/laub1_nor.webp",
+        "s": 13685,
+        "e": 14221,
+        "n": 46706,
+        "roh": 46406,
+        "typ": "img"
+       },
+       {
+        "u": "assets/tex/imp/laub2_nor.webp",
+        "s": 13685,
+        "e": 14262,
+        "n": 50908,
+        "roh": 50608,
+        "typ": "img"
+       },
+       {
+        "u": "assets/tex/imp/laub1_farbe.webp",
+        "s": 13685,
+        "e": 14832,
+        "n": 163386,
+        "roh": 163086,
+        "typ": "img"
+       },
+       {
+        "u": "assets/tex/imp/laub2_farbe.webp",
+        "s": 13685,
+        "e": 14907,
+        "n": 177360,
+        "roh": 177060,
+        "typ": "img"
+       },
+       {
+        "u": "assets/car/goblin_mid.glb",
+        "s": 17364,
+        "e": 17976,
+        "n": 249064,
+        "roh": 248764,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/car/goblin_far.glb",
+        "s": 17365,
+        "e": 17888,
+        "n": 171764,
+        "roh": 171464,
+        "typ": "fetch"
+       },
+       {
+        "u": "icons/icon-192.png",
+        "s": 19507,
+        "e": 19676,
+        "n": 1857,
+        "roh": 1557,
+        "typ": "other"
+       }
+      ],
+      "sw": true,
+      "apTime": 91.07500000001855,
+      "build": "0527196459",
+      "nach_klick": {
+       "max": 33.2,
+       "ueber50": 0,
+       "ueber100": 0,
+       "erste": [
+        3,
+        17,
+        17,
+        17,
+        17,
+        17
+       ]
+      },
+      "profil": {
+       "intervall": 10,
+       "fenster": [
+        {
+         "a": 2415,
+         "b": 11049,
+         "proben": 719,
+         "inklusiv": [
+          [
+           "(anonym) lib/three.core.min.js:9",
+           15
+          ],
+          [
+           "parse lib/addons/loaders/HDRLoader.js:1",
+           10
+          ],
+          [
+           "makeEnvironment src/gfx/env.js:92",
+           9
+          ],
+          [
+           "(anonym) lib/addons/loaders/GLTFLoader.js:1",
+           7
+          ],
+          [
+           "u lib/addons/loaders/HDRLoader.js:5",
+           5
+          ],
+          [
+           "_fromTexture lib/three.module.min.js:3823",
+           5
+          ],
+          [
+           "fromEquirectangular lib/three.module.min.js:3823",
+           5
+          ],
+          [
+           "(anonym) lib/three.module.min.js:4220",
+           4
+          ],
+          [
+           "dr lib/three.module.min.js:4220",
+           4
+          ],
+          [
+           "vn lib/three.module.min.js:4220",
+           4
+          ],
+          [
+           "cr lib/three.module.min.js:4220",
+           4
+          ],
+          [
+           "js-to-wasm ",
+           3
+          ],
+          [
+           "(anonym) lib/addons/libs/meshopt_decoder.module.js:1",
+           3
+          ],
+          [
+           "load lib/three.core.min.js:9",
+           3
+          ]
+         ],
+         "selbst": [
+          [
+           "(Leerlauf/nativ)",
+           682
+          ],
+          [
+           "u lib/addons/loaders/HDRLoader.js:5",
+           5
+          ],
+          [
+           "makeEnvironment src/gfx/env.js:92",
+           4
+          ],
+          [
+           "(anonym) lib/addons/loaders/GLTFLoader.js:1",
+           3
+          ],
+          [
+           "fetch ",
+           2
+          ],
+          [
+           "cut src/audio/sound.js:220",
+           2
+          ],
+          [
+           "parse lib/addons/loaders/HDRLoader.js:1",
+           2
+          ],
+          [
+           "x lib/addons/loaders/HDRLoader.js:5",
+           2
+          ]
+         ]
+        },
+        {
+         "a": 11049,
+         "b": 11064,
+         "proben": 1,
+         "inklusiv": [
+          [
+           "kerbTexture src/gfx/materials.js:461",
+           1
+          ],
+          [
+           "makeMaterials src/gfx/materials.js:518",
+           1
+          ],
+          [
+           "boot src/main.js:226",
+           1
+          ]
+         ],
+         "selbst": [
+          [
+           "kerbTexture src/gfx/materials.js:461",
+           1
+          ]
+         ]
+        },
+        {
+         "a": 11064,
+         "b": 12449,
+         "proben": 578,
+         "inklusiv": [
+          [
+           "boot src/main.js:226",
+           472
+          ],
+          [
+           "loadGenerated src/main.js:463",
+           447
+          ],
+          [
+           "verify src/track/verify.js:57",
+           446
+          ],
+          [
+           "prepare src/track/verify.js:13",
+           437
+          ],
+          [
+           "buildTrack src/track/build.js:252",
+           407
+          ],
+          [
+           "buildGelTerrain src/track/gelaende.js:363",
+           317
+          ],
+          [
+           "adaptiveGrid src/track/terrgrid.js:27",
+           76
+          ],
+          [
+           "makeCar src/gfx/carmesh.js:161",
+           48
+          ],
+          [
+           "projectCoarse src/track/terrgrid.js:50",
+           47
+          ],
+          [
+           "toFloat src/gfx/carmesh.js:20",
+           30
+          ],
+          [
+           "buildPiece src/track/build.js:308",
+           30
+          ],
+          [
+           "(anonym) src/track/build.js:677",
+           30
+          ],
+          [
+           "planElevation src/track/gelaende.js:89",
+           25
+          ],
+          [
+           "Cockpit src/gfx/cockpit.js:148",
+           22
+          ]
+         ],
+         "selbst": [
+          [
+           "buildGelTerrain src/track/gelaende.js:363",
+           237
+          ],
+          [
+           "(Leerlauf/nativ)",
+           58
+          ],
+          [
+           "projectCoarse src/track/terrgrid.js:50",
+           46
+          ],
+          [
+           "adaptiveGrid src/track/terrgrid.js:27",
+           29
+          ],
+          [
+           "toFloat src/gfx/carmesh.js:20",
+           27
+          ],
+          [
+           "carveUnderRoads src/track/trkterrain.js:140",
+           17
+          ],
+          [
+           "solveBand src/track/gelaende.js:287",
+           12
+          ],
+          [
+           "noiseField src/gfx/cockpitmat.js:8",
+           7
+          ]
+         ]
+        },
+        {
+         "a": 12449,
+         "b": 16907,
+         "proben": 537,
+         "inklusiv": [
+          [
+           "loadTrack src/main.js:609",
+           211
+          ],
+          [
+           "buildWorld src/gfx/world.js:67",
+           144
+          ],
+          [
+           "(anonym) lib/three.module.min.js:4220",
+           109
+          ],
+          [
+           "tunnelAttr src/track/tunnel.js:139",
+           74
+          ],
+          [
+           "ho lib/three.module.min.js:4220",
+           70
+          ],
+          [
+           "dr lib/three.module.min.js:4220",
+           69
+          ],
+          [
+           "vn lib/three.module.min.js:4220",
+           69
+          ],
+          [
+           "cr lib/three.module.min.js:4220",
+           69
+          ],
+          [
+           "boot src/main.js:226",
+           55
+          ],
+          [
+           "render src/gfx/kinolook.js:651",
+           54
+          ],
+          [
+           "drawFrame src/main.js:1749",
+           54
+          ],
+          [
+           "actionVorwaermen src/main.js:1743",
+           54
+          ],
+          [
+           "buildDeco src/gfx/deco.js:306",
+           43
+          ],
+          [
+           "bakeStaticShadow src/gfx/env.js:122",
+           42
+          ]
+         ],
+         "selbst": [
+          [
+           "(Leerlauf/nativ)",
+           236
+          ],
+          [
+           "tunnelAttr src/track/tunnel.js:139",
+           73
+          ],
+          [
+           "r lib/three.module.min.js:4196",
+           30
+          ],
+          [
+           "computeBoundingSphere lib/three.core.min.js:5",
+           23
+          ],
+          [
+           "D lib/three.module.min.js:4162",
+           23
+          ],
+          [
+           "step src/game/race.js:332",
+           8
+          ],
+          [
+           "_tri src/physics/collide.js:99",
+           6
+          ],
+          [
+           "$a lib/three.module.min.js:4118",
+           6
+          ]
+         ]
+        },
+        {
+         "a": 16907,
+         "b": 17772,
+         "proben": 83,
+         "inklusiv": [
+          [
+           "messeBilder src/gfx/kern/startprobe.js:77",
+           27
+          ],
+          [
+           "render src/main.js:1463",
+           11
+          ],
+          [
+           "(anonym) src/main.js:334",
+           11
+          ],
+          [
+           "(anonym) lib/three.module.min.js:4220",
+           9
+          ],
+          [
+           "render src/gfx/kinolook.js:651",
+           9
+          ],
+          [
+           "drawFrame src/main.js:1749",
+           9
+          ],
+          [
+           "showMenu src/ui/ui.js:248",
+           6
+          ],
+          [
+           "boot src/main.js:226",
+           6
+          ],
+          [
+           "dr lib/three.module.min.js:4220",
+           4
+          ],
+          [
+           "vn lib/three.module.min.js:4220",
+           4
+          ],
+          [
+           "cr lib/three.module.min.js:4220",
+           4
+          ],
+          [
+           "drawGelMap src/ui/minimap.js:129",
+           4
+          ],
+          [
+           "drawLayoutMap src/ui/minimap.js:70",
+           4
+          ],
+          [
+           "Vn lib/three.module.min.js:4220",
+           3
+          ]
+         ],
+         "selbst": [
+          [
+           "(Leerlauf/nativ)",
+           47
+          ],
+          [
+           "messeBilder src/gfx/kern/startprobe.js:77",
+           16
+          ],
+          [
+           "hDiff src/ui/ui.js:47",
+           2
+          ],
+          [
+           "drawGelMap src/ui/minimap.js:129",
+           2
+          ],
+          [
+           "speed src/physics/car.js:204",
+           1
+          ],
+          [
+           "computeBoundingSphere lib/three.core.min.js:5",
+           1
+          ],
+          [
+           "d lib/three.module.min.js:5",
+           1
+          ],
+          [
+           "io lib/three.module.min.js:4169",
+           1
+          ]
+         ]
+        }
+       ]
+      },
+      "fehler": [],
+      "etikett": "leer"
+     },
+     "sw_neu": {
+      "dcl": 368,
+      "erstesBild": 6016,
+      "bereit": 5765,
+      "menu": 6142,
+      "klick": 6979,
+      "fahrt": 9749,
+      "lade": [
+       [
+        367,
+        "Himmel und Licht"
+       ],
+       [
+        566,
+        "Auto"
+       ],
+       [
+        681,
+        "Auto lackieren"
+       ],
+       [
+        1979,
+        "Autopilot prüft die Strecke"
+       ]
+      ],
+      "lt": [
+       [
+        132,
+        238
+       ],
+       [
+        661,
+        1318
+       ],
+       [
+        2176,
+        120
+       ],
+       [
+        2954,
+        56
+       ],
+       [
+        3014,
+        61
+       ],
+       [
+        3693,
+        1576
+       ],
+       [
+        5318,
+        446
+       ],
+       [
+        5765,
+        242
+       ],
+       [
+        6044,
+        71
+       ],
+       [
+        6979,
+        259
+       ],
+       [
+        7238,
+        107
+       ],
+       [
+        9657,
+        91
+       ]
+      ],
+      "res": [
+       {
+        "u": "css/style.css",
+        "s": 22,
+        "e": 26,
+        "n": 0,
+        "roh": 49389,
+        "typ": "link"
+       },
+       {
+        "u": "src/main.js",
+        "s": 23,
+        "e": 26,
+        "n": 0,
+        "roh": 130117,
+        "typ": "script"
+       },
+       {
+        "u": "src/game/lohn.js",
+        "s": 39,
+        "e": 41,
+        "n": 0,
+        "roh": 11237,
+        "typ": "script"
+       },
+       {
+        "u": "lib/three.module.min.js",
+        "s": 40,
+        "e": 49,
+        "n": 0,
+        "roh": 376189,
+        "typ": "script"
+       },
+       {
+        "u": "src/build.js",
+        "s": 40,
+        "e": 51,
+        "n": 0,
+        "roh": 35,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/tunnel.js",
+        "s": 40,
+        "e": 51,
+        "n": 0,
+        "roh": 24338,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/materials.js",
+        "s": 40,
+        "e": 51,
+        "n": 0,
+        "roh": 44420,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/env.js",
+        "s": 40,
+        "e": 52,
+        "n": 0,
+        "roh": 9236,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/themes.js",
+        "s": 40,
+        "e": 52,
+        "n": 0,
+        "roh": 8441,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/themes.js",
+        "s": 40,
+        "e": 53,
+        "n": 0,
+        "roh": 12629,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/wetter.js",
+        "s": 41,
+        "e": 55,
+        "n": 0,
+        "roh": 7981,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/zeit.js",
+        "s": 41,
+        "e": 56,
+        "n": 0,
+        "roh": 4148,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/scheibe.js",
+        "s": 41,
+        "e": 57,
+        "n": 0,
+        "roh": 4442,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/zeit.js",
+        "s": 41,
+        "e": 56,
+        "n": 0,
+        "roh": 22170,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/world.js",
+        "s": 42,
+        "e": 57,
+        "n": 0,
+        "roh": 16363,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/kulisse2.js",
+        "s": 42,
+        "e": 57,
+        "n": 0,
+        "roh": 39483,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/carmesh.js",
+        "s": 42,
+        "e": 58,
+        "n": 0,
+        "roh": 23204,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/camera.js",
+        "s": 42,
+        "e": 58,
+        "n": 0,
+        "roh": 29433,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/cockpit.js",
+        "s": 42,
+        "e": 58,
+        "n": 0,
+        "roh": 42668,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/gauges.js",
+        "s": 42,
+        "e": 62,
+        "n": 0,
+        "roh": 4242,
+        "typ": "script"
+       },
+       {
+        "u": "src/game/input.js",
+        "s": 42,
+        "e": 63,
+        "n": 0,
+        "roh": 7625,
+        "typ": "script"
+       },
+       {
+        "u": "src/ui/ui.js",
+        "s": 42,
+        "e": 64,
+        "n": 0,
+        "roh": 111864,
+        "typ": "script"
+       },
+       {
+        "u": "src/game/race.js",
+        "s": 42,
+        "e": 63,
+        "n": 0,
+        "roh": 106733,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/generator.js",
+        "s": 42,
+        "e": 64,
+        "n": 0,
+        "roh": 22367,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/verify.js",
+        "s": 43,
+        "e": 64,
+        "n": 0,
+        "roh": 3716,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/trk.js",
+        "s": 43,
+        "e": 65,
+        "n": 0,
+        "roh": 6394,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/trkimport.js",
+        "s": 43,
+        "e": 67,
+        "n": 0,
+        "roh": 11423,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/trkelems.js",
+        "s": 43,
+        "e": 68,
+        "n": 0,
+        "roh": 15620,
+        "typ": "script"
+       },
+       {
+        "u": "src/game/trklib.js",
+        "s": 43,
+        "e": 68,
+        "n": 0,
+        "roh": 3798,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/showcase.js",
+        "s": 43,
+        "e": 68,
+        "n": 0,
+        "roh": 2475,
+        "typ": "script"
+       },
+       {
+        "u": "src/game/sammlung.js",
+        "s": 44,
+        "e": 68,
+        "n": 0,
+        "roh": 5749,
+        "typ": "script"
+       },
+       {
+        "u": "src/game/store.js",
+        "s": 44,
+        "e": 68,
+        "n": 0,
+        "roh": 17942,
+        "typ": "script"
+       },
+       {
+        "u": "src/game/ghost.js",
+        "s": 44,
+        "e": 69,
+        "n": 0,
+        "roh": 1700,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/gegnervis.js",
+        "s": 44,
+        "e": 69,
+        "n": 0,
+        "roh": 11398,
+        "typ": "script"
+       },
+       {
+        "u": "src/ai/gegner.js",
+        "s": 44,
+        "e": 69,
+        "n": 0,
+        "roh": 68086,
+        "typ": "script"
+       },
+       {
+        "u": "src/game/online.js",
+        "s": 44,
+        "e": 73,
+        "n": 0,
+        "roh": 24692,
+        "typ": "script"
+       },
+       {
+        "u": "src/game/onlinestrecke.js",
+        "s": 44,
+        "e": 75,
+        "n": 0,
+        "roh": 2128,
+        "typ": "script"
+       },
+       {
+        "u": "src/physics/schaden.js",
+        "s": 45,
+        "e": 75,
+        "n": 0,
+        "roh": 20223,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/schadenvis.js",
+        "s": 45,
+        "e": 75,
+        "n": 0,
+        "roh": 10163,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/schadenlook.js",
+        "s": 45,
+        "e": 76,
+        "n": 0,
+        "roh": 10157,
+        "typ": "script"
+       },
+       {
+        "u": "src/game/replay.js",
+        "s": 45,
+        "e": 76,
+        "n": 0,
+        "roh": 6385,
+        "typ": "script"
+       },
+       {
+        "u": "src/game/highlights.js",
+        "s": 45,
+        "e": 77,
+        "n": 0,
+        "roh": 44648,
+        "typ": "script"
+       },
+       {
+        "u": "src/game/cinecam.js",
+        "s": 45,
+        "e": 79,
+        "n": 0,
+        "roh": 36658,
+        "typ": "script"
+       },
+       {
+        "u": "src/game/action.js",
+        "s": 45,
+        "e": 79,
+        "n": 0,
+        "roh": 21947,
+        "typ": "script"
+       },
+       {
+        "u": "src/ui/cliprec.js",
+        "s": 45,
+        "e": 80,
+        "n": 0,
+        "roh": 4869,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/quality.js",
+        "s": 45,
+        "e": 80,
+        "n": 0,
+        "roh": 10237,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/kern/startprobe.js",
+        "s": 45,
+        "e": 80,
+        "n": 0,
+        "roh": 4908,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/kern/autopilot.js",
+        "s": 45,
+        "e": 80,
+        "n": 0,
+        "roh": 19623,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/kern/reflex.js",
+        "s": 45,
+        "e": 80,
+        "n": 0,
+        "roh": 6208,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/kern/impostor.js",
+        "s": 45,
+        "e": 81,
+        "n": 0,
+        "roh": 9786,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/kulisse.js",
+        "s": 45,
+        "e": 81,
+        "n": 0,
+        "roh": 37883,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/lineviz.js",
+        "s": 46,
+        "e": 84,
+        "n": 0,
+        "roh": 14353,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/minikarte.js",
+        "s": 46,
+        "e": 86,
+        "n": 0,
+        "roh": 27933,
+        "typ": "script"
+       },
+       {
+        "u": "src/audio/sound.js",
+        "s": 46,
+        "e": 86,
+        "n": 0,
+        "roh": 40608,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/pyro.js",
+        "s": 46,
+        "e": 86,
+        "n": 0,
+        "roh": 8802,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/fx.js",
+        "s": 46,
+        "e": 86,
+        "n": 0,
+        "roh": 25918,
+        "typ": "script"
+       },
+       {
+        "u": "src/game/zielshow.js",
+        "s": 46,
+        "e": 86,
+        "n": 0,
+        "roh": 14539,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/tierform.js",
+        "s": 46,
+        "e": 88,
+        "n": 0,
+        "roh": 15914,
+        "typ": "script"
+       },
+       {
+        "u": "src/ui/n40optionen.js",
+        "s": 46,
+        "e": 90,
+        "n": 0,
+        "roh": 3257,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/post.js",
+        "s": 46,
+        "e": 90,
+        "n": 0,
+        "roh": 11882,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/kern/taau.js",
+        "s": 46,
+        "e": 91,
+        "n": 0,
+        "roh": 23535,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/kinolook.js",
+        "s": 46,
+        "e": 91,
+        "n": 0,
+        "roh": 52996,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/deko.js",
+        "s": 47,
+        "e": 91,
+        "n": 0,
+        "roh": 23558,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/deco.js",
+        "s": 47,
+        "e": 91,
+        "n": 0,
+        "roh": 41676,
+        "typ": "script"
+       },
+       {
+        "u": "src/core/util.js",
+        "s": 47,
+        "e": 92,
+        "n": 0,
+        "roh": 2631,
+        "typ": "script"
+       },
+       {
+        "u": "src/core/showspeed.js",
+        "s": 47,
+        "e": 92,
+        "n": 0,
+        "roh": 2089,
+        "typ": "script"
+       },
+       {
+        "u": "src/core/gforce.js",
+        "s": 48,
+        "e": 92,
+        "n": 0,
+        "roh": 8429,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/defs.js",
+        "s": 48,
+        "e": 95,
+        "n": 0,
+        "roh": 9942,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/gelaende.js",
+        "s": 54,
+        "e": 97,
+        "n": 0,
+        "roh": 45263,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/pieces_gel.js",
+        "s": 54,
+        "e": 97,
+        "n": 0,
+        "roh": 7933,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/terrgrid.js",
+        "s": 54,
+        "e": 97,
+        "n": 0,
+        "roh": 4213,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/pieces_hind.js",
+        "s": 54,
+        "e": 98,
+        "n": 0,
+        "roh": 13212,
+        "typ": "script"
+       },
+       {
+        "u": "lib/addons/loaders/HDRLoader.js",
+        "s": 54,
+        "e": 98,
+        "n": 0,
+        "roh": 3429,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/wetter.js",
+        "s": 54,
+        "e": 99,
+        "n": 0,
+        "roh": 10269,
+        "typ": "script"
+       },
+       {
+        "u": "lib/three.core.min.js",
+        "s": 57,
+        "e": 100,
+        "n": 0,
+        "roh": 389591,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/jumpdeck.js",
+        "s": 60,
+        "e": 101,
+        "n": 0,
+        "roh": 5860,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/vao.js",
+        "s": 60,
+        "e": 102,
+        "n": 0,
+        "roh": 6295,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/tiere.js",
+        "s": 61,
+        "e": 102,
+        "n": 0,
+        "roh": 9552,
+        "typ": "script"
+       },
+       {
+        "u": "lib/addons/libs/meshopt_decoder.module.js",
+        "s": 61,
+        "e": 102,
+        "n": 0,
+        "roh": 26491,
+        "typ": "script"
+       },
+       {
+        "u": "lib/addons/loaders/GLTFLoader.js",
+        "s": 61,
+        "e": 102,
+        "n": 0,
+        "roh": 45403,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/carlod.js",
+        "s": 61,
+        "e": 103,
+        "n": 0,
+        "roh": 794,
+        "typ": "script"
+       },
+       {
+        "u": "lib/addons/utils/BufferGeometryUtils.js",
+        "s": 61,
+        "e": 103,
+        "n": 0,
+        "roh": 13537,
+        "typ": "script"
+       },
+       {
+        "u": "src/physics/car.js",
+        "s": 61,
+        "e": 103,
+        "n": 0,
+        "roh": 52258,
+        "typ": "script"
+       },
+       {
+        "u": "src/ai/autopilot.js",
+        "s": 62,
+        "e": 107,
+        "n": 0,
+        "roh": 9880,
+        "typ": "script"
+       },
+       {
+        "u": "src/physics/arcade.js",
+        "s": 62,
+        "e": 109,
+        "n": 0,
+        "roh": 7949,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/cockpitmat.js",
+        "s": 62,
+        "e": 109,
+        "n": 0,
+        "roh": 5851,
+        "typ": "script"
+       },
+       {
+        "u": "src/physics/collide.js",
+        "s": 67,
+        "e": 109,
+        "n": 0,
+        "roh": 8403,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/build.js",
+        "s": 67,
+        "e": 109,
+        "n": 0,
+        "roh": 58053,
+        "typ": "script"
+       },
+       {
+        "u": "src/ai/ideal.js",
+        "s": 67,
+        "e": 110,
+        "n": 0,
+        "roh": 23120,
+        "typ": "script"
+       },
+       {
+        "u": "src/ai/profile.js",
+        "s": 67,
+        "e": 111,
+        "n": 0,
+        "roh": 26837,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/pieces.js",
+        "s": 68,
+        "e": 112,
+        "n": 0,
+        "roh": 27618,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/pieces_3d.js",
+        "s": 68,
+        "e": 113,
+        "n": 0,
+        "roh": 20779,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/pieces_trk.js",
+        "s": 68,
+        "e": 114,
+        "n": 0,
+        "roh": 22886,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/generator3d.js",
+        "s": 68,
+        "e": 114,
+        "n": 0,
+        "roh": 20719,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/generatorG.js",
+        "s": 68,
+        "e": 114,
+        "n": 0,
+        "roh": 19393,
+        "typ": "script"
+       },
+       {
+        "u": "src/physics/extras.js",
+        "s": 68,
+        "e": 115,
+        "n": 0,
+        "roh": 4866,
+        "typ": "script"
+       },
+       {
+        "u": "src/game/stunts.js",
+        "s": 68,
+        "e": 115,
+        "n": 0,
+        "roh": 13276,
+        "typ": "script"
+       },
+       {
+        "u": "src/ui/gmeter.js",
+        "s": 69,
+        "e": 115,
+        "n": 0,
+        "roh": 6064,
+        "typ": "script"
+       },
+       {
+        "u": "src/ui/minimap.js",
+        "s": 69,
+        "e": 115,
+        "n": 0,
+        "roh": 10442,
+        "typ": "script"
+       },
+       {
+        "u": "src/game/rennfeld.js",
+        "s": 69,
+        "e": 118,
+        "n": 0,
+        "roh": 8422,
+        "typ": "script"
+       },
+       {
+        "u": "src/physics/air.js",
+        "s": 70,
+        "e": 120,
+        "n": 0,
+        "roh": 3364,
+        "typ": "script"
+       },
+       {
+        "u": "src/game/warn.js",
+        "s": 70,
+        "e": 120,
+        "n": 0,
+        "roh": 6227,
+        "typ": "script"
+       },
+       {
+        "u": "src/ai/drift.js",
+        "s": 70,
+        "e": 120,
+        "n": 0,
+        "roh": 19504,
+        "typ": "script"
+       },
+       {
+        "u": "src/game/jumpassist.js",
+        "s": 70,
+        "e": 120,
+        "n": 0,
+        "roh": 5925,
+        "typ": "script"
+       },
+       {
+        "u": "src/game/zielstunt.js",
+        "s": 70,
+        "e": 120,
+        "n": 0,
+        "roh": 16195,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/trkdesign.js",
+        "s": 73,
+        "e": 121,
+        "n": 0,
+        "roh": 3626,
+        "typ": "script"
+       },
+       {
+        "u": "src/physics/autoauto.js",
+        "s": 74,
+        "e": 123,
+        "n": 0,
+        "roh": 11239,
+        "typ": "script"
+       },
+       {
+        "u": "src/net/paket.js",
+        "s": 75,
+        "e": 124,
+        "n": 0,
+        "roh": 6528,
+        "typ": "script"
+       },
+       {
+        "u": "src/net/puffer.js",
+        "s": 75,
+        "e": 124,
+        "n": 0,
+        "roh": 12042,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/kern/oktaeder.js",
+        "s": 83,
+        "e": 124,
+        "n": 0,
+        "roh": 3917,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/kartegeo.js",
+        "s": 89,
+        "e": 124,
+        "n": 0,
+        "roh": 6125,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/kern/taau_mathe.js",
+        "s": 94,
+        "e": 124,
+        "n": 0,
+        "roh": 15979,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/deco.js",
+        "s": 94,
+        "e": 124,
+        "n": 0,
+        "roh": 25100,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/kulisse2.js",
+        "s": 94,
+        "e": 124,
+        "n": 0,
+        "roh": 20740,
+        "typ": "script"
+       },
+       {
+        "u": "lib/addons/utils/SkeletonUtils.js",
+        "s": 103,
+        "e": 124,
+        "n": 0,
+        "roh": 4123,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/obstacles.js",
+        "s": 112,
+        "e": 126,
+        "n": 0,
+        "roh": 15673,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/trkterrain.js",
+        "s": 112,
+        "e": 126,
+        "n": 0,
+        "roh": 10009,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/scenery.js",
+        "s": 112,
+        "e": 126,
+        "n": 0,
+        "roh": 15337,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/kulisse.js",
+        "s": 127,
+        "e": 128,
+        "n": 0,
+        "roh": 14113,
+        "typ": "script"
+       },
+       {
+        "u": "assets/snd/sfx.json",
+        "s": 307,
+        "e": 308,
+        "n": 0,
+        "roh": 1532,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/snd/sfx.m4a",
+        "s": 307,
+        "e": 309,
+        "n": 0,
+        "roh": 273754,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/themes/herbst/sky.json",
+        "s": 359,
+        "e": 530,
+        "n": 0,
+        "roh": 407,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/themes/herbst/env.hdr",
+        "s": 364,
+        "e": 2172,
+        "n": 0,
+        "roh": 1092974,
+        "typ": "fetch"
+       },
+       {
+        "u": "lib/addons/loaders/KTX2Loader.js",
+        "s": 364,
+        "e": 365,
+        "n": 0,
+        "roh": 36567,
+        "typ": "script"
+       },
+       {
+        "u": "assets/car/goblin.glb",
+        "s": 365,
+        "e": 367,
+        "n": 0,
+        "roh": 871676,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/tex/veg_atlas.json",
+        "s": 366,
+        "e": 367,
+        "n": 0,
+        "roh": 1384,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/deco/rocks.glb",
+        "s": 367,
+        "e": 369,
+        "n": 0,
+        "roh": 87064,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/themes/herbst/sky.jpg",
+        "s": 367,
+        "e": 773,
+        "n": 0,
+        "roh": 90297,
+        "typ": "img"
+       },
+       {
+        "u": "assets/tex/veg_atlas.webp",
+        "s": 367,
+        "e": 370,
+        "n": 0,
+        "roh": 326636,
+        "typ": "img"
+       },
+       {
+        "u": "assets/tex/gravel_diff.webp",
+        "s": 367,
+        "e": 370,
+        "n": 0,
+        "roh": 99400,
+        "typ": "img"
+       },
+       {
+        "u": "assets/tex/gravel_nor.webp",
+        "s": 367,
+        "e": 370,
+        "n": 0,
+        "roh": 134146,
+        "typ": "img"
+       },
+       {
+        "u": "lib/addons/utils/WorkerPool.js",
+        "s": 432,
+        "e": 434,
+        "n": 0,
+        "roh": 3110,
+        "typ": "script"
+       },
+       {
+        "u": "lib/addons/libs/ktx-parse.module.js",
+        "s": 432,
+        "e": 434,
+        "n": 0,
+        "roh": 19932,
+        "typ": "script"
+       },
+       {
+        "u": "lib/addons/libs/zstddec.module.js",
+        "s": 432,
+        "e": 435,
+        "n": 0,
+        "roh": 39754,
+        "typ": "script"
+       },
+       {
+        "u": "lib/addons/math/ColorSpaces.js",
+        "s": 432,
+        "e": 435,
+        "n": 0,
+        "roh": 4290,
+        "typ": "script"
+       },
+       {
+        "u": "assets/themes/tex/ScatteredLeaves009_diff.ktx2",
+        "s": 493,
+        "e": 2072,
+        "n": 0,
+        "roh": 236426,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/themes/tex/ScatteredLeaves009_nor.ktx2",
+        "s": 493,
+        "e": 2072,
+        "n": 0,
+        "roh": 275735,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/themes/tex/ScatteredLeaves009_arm.ktx2",
+        "s": 493,
+        "e": 2073,
+        "n": 0,
+        "roh": 213920,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/tex/asphalt_diff.ktx2",
+        "s": 493,
+        "e": 498,
+        "n": 0,
+        "roh": 200631,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/tex/asphalt_nor.ktx2",
+        "s": 494,
+        "e": 499,
+        "n": 0,
+        "roh": 230971,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/tex/asphalt_arm.ktx2",
+        "s": 495,
+        "e": 500,
+        "n": 0,
+        "roh": 210728,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/tex/concrete_diff.ktx2",
+        "s": 495,
+        "e": 500,
+        "n": 0,
+        "roh": 182407,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/tex/concrete_nor.ktx2",
+        "s": 495,
+        "e": 501,
+        "n": 0,
+        "roh": 176294,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/tex/concrete_arm.ktx2",
+        "s": 495,
+        "e": 502,
+        "n": 0,
+        "roh": 5184,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/tex/grass_diff.ktx2",
+        "s": 496,
+        "e": 502,
+        "n": 0,
+        "roh": 234620,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/tex/grass_nor.ktx2",
+        "s": 496,
+        "e": 503,
+        "n": 0,
+        "roh": 281792,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/tex/grass_arm.ktx2",
+        "s": 496,
+        "e": 504,
+        "n": 0,
+        "roh": 200874,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/tex/pad_diff.ktx2",
+        "s": 496,
+        "e": 504,
+        "n": 0,
+        "roh": 203261,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/tex/pad_nor.ktx2",
+        "s": 496,
+        "e": 504,
+        "n": 0,
+        "roh": 186823,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/tex/pad_arm.ktx2",
+        "s": 496,
+        "e": 504,
+        "n": 0,
+        "roh": 138449,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/tex/metal_diff.ktx2",
+        "s": 496,
+        "e": 504,
+        "n": 0,
+        "roh": 166803,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/tex/metal_nor.ktx2",
+        "s": 496,
+        "e": 504,
+        "n": 0,
+        "roh": 130249,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/tex/metal_arm.ktx2",
+        "s": 497,
+        "e": 504,
+        "n": 0,
+        "roh": 179507,
+        "typ": "fetch"
+       },
+       {
+        "u": "lib/addons/libs/basis/basis_transcoder.js",
+        "s": 534,
+        "e": 535,
+        "n": 0,
+        "roh": 57529,
+        "typ": "fetch"
+       },
+       {
+        "u": "lib/addons/libs/basis/basis_transcoder.wasm",
+        "s": 534,
+        "e": 536,
+        "n": 0,
+        "roh": 527333,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/tex/asphalt_detail_nor.webp",
+        "s": 681,
+        "e": 682,
+        "n": 0,
+        "roh": 39304,
+        "typ": "img"
+       },
+       {
+        "u": "assets/tex/fir_card_0.webp",
+        "s": 681,
+        "e": 683,
+        "n": 0,
+        "roh": 189992,
+        "typ": "img"
+       },
+       {
+        "u": "assets/tex/fir_card_1.webp",
+        "s": 681,
+        "e": 683,
+        "n": 0,
+        "roh": 186398,
+        "typ": "img"
+       },
+       {
+        "u": "icons/icon-192.png",
+        "s": 2070,
+        "e": 2071,
+        "n": 0,
+        "roh": 1557,
+        "typ": "other"
+       },
+       {
+        "u": "assets/tex/imp/impostor.json",
+        "s": 3096,
+        "e": 3097,
+        "n": 0,
+        "roh": 1659,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/tex/imp/tanne0_farbe.webp",
+        "s": 3099,
+        "e": 3103,
+        "n": 0,
+        "roh": 54246,
+        "typ": "img"
+       },
+       {
+        "u": "assets/tex/imp/tanne1_nor.webp",
+        "s": 3099,
+        "e": 3103,
+        "n": 0,
+        "roh": 25604,
+        "typ": "img"
+       },
+       {
+        "u": "assets/tex/imp/tanne0_nor.webp",
+        "s": 3099,
+        "e": 3103,
+        "n": 0,
+        "roh": 24626,
+        "typ": "img"
+       },
+       {
+        "u": "assets/tex/imp/tanne1_farbe.webp",
+        "s": 3099,
+        "e": 3103,
+        "n": 0,
+        "roh": 56194,
+        "typ": "img"
+       },
+       {
+        "u": "assets/tex/imp/laub1_nor.webp",
+        "s": 3099,
+        "e": 3436,
+        "n": 0,
+        "roh": 46406,
+        "typ": "img"
+       },
+       {
+        "u": "assets/tex/imp/laub1_farbe.webp",
+        "s": 3099,
+        "e": 3679,
+        "n": 0,
+        "roh": 163086,
+        "typ": "img"
+       },
+       {
+        "u": "assets/tex/imp/laub2_farbe.webp",
+        "s": 3100,
+        "e": 3692,
+        "n": 0,
+        "roh": 177060,
+        "typ": "img"
+       },
+       {
+        "u": "assets/tex/imp/laub2_nor.webp",
+        "s": 3100,
+        "e": 3459,
+        "n": 0,
+        "roh": 50608,
+        "typ": "img"
+       },
+       {
+        "u": "assets/car/goblin_mid.glb",
+        "s": 5764,
+        "e": 5766,
+        "n": 0,
+        "roh": 248764,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/car/goblin_far.glb",
+        "s": 5765,
+        "e": 5766,
+        "n": 0,
+        "roh": 171464,
+        "typ": "fetch"
+       },
+       {
+        "u": "icons/icon-192.png",
+        "s": 7590,
+        "e": 7592,
+        "n": 0,
+        "roh": 1557,
+        "typ": "other"
+       }
+      ],
+      "sw": true,
+      "apTime": 91.07500000001855,
+      "build": "0527196459",
+      "nach_klick": {
+       "max": 33.4,
+       "ueber50": 0,
+       "ueber100": 0,
+       "erste": [
+        -19,
+        33,
+        17,
+        17,
+        17,
+        17
+       ]
+      },
+      "profil": {
+       "intervall": 10,
+       "fenster": [
+        {
+         "a": 367,
+         "b": 566,
+         "proben": 21,
+         "inklusiv": [
+          [
+           "(anonym) lib/addons/loaders/GLTFLoader.js:1",
+           5
+          ],
+          [
+           "cut src/audio/sound.js:220",
+           4
+          ],
+          [
+           "loadRec src/audio/sound.js:212",
+           4
+          ],
+          [
+           "(anonym) lib/three.core.min.js:9",
+           2
+          ],
+          [
+           "H lib/three.core.min.js:5",
+           1
+          ],
+          [
+           "loadGeometries lib/addons/loaders/GLTFLoader.js:1",
+           1
+          ],
+          [
+           "loadMesh lib/addons/loaders/GLTFLoader.js:1",
+           1
+          ],
+          [
+           "_invokeOne lib/addons/loaders/GLTFLoader.js:1",
+           1
+          ],
+          [
+           "getDependency lib/addons/loaders/GLTFLoader.js:1",
+           1
+          ],
+          [
+           "createNodeMesh lib/addons/loaders/GLTFLoader.js:1",
+           1
+          ],
+          [
+           "_loadNodeShallow lib/addons/loaders/GLTFLoader.js:1",
+           1
+          ],
+          [
+           "loadNode lib/addons/loaders/GLTFLoader.js:1",
+           1
+          ],
+          [
+           "loadScene lib/addons/loaders/GLTFLoader.js:1",
+           1
+          ],
+          [
+           "getDependencies lib/addons/loaders/GLTFLoader.js:1",
+           1
+          ]
+         ],
+         "selbst": [
+          [
+           "(Leerlauf/nativ)",
+           9
+          ],
+          [
+           "(anonym) lib/addons/loaders/GLTFLoader.js:1",
+           4
+          ],
+          [
+           "cut src/audio/sound.js:220",
+           4
+          ],
+          [
+           "H lib/three.core.min.js:5",
+           1
+          ],
+          [
+           "t lib/three.module.min.js:4072",
+           1
+          ],
+          [
+           "fetch ",
+           1
+          ],
+          [
+           "(anonym) lib/addons/loaders/KTX2Loader.js:332",
+           1
+          ]
+         ]
+        },
+        {
+         "a": 566,
+         "b": 681,
+         "proben": 9,
+         "inklusiv": [
+          [
+           "boot src/main.js:226",
+           2
+          ],
+          [
+           "t lib/three.module.min.js:4072",
+           1
+          ],
+          [
+           "has lib/three.module.min.js:4072",
+           1
+          ],
+          [
+           "ke lib/three.module.min.js:4196",
+           1
+          ],
+          [
+           "qe lib/three.module.min.js:4196",
+           1
+          ],
+          [
+           "(anonym) lib/three.module.min.js:4220",
+           1
+          ],
+          [
+           "makeMaterials src/gfx/materials.js:518",
+           1
+          ]
+         ],
+         "selbst": [
+          [
+           "(Leerlauf/nativ)",
+           7
+          ],
+          [
+           "t lib/three.module.min.js:4072",
+           1
+          ],
+          [
+           "boot src/main.js:226",
+           1
+          ]
+         ]
+        },
+        {
+         "a": 681,
+         "b": 1979,
+         "proben": 925,
+         "inklusiv": [
+          [
+           "boot src/main.js:226",
+           835
+          ],
+          [
+           "loadGenerated src/main.js:463",
+           790
+          ],
+          [
+           "verify src/track/verify.js:57",
+           789
+          ],
+          [
+           "prepare src/track/verify.js:13",
+           778
+          ],
+          [
+           "buildTrack src/track/build.js:252",
+           744
+          ],
+          [
+           "buildGelTerrain src/track/gelaende.js:363",
+           658
+          ],
+          [
+           "adaptiveGrid src/track/terrgrid.js:27",
+           71
+          ],
+          [
+           "projectCoarse src/track/terrgrid.js:50",
+           48
+          ],
+          [
+           "Cockpit src/gfx/cockpit.js:148",
+           41
+          ],
+          [
+           "cockpitMaterials src/gfx/cockpitmat.js:86",
+           40
+          ],
+          [
+           "leather src/gfx/cockpitmat.js:47",
+           33
+          ],
+          [
+           "makeCar src/gfx/carmesh.js:161",
+           29
+          ],
+          [
+           "colorTex src/gfx/cockpitmat.js:40",
+           28
+          ],
+          [
+           "planElevation src/track/gelaende.js:89",
+           27
+          ]
+         ],
+         "selbst": [
+          [
+           "buildGelTerrain src/track/gelaende.js:363",
+           583
+          ],
+          [
+           "(Leerlauf/nativ)",
+           59
+          ],
+          [
+           "projectCoarse src/track/terrgrid.js:50",
+           47
+          ],
+          [
+           "colorTex src/gfx/cockpitmat.js:40",
+           26
+          ],
+          [
+           "adaptiveGrid src/track/terrgrid.js:27",
+           23
+          ],
+          [
+           "carveUnderRoads src/track/trkterrain.js:140",
+           17
+          ],
+          [
+           "solveBand src/track/gelaende.js:287",
+           15
+          ],
+          [
+           "buildTrack src/track/build.js:252",
+           12
+          ]
+         ]
+        },
+        {
+         "a": 1979,
+         "b": 6142,
+         "proben": 515,
+         "inklusiv": [
+          [
+           "loadTrack src/main.js:609",
+           175
+          ],
+          [
+           "buildWorld src/gfx/world.js:67",
+           116
+          ],
+          [
+           "(anonym) lib/three.module.min.js:4220",
+           115
+          ],
+          [
+           "ho lib/three.module.min.js:4220",
+           77
+          ],
+          [
+           "dr lib/three.module.min.js:4220",
+           77
+          ],
+          [
+           "vn lib/three.module.min.js:4220",
+           77
+          ],
+          [
+           "cr lib/three.module.min.js:4220",
+           77
+          ],
+          [
+           "render src/gfx/kinolook.js:651",
+           59
+          ],
+          [
+           "drawFrame src/main.js:1749",
+           59
+          ],
+          [
+           "boot src/main.js:226",
+           59
+          ],
+          [
+           "actionVorwaermen src/main.js:1743",
+           55
+          ],
+          [
+           "buildDeco src/gfx/deco.js:306",
+           46
+          ],
+          [
+           "tunnelAttr src/track/tunnel.js:139",
+           45
+          ],
+          [
+           "bakeStaticShadow src/gfx/env.js:122",
+           45
+          ]
+         ],
+         "selbst": [
+          [
+           "(Leerlauf/nativ)",
+           173
+          ],
+          [
+           "tunnelAttr src/track/tunnel.js:139",
+           45
+          ],
+          [
+           "r lib/three.module.min.js:4196",
+           36
+          ],
+          [
+           "u lib/addons/loaders/HDRLoader.js:5",
+           27
+          ],
+          [
+           "computeBoundingSphere lib/three.core.min.js:5",
+           25
+          ],
+          [
+           "D lib/three.module.min.js:4162",
+           24
+          ],
+          [
+           "bild src/main.js:1143",
+           14
+          ],
+          [
+           "step src/game/race.js:332",
+           8
+          ]
+         ]
+        }
+       ]
+      },
+      "fehler": [],
+      "etikett": "sw_neu"
+     },
+     "sw_bekannt": {
+      "dcl": 373,
+      "erstesBild": 4289,
+      "bereit": 4043,
+      "menu": 4409,
+      "klick": 5066,
+      "fahrt": 7837,
+      "lade": [
+       [
+        372,
+        "Himmel und Licht"
+       ],
+       [
+        656,
+        "Auto"
+       ],
+       [
+        771,
+        "Auto lackieren"
+       ],
+       [
+        1962,
+        "Strecke bauen"
+       ]
+      ],
+      "lt": [
+       [
+        137,
+        238
+       ],
+       [
+        412,
+        119
+       ],
+       [
+        759,
+        1210
+       ],
+       [
+        1996,
+        1538
+       ],
+       [
+        3576,
+        466
+       ],
+       [
+        4042,
+        238
+       ],
+       [
+        4333,
+        75
+       ],
+       [
+        5063,
+        257
+       ],
+       [
+        5321,
+        113
+       ],
+       [
+        7743,
+        94
+       ]
+      ],
+      "res": [
+       {
+        "u": "css/style.css",
+        "s": 21,
+        "e": 24,
+        "n": 0,
+        "roh": 49389,
+        "typ": "link"
+       },
+       {
+        "u": "src/main.js",
+        "s": 22,
+        "e": 25,
+        "n": 0,
+        "roh": 130117,
+        "typ": "script"
+       },
+       {
+        "u": "src/game/lohn.js",
+        "s": 41,
+        "e": 51,
+        "n": 0,
+        "roh": 11237,
+        "typ": "script"
+       },
+       {
+        "u": "lib/three.module.min.js",
+        "s": 41,
+        "e": 53,
+        "n": 0,
+        "roh": 376189,
+        "typ": "script"
+       },
+       {
+        "u": "src/build.js",
+        "s": 41,
+        "e": 53,
+        "n": 0,
+        "roh": 35,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/materials.js",
+        "s": 41,
+        "e": 56,
+        "n": 0,
+        "roh": 44420,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/tunnel.js",
+        "s": 41,
+        "e": 57,
+        "n": 0,
+        "roh": 24338,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/env.js",
+        "s": 41,
+        "e": 57,
+        "n": 0,
+        "roh": 9236,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/themes.js",
+        "s": 41,
+        "e": 58,
+        "n": 0,
+        "roh": 8441,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/themes.js",
+        "s": 41,
+        "e": 58,
+        "n": 0,
+        "roh": 12629,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/wetter.js",
+        "s": 41,
+        "e": 58,
+        "n": 0,
+        "roh": 7981,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/zeit.js",
+        "s": 42,
+        "e": 58,
+        "n": 0,
+        "roh": 4148,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/scheibe.js",
+        "s": 42,
+        "e": 59,
+        "n": 0,
+        "roh": 4442,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/zeit.js",
+        "s": 42,
+        "e": 59,
+        "n": 0,
+        "roh": 22170,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/world.js",
+        "s": 42,
+        "e": 59,
+        "n": 0,
+        "roh": 16363,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/kulisse2.js",
+        "s": 42,
+        "e": 59,
+        "n": 0,
+        "roh": 39483,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/carmesh.js",
+        "s": 42,
+        "e": 59,
+        "n": 0,
+        "roh": 23204,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/camera.js",
+        "s": 43,
+        "e": 61,
+        "n": 0,
+        "roh": 29433,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/cockpit.js",
+        "s": 43,
+        "e": 63,
+        "n": 0,
+        "roh": 42668,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/gauges.js",
+        "s": 43,
+        "e": 65,
+        "n": 0,
+        "roh": 4242,
+        "typ": "script"
+       },
+       {
+        "u": "src/game/input.js",
+        "s": 43,
+        "e": 67,
+        "n": 0,
+        "roh": 7625,
+        "typ": "script"
+       },
+       {
+        "u": "src/game/race.js",
+        "s": 43,
+        "e": 68,
+        "n": 0,
+        "roh": 106733,
+        "typ": "script"
+       },
+       {
+        "u": "src/ui/ui.js",
+        "s": 43,
+        "e": 69,
+        "n": 0,
+        "roh": 111864,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/verify.js",
+        "s": 43,
+        "e": 70,
+        "n": 0,
+        "roh": 3716,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/generator.js",
+        "s": 43,
+        "e": 70,
+        "n": 0,
+        "roh": 22367,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/trk.js",
+        "s": 43,
+        "e": 70,
+        "n": 0,
+        "roh": 6394,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/trkimport.js",
+        "s": 43,
+        "e": 70,
+        "n": 0,
+        "roh": 11423,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/showcase.js",
+        "s": 43,
+        "e": 71,
+        "n": 0,
+        "roh": 2475,
+        "typ": "script"
+       },
+       {
+        "u": "src/game/trklib.js",
+        "s": 43,
+        "e": 71,
+        "n": 0,
+        "roh": 3798,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/trkelems.js",
+        "s": 43,
+        "e": 71,
+        "n": 0,
+        "roh": 15620,
+        "typ": "script"
+       },
+       {
+        "u": "src/game/sammlung.js",
+        "s": 43,
+        "e": 71,
+        "n": 0,
+        "roh": 5749,
+        "typ": "script"
+       },
+       {
+        "u": "src/game/ghost.js",
+        "s": 44,
+        "e": 71,
+        "n": 0,
+        "roh": 1700,
+        "typ": "script"
+       },
+       {
+        "u": "src/game/store.js",
+        "s": 44,
+        "e": 71,
+        "n": 0,
+        "roh": 17942,
+        "typ": "script"
+       },
+       {
+        "u": "src/ai/gegner.js",
+        "s": 44,
+        "e": 72,
+        "n": 0,
+        "roh": 68086,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/gegnervis.js",
+        "s": 45,
+        "e": 75,
+        "n": 0,
+        "roh": 11398,
+        "typ": "script"
+       },
+       {
+        "u": "src/game/online.js",
+        "s": 45,
+        "e": 77,
+        "n": 0,
+        "roh": 24692,
+        "typ": "script"
+       },
+       {
+        "u": "src/game/onlinestrecke.js",
+        "s": 45,
+        "e": 79,
+        "n": 0,
+        "roh": 2128,
+        "typ": "script"
+       },
+       {
+        "u": "src/physics/schaden.js",
+        "s": 45,
+        "e": 80,
+        "n": 0,
+        "roh": 20223,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/schadenvis.js",
+        "s": 45,
+        "e": 81,
+        "n": 0,
+        "roh": 10163,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/schadenlook.js",
+        "s": 45,
+        "e": 82,
+        "n": 0,
+        "roh": 10157,
+        "typ": "script"
+       },
+       {
+        "u": "src/game/replay.js",
+        "s": 45,
+        "e": 82,
+        "n": 0,
+        "roh": 6385,
+        "typ": "script"
+       },
+       {
+        "u": "src/game/highlights.js",
+        "s": 45,
+        "e": 83,
+        "n": 0,
+        "roh": 44648,
+        "typ": "script"
+       },
+       {
+        "u": "src/game/cinecam.js",
+        "s": 45,
+        "e": 83,
+        "n": 0,
+        "roh": 36658,
+        "typ": "script"
+       },
+       {
+        "u": "src/game/action.js",
+        "s": 45,
+        "e": 83,
+        "n": 0,
+        "roh": 21947,
+        "typ": "script"
+       },
+       {
+        "u": "src/ui/cliprec.js",
+        "s": 45,
+        "e": 84,
+        "n": 0,
+        "roh": 4869,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/quality.js",
+        "s": 46,
+        "e": 84,
+        "n": 0,
+        "roh": 10237,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/kern/startprobe.js",
+        "s": 46,
+        "e": 84,
+        "n": 0,
+        "roh": 4908,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/kern/reflex.js",
+        "s": 46,
+        "e": 84,
+        "n": 0,
+        "roh": 6208,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/kern/autopilot.js",
+        "s": 46,
+        "e": 84,
+        "n": 0,
+        "roh": 19623,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/kern/impostor.js",
+        "s": 46,
+        "e": 85,
+        "n": 0,
+        "roh": 9786,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/kulisse.js",
+        "s": 46,
+        "e": 88,
+        "n": 0,
+        "roh": 37883,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/lineviz.js",
+        "s": 46,
+        "e": 89,
+        "n": 0,
+        "roh": 14353,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/minikarte.js",
+        "s": 46,
+        "e": 91,
+        "n": 0,
+        "roh": 27933,
+        "typ": "script"
+       },
+       {
+        "u": "src/audio/sound.js",
+        "s": 46,
+        "e": 92,
+        "n": 0,
+        "roh": 40608,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/fx.js",
+        "s": 46,
+        "e": 93,
+        "n": 0,
+        "roh": 25918,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/pyro.js",
+        "s": 46,
+        "e": 93,
+        "n": 0,
+        "roh": 8802,
+        "typ": "script"
+       },
+       {
+        "u": "src/game/zielshow.js",
+        "s": 47,
+        "e": 94,
+        "n": 0,
+        "roh": 14539,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/tierform.js",
+        "s": 47,
+        "e": 94,
+        "n": 0,
+        "roh": 15914,
+        "typ": "script"
+       },
+       {
+        "u": "src/ui/n40optionen.js",
+        "s": 47,
+        "e": 94,
+        "n": 0,
+        "roh": 3257,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/post.js",
+        "s": 47,
+        "e": 95,
+        "n": 0,
+        "roh": 11882,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/kinolook.js",
+        "s": 47,
+        "e": 95,
+        "n": 0,
+        "roh": 52996,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/deko.js",
+        "s": 47,
+        "e": 95,
+        "n": 0,
+        "roh": 23558,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/kern/taau.js",
+        "s": 47,
+        "e": 95,
+        "n": 0,
+        "roh": 23535,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/deco.js",
+        "s": 47,
+        "e": 95,
+        "n": 0,
+        "roh": 41676,
+        "typ": "script"
+       },
+       {
+        "u": "src/core/util.js",
+        "s": 47,
+        "e": 96,
+        "n": 0,
+        "roh": 2631,
+        "typ": "script"
+       },
+       {
+        "u": "src/core/showspeed.js",
+        "s": 47,
+        "e": 97,
+        "n": 0,
+        "roh": 2089,
+        "typ": "script"
+       },
+       {
+        "u": "src/core/gforce.js",
+        "s": 47,
+        "e": 100,
+        "n": 0,
+        "roh": 8429,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/defs.js",
+        "s": 47,
+        "e": 101,
+        "n": 0,
+        "roh": 9942,
+        "typ": "script"
+       },
+       {
+        "u": "lib/three.core.min.js",
+        "s": 58,
+        "e": 102,
+        "n": 0,
+        "roh": 389591,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/wetter.js",
+        "s": 60,
+        "e": 104,
+        "n": 0,
+        "roh": 10269,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/gelaende.js",
+        "s": 61,
+        "e": 104,
+        "n": 0,
+        "roh": 45263,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/pieces_gel.js",
+        "s": 61,
+        "e": 106,
+        "n": 0,
+        "roh": 7933,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/terrgrid.js",
+        "s": 61,
+        "e": 106,
+        "n": 0,
+        "roh": 4213,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/pieces_hind.js",
+        "s": 61,
+        "e": 107,
+        "n": 0,
+        "roh": 13212,
+        "typ": "script"
+       },
+       {
+        "u": "lib/addons/loaders/HDRLoader.js",
+        "s": 63,
+        "e": 107,
+        "n": 0,
+        "roh": 3429,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/jumpdeck.js",
+        "s": 64,
+        "e": 107,
+        "n": 0,
+        "roh": 5860,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/vao.js",
+        "s": 64,
+        "e": 107,
+        "n": 0,
+        "roh": 6295,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/tiere.js",
+        "s": 65,
+        "e": 107,
+        "n": 0,
+        "roh": 9552,
+        "typ": "script"
+       },
+       {
+        "u": "lib/addons/libs/meshopt_decoder.module.js",
+        "s": 65,
+        "e": 108,
+        "n": 0,
+        "roh": 26491,
+        "typ": "script"
+       },
+       {
+        "u": "lib/addons/loaders/GLTFLoader.js",
+        "s": 65,
+        "e": 108,
+        "n": 0,
+        "roh": 45403,
+        "typ": "script"
+       },
+       {
+        "u": "src/physics/car.js",
+        "s": 65,
+        "e": 108,
+        "n": 0,
+        "roh": 52258,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/carlod.js",
+        "s": 65,
+        "e": 107,
+        "n": 0,
+        "roh": 794,
+        "typ": "script"
+       },
+       {
+        "u": "lib/addons/utils/BufferGeometryUtils.js",
+        "s": 65,
+        "e": 112,
+        "n": 0,
+        "roh": 13537,
+        "typ": "script"
+       },
+       {
+        "u": "src/ai/autopilot.js",
+        "s": 66,
+        "e": 113,
+        "n": 0,
+        "roh": 9880,
+        "typ": "script"
+       },
+       {
+        "u": "src/physics/arcade.js",
+        "s": 67,
+        "e": 115,
+        "n": 0,
+        "roh": 7949,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/cockpitmat.js",
+        "s": 67,
+        "e": 116,
+        "n": 0,
+        "roh": 5851,
+        "typ": "script"
+       },
+       {
+        "u": "src/physics/air.js",
+        "s": 72,
+        "e": 117,
+        "n": 0,
+        "roh": 3364,
+        "typ": "script"
+       },
+       {
+        "u": "src/physics/extras.js",
+        "s": 72,
+        "e": 117,
+        "n": 0,
+        "roh": 4866,
+        "typ": "script"
+       },
+       {
+        "u": "src/game/warn.js",
+        "s": 72,
+        "e": 118,
+        "n": 0,
+        "roh": 6227,
+        "typ": "script"
+       },
+       {
+        "u": "src/game/jumpassist.js",
+        "s": 72,
+        "e": 118,
+        "n": 0,
+        "roh": 5925,
+        "typ": "script"
+       },
+       {
+        "u": "src/ai/profile.js",
+        "s": 72,
+        "e": 118,
+        "n": 0,
+        "roh": 26837,
+        "typ": "script"
+       },
+       {
+        "u": "src/ai/drift.js",
+        "s": 73,
+        "e": 118,
+        "n": 0,
+        "roh": 19504,
+        "typ": "script"
+       },
+       {
+        "u": "src/game/stunts.js",
+        "s": 73,
+        "e": 119,
+        "n": 0,
+        "roh": 13276,
+        "typ": "script"
+       },
+       {
+        "u": "src/game/zielstunt.js",
+        "s": 73,
+        "e": 118,
+        "n": 0,
+        "roh": 16195,
+        "typ": "script"
+       },
+       {
+        "u": "src/ui/minimap.js",
+        "s": 74,
+        "e": 119,
+        "n": 0,
+        "roh": 10442,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/pieces.js",
+        "s": 74,
+        "e": 119,
+        "n": 0,
+        "roh": 27618,
+        "typ": "script"
+       },
+       {
+        "u": "src/ui/gmeter.js",
+        "s": 74,
+        "e": 119,
+        "n": 0,
+        "roh": 6064,
+        "typ": "script"
+       },
+       {
+        "u": "src/game/rennfeld.js",
+        "s": 74,
+        "e": 120,
+        "n": 0,
+        "roh": 8422,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/build.js",
+        "s": 76,
+        "e": 123,
+        "n": 0,
+        "roh": 58053,
+        "typ": "script"
+       },
+       {
+        "u": "src/physics/collide.js",
+        "s": 76,
+        "e": 124,
+        "n": 0,
+        "roh": 8403,
+        "typ": "script"
+       },
+       {
+        "u": "src/ai/ideal.js",
+        "s": 76,
+        "e": 125,
+        "n": 0,
+        "roh": 23120,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/pieces_3d.js",
+        "s": 77,
+        "e": 127,
+        "n": 0,
+        "roh": 20779,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/pieces_trk.js",
+        "s": 77,
+        "e": 127,
+        "n": 0,
+        "roh": 22886,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/generatorG.js",
+        "s": 77,
+        "e": 128,
+        "n": 0,
+        "roh": 19393,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/generator3d.js",
+        "s": 77,
+        "e": 128,
+        "n": 0,
+        "roh": 20719,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/trkdesign.js",
+        "s": 77,
+        "e": 128,
+        "n": 0,
+        "roh": 3626,
+        "typ": "script"
+       },
+       {
+        "u": "src/physics/autoauto.js",
+        "s": 79,
+        "e": 128,
+        "n": 0,
+        "roh": 11239,
+        "typ": "script"
+       },
+       {
+        "u": "src/net/paket.js",
+        "s": 80,
+        "e": 128,
+        "n": 0,
+        "roh": 6528,
+        "typ": "script"
+       },
+       {
+        "u": "src/net/puffer.js",
+        "s": 80,
+        "e": 129,
+        "n": 0,
+        "roh": 12042,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/kern/oktaeder.js",
+        "s": 87,
+        "e": 129,
+        "n": 0,
+        "roh": 3917,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/kartegeo.js",
+        "s": 92,
+        "e": 129,
+        "n": 0,
+        "roh": 6125,
+        "typ": "script"
+       },
+       {
+        "u": "src/gfx/kern/taau_mathe.js",
+        "s": 98,
+        "e": 129,
+        "n": 0,
+        "roh": 15979,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/deco.js",
+        "s": 98,
+        "e": 129,
+        "n": 0,
+        "roh": 25100,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/kulisse2.js",
+        "s": 99,
+        "e": 129,
+        "n": 0,
+        "roh": 20740,
+        "typ": "script"
+       },
+       {
+        "u": "lib/addons/utils/SkeletonUtils.js",
+        "s": 110,
+        "e": 130,
+        "n": 0,
+        "roh": 4123,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/obstacles.js",
+        "s": 126,
+        "e": 132,
+        "n": 0,
+        "roh": 15673,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/trkterrain.js",
+        "s": 126,
+        "e": 132,
+        "n": 0,
+        "roh": 10009,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/scenery.js",
+        "s": 126,
+        "e": 132,
+        "n": 0,
+        "roh": 15337,
+        "typ": "script"
+       },
+       {
+        "u": "src/track/kulisse.js",
+        "s": 133,
+        "e": 134,
+        "n": 0,
+        "roh": 14113,
+        "typ": "script"
+       },
+       {
+        "u": "assets/snd/sfx.json",
+        "s": 313,
+        "e": 314,
+        "n": 0,
+        "roh": 1532,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/snd/sfx.m4a",
+        "s": 313,
+        "e": 314,
+        "n": 0,
+        "roh": 273754,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/themes/herbst/sky.json",
+        "s": 367,
+        "e": 368,
+        "n": 0,
+        "roh": 407,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/themes/herbst/env.hdr",
+        "s": 369,
+        "e": 371,
+        "n": 0,
+        "roh": 1092974,
+        "typ": "fetch"
+       },
+       {
+        "u": "lib/addons/loaders/KTX2Loader.js",
+        "s": 369,
+        "e": 371,
+        "n": 0,
+        "roh": 36567,
+        "typ": "script"
+       },
+       {
+        "u": "assets/car/goblin.glb",
+        "s": 371,
+        "e": 373,
+        "n": 0,
+        "roh": 871676,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/tex/veg_atlas.json",
+        "s": 371,
+        "e": 373,
+        "n": 0,
+        "roh": 1384,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/deco/rocks.glb",
+        "s": 371,
+        "e": 374,
+        "n": 0,
+        "roh": 87064,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/themes/herbst/sky.jpg",
+        "s": 372,
+        "e": 375,
+        "n": 0,
+        "roh": 90297,
+        "typ": "img"
+       },
+       {
+        "u": "assets/tex/veg_atlas.webp",
+        "s": 372,
+        "e": 376,
+        "n": 0,
+        "roh": 326636,
+        "typ": "img"
+       },
+       {
+        "u": "assets/tex/gravel_diff.webp",
+        "s": 372,
+        "e": 376,
+        "n": 0,
+        "roh": 99400,
+        "typ": "img"
+       },
+       {
+        "u": "assets/tex/gravel_nor.webp",
+        "s": 373,
+        "e": 376,
+        "n": 0,
+        "roh": 134146,
+        "typ": "img"
+       },
+       {
+        "u": "lib/addons/utils/WorkerPool.js",
+        "s": 407,
+        "e": 409,
+        "n": 0,
+        "roh": 3110,
+        "typ": "script"
+       },
+       {
+        "u": "lib/addons/libs/ktx-parse.module.js",
+        "s": 407,
+        "e": 410,
+        "n": 0,
+        "roh": 19932,
+        "typ": "script"
+       },
+       {
+        "u": "lib/addons/libs/zstddec.module.js",
+        "s": 407,
+        "e": 410,
+        "n": 0,
+        "roh": 39754,
+        "typ": "script"
+       },
+       {
+        "u": "lib/addons/math/ColorSpaces.js",
+        "s": 407,
+        "e": 410,
+        "n": 0,
+        "roh": 4290,
+        "typ": "script"
+       },
+       {
+        "u": "icons/icon-192.png",
+        "s": 572,
+        "e": 573,
+        "n": 0,
+        "roh": 1557,
+        "typ": "other"
+       },
+       {
+        "u": "assets/themes/tex/ScatteredLeaves009_diff.ktx2",
+        "s": 598,
+        "e": 600,
+        "n": 0,
+        "roh": 236426,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/themes/tex/ScatteredLeaves009_nor.ktx2",
+        "s": 598,
+        "e": 601,
+        "n": 0,
+        "roh": 275735,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/themes/tex/ScatteredLeaves009_arm.ktx2",
+        "s": 598,
+        "e": 602,
+        "n": 0,
+        "roh": 213920,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/tex/asphalt_diff.ktx2",
+        "s": 599,
+        "e": 605,
+        "n": 0,
+        "roh": 200631,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/tex/asphalt_nor.ktx2",
+        "s": 599,
+        "e": 606,
+        "n": 0,
+        "roh": 230971,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/tex/asphalt_arm.ktx2",
+        "s": 599,
+        "e": 607,
+        "n": 0,
+        "roh": 210728,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/tex/concrete_diff.ktx2",
+        "s": 599,
+        "e": 608,
+        "n": 0,
+        "roh": 182407,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/tex/concrete_nor.ktx2",
+        "s": 599,
+        "e": 608,
+        "n": 0,
+        "roh": 176294,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/tex/concrete_arm.ktx2",
+        "s": 599,
+        "e": 608,
+        "n": 0,
+        "roh": 5184,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/tex/grass_diff.ktx2",
+        "s": 599,
+        "e": 608,
+        "n": 0,
+        "roh": 234620,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/tex/grass_nor.ktx2",
+        "s": 601,
+        "e": 608,
+        "n": 0,
+        "roh": 281792,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/tex/grass_arm.ktx2",
+        "s": 601,
+        "e": 610,
+        "n": 0,
+        "roh": 200874,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/tex/pad_diff.ktx2",
+        "s": 601,
+        "e": 610,
+        "n": 0,
+        "roh": 203261,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/tex/pad_nor.ktx2",
+        "s": 601,
+        "e": 610,
+        "n": 0,
+        "roh": 186823,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/tex/pad_arm.ktx2",
+        "s": 601,
+        "e": 610,
+        "n": 0,
+        "roh": 138449,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/tex/metal_diff.ktx2",
+        "s": 601,
+        "e": 610,
+        "n": 0,
+        "roh": 166803,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/tex/metal_nor.ktx2",
+        "s": 602,
+        "e": 610,
+        "n": 0,
+        "roh": 130249,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/tex/metal_arm.ktx2",
+        "s": 602,
+        "e": 610,
+        "n": 0,
+        "roh": 179507,
+        "typ": "fetch"
+       },
+       {
+        "u": "lib/addons/libs/basis/basis_transcoder.js",
+        "s": 624,
+        "e": 626,
+        "n": 0,
+        "roh": 57529,
+        "typ": "fetch"
+       },
+       {
+        "u": "lib/addons/libs/basis/basis_transcoder.wasm",
+        "s": 624,
+        "e": 626,
+        "n": 0,
+        "roh": 527333,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/tex/asphalt_detail_nor.webp",
+        "s": 771,
+        "e": 773,
+        "n": 0,
+        "roh": 39304,
+        "typ": "img"
+       },
+       {
+        "u": "assets/tex/fir_card_0.webp",
+        "s": 771,
+        "e": 773,
+        "n": 0,
+        "roh": 189992,
+        "typ": "img"
+       },
+       {
+        "u": "assets/tex/fir_card_1.webp",
+        "s": 771,
+        "e": 773,
+        "n": 0,
+        "roh": 186398,
+        "typ": "img"
+       },
+       {
+        "u": "assets/tex/imp/impostor.json",
+        "s": 1968,
+        "e": 1970,
+        "n": 0,
+        "roh": 1659,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/tex/imp/tanne0_farbe.webp",
+        "s": 1989,
+        "e": 1992,
+        "n": 0,
+        "roh": 54246,
+        "typ": "img"
+       },
+       {
+        "u": "assets/tex/imp/tanne0_nor.webp",
+        "s": 1989,
+        "e": 1993,
+        "n": 0,
+        "roh": 24626,
+        "typ": "img"
+       },
+       {
+        "u": "assets/tex/imp/tanne1_farbe.webp",
+        "s": 1989,
+        "e": 1993,
+        "n": 0,
+        "roh": 56194,
+        "typ": "img"
+       },
+       {
+        "u": "assets/tex/imp/laub1_farbe.webp",
+        "s": 1989,
+        "e": 1994,
+        "n": 0,
+        "roh": 163086,
+        "typ": "img"
+       },
+       {
+        "u": "assets/tex/imp/tanne1_nor.webp",
+        "s": 1989,
+        "e": 1994,
+        "n": 0,
+        "roh": 25604,
+        "typ": "img"
+       },
+       {
+        "u": "assets/tex/imp/laub1_nor.webp",
+        "s": 1989,
+        "e": 1994,
+        "n": 0,
+        "roh": 46406,
+        "typ": "img"
+       },
+       {
+        "u": "assets/tex/imp/laub2_farbe.webp",
+        "s": 1989,
+        "e": 1994,
+        "n": 0,
+        "roh": 177060,
+        "typ": "img"
+       },
+       {
+        "u": "assets/tex/imp/laub2_nor.webp",
+        "s": 1989,
+        "e": 1994,
+        "n": 0,
+        "roh": 50608,
+        "typ": "img"
+       },
+       {
+        "u": "assets/car/goblin_mid.glb",
+        "s": 4042,
+        "e": 4044,
+        "n": 0,
+        "roh": 248764,
+        "typ": "fetch"
+       },
+       {
+        "u": "assets/car/goblin_far.glb",
+        "s": 4042,
+        "e": 4044,
+        "n": 0,
+        "roh": 171464,
+        "typ": "fetch"
+       },
+       {
+        "u": "icons/icon-192.png",
+        "s": 5696,
+        "e": 5698,
+        "n": 0,
+        "roh": 1557,
+        "typ": "other"
+       }
+      ],
+      "sw": true,
+      "apTime": 91.07500000001855,
+      "build": "0527196459",
+      "nach_klick": {
+       "max": 16.8,
+       "ueber50": 0,
+       "ueber100": 0,
+       "erste": [
+        3,
+        17,
+        17,
+        17,
+        17,
+        17
+       ]
+      },
+      "profil": {
+       "intervall": 10,
+       "fenster": [
+        {
+         "a": 372,
+         "b": 656,
+         "proben": 38,
+         "inklusiv": [
+          [
+           "(anonym) lib/three.core.min.js:9",
+           11
+          ],
+          [
+           "parse lib/addons/loaders/HDRLoader.js:1",
+           9
+          ],
+          [
+           "makeEnvironment src/gfx/env.js:92",
+           9
+          ],
+          [
+           "u lib/addons/loaders/HDRLoader.js:5",
+           5
+          ],
+          [
+           "(anonym) lib/three.module.min.js:4220",
+           4
+          ],
+          [
+           "_fromTexture lib/three.module.min.js:3823",
+           4
+          ],
+          [
+           "fromEquirectangular lib/three.module.min.js:3823",
+           4
+          ],
+          [
+           "_textureToCubeUV lib/three.module.min.js:3823",
+           3
+          ],
+          [
+           "ho lib/three.module.min.js:4220",
+           3
+          ],
+          [
+           "dr lib/three.module.min.js:4220",
+           3
+          ],
+          [
+           "vn lib/three.module.min.js:4220",
+           3
+          ],
+          [
+           "cr lib/three.module.min.js:4220",
+           3
+          ],
+          [
+           "cut src/audio/sound.js:220",
+           3
+          ],
+          [
+           "loadRec src/audio/sound.js:212",
+           3
+          ]
+         ],
+         "selbst": [
+          [
+           "(Leerlauf/nativ)",
+           13
+          ],
+          [
+           "u lib/addons/loaders/HDRLoader.js:5",
+           5
+          ],
+          [
+           "makeEnvironment src/gfx/env.js:92",
+           4
+          ],
+          [
+           "parse lib/addons/loaders/HDRLoader.js:1",
+           3
+          ],
+          [
+           "cut src/audio/sound.js:220",
+           3
+          ],
+          [
+           "x lib/addons/loaders/HDRLoader.js:5",
+           1
+          ],
+          [
+           "t lib/three.module.min.js:4072",
+           1
+          ],
+          [
+           "Hf lib/three.module.min.js:4148",
+           1
+          ]
+         ]
+        },
+        {
+         "a": 656,
+         "b": 771,
+         "proben": 10,
+         "inklusiv": [
+          [
+           "setValues lib/three.core.min.js:5",
+           1
+          ],
+          [
+           "ha lib/three.core.min.js:9",
+           1
+          ],
+          [
+           "makeMaterials src/gfx/materials.js:518",
+           1
+          ],
+          [
+           "boot src/main.js:226",
+           1
+          ]
+         ],
+         "selbst": [
+          [
+           "(Leerlauf/nativ)",
+           9
+          ],
+          [
+           "setValues lib/three.core.min.js:5",
+           1
+          ]
+         ]
+        },
+        {
+         "a": 771,
+         "b": 1962,
+         "proben": 699,
+         "inklusiv": [
+          [
+           "boot src/main.js:226",
+           611
+          ],
+          [
+           "loadGenerated src/main.js:463",
+           588
+          ],
+          [
+           "loadTrack src/main.js:609",
+           587
+          ],
+          [
+           "prepare src/track/verify.js:13",
+           586
+          ],
+          [
+           "buildTrack src/track/build.js:252",
+           556
+          ],
+          [
+           "buildGelTerrain src/track/gelaende.js:363",
+           482
+          ],
+          [
+           "adaptiveGrid src/track/terrgrid.js:27",
+           46
+          ],
+          [
+           "makeCar src/gfx/carmesh.js:161",
+           37
+          ],
+          [
+           "projectCoarse src/track/terrgrid.js:50",
+           28
+          ],
+          [
+           "buildPiece src/track/build.js:308",
+           23
+          ],
+          [
+           "(anonym) src/track/build.js:677",
+           23
+          ],
+          [
+           "carveUnderRoads src/track/trkterrain.js:140",
+           21
+          ],
+          [
+           "Cockpit src/gfx/cockpit.js:148",
+           20
+          ],
+          [
+           "toFloat src/gfx/carmesh.js:20",
+           18
+          ]
+         ],
+         "selbst": [
+          [
+           "buildGelTerrain src/track/gelaende.js:363",
+           433
+          ],
+          [
+           "(Leerlauf/nativ)",
+           51
+          ],
+          [
+           "projectCoarse src/track/terrgrid.js:50",
+           28
+          ],
+          [
+           "adaptiveGrid src/track/terrgrid.js:27",
+           19
+          ],
+          [
+           "carveUnderRoads src/track/trkterrain.js:140",
+           17
+          ],
+          [
+           "toFloat src/gfx/carmesh.js:20",
+           12
+          ],
+          [
+           "solveBand src/track/gelaende.js:287",
+           8
+          ],
+          [
+           "buildTrack src/track/build.js:252",
+           8
+          ]
+         ]
+        },
+        {
+         "a": 1962,
+         "b": 4409,
+         "proben": 355,
+         "inklusiv": [
+          [
+           "loadTrack src/main.js:609",
+           208
+          ],
+          [
+           "buildWorld src/gfx/world.js:67",
+           150
+          ],
+          [
+           "(anonym) lib/three.module.min.js:4220",
+           106
+          ],
+          [
+           "tunnelAttr src/track/tunnel.js:139",
+           75
+          ],
+          [
+           "ho lib/three.module.min.js:4220",
+           69
+          ],
+          [
+           "dr lib/three.module.min.js:4220",
+           69
+          ],
+          [
+           "vn lib/three.module.min.js:4220",
+           69
+          ],
+          [
+           "cr lib/three.module.min.js:4220",
+           69
+          ],
+          [
+           "render src/gfx/kinolook.js:651",
+           59
+          ],
+          [
+           "drawFrame src/main.js:1749",
+           59
+          ],
+          [
+           "boot src/main.js:226",
+           59
+          ],
+          [
+           "actionVorwaermen src/main.js:1743",
+           55
+          ],
+          [
+           "buildDeco src/gfx/deco.js:306",
+           49
+          ],
+          [
+           "bakeStaticShadow src/gfx/env.js:122",
+           39
+          ]
+         ],
+         "selbst": [
+          [
+           "tunnelAttr src/track/tunnel.js:139",
+           75
+          ],
+          [
+           "(Leerlauf/nativ)",
+           62
+          ],
+          [
+           "r lib/three.module.min.js:4196",
+           32
+          ],
+          [
+           "computeBoundingSphere lib/three.core.min.js:5",
+           25
+          ],
+          [
+           "D lib/three.module.min.js:4162",
+           19
+          ],
+          [
+           "bild src/main.js:1143",
+           13
+          ],
+          [
+           "dist src/track/deco.js:50",
+           5
+          ],
+          [
+           "$a lib/three.module.min.js:4118",
+           5
+          ]
+         ]
+        }
+       ]
+      },
+      "fehler": [],
+      "etikett": "sw_bekannt"
+     },
+     "sw_eintraege": 184,
+     "server": {
+      "anfragen": 368,
+      "bytes": 18971040,
+      "mehrfach": [
+       [
+        "/icons/icon-192.png",
+        4
+       ],
+       [
+        "/index.html",
+        3
+       ],
+       [
+        "/css/style.css",
+        2
+       ],
+       [
+        "/src/main.js",
+        2
+       ],
+       [
+        "/src/game/lohn.js",
+        2
+       ],
+       [
+        "/src/build.js",
+        2
+       ],
+       [
+        "/src/track/tunnel.js",
+        2
+       ],
+       [
+        "/src/gfx/env.js",
+        2
+       ],
+       [
+        "/src/gfx/themes.js",
+        2
+       ],
+       [
+        "/src/track/themes.js",
+        2
+       ],
+       [
+        "/src/track/wetter.js",
+        2
+       ],
+       [
+        "/src/track/zeit.js",
+        2
+       ],
+       [
+        "/src/gfx/zeit.js",
+        2
+       ],
+       [
+        "/src/gfx/scheibe.js",
+        2
+       ],
+       [
+        "/src/gfx/world.js",
+        2
+       ],
+       [
+        "/src/gfx/carmesh.js",
+        2
+       ],
+       [
+        "/src/gfx/gauges.js",
+        2
+       ],
+       [
+        "/src/game/input.js",
+        2
+       ],
+       [
+        "/src/track/generator.js",
+        2
+       ],
+       [
+        "/src/track/verify.js",
+        2
+       ],
+       [
+        "/src/track/trk.js",
+        2
+       ],
+       [
+        "/src/track/trkimport.js",
+        2
+       ],
+       [
+        "/src/track/trkelems.js",
+        2
+       ],
+       [
+        "/src/game/trklib.js",
+        2
+       ],
+       [
+        "/src/track/showcase.js",
+        2
+       ],
+       [
+        "/src/game/sammlung.js",
+        2
+       ],
+       [
+        "/src/game/store.js",
+        2
+       ],
+       [
+        "/src/game/ghost.js",
+        2
+       ],
+       [
+        "/src/gfx/gegnervis.js",
+        2
+       ],
+       [
+        "/src/game/online.js",
+        2
+       ]
+      ],
+      "bytes_mehrfach": 17461895
+     }
+    }
+   ]
+  }
+ }
+}

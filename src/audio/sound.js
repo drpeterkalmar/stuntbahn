@@ -8,6 +8,7 @@
 //   Kontakt besteht, Landungen nach Fallhöhe, Reifenquietschen aus Aufnahmen; Zufall in Auswahl, Tonhöhe, Einsatz.
 // Bis n15 (und mit ?snd=alt oder wenn das Laden scheitert) der Synthesizer unten: V12 aus 4 Drehzahl-Loops,
 // Reifen, Fahrtwind, Crash, Aufsetzen. Countdown-/Checkpoint-Töne, Wind, Nitro, Hüpfer bleiben synthetisch.
+import { GLATT } from '../core/glatt.js';   // n42
 import { LOHN } from '../game/lohn.js';
 
 const SR = 44100;
@@ -297,8 +298,15 @@ export class Sound {
     const unlock = () => this.unlock();
     for (const ev of ['pointerup', 'touchend', 'click', 'keydown']) addEventListener(ev, unlock, { capture: true });
     try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch { /* optional */ }
-    // Aufnahmen schon beim Laden der Seite holen und dekodieren (braucht keine Geste) – beim Start liegt alles bereit
-    this.recP = SND_ALT || typeof OfflineAudioContext === 'undefined' ? Promise.resolve(null) : loadRec().catch((e) => { console.warn('Ton-Aufnahmen nicht geladen, Synthesizer', e); return null; });
+    // Aufnahmen holen und dekodieren (braucht keine Geste) – n42: nicht mehr beim Laden der Seite, sondern sobald das Menü
+    // steht (main.js ruft vorladen(), 274 kB + Dekodieren aus dem Startpfad) bzw. beim ersten Ton; ?tonfrueh=1 = sofort
+    this._recP = null;
+    if (!GLATT.tonSpaet) this.vorladen();
+  }
+  vorladen() { return this.recP; }
+  get recP() {
+    if (!this._recP) this._recP = SND_ALT || typeof OfflineAudioContext === 'undefined' ? Promise.resolve(null) : loadRec().catch((e) => { console.warn('Ton-Aufnahmen nicht geladen, Synthesizer', e); return null; });
+    return this._recP;
   }
   get enabled() { return !!this.store.settings.sound; }
   unlock() {

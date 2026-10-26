@@ -70,3 +70,12 @@ tests/shots/lack/*
 # n41 Reset-Knopf: nur die Bericht-Collage
 !tests/shots/n41/
 tests/shots/n41/*.png
+
+# n42 Mess-Server: selbst signiertes Zertifikat (lokal erzeugt)
+tests/.n42_cert/
+
+# n42 Bildvergleich: nur Collagen + Zahlen
+!tests/shots/n42/
+tests/shots/n42/*
+!tests/shots/n42/*.jpg
+!tests/shots/n42/*.json

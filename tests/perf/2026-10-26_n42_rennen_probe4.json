@@ -1,0 +1,195 @@
+{
+ "datum": "2026-10-26T20:56:30",
+ "modus": "rennen",
+ "profil": {
+  "drossel": 4,
+  "dpr": 2.6,
+  "geraet": "quer",
+  "rtt": 165,
+  "kbit": 9000,
+  "sek": 30.0,
+  "strecke": "seed=20261026&d=2&g=1&h=1",
+  "js_profil": true
+ },
+ "varianten": {
+  "probe4": {
+   "wurzel": "/Users/wohnzimmer/dev/.wt/stuntbahn-stuntbahn-n42-tempo-hindernisse",
+   "zusatz": "",
+   "laeufe": [
+    {
+     "n": 4828,
+     "p50": 6,
+     "p95": 8.7,
+     "p99": 10.3,
+     "ueber50": 2,
+     "ueber100": 1,
+     "max": 287.8,
+     "starts": 0,
+     "haenger": [
+      {
+       "t": 3.7,
+       "ms": 78.4,
+       "ursache": "erst[Mesh:ShaderMaterial→bild], Zeichnen 76 ms",
+       "stueck": "start",
+       "renn_t": 1.7,
+       "vorbild": [
+        0.8,
+        75.5,
+        87.6
+       ],
+       "profil": [
+        [
+         "render src/gfx/kinolook.js:726",
+         10
+        ],
+        [
+         "drawFrame src/main.js:1765",
+         10
+        ],
+        [
+         "render src/main.js:1468",
+         10
+        ],
+        [
+         "bild src/main.js:1148",
+         10
+        ],
+        [
+         "frame src/main.js:1143",
+         10
+        ],
+        [
+         "ho lib/three.module.min.js:4220",
+         7
+        ],
+        [
+         "(anonym) lib/three.module.min.js:4220",
+         7
+        ],
+        [
+         "dr lib/three.module.min.js:4220",
+         7
+        ]
+       ]
+      },
+      {
+       "t": 25.3,
+       "ms": 287.8,
+       "ursache": "erst[kulisse2-ampel:ShaderMaterial→rt1830x824], Zeichnen 281 ms",
+       "stueck": "turnL",
+       "renn_t": 28.4,
+       "vorbild": [
+        0.1,
+        281.4,
+        288.2
+       ],
+       "profil": [
+        [
+         "bild src/main.js:1148",
+         23
+        ],
+        [
+         "frame src/main.js:1143",
+         23
+        ],
+        [
+         "(anonym) lib/three.module.min.js:4220",
+         22
+        ],
+        [
+         "dr lib/three.module.min.js:4220",
+         22
+        ],
+        [
+         "vn lib/three.module.min.js:4220",
+         22
+        ],
+        [
+         "cr lib/three.module.min.js:4220",
+         22
+        ],
+        [
+         "render src/gfx/kinolook.js:726",
+         22
+        ],
+        [
+         "drawFrame src/main.js:1765",
+         22
+        ]
+       ]
+      }
+     ],
+     "lt_anzahl": 2,
+     "apLog": [],
+     "info": {
+      "calls": 118,
+      "tris": 423336,
+      "geometries": 151,
+      "textures": 69,
+      "programs": 124,
+      "pixelRatio": 2,
+      "tier": 2,
+      "fps": 144.53177034767563,
+      "ap": {
+       "skala": 1,
+       "bereich": [
+        0.7,
+        1
+       ],
+       "stufen": {
+        "deko": 1,
+        "autoschatten": 1,
+        "stufe": 2
+       },
+       "fps": 163,
+       "arbeit": 11.71,
+       "cpu": 4.92,
+       "gpu": 11.71,
+       "engpass": "gpu",
+       "gedeckelt": false,
+       "gesperrtBis": 0,
+       "aenderungen": 0,
+       "t": 31.4
+      },
+      "carLod": 0,
+      "ghostLod": 0,
+      "impostor": {
+       "atlas": true,
+       "arten": [
+        "tanne0",
+        "tanne1",
+        "laub1",
+        "laub2"
+       ],
+       "fehler": null
+      },
+      "reflex": null,
+      "vao": {
+       "fertig": true,
+       "anteil": 1,
+       "ecken": 30768,
+       "gerechnet": 20173,
+       "strahlen": 121038,
+       "strahlenJe": 6,
+       "ms": 262
+      },
+      "apLog": [],
+      "startProbe": {
+       "n": 20,
+       "median": 10.100000143051147,
+       "p90": 10.399999856948853,
+       "min": 8.699999809265137,
+       "max": 10.700000047683716,
+       "skala": 1
+      },
+      "gpuZeit": true
+     },
+     "fehler": [],
+     "neuP": [],
+     "gc": 21,
+     "ap_aenderungen": 0
+    }
+   ]
+  }
+ }
+}

@@ -2,6 +2,7 @@
 // Vogelschwärme. Alles im Spiel erzeugt (0 KB Download), je ein Draw-Call, Bewegung im Shader aus der Zeit (keine
 // CPU-Arbeit je Bild). ?deko=0 = Aussehen wie bis n29 (alles hier aus); ?deko=aus = ohne Streckenrand-Deko (bis n29: ?deko=0).
 import * as THREE from 'three';
+import { GLATT } from '../core/glatt.js';   // n42: durchsichtig + beidseitig in einem Durchgang
 import { zeitUniforms } from './zeit.js';
 import { decoUniforms } from './deco.js';
 import { WETTER_AIR, wetterTeilchen } from '../track/wetter.js';
@@ -213,7 +214,7 @@ export class AirMotes {
       uCamVel: { value: new THREE.Vector3() }, uStreak: { value: 0.07 }, zHell: zeitUniforms.zHell };   // n32: nachts dunkler
     this.mat = new THREE.ShaderMaterial({
       // n32: beidseitig – die Regenstreifen (kind 4) liegen je nach Fall-/Kamerarichtung mit der Rückseite zur Kamera
-      uniforms: U, transparent: true, depthWrite: false, side: THREE.DoubleSide,
+      uniforms: U, transparent: true, depthWrite: false, side: THREE.DoubleSide, forceSinglePass: GLATT.einseitig,
       vertexShader: `attribute vec4 aS; uniform float uTime, uKind, uSize, uFall, uSway, uWind, uSpin, uBox, uH, uA, uStreak; uniform vec3 uC0, uC1, uSun, uCamVel;
         varying vec2 vUv; varying float vA; varying vec3 vC;
         void main() {

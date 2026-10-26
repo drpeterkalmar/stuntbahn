@@ -6,7 +6,9 @@ const ASSETS = [
   __ASSETS__
 ];
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS.map((u) => new Request(u, { cache: 'reload' })))).then(() => self.skipWaiting()));
+  // n42: 'no-cache' statt 'reload' – fragt mit ETag nach (304 ohne Inhalt, wenn die Datei schon im HTTP-Cache liegt, z. B.
+  // gerade vom ersten Spielstart geladen); vorher lud der Vorab-Cache alles ein zweites Mal
+  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS.map((u) => new Request(u, { cache: 'no-cache' })))).then(() => self.skipWaiting()));
 });
 self.addEventListener('activate', (e) => {
   e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k.startsWith('stuntbahn-') && k !== CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim()));

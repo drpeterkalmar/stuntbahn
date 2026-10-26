@@ -2,6 +2,7 @@
 // Lädt das GLB (Meshopt), backt Transformationen, normiert auf Physik-Maße (vorwärts −Z, oben +Y),
 // trennt Räder (Lenk-Pivot + Dreh-Gruppe) und ersetzt den Lack durch Clearcoat-Material.
 import * as THREE from 'three';
+import { GLATT } from '../core/glatt.js';   // n42: durchsichtig + beidseitig in einem Durchgang
 import { schadenLook } from './schadenlook.js';
 // Mess-Regler ?schadenlook=0: Lack/Glas ohne Schadens-Shader (A/B gegen den Stand vor n34)
 const SCHADENLOOK_AUS = typeof location !== 'undefined' && new URLSearchParams(location.search).get('schadenlook') === '0';
@@ -107,7 +108,7 @@ function flameMaterial(core) {
         vec3 c = mix(tip, hot, along) * (uCore > 0.5 ? 2.2 : 1.6);
         gl_FragColor = vec4(c * e * along * flick * uL, 1.0);
       }`,
-    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, toneMapped: false,
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, forceSinglePass: GLATT.einseitig, toneMapped: false,
   });
 }
 function glowTexture() {

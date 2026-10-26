@@ -15,6 +15,128 @@
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="stylesheet" href="css/style.css">
 <script type="importmap">{ "imports": { "three": "./lib/three.module.min.js", "three/addons/": "./lib/addons/" } }</script>
+<!-- n42-modulepreload (tools/update_sw.py: alle statischen Module des Starts, laden parallel statt Stufe für Stufe) -->
+<link rel="modulepreload" href="lib/three.core.min.js">
+<link rel="modulepreload" href="lib/three.module.min.js">
+<link rel="modulepreload" href="lib/addons/libs/meshopt_decoder.module.js">
+<link rel="modulepreload" href="lib/addons/loaders/GLTFLoader.js">
+<link rel="modulepreload" href="lib/addons/loaders/HDRLoader.js">
+<link rel="modulepreload" href="lib/addons/utils/BufferGeometryUtils.js">
+<link rel="modulepreload" href="lib/addons/utils/SkeletonUtils.js">
+<link rel="modulepreload" href="src/ai/autopilot.js">
+<link rel="modulepreload" href="src/ai/drift.js">
+<link rel="modulepreload" href="src/ai/gegner.js">
+<link rel="modulepreload" href="src/ai/ideal.js">
+<link rel="modulepreload" href="src/ai/profile.js">
+<link rel="modulepreload" href="src/audio/sound.js">
+<link rel="modulepreload" href="src/build.js">
+<link rel="modulepreload" href="src/core/gforce.js">
+<link rel="modulepreload" href="src/core/glatt.js">
+<link rel="modulepreload" href="src/core/showspeed.js">
+<link rel="modulepreload" href="src/core/util.js">
+<link rel="modulepreload" href="src/game/action.js">
+<link rel="modulepreload" href="src/game/cinecam.js">
+<link rel="modulepreload" href="src/game/ghost.js">
+<link rel="modulepreload" href="src/game/highlights.js">
+<link rel="modulepreload" href="src/game/input.js">
+<link rel="modulepreload" href="src/game/jumpassist.js">
+<link rel="modulepreload" href="src/game/lohn.js">
+<link rel="modulepreload" href="src/game/online.js">
+<link rel="modulepreload" href="src/game/onlinestrecke.js">
+<link rel="modulepreload" href="src/game/race.js">
+<link rel="modulepreload" href="src/game/rennfeld.js">
+<link rel="modulepreload" href="src/game/replay.js">
+<link rel="modulepreload" href="src/game/sammlung.js">
+<link rel="modulepreload" href="src/game/store.js">
+<link rel="modulepreload" href="src/game/stunts.js">
+<link rel="modulepreload" href="src/game/trklib.js">
+<link rel="modulepreload" href="src/game/warn.js">
+<link rel="modulepreload" href="src/game/zielshow.js">
+<link rel="modulepreload" href="src/game/zielstunt.js">
+<link rel="modulepreload" href="src/gfx/camera.js">
+<link rel="modulepreload" href="src/gfx/carlod.js">
+<link rel="modulepreload" href="src/gfx/carmesh.js">
+<link rel="modulepreload" href="src/gfx/cockpit.js">
+<link rel="modulepreload" href="src/gfx/cockpitmat.js">
+<link rel="modulepreload" href="src/gfx/deco.js">
+<link rel="modulepreload" href="src/gfx/deko.js">
+<link rel="modulepreload" href="src/gfx/env.js">
+<link rel="modulepreload" href="src/gfx/fx.js">
+<link rel="modulepreload" href="src/gfx/gauges.js">
+<link rel="modulepreload" href="src/gfx/gegnervis.js">
+<link rel="modulepreload" href="src/gfx/jumpdeck.js">
+<link rel="modulepreload" href="src/gfx/kern/autopilot.js">
+<link rel="modulepreload" href="src/gfx/kern/impostor.js">
+<link rel="modulepreload" href="src/gfx/kern/oktaeder.js">
+<link rel="modulepreload" href="src/gfx/kern/reflex.js">
+<link rel="modulepreload" href="src/gfx/kern/startprobe.js">
+<link rel="modulepreload" href="src/gfx/kern/taau.js">
+<link rel="modulepreload" href="src/gfx/kern/taau_mathe.js">
+<link rel="modulepreload" href="src/gfx/kinolook.js">
+<link rel="modulepreload" href="src/gfx/kulisse.js">
+<link rel="modulepreload" href="src/gfx/kulisse2.js">
+<link rel="modulepreload" href="src/gfx/lineviz.js">
+<link rel="modulepreload" href="src/gfx/materials.js">
+<link rel="modulepreload" href="src/gfx/minikarte.js">
+<link rel="modulepreload" href="src/gfx/post.js">
+<link rel="modulepreload" href="src/gfx/pyro.js">
+<link rel="modulepreload" href="src/gfx/quality.js">
+<link rel="modulepreload" href="src/gfx/schadenlook.js">
+<link rel="modulepreload" href="src/gfx/schadenvis.js">
+<link rel="modulepreload" href="src/gfx/scheibe.js">
+<link rel="modulepreload" href="src/gfx/themes.js">
+<link rel="modulepreload" href="src/gfx/tiere.js">
+<link rel="modulepreload" href="src/gfx/tierform.js">
+<link rel="modulepreload" href="src/gfx/wetter.js">
+<link rel="modulepreload" href="src/gfx/world.js">
+<link rel="modulepreload" href="src/gfx/zeit.js">
+<link rel="modulepreload" href="src/main.js">
+<link rel="modulepreload" href="src/net/paket.js">
+<link rel="modulepreload" href="src/net/puffer.js">
+<link rel="modulepreload" href="src/physics/air.js">
+<link rel="modulepreload" href="src/physics/arcade.js">
+<link rel="modulepreload" href="src/physics/autoauto.js">
+<link rel="modulepreload" href="src/physics/car.js">
+<link rel="modulepreload" href="src/physics/collide.js">
+<link rel="modulepreload" href="src/physics/extras.js">
+<link rel="modulepreload" href="src/physics/schaden.js">
+<link rel="modulepreload" href="src/track/build.js">
+<link rel="modulepreload" href="src/track/deco.js">
+<link rel="modulepreload" href="src/track/defs.js">
+<link rel="modulepreload" href="src/track/gelaende.js">
+<link rel="modulepreload" href="src/track/generator.js">
+<link rel="modulepreload" href="src/track/generator3d.js">
+<link rel="modulepreload" href="src/track/generatorG.js">
+<link rel="modulepreload" href="src/track/kartegeo.js">
+<link rel="modulepreload" href="src/track/kulisse.js">
+<link rel="modulepreload" href="src/track/kulisse2.js">
+<link rel="modulepreload" href="src/track/obstacles.js">
+<link rel="modulepreload" href="src/track/pieces.js">
+<link rel="modulepreload" href="src/track/pieces_3d.js">
+<link rel="modulepreload" href="src/track/pieces_gel.js">
+<link rel="modulepreload" href="src/track/pieces_hind.js">
+<link rel="modulepreload" href="src/track/pieces_trk.js">
+<link rel="modulepreload" href="src/track/pruefung.js">
+<link rel="modulepreload" href="src/track/scenery.js">
+<link rel="modulepreload" href="src/track/showcase.js">
+<link rel="modulepreload" href="src/track/terrgrid.js">
+<link rel="modulepreload" href="src/track/themes.js">
+<link rel="modulepreload" href="src/track/trk.js">
+<link rel="modulepreload" href="src/track/trkdesign.js">
+<link rel="modulepreload" href="src/track/trkelems.js">
+<link rel="modulepreload" href="src/track/trkimport.js">
+<link rel="modulepreload" href="src/track/trkterrain.js">
+<link rel="modulepreload" href="src/track/tunnel.js">
+<link rel="modulepreload" href="src/track/vao.js">
+<link rel="modulepreload" href="src/track/verify.js">
+<link rel="modulepreload" href="src/track/wetter.js">
+<link rel="modulepreload" href="src/track/zeit.js">
+<link rel="modulepreload" href="src/ui/cliprec.js">
+<link rel="modulepreload" href="src/ui/gmeter.js">
+<link rel="modulepreload" href="src/ui/minimap.js">
+<link rel="modulepreload" href="src/ui/n40optionen.js">
+<link rel="modulepreload" href="src/ui/ui.js">
+<!-- /n42-modulepreload -->
 </head>
 <body data-mode="menu">
 <canvas id="c"></canvas>
@@ -26,7 +148,11 @@
   addEventListener('unhandledrejection', function (e) { __errors.push('Promise: ' + String(e.reason && e.reason.message || e.reason)); });
   if ('serviceWorker' in navigator && !/[?&]nosw/.test(location.search) && location.protocol === 'https:') {
     var hadCtl = !!navigator.serviceWorker.controller;
-    navigator.serviceWorker.register('sw.js').catch(function () {});
+    // n42: erst registrieren, wenn das Menü steht (main.js ruft __swStart) – sonst lädt der Vorab-Cache beim ersten Besuch alles
+    // parallel zum Spielstart ein zweites Mal (gemessen 17 MB, Fast 4G). Spätestens nach 30 s; ?swfrueh=1 = sofort wie bisher
+    var swGo = function () { if (swGo.los) return; swGo.los = 1; navigator.serviceWorker.register('sw.js').catch(function () {}); };
+    window.__swStart = swGo;
+    if (/[?&](swfrueh=1|glatt=0)/.test(location.search)) swGo(); else setTimeout(swGo, 30000);
     navigator.serviceWorker.addEventListener('controllerchange', function () {
       if (hadCtl && document.body.dataset.mode === 'menu') location.reload();
     });

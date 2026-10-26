@@ -5,6 +5,7 @@
 //  Felsen (Poly Haven, vereinfacht), entfernte Bauernhöfe. Keine Kollision.
 //  Karten blenden mit der Entfernung aus (Gras/Blumen ab ~55 m), Gras wiegt sich leicht im Wind.
 import * as THREE from 'three';
+import { GLATT } from '../core/glatt.js';   // n42: durchsichtig + beidseitig in einem Durchgang
 import { DEKO } from './deko.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
@@ -367,7 +368,7 @@ export function buildDeco(track, M, surfaceY, add, opts = {}) {
     g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
     g.setAttribute('color', new THREE.Float32BufferAttribute(col, 4));
     g.setIndex(idx); g.computeBoundingSphere();
-    const m = once('marks', () => new THREE.MeshBasicMaterial({ color: 0x0a0a0a, vertexColors: true, transparent: true, opacity: 0.32, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 }));
+    const m = once('marks', () => new THREE.MeshBasicMaterial({ color: 0x0a0a0a, vertexColors: true, transparent: true, opacity: 0.32, depthWrite: false, side: THREE.DoubleSide, forceSinglePass: GLATT.einseitig, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 }));
     const mesh = new THREE.Mesh(g, m); mesh.name = 'deco-marks'; mesh.renderOrder = 1;
     add(mesh, false); count(mesh, 1, idx.length / 3); stats.inst--;
   }

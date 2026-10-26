@@ -3,6 +3,7 @@
 // n30: Standard ist der Qualitäts-Autopilot aus dem Grafik-Kern (kern/autopilot.js: Arbeitszeit statt Bildabstand, GPU-Zeit
 // wenn vorhanden, auch wieder aufwärts). ?autopilot=0 = alte Automatik (sample() unten, unverändert).
 import { GrafikAutopilot, GpuZeit } from './kern/autopilot.js';
+import { GLATT } from '../core/glatt.js';
 
 export class Quality {
   // opts.autopilot: neuer Weg (main.js: an, außer ?autopilot=0)
@@ -33,16 +34,30 @@ export class Quality {
   // TODO n30-Heavy: Schattenakne/Peter-Pan am Auto im Bild prüfen (Menü, Looping, Sonne flach im Thema Winter/Abend)
   shadowBox() { return this.tightShadow ? { r: 3.6, near: 48, far: 72, bias: -0.0004 * 139 / 24 } : { r: 7, near: 1, far: 140, bias: -0.0004 }; }
   // Stufe auf Szene anwenden (Echtzeit-Schatten nur fürs Auto; Stufe 0 ohne)
+  // n42: Schaltet die Automatik den Auto-Schatten mitten in der Sitzung ab (Schritt „autoschatten“ bzw. Stufe Einfach), bleibt
+  // castShadow an – ein Wechsel ändert die Shader-Programme aller beleuchteten Materialien (gemessen 31 Programme, 1,7 s
+  // Standbild am Mac mit CPU ×4). Stattdessen wirft das Auto keinen Schatten mehr (onSchatten(false)), die Karte wird einmal
+  // leer gezeichnet und dann nicht mehr erneuert. Beim nächsten Streckenbau (Shader werden ohnehin übersetzt) gilt wieder die
+  // volle Regel (schattenNeu). ?schattenfix=0 = bisher.
+  schattenNeu() { this.schattenAn = false; }
   apply(sun, renderer) {
     const sz = this.carShadowSize();
-    sun.castShadow = sz > 0;
+    const leer = GLATT.schattenfix && sz === 0 && !!this.schattenAn;
+    sun.castShadow = sz > 0 || leer;
+    this.schattenAn = sun.castShadow;
+    if (leer !== !!this.schattenLeer) {
+      this.schattenLeer = leer;
+      if (this.onSchatten) this.onSchatten(!leer);
+      sun.shadow.autoUpdate = !leer;
+      sun.shadow.needsUpdate = true;   // leer: einmal ohne Auto zeichnen, danach steht die Karte
+    }
     const B = this.shadowBox(), sc = sun.shadow.camera;
     if (sc.right !== B.r || sc.far !== B.far) {
       sc.left = -B.r; sc.right = B.r; sc.top = B.r; sc.bottom = -B.r; sc.near = B.near; sc.far = B.far;
       sc.updateProjectionMatrix();
       sun.shadow.bias = B.bias;
     }
-    if (sz && sun.shadow.mapSize.x !== sz) { sun.shadow.mapSize.set(sz, sz); if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; } }
+    if (sz && sun.shadow.mapSize.x !== sz && !leer) { sun.shadow.mapSize.set(sz, sz); if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; } }
   }
   // ---------- n30: Qualitäts-Autopilot ----------
   // o.skala = Start-Renderskala (Kurzmessung bzw. gespeichert), o.gl = WebGL2-Kontext (GPU-Zeit), o.onAenderung(e)

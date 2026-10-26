@@ -1,5 +1,6 @@
 // Effekte: Bremsspuren (Ringpuffer-Band), Rauch/Staub/Funken als instanzierte Partikel.
 import * as THREE from 'three';
+import { GLATT } from '../core/glatt.js';   // n42: durchsichtig + beidseitig in einem Durchgang
 import { zeitUniforms } from './zeit.js';
 import { DEKO } from './deko.js';
 import { MAT } from '../track/defs.js';
@@ -167,7 +168,7 @@ export class Sparks {
     const idx = new Uint16Array(max * 6);
     for (let i = 0; i < max; i++) { const a = i * 4; idx.set([a, a + 1, a + 2, a + 1, a + 3, a + 2], i * 6); }
     g.setIndex(new THREE.BufferAttribute(idx, 1));
-    const m = new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false, fog: false });
+    const m = new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, forceSinglePass: GLATT.einseitig, toneMapped: false, fog: false });
     this.mesh = new THREE.Mesh(g, m); this.mesh.frustumCulled = false; this.mesh.renderOrder = 4; this.mesh.name = 'sparks';
     scene.add(this.mesh);
     this.next = 0; this.alive = 0;

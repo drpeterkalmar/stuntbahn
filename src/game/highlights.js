@@ -9,7 +9,7 @@
 import { REC_HZ, REC_STRIDE } from './race.js';
 import { Tracker } from '../ai/autopilot.js';
 import { showKmhMs } from '../core/showspeed.js';
-import { gTrack, gPeak, fmtG, G_ON } from '../core/gforce.js';
+import { gTrackG, gPeak, fmtG, G_ON, fertigRechnen } from '../core/gforce.js';
 
 // ---------- Punkte-Formel (alle Regler an einer Stelle) ----------
 export const HL = {
@@ -192,7 +192,10 @@ export function driftTrack(rec, cuts = [], minV = 8) {
 
 // ---------- Auswertung je Bild ----------
 // env = { track, layout? }, marks = { cuts, pens, xev, crashes }
-export function frameData(rec, env, marks = {}) {
+export function frameData(rec, env, marks = {}) { return fertigRechnen(frameDataG(rec, env, marks)); }
+// n42: Generator-Fassungen (frameDataG, findMomentsG, buildFilmG) – gleiche Rechnung, pausiert in Häppchen (yield), damit der
+// Film während der Zielshow über mehrere Bilder entsteht statt in einem Stück am Ende (gemessen ~100 ms Standbild, Mac CPU ×4)
+export function* frameDataG(rec, env, marks = {}) {
   const F = Math.floor(rec.length / REC_STRIDE), L = env.track.line;
   const D = {
     F, px: new Float32Array(F), py: new Float32Array(F), pz: new Float32Array(F), upY: new Float32Array(F), sp: new Float32Array(F),
@@ -201,7 +204,7 @@ export function frameData(rec, env, marks = {}) {
   };
   for (const c of marks.cuts || []) if (c.f >= 0 && c.f < F) D.cut[c.f] = 1;
   // G-Kräfte je Bild (n24, angezeigte Werte wie im Cockpit/Replay)
-  D.G = gTrack(rec, (marks.cuts || []).map((c) => c.f));
+  D.G = yield* gTrackG(rec, (marks.cuts || []).map((c) => c.f));
   // Crash-Fenster (Crash bis zum nächsten Schnitt, mit Totalschaden bis Ende des Wracks) zählen für keinen anderen Moment
   const cutsF = (marks.cuts || []).map((c) => c.f).sort((a, b) => a - b);
   const crashes = crashList(marks);
@@ -211,6 +214,7 @@ export function frameData(rec, env, marks = {}) {
   }
   const tr = new Tracker(L), u = [0, 0, 0], f = [0, 0, 0];
   for (let i = 0; i < F; i++) {
+    if ((i & 255) === 255) yield;
     const o = i * REC_STRIDE;
     D.px[i] = rec[o]; D.py[i] = rec[o + 1]; D.pz[i] = rec[o + 2];
     rotQ(rec[o + 3], rec[o + 4], rec[o + 5], rec[o + 6], 0, 1, 0, u);
@@ -243,8 +247,9 @@ const isCork = (t) => /cork/.test(t);
 const STRUCT = /^(loop|tube|tr_loop|tr_pipe|tr_pipeT|tr_corklr|tr_corkud|wall|halfpipe|bank|tr_bankC|tr_bank|spiral|tube_wall|zigzag|zigzag2)$/;   // n33: + Röhre mit Wand, Zickzack
 
 // ---------- Kandidaten ----------
-export function findMoments(rec, env, marks = {}) {
-  const D = frameData(rec, env, marks), F = D.F, L = env.track.line, dt = 1 / REC_HZ;
+export function findMoments(rec, env, marks = {}) { return fertigRechnen(findMomentsG(rec, env, marks)); }
+export function* findMomentsG(rec, env, marks = {}) {
+  const D = yield* frameDataG(rec, env, marks), F = D.F, L = env.track.line, dt = 1 / REC_HZ;
   const out = [];
   const crashes = crashList(marks);
   const crashNear = (i0, i1) => crashes.some((c) => c.f >= i0 && c.f <= i1);
@@ -310,6 +315,7 @@ export function findMoments(rec, env, marks = {}) {
     out.push(m);
   }
 
+  yield;
   // 2. Bauwerke: Looping, Korkenzieher, Wendel, Röhre, Spirale, Steilwand, Halfpipe, n33 Röhre mit Wand, Zickzack
   // (zusammenhängende Bilder je Stück)
   const runs = [];
@@ -365,6 +371,7 @@ export function findMoments(rec, env, marks = {}) {
     out.push(m);
   }
 
+  yield;
   // 3. Nitro-Schübe
   for (const e of (marks.xev || []).filter((x) => x.k === 'nitro')) {
     const i0 = e.f, i1 = Math.min(F - 1, (e.end ?? F) + REC_HZ);
@@ -375,6 +382,7 @@ export function findMoments(rec, env, marks = {}) {
     out.push({ kind: 'nitro', i0, i1: Math.min(i1, im + 20), ip: Math.min(im, i0 + Math.round(HL.nitro.look * REC_HZ)), v0: D.sp[i0], vmax, dur: (im - i0) * dt, score: HL.nitro.base + dv * HL.nitro.dv + vmax * 3.6 * HL.nitro.v });
   }
 
+  yield;
   // 4. Spitzentempo (am Boden, außerhalb von Crashs)
   {
     let vmax = 0, im = -1;
@@ -382,6 +390,7 @@ export function findMoments(rec, env, marks = {}) {
     if (im >= 0 && vmax * 3.6 > HL.top.min) out.push({ kind: 'top', i0: Math.max(0, im - REC_HZ), i1: Math.min(F - 1, im + 30), ip: im, vmax, score: (vmax * 3.6 - 200) * HL.top.k });
   }
 
+  yield;
   // 4b. Kurve mit der größten Querbeschleunigung (am Boden, normale Fahrbahn, ohne Crash danach)
   {
     const C = HL.curve, G = D.G;
@@ -398,6 +407,7 @@ export function findMoments(rec, env, marks = {}) {
     if (best) { best.score = C.base + C.k * (best.g - C.lat); out.push(best); }
   }
 
+  yield;
   // 4c. Drifts (n25): längster und stärkster Drift, Beinahe-Dreher
   {
     const DR = HL.drift, Bt = driftTrack(rec, (marks.cuts || []).map((c) => c.f)), lim = DR.deg * Math.PI / 180, gapN = Math.round(DR.gap * REC_HZ);
@@ -423,6 +433,7 @@ export function findMoments(rec, env, marks = {}) {
     if (strongest && strongest !== longest) { const m = mk(strongest, 'drift'); m.strongest = true; out.push(m); }
   }
 
+  yield;
   // 5. Beinahe-Unfälle: starke Schräglage gegen die Fahrbahn bzw. auf zwei Rädern, am Boden, ohne Crash danach
   const nearRun = (test, minS, make) => {
     for (let i = 0; i < F;) {
@@ -437,6 +448,7 @@ export function findMoments(rec, env, marks = {}) {
   nearRun((i) => plain(i) && D.tilt[i] > HL.near.tilt, HL.near.minS, (i0, i1, ip, deg) => ({ kind: 'near', i0, i1, ip, deg, score: HL.near.base + HL.near.k * (deg - HL.near.tilt) }));
   nearRun((i) => plain(i) && D.side2[i] && D.sp[i] > 8, HL.near.wheelsS, (i0, i1, ip) => ({ kind: 'wheels2', i0, i1, ip, score: HL.near.wheelsBase + 10 * (i1 - i0) * dt }));
 
+  yield;
   // 6. Crash mit Überschlag (nur spektakulär, nicht frustrierend)
   if (crashes.length <= HL.crash.maxCrashes) {
     const cutsF = (marks.cuts || []).map((c) => c.f).sort((a, b) => a - b);
@@ -458,6 +470,7 @@ export function findMoments(rec, env, marks = {}) {
     }
   }
 
+  yield;
   // G-Spitzen je Moment (angezeigte G): Sprünge/harte Landung im Landungs-Fenster, Bauwerke über das Stück, Nitro längs
   for (const m of out) {
     if (m.kind === 'curve') continue;
@@ -558,10 +571,12 @@ function makeShots(c, prevCam, used = null) {
 
 // ---------- Film bauen ----------
 // Liefert { clips: [{ kind, label, a, b, c0, c1, tp, smin, shots, film }], duration, cands } oder null (zu kurz)
-export function buildFilm(rec, env, marks = {}, opt = {}) {
+export function buildFilm(rec, env, marks = {}, opt = {}) { return fertigRechnen(buildFilmG(rec, env, marks, opt)); }
+export function* buildFilmG(rec, env, marks = {}, opt = {}) {
   const F = Math.floor(rec.length / REC_STRIDE);
   if (F < 5 * REC_HZ) return null;
-  const { D, cands: all } = findMoments(rec, env, marks);
+  const { D, cands: all } = yield* findMomentsG(rec, env, marks);
+  yield;
   const cutT = (marks.cuts || []).map((c) => c.f / REC_HZ);
   const P = HL.pick, Fm = HL.film, Zs = HL.zshow;
   // n27: Aufzeichnung mit Auslaufen hinter dem Ziel (marks.fin) – Momente nur bis zur Linie, Zieleinlauf mit Zielshow
@@ -598,6 +613,7 @@ export function buildFilm(rec, env, marks = {}, opt = {}) {
   const pool = cands.slice();
   let filmT = 0;
   while (chosen.length < (opt.maxN ?? P.max) && pool.length) {
+    yield;
     let best = null, bs = -1, bi = -1;
     for (let k = 0; k < pool.length; k++) {
       const m = pool[k], s = m.score * P.same[Math.min(P.same.length - 1, used[m.kind] || 0)];
@@ -648,6 +664,7 @@ export function buildFilm(rec, env, marks = {}, opt = {}) {
   let prev = null;
   const camN = FX ? {} : null;
   for (const c of clips) {
+    yield;
     c.shots = makeShots(c, prev, camN);
     prev = c.shots[c.shots.length - 1].cam;
     if (camN) for (const x of c.shots) camN[x.cam] = (camN[x.cam] || 0) + 1;
