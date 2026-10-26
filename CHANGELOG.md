@@ -2,7 +2,7 @@
 
 Kurzfassung je Version; Details in den Abschnitten der `README.md` und in den Berichten (`*_BERICHT.md`).
 
-## __VERSION__ – 26.10.2026 (Tier-Zuschauer)
+## 0.13.0 – 26.10.2026 (Tier-Zuschauer)
 - **Neu: herzige Tier-Zuschauer** (Peter 20.10.: „niedlichere Zuschauer (herzige Tiere)“): Bärchen, Häschen, Füchse, Pinguine,
   Kätzchen und Kühe statt Menschen – am Rand, auf den Tribünen, in der Ferne und als Ohren in der Fan-Cam. Sie jubeln mit
   hochgerissenen Pfoten. Option „Zuschauer: Tiere/Menschen“ (Standard Tiere), `?zuschauer=mensch`.
