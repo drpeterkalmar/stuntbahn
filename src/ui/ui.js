@@ -541,7 +541,7 @@ export class UI {
       case 'clipshare': if (this.lastClip) shareClip(this.lastClip.blob, this.lastClip.name).then((r) => this.toast(r === 'geteilt' ? '📤 Geteilt' : r === 'gespeichert' ? '💾 Video gespeichert' : 'Abgebrochen')); break;
       case 'tbsize': S.tbsize = v; document.body.dataset.tbsize = v; this.store.save(); this.showSettings(); break;
       case 'karte': S.karte = v; this.store.save(); this.showSettings(); break;   // n39
-      case 'zuschauer': if (A.setZuschauer) A.setZuschauer(v); this.showSettings(); break;   // n40 (Welt neu)
+      case 'zuschauer': this.showSettings(); if (A.setZuschauer) Promise.resolve(A.setZuschauer(v)).then(() => { if (this.screen === 'menu') this.showSettings(); }); break;   // n40 (Welt neu, danach zurück in die Optionen)
       case 'zieljubel': S.zieljubel = v; this.store.save(); if (window.__game && window.__game.race) window.__game.race.zieljubel = zieljubelArt(location.search, S); this.showSettings(); break;   // n40
       case 'action': S.action = v; this.store.save(); if (window.__app && window.__app.action && !ACTION_URL && !window.__app.action.online) window.__app.action.stufe = v; if (this.screen === 'pause') this.showPause(true); else this.showSettings(); break;   // n36
       case 'blur': S.blur = v; this.store.save(); if (A.quality.post) A.quality.post.autoOff = false; this.showSettings(); break;

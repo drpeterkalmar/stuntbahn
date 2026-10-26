@@ -2,6 +2,13 @@
 
 Kurzfassung je Version; Details in den Abschnitten der `README.md` und in den Berichten (`*_BERICHT.md`).
 
+## __VERSION__ – 26.10.2026 (Zieljubel-Stunt)
+- **Neu: Stunt nach der Ziellinie** (Peter 20.10.: „automatischer Nitro und Sprung und Schraube oder Front-/Backflip im
+  Ziel“): Nitro mit Flammen → Sprung → Schraube, Frontflip oder Backflip → saubere Landung → ausrollen, dann Zielbogen.
+  Nur Show – Zeit, Bestzeit, Geist und Online-Wertung unverändert. Im Replay und Highlight-Film zu sehen („🏁 Ziel · Backflip“).
+- Nur mit Platz hinter dem Ziel, sonst wie bisher. Option „Zieljubel: Stunt/Dreher/Aus“ jetzt **Standard Stunt**, `?zieljubel=`.
+- Cockpit/Stoßstange zeigen den Stunt im Verfolger; weiche Landung (G-Messer im Film ≤ 3 G statt einer 10-G-Spitze).
+
 ## 0.13.0 – 26.10.2026 (Tier-Zuschauer)
 - **Neu: herzige Tier-Zuschauer** (Peter 20.10.: „niedlichere Zuschauer (herzige Tiere)“): Bärchen, Häschen, Füchse, Pinguine,
   Kätzchen und Kühe statt Menschen – am Rand, auf den Tribünen, in der Ferne und als Ohren in der Fan-Cam. Sie jubeln mit

@@ -72,6 +72,19 @@ spielbar am Handy (quer oder hochkant), mit Gamepad oder Tastatur. Als App insta
   Abstand zu jeder Fahrbahn (auch Hochstraßen/Rampen), nie im Wasser. Dosiert nach Grafikstufe; ruckelt es, blendet die
   Automatik (nach der Unschärfe) zuerst Gras/Büsche/Wolkenschatten aus. `?deko=aus` (bis n29 `?deko=0`) / `?wolken=0` zum Vergleich.
 
+## 🤸 Zieljubel: Nitro, Sprung und Flip nach der Ziellinie (seit 26.10.2026, n40, Version 0.14)
+- Peter 20.10.: „wenn möglich automatischer Nitro und Sprung und Schraube oder Front-/Backflip im Ziel“. Nach der Ziellinie
+  bremst das Auto kurz ab, zündet den **Nitro** (Flammen), **springt** und zeigt zufällig eine **Schraube**, einen **Frontflip**
+  oder **Backflip** – dann setzt es sauber auf (nie ein Crash) und rollt aus. Danach wie gewohnt Schwenk auf den Zielbogen.
+- **Nur Show:** Rennzeit, Bestzeit, Geisterauto und Online-Wertung enden an der Linie (bitgleich gemessen). Replay und
+  Highlight-Film zeigen den Stunt („🏁 Ziel · Backflip“), die Figur ergibt sich fest aus Strecke + Zielzeit.
+- Nur wenn hinter dem Ziel Platz ist (gerade, eben, breit genug, kein Looping/Sprung/Hindernis/Tunnel in der Nähe) – sonst
+  wie bisher der Jubel-Dreher bzw. Ausrollen. Im Cockpit/Stoßstange zeigt der Stunt den Verfolger (sonst kippt das ganze Bild).
+- **Option** „Zieljubel: 🤸 Stunt / 🌀 Dreher / Aus“ (Standard Stunt), `?zieljubel=stunt|dreher|aus`; Test-Regler
+  `?zstunt=schraube|front|back` erzwingt die Figur.
+- Tests: `node tests/node/test_zielstunt.mjs`, `python3 tests/n40_ziel_probe.py quer 4-2` (bitgleich + Film), Fotos
+  `python3 tests/n40_shots.py stunt quer 4-2` (`N40_CAM=cockpit`, `N40_FIGUREN=back`), G-Messer `node tools/zielstunt_g.mjs 4 2`.
+
 ## 🐻 Herzige Tier-Zuschauer (seit 26.10.2026, n40, Version 0.13)
 - Peter 20.10.: „niedlichere Zuschauer (herzige Tiere)“. Statt Menschen jubeln jetzt **Bärchen, Häschen, Füchse, Pinguine,
   Kätzchen und Kühe** am Streckenrand und auf den Tribünen – Cartoon-Stil mit großem Kopf, großen Augen mit Glanzpunkt, rosa

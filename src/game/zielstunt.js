@@ -18,8 +18,8 @@ import { clamp, smootherstep, rng, hashStr } from '../core/util.js';
 import { ZIEL } from './zielshow.js';
 
 export const ZIELJUBEL = ['stunt', 'dreher', 'aus'];
-// Standard der Option (Spiel): 0.13.0 noch 'dreher' (Tier-Zuschauer zuerst live), ab 0.14.0 'stunt'
-export const ZIELJUBEL_STD = 'dreher';
+// Standard der Option (Spiel): seit 0.14.0 'stunt' (0.13.0: 'dreher')
+export const ZIELJUBEL_STD = 'stunt';
 
 // TODO n40-Heavy: Flugzeit, Tempo, Drehfenster und Kamera-Zeiten am Bild abstimmen (Startwerte)
 export const ZSTUNT = {
