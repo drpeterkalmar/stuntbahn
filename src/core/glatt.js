@@ -1,6 +1,7 @@
 // n42 „Ruckeln + langsamer Start“ (Peter 26.10.2026): Schalter der einzelnen Maßnahmen. Standard alles an; jede ist per
 // URL einzeln abschaltbar (A/B, Messung tests/n42_mess.py), ?glatt=0 schaltet alle zusammen ab (Stand 0.14).
-//   ?einseitig=0    durchsichtige beidseitige Flächen (Reifenabrieb, Ideallinie, Funken, Flammen, Feuerwerk, Minikarte)
+//   ?einseitig=0    durchsichtige beidseitige Flächen (Reifenabrieb, Ideallinie, Funken, Flammen, Regen/Blätter;
+//                   nicht Minikarten-Band und Feuerwerk: sie überlappen sich selbst, dort zählt die Reihenfolge)
 //                   wieder in zwei Durchgängen – three.js wechselt dabei je Bild zweimal das Shader-Programm (GC-Druck)
 //   ?programmfest=0 Materialien dürfen wie bisher zugleich an einfachen und instanzierten Objekten hängen (z. B. Lack an der
 //                   nahen Kulisse und an Reifenstapeln) – three.js wechselt dann je Bild mehrmals das Programm (GC-Druck)

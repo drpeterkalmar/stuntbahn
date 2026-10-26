@@ -39,7 +39,7 @@ export const TUNNEL_LOOK = {
 const sstep = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 
 // Deckenhöhe über der Fahrbahn bei Querlage r (Gelände-Tunnel: senkrechte Wände bis TUN.wall, Gewölbe bis ENV.tunnelH)
-function deckeGel(r) {
+export function deckeGel(r) {   // n42: exportiert für den Vergleichstest (tests/node/test_n42.mjs)
   const a = Math.min(1, Math.abs(r) / TUN.tw);
   return TUN.wall + (ENV.tunnelH - TUN.wall) * Math.sqrt(Math.max(0, 1 - a * a));
 }

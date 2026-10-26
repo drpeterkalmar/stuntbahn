@@ -1,12 +1,22 @@
 {
  "rennen_kino": {
   "vorher_nachher": {
-   "mittel": 1.082,
-   "pixel_ueber_8_prozent": 1.787
+   "mittel": 0.0,
+   "pixel_ueber_8_prozent": 0.0
   },
   "nachher_nachher (Rauschen)": {
    "mittel": 0.0,
    "pixel_ueber_8_prozent": 0.0
+  }
+ },
+ "rennen_standard": {
+  "vorher_nachher": {
+   "mittel": 0.009,
+   "pixel_ueber_8_prozent": 0.067
+  },
+  "nachher_nachher (Rauschen)": {
+   "mittel": 0.008,
+   "pixel_ueber_8_prozent": 0.062
   }
  }
 }

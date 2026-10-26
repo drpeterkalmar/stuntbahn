@@ -23,7 +23,8 @@ RENNEN = """async () => { const G = __game; G.store.settings.line = 'full';
 # feste Kamera aus dem Auto-Zustand (deterministisch), genau ein Bild zeichnen (keine weiteren rAF-Bilder: manuell)
 FEST = """() => { const G = __game, c = G.race.car, f = c.frame.f, u = c.frame.u, C = G.camera;
   C.position.set(c.pos.x - f.x * 7 + u.x * 2.4, c.pos.y - f.y * 7 + u.y * 2.4, c.pos.z - f.z * 7 + u.z * 2.4);
-  C.up.set(0, 1, 0); C.fov = 62; C.updateProjectionMatrix(); G.minikarte.acc = 1e9;   // Sichtfeld fest (sonst je nach Bildtakt nachgeführt), Karte neu C.lookAt(c.pos.x + f.x * 6, c.pos.y + f.y * 6 + 0.6, c.pos.z + f.z * 6); C.updateMatrixWorld();
+  C.up.set(0, 1, 0); C.fov = 62; C.updateProjectionMatrix(); G.minikarte.acc = 1e9;   // Sichtfeld fest (sonst je nach Bildtakt nachgeführt), Karte neu
+  C.lookAt(c.pos.x + f.x * 6, c.pos.y + f.y * 6 + 0.6, c.pos.z + f.z * 6); C.updateMatrixWorld();
   G.drawOnce({ run: false, speed: 0 }); G.drawOnce({ run: false, speed: 0 });
   return G.renderer.domElement.toDataURL("image/png"); }"""   # im selben Schritt auslesen (Zeichenpuffer gilt nur bis zum Ende der Aufgabe)
 

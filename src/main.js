@@ -1915,7 +1915,7 @@ function erstzeichnung(nur = null) {
   // Minikarte (eigene Szene): einmal klein zeichnen und in die Ecke kopieren (das Bild danach überdeckt die Ecke)
   if (!nur && race && karte && karte.geo) {
     const c = race.car, rect = { x: 0, y: 0, w: 24, h: 24, rad: 4 };
-    const kz = { yaw: karte.yaw, ziel: karte.ziel, kurs: karte.kurs, t: karte.t, z: karte.z };   // Nachführ-Zustand bleibt unberührt
+    const kz = { yaw: karte.yaw, ziel: karte.ziel, kurs: karte.kurs, t: karte.t, z: karte.z, fit: karte.fit, _tFit: karte._tFit };   // Nachführ-Zustand bleibt unberührt
     karte.update(0, { sichtbar: true, rect, car: { pos: c.pos, vel: c.v, fwd: c.frame.f }, idx: race.tracker.idx, zielIdx: race.startIdx, cps: race.cps, cpNext: 0, startIdx: race.startIdx, geist: null });
     karte.vorher(rect); karte.kopie(rect);
     karte.update(0, null);
