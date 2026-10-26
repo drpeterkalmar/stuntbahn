@@ -72,6 +72,19 @@ spielbar am Handy (quer oder hochkant), mit Gamepad oder Tastatur. Als App insta
   Abstand zu jeder Fahrbahn (auch Hochstraßen/Rampen), nie im Wasser. Dosiert nach Grafikstufe; ruckelt es, blendet die
   Automatik (nach der Unschärfe) zuerst Gras/Büsche/Wolkenschatten aus. `?deko=aus` (bis n29 `?deko=0`) / `?wolken=0` zum Vergleich.
 
+## 🧈 Flüssiger und schneller am Start (seit 27.10.2026, n42 Etappe 1)
+- Peter 26.10.: „ruckeln zeitweise und starten langsam“. Gefunden (Mess-Skript `tests/n42_mess.py`, Mittelklasse-Profil: CPU ×4,
+  Fast 4G): die Grafik-Automatik übersetzte beim Abschalten des Auto-Schattens alle Shader neu (bis 1,7 s Standbild); neue
+  Bild-Effekte, Kulissen, Feuerwerk und Zielanzeige wurden erst beim ersten Auftauchen vorbereitet (0,1–0,5 s Ruck); der
+  Highlight-Film entstand in einem Stück; der Offline-Speicher lud beim ersten Besuch alles doppelt.
+- Jetzt: Schatten ohne Shader-Wechsel, Vorwärmen + Erst-Zeichnung (unsichtbar, im Menü), Film in Häppchen, Autopilot-Prüfung
+  der Zufallsstrecke im Worker (Menü sofort; „Losfahren“ wartet höchstens auf den Rest), Service Worker nach dem Menü,
+  `modulepreload`, Ton nach dem Menü. Optik pixelgleich (`tests/n42_bild.py`).
+- A/B: `?glatt=0` = alles wie 0.14; einzeln `?schattenfix=0`, `?vorwaermen=0`, `?pruefung=alt`, `?swfrueh=1`,
+  `?filmhaeppchen=0`, `?einseitig=0`, `?programmfest=0`, `?tonfrueh=1` (`src/core/glatt.js`).
+- Messen: `python3 tests/n42_mess.py kalt|rennen|alloc [--last 14] [--profil] [--ab vorher=<kopie>:: --ab nachher=]`;
+  Test `node tests/node/test_n42.mjs`. Bericht `N42_BERICHT.md`.
+
 ## 🤸 Zieljubel: Nitro, Sprung und Flip nach der Ziellinie (seit 26.10.2026, n40, Version 0.14)
 - Peter 20.10.: „wenn möglich automatischer Nitro und Sprung und Schraube oder Front-/Backflip im Ziel“. Nach der Ziellinie
   bremst das Auto kurz ab, zündet den **Nitro** (Flammen), **springt** und zeigt zufällig eine **Schraube**, einen **Frontflip**

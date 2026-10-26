@@ -1,0 +1,3050 @@
+{
+ "datum": "2026-10-27T00:01:52",
+ "modus": "rennen",
+ "profil": {
+  "drossel": 4,
+  "dpr": 2.6,
+  "geraet": "quer",
+  "rtt": 165,
+  "kbit": 9000,
+  "sek": 180,
+  "strecke": "seed=20261026&d=2&g=1&h=1",
+  "js_profil": false
+ },
+ "varianten": {
+  "vorher": {
+   "wurzel": "/tmp/n42_vorher",
+   "zusatz": "",
+   "laeufe": [
+    {
+     "n": 27689,
+     "p50": 4.5,
+     "p95": 19.4,
+     "p99": 35,
+     "ueber50": 3,
+     "ueber100": 2,
+     "max": 556.4,
+     "starts": 2,
+     "haenger": [
+      {
+       "t": 16.2,
+       "ms": 556.4,
+       "ursache": "shader+33 [MeshStandardMaterial,MeshStandardMaterial,MeshStandardMaterial,MeshStandardMaterial,MeshStandardMaterial,MeshStandardMaterial,MeshStandardMaterial,MeshStandardMaterial,MeshPhysicalMaterial,MeshStandardMaterial,car_rim,car_body,MeshStandardMaterial,impostor_tanne0,impostor_laub1,MeshStandardMaterial,MeshStandardMaterial,MeshStandardMaterial,MeshStandardMaterial,MeshStandardMaterial,MeshStandardMaterial,rock_moss_set_01,MeshStandardMaterial,MeshStandardMaterial,MeshStandardMaterial,MeshStandardMaterial,MeshPhysicalMaterial,MeshStandardMaterial,MeshBasicMaterial,MeshBasicMaterial,MeshStandardMaterial,MeshBasicMaterial,MeshBasicMaterial] erst[trk0@11,10:MeshStandardMaterial→rt1793x808, trk1@11,10:MeshStandardMaterial→rt1793x808, trk2@11,9:MeshStandardMaterial→rt1793x808, trk7@11,10:MeshStandardMaterial→rt1793x808, kulisse2-bauten:MeshStandardMaterial→rt1793x808, deco-railposts:MeshStandardMaterial→rt1793x808 …+27], Zeichnen 540 ms",
+       "stueck": "jump",
+       "renn_t": 16.6,
+       "vorbild": [
+        0.8,
+        540.1,
+        557.4
+       ]
+      },
+      {
+       "t": 75.7,
+       "ms": 56.8,
+       "ursache": "shader+1 [ShaderMaterial] zustand finished erst[pyro:ShaderMaterial→bild], Aufgabe außerhalb des Bilds 72 ms",
+       "stueck": "start",
+       "renn_t": 91.1,
+       "vorbild": [
+        1.5,
+        8.1,
+        38
+       ]
+      },
+      {
+       "t": 79.4,
+       "ms": 122.8,
+       "ursache": "unklar (GPU/Browser)",
+       "stueck": null,
+       "renn_t": null,
+       "vorbild": [
+        1.1,
+        2.4,
+        109.6
+       ]
+      }
+     ],
+     "lt_anzahl": 4,
+     "apLog": [
+      {
+       "t": 18.58,
+       "was": "stufe",
+       "richtung": -1,
+       "skala": 0.84,
+       "fps": 54.3,
+       "arbeit": 18.18
+      },
+      {
+       "t": 20.1,
+       "was": "stufe",
+       "richtung": -1,
+       "skala": 1,
+       "fps": 57.6,
+       "arbeit": 17.4
+      },
+      {
+       "t": 25.15,
+       "was": "stufe",
+       "richtung": 1,
+       "skala": 0.62,
+       "fps": 307.1,
+       "arbeit": 2.71
+      },
+      {
+       "t": 28.17,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.68,
+       "fps": 189.8,
+       "arbeit": 4.56
+      },
+      {
+       "t": 31.19,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.74,
+       "fps": 171.6,
+       "arbeit": 4.8
+      },
+      {
+       "t": 34.2,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.8,
+       "fps": 200.5,
+       "arbeit": 4.07
+      },
+      {
+       "t": 37.22,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.86,
+       "fps": 230.1,
+       "arbeit": 3.63
+      },
+      {
+       "t": 40.23,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.92,
+       "fps": 242.7,
+       "arbeit": 3.48
+      },
+      {
+       "t": 42.25,
+       "was": "skala",
+       "richtung": -1,
+       "skala": 0.86,
+       "fps": 55.5,
+       "arbeit": 17.93
+      },
+      {
+       "t": 43.81,
+       "was": "stufe",
+       "richtung": -1,
+       "skala": 1,
+       "fps": 57.1,
+       "arbeit": 17.29
+      },
+      {
+       "t": 55.5,
+       "was": "stufe",
+       "richtung": 1,
+       "skala": 0.62,
+       "fps": 286.6,
+       "arbeit": 2.86
+      },
+      {
+       "t": 58.52,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.68,
+       "fps": 237.7,
+       "arbeit": 3.53
+      },
+      {
+       "t": 61.53,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.74,
+       "fps": 222.9,
+       "arbeit": 3.86
+      },
+      {
+       "t": 64.54,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.8,
+       "fps": 270,
+       "arbeit": 3.1
+      },
+      {
+       "t": 67.55,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.86,
+       "fps": 218.7,
+       "arbeit": 3.93
+      },
+      {
+       "t": 70.56,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.92,
+       "fps": 214.9,
+       "arbeit": 3.99
+      },
+      {
+       "t": 72.09,
+       "was": "skala",
+       "richtung": -1,
+       "skala": 0.86,
+       "fps": 49.8,
+       "arbeit": 19.2
+      },
+      {
+       "t": 73.61,
+       "was": "stufe",
+       "richtung": -1,
+       "skala": 1,
+       "fps": 47.5,
+       "arbeit": 20.12
+      },
+      {
+       "t": 85.36,
+       "was": "stufe",
+       "richtung": 1,
+       "skala": 0.62,
+       "fps": 278.7,
+       "arbeit": 3
+      },
+      {
+       "t": 88.37,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.68,
+       "fps": 257.9,
+       "arbeit": 3.26
+      },
+      {
+       "t": 91.39,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.74,
+       "fps": 262.6,
+       "arbeit": 3.19
+      },
+      {
+       "t": 94.4,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.8,
+       "fps": 213.3,
+       "arbeit": 3.98
+      },
+      {
+       "t": 97.41,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.86,
+       "fps": 230.4,
+       "arbeit": 3.71
+      },
+      {
+       "t": 102.47,
+       "was": "stufe",
+       "richtung": -1,
+       "skala": 1,
+       "fps": 57.1,
+       "arbeit": 17.7
+      },
+      {
+       "t": 115.21,
+       "was": "stufe",
+       "richtung": 1,
+       "skala": 0.62,
+       "fps": 238.4,
+       "arbeit": 3.42
+      },
+      {
+       "t": 118.22,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.68,
+       "fps": 237.4,
+       "arbeit": 3.6
+      },
+      {
+       "t": 121.24,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.74,
+       "fps": 230.1,
+       "arbeit": 3.68
+      },
+      {
+       "t": 124.25,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.8,
+       "fps": 233.4,
+       "arbeit": 3.59
+      },
+      {
+       "t": 127.27,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.86,
+       "fps": 249.6,
+       "arbeit": 3.39
+      },
+      {
+       "t": 130.28,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.92,
+       "fps": 229.5,
+       "arbeit": 3.69
+      },
+      {
+       "t": 132.36,
+       "was": "skala",
+       "richtung": -1,
+       "skala": 0.86,
+       "fps": 58.2,
+       "arbeit": 17.58
+      },
+      {
+       "t": 133.89,
+       "was": "stufe",
+       "richtung": -1,
+       "skala": 1,
+       "fps": 56.2,
+       "arbeit": 17.76
+      },
+      {
+       "t": 145.56,
+       "was": "stufe",
+       "richtung": 1,
+       "skala": 0.62,
+       "fps": 348.9,
+       "arbeit": 2.36
+      },
+      {
+       "t": 148.57,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.68,
+       "fps": 219.9,
+       "arbeit": 3.92
+      },
+      {
+       "t": 151.58,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.74,
+       "fps": 205.9,
+       "arbeit": 4.25
+      },
+      {
+       "t": 154.61,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.8,
+       "fps": 196.8,
+       "arbeit": 4.44
+      },
+      {
+       "t": 157.62,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.86,
+       "fps": 220,
+       "arbeit": 3.87
+      },
+      {
+       "t": 162.15,
+       "was": "stufe",
+       "richtung": -1,
+       "skala": 1,
+       "fps": 56.6,
+       "arbeit": 17.98
+      },
+      {
+       "t": 175.34,
+       "was": "stufe",
+       "richtung": 1,
+       "skala": 0.62,
+       "fps": 236.2,
+       "arbeit": 3.53
+      },
+      {
+       "t": 178.36,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.68,
+       "fps": 237.7,
+       "arbeit": 3.59
+      }
+     ],
+     "info": {
+      "calls": 89,
+      "tris": 258033,
+      "geometries": 182,
+      "textures": 68,
+      "programs": 118,
+      "pixelRatio": 1.5,
+      "tier": 1,
+      "fps": 225.31831211252518,
+      "ap": {
+       "skala": 0.68,
+       "bereich": [
+        0.62,
+        0.92
+       ],
+       "stufen": {
+        "deko": 0,
+        "autoschatten": 0,
+        "stufe": 1
+       },
+       "fps": 244.5,
+       "arbeit": 3.35,
+       "cpu": 3.35,
+       "gpu": 2.7,
+       "engpass": "gpu",
+       "gedeckelt": false,
+       "gesperrtBis": 15.4,
+       "aenderungen": 46,
+       "t": 181
+      },
+      "carLod": 0,
+      "ghostLod": 0,
+      "impostor": {
+       "atlas": true,
+       "arten": [
+        "tanne0",
+        "tanne1",
+        "laub1",
+        "laub2"
+       ],
+       "fehler": null
+      },
+      "reflex": null,
+      "vao": {
+       "fertig": true,
+       "anteil": 1,
+       "ecken": 30768,
+       "gerechnet": 20173,
+       "strahlen": 121038,
+       "strahlenJe": 6,
+       "ms": 262
+      },
+      "apLog": [
+       {
+        "t": 127.27,
+        "was": "skala",
+        "richtung": 1,
+        "skala": 0.86,
+        "fps": 249.6,
+        "arbeit": 3.39
+       },
+       {
+        "t": 130.28,
+        "was": "skala",
+        "richtung": 1,
+        "skala": 0.92,
+        "fps": 229.5,
+        "arbeit": 3.69
+       },
+       {
+        "t": 132.36,
+        "was": "skala",
+        "richtung": -1,
+        "skala": 0.86,
+        "fps": 58.2,
+        "arbeit": 17.58
+       },
+       {
+        "t": 133.89,
+        "was": "stufe",
+        "richtung": -1,
+        "skala": 1,
+        "fps": 56.2,
+        "arbeit": 17.76
+       },
+       {
+        "t": 145.56,
+        "was": "stufe",
+        "richtung": 1,
+        "skala": 0.62,
+        "fps": 348.9,
+        "arbeit": 2.36
+       },
+       {
+        "t": 148.57,
+        "was": "skala",
+        "richtung": 1,
+        "skala": 0.68,
+        "fps": 219.9,
+        "arbeit": 3.92
+       },
+       {
+        "t": 151.58,
+        "was": "skala",
+        "richtung": 1,
+        "skala": 0.74,
+        "fps": 205.9,
+        "arbeit": 4.25
+       },
+       {
+        "t": 154.61,
+        "was": "skala",
+        "richtung": 1,
+        "skala": 0.8,
+        "fps": 196.8,
+        "arbeit": 4.44
+       },
+       {
+        "t": 157.62,
+        "was": "skala",
+        "richtung": 1,
+        "skala": 0.86,
+        "fps": 220,
+        "arbeit": 3.87
+       },
+       {
+        "t": 162.15,
+        "was": "stufe",
+        "richtung": -1,
+        "skala": 1,
+        "fps": 56.6,
+        "arbeit": 17.98
+       },
+       {
+        "t": 175.34,
+        "was": "stufe",
+        "richtung": 1,
+        "skala": 0.62,
+        "fps": 236.2,
+        "arbeit": 3.53
+       },
+       {
+        "t": 178.36,
+        "was": "skala",
+        "richtung": 1,
+        "skala": 0.68,
+        "fps": 237.7,
+        "arbeit": 3.59
+       }
+      ],
+      "startProbe": {
+       "n": 20,
+       "median": 9.599999904632568,
+       "p90": 10.299999952316284,
+       "min": 8.700000047683716,
+       "max": 10.599999904632568,
+       "skala": 1
+      },
+      "gpuZeit": true
+     },
+     "fehler": [],
+     "neuP": [
+      {
+       "t": 3635,
+       "name": "",
+       "stapel": "R.renderBufferDirect (eval at evaluate (:311:30), <anonymous>:16:69 < R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.pass src/gfx/kinolook.js:592:12 < KinoLook.render src/gfx/kinolook.js:795:10 < drawFrame src/main.js:1772:10",
+       "uniforms": "morphTexture tColor uSrcTexel uTime uInvProj uCamRot uCamPos uSunDir uAerial uSunScr"
+      },
+      {
+       "t": 4152,
+       "name": "",
+       "stapel": "R.renderBufferDirect (eval at evaluate (:311:30), <anonymous>:16:69 < R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.pass src/gfx/kinolook.js:592:12 < KinoLook.render src/gfx/kinolook.js:795:10 < drawFrame src/main.js:1772:10",
+       "uniforms": "morphTexture tColor uSrcTexel uTime uInvProj uCamRot uCamPos uSunDir uAerial uSunScr"
+      },
+      {
+       "t": 15625,
+       "name": "",
+       "stapel": "R.renderBufferDirect (eval at evaluate (:311:30), <anonymous>:16:69 < R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:692:7 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3",
+       "uniforms": "morphTexture _gl_DrawID sampler2D usampler2D batchingColorTexture mapTransform alphaMapTransform lightMapTransform aoMapTransform bumpMapTransform"
+      },
+      {
+       "t": 15650,
+       "name": "",
+       "stapel": "R.renderBufferDirect (eval at evaluate (:311:30), <anonymous>:16:69 < R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:692:7 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3",
+       "uniforms": "morphTexture _gl_DrawID sampler2D usampler2D batchingColorTexture mapTransform alphaMapTransform lightMapTransform aoMapTransform bumpMapTransform"
+      },
+      {
+       "t": 15670,
+       "name": "",
+       "stapel": "R.renderBufferDirect (eval at evaluate (:311:30), <anonymous>:16:69 < R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:692:7 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3",
+       "uniforms": "morphTexture _gl_DrawID sampler2D usampler2D batchingColorTexture mapTransform alphaMapTransform lightMapTransform aoMapTransform bumpMapTransform"
+      },
+      {
+       "t": 15691,
+       "name": "",
+       "stapel": "R.renderBufferDirect (eval at evaluate (:311:30), <anonymous>:16:69 < R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:692:7 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3",
+       "uniforms": "morphTexture _gl_DrawID sampler2D usampler2D batchingColorTexture mapTransform alphaMapTransform lightMapTransform aoMapTransform bumpMapTransform"
+      },
+      {
+       "t": 15710,
+       "name": "",
+       "stapel": "R.renderBufferDirect (eval at evaluate (:311:30), <anonymous>:16:69 < R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:692:7 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3",
+       "uniforms": "morphTexture _gl_DrawID sampler2D usampler2D batchingColorTexture mapTransform alphaMapTransform lightMapTransform aoMapTransform bumpMapTransform"
+      },
+      {
+       "t": 15729,
+       "name": "",
+       "stapel": "R.renderBufferDirect (eval at evaluate (:311:30), <anonymous>:16:69 < R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:692:7 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3",
+       "uniforms": "morphTexture _gl_DrawID sampler2D usampler2D batchingColorTexture mapTransform alphaMapTransform lightMapTransform aoMapTransform bumpMapTransform"
+      },
+      {
+       "t": 15746,
+       "name": "",
+       "stapel": "R.renderBufferDirect (eval at evaluate (:311:30), <anonymous>:16:69 < R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:692:7 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3",
+       "uniforms": "morphTexture _gl_DrawID sampler2D usampler2D batchingColorTexture mapTransform alphaMapTransform lightMapTransform aoMapTransform bumpMapTransform"
+      },
+      {
+       "t": 15765,
+       "name": "",
+       "stapel": "R.renderBufferDirect (eval at evaluate (:311:30), <anonymous>:16:69 < R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:692:7 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3",
+       "uniforms": "morphTexture _gl_DrawID sampler2D usampler2D batchingColorTexture mapTransform alphaMapTransform lightMapTransform aoMapTransform bumpMapTransform"
+      },
+      {
+       "t": 15788,
+       "name": "",
+       "stapel": "R.renderBufferDirect (eval at evaluate (:311:30), <anonymous>:16:69 < R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:692:7 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3",
+       "uniforms": "morphTexture _gl_DrawID sampler2D usampler2D batchingColorTexture mapTransform alphaMapTransform lightMapTransform aoMapTransform bumpMapTransform"
+      },
+      {
+       "t": 15806,
+       "name": "",
+       "stapel": "R.renderBufferDirect (eval at evaluate (:311:30), <anonymous>:16:69 < R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:692:7 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3",
+       "uniforms": "morphTexture _gl_DrawID sampler2D usampler2D batchingColorTexture mapTransform alphaMapTransform lightMapTransform aoMapTransform bumpMapTransform"
+      },
+      {
+       "t": 15825,
+       "name": "car_rim",
+       "stapel": "R.renderBufferDirect (eval at evaluate (:311:30), <anonymous>:16:69 < R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:692:7 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3",
+       "uniforms": "morphTexture _gl_DrawID sampler2D usampler2D batchingColorTexture mapTransform alphaMapTransform lightMapTransform aoMapTransform bumpMapTransform"
+      },
+      {
+       "t": 15844,
+       "name": "car_body",
+       "stapel": "R.renderBufferDirect (eval at evaluate (:311:30), <anonymous>:16:69 < R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:692:7 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3",
+       "uniforms": "morphTexture _gl_DrawID sampler2D usampler2D batchingColorTexture mapTransform alphaMapTransform lightMapTransform aoMapTransform bumpMapTransform"
+      },
+      {
+       "t": 15861,
+       "name": "",
+       "stapel": "R.renderBufferDirect (eval at evaluate (:311:30), <anonymous>:16:69 < R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:692:7 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3",
+       "uniforms": "morphTexture _gl_DrawID sampler2D usampler2D batchingColorTexture mapTransform alphaMapTransform lightMapTransform aoMapTransform bumpMapTransform"
+      },
+      {
+       "t": 15877,
+       "name": "impostor_tanne0",
+       "stapel": "R.renderBufferDirect (eval at evaluate (:311:30), <anonymous>:16:69 < R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:692:7 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3",
+       "uniforms": "morphTexture impN _gl_DrawID sampler2D usampler2D batchingColorTexture mapTransform alphaMapTransform lightMapTransform aoMapTransform"
+      },
+      {
+       "t": 15895,
+       "name": "impostor_laub1",
+       "stapel": "R.renderBufferDirect (eval at evaluate (:311:30), <anonymous>:16:69 < R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:692:7 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3",
+       "uniforms": "morphTexture impN _gl_DrawID sampler2D usampler2D batchingColorTexture mapTransform alphaMapTransform lightMapTransform aoMapTransform"
+      },
+      {
+       "t": 15913,
+       "name": "",
+       "stapel": "R.renderBufferDirect (eval at evaluate (:311:30), <anonymous>:16:69 < R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:692:7 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3",
+       "uniforms": "morphTexture _gl_DrawID sampler2D usampler2D batchingColorTexture mapTransform alphaMapTransform lightMapTransform aoMapTransform bumpMapTransform"
+      },
+      {
+       "t": 15929,
+       "name": "",
+       "stapel": "R.renderBufferDirect (eval at evaluate (:311:30), <anonymous>:16:69 < R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:692:7 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3",
+       "uniforms": "morphTexture uTime uCheer uFanFade _gl_DrawID sampler2D usampler2D batchingColorTexture mapTransform alphaMapTransform"
+      },
+      {
+       "t": 15946,
+       "name": "",
+       "stapel": "R.renderBufferDirect (eval at evaluate (:311:30), <anonymous>:16:69 < R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:692:7 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3",
+       "uniforms": "morphTexture uFade uWind _gl_DrawID sampler2D usampler2D batchingColorTexture mapTransform alphaMapTransform lightMapTransform"
+      },
+      {
+       "t": 15964,
+       "name": "",
+       "stapel": "R.renderBufferDirect (eval at evaluate (:311:30), <anonymous>:16:69 < R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:692:7 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3",
+       "uniforms": "morphTexture _gl_DrawID sampler2D usampler2D batchingColorTexture mapTransform alphaMapTransform lightMapTransform aoMapTransform bumpMapTransform"
+      },
+      {
+       "t": 15980,
+       "name": "",
+       "stapel": "R.renderBufferDirect (eval at evaluate (:311:30), <anonymous>:16:69 < R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:692:7 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3",
+       "uniforms": "morphTexture uFade uWind uCheer uNear _gl_DrawID sampler2D usampler2D batchingColorTexture mapTransform"
+      },
+      {
+       "t": 15996,
+       "name": "",
+       "stapel": "R.renderBufferDirect (eval at evaluate (:311:30), <anonymous>:16:69 < R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:692:7 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3",
+       "uniforms": "morphTexture uFade uWind _gl_DrawID sampler2D usampler2D batchingColorTexture mapTransform alphaMapTransform lightMapTransform"
+      },
+      {
+       "t": 16013,
+       "name": "rock_moss_set_01",
+       "stapel": "R.renderBufferDirect (eval at evaluate (:311:30), <anonymous>:16:69 < R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:692:7 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3",
+       "uniforms": "morphTexture _gl_DrawID sampler2D usampler2D batchingColorTexture mapTransform alphaMapTransform lightMapTransform aoMapTransform bumpMapTransform"
+      },
+      {
+       "t": 16032,
+       "name": "",
+       "stapel": "R.renderBufferDirect (eval at evaluate (:311:30), <anonymous>:16:69 < R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:692:7 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3",
+       "uniforms": "morphTexture uFade uWind _gl_DrawID sampler2D usampler2D batchingColorTexture mapTransform alphaMapTransform lightMapTransform"
+      },
+      {
+       "t": 16049,
+       "name": "",
+       "stapel": "R.renderBufferDirect (eval at evaluate (:311:30), <anonymous>:16:69 < R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:692:7 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3",
+       "uniforms": "morphTexture uTime _gl_DrawID sampler2D usampler2D batchingColorTexture mapTransform alphaMapTransform lightMapTransform aoMapTransform"
+      },
+      {
+       "t": 16062,
+       "name": "",
+       "stapel": "R.renderBufferDirect (eval at evaluate (:311:30), <anonymous>:16:69 < R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:692:7 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3",
+       "uniforms": "morphTexture uTime _gl_DrawID sampler2D usampler2D batchingColorTexture mapTransform alphaMapTransform lightMapTransform aoMapTransform"
+      },
+      {
+       "t": 16077,
+       "name": "",
+       "stapel": "R.renderBufferDirect (eval at evaluate (:311:30), <anonymous>:16:69 < R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:692:7 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3",
+       "uniforms": "morphTexture _gl_DrawID sampler2D usampler2D batchingColorTexture mapTransform alphaMapTransform lightMapTransform aoMapTransform bumpMapTransform"
+      },
+      {
+       "t": 16094,
+       "name": "",
+       "stapel": "R.renderBufferDirect (eval at evaluate (:311:30), <anonymous>:16:69 < R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:692:7 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3",
+       "uniforms": "morphTexture _gl_DrawID sampler2D usampler2D batchingColorTexture mapTransform alphaMapTransform lightMapTransform aoMapTransform bumpMapTransform"
+      },
+      {
+       "t": 16110,
+       "name": "",
+       "stapel": "R.renderBufferDirect (eval at evaluate (:311:30), <anonymous>:16:69 < R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:692:7 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3",
+       "uniforms": "morphTexture _gl_DrawID sampler2D usampler2D batchingColorTexture mapTransform alphaMapTransform lightMapTransform aoMapTransform bumpMapTransform"
+      },
+      {
+       "t": 16123,
+       "name": "",
+       "stapel": "R.renderBufferDirect (eval at evaluate (:311:30), <anonymous>:16:69 < R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:692:7 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3",
+       "uniforms": "morphTexture _gl_DrawID sampler2D usampler2D batchingColorTexture mapTransform alphaMapTransform lightMapTransform aoMapTransform bumpMapTransform"
+      },
+      {
+       "t": 16129,
+       "name": "",
+       "stapel": "R.renderBufferDirect (eval at evaluate (:311:30), <anonymous>:16:69 < R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:692:7 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3",
+       "uniforms": "morphTexture _gl_DrawID sampler2D usampler2D batchingColorTexture mapTransform alphaMapTransform lightMapTransform aoMapTransform bumpMapTransform"
+      },
+      {
+       "t": 16137,
+       "name": "",
+       "stapel": "R.renderBufferDirect (eval at evaluate (:311:30), <anonymous>:16:69 < R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:692:7 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3",
+       "uniforms": "morphTexture _gl_DrawID sampler2D usampler2D batchingColorTexture mapTransform alphaMapTransform lightMapTransform aoMapTransform bumpMapTransform"
+      },
+      {
+       "t": 16151,
+       "name": "",
+       "stapel": "R.renderBufferDirect (eval at evaluate (:311:30), <anonymous>:16:69 < R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:692:7 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3",
+       "uniforms": "morphTexture _gl_DrawID sampler2D usampler2D batchingColorTexture mapTransform alphaMapTransform lightMapTransform aoMapTransform bumpMapTransform"
+      },
+      {
+       "t": 16155,
+       "name": "",
+       "stapel": "R.renderBufferDirect (eval at evaluate (:311:30), <anonymous>:16:69 < R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:692:7 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3",
+       "uniforms": "morphTexture _gl_DrawID sampler2D usampler2D batchingColorTexture mapTransform alphaMapTransform lightMapTransform aoMapTransform bumpMapTransform"
+      },
+      {
+       "t": 17612,
+       "name": "",
+       "stapel": "R.renderBufferDirect (eval at evaluate (:311:30), <anonymous>:16:69 < R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.pass src/gfx/kinolook.js:592:12 < KinoLook.render src/gfx/kinolook.js:795:10 < drawFrame src/main.js:1772:10",
+       "uniforms": "morphTexture tColor uSrcTexel uTime uInvProj uCamRot uCamPos uSunDir uAerial uSunScr"
+      },
+      {
+       "t": 19154,
+       "name": "",
+       "stapel": "R.renderBufferDirect (eval at evaluate (:311:30), <anonymous>:16:69 < R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:657:34 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3",
+       "uniforms": "morphTexture _gl_DrawID sampler2D usampler2D batchingColorTexture mapTransform alphaMapTransform lightMapTransform aoMapTransform bumpMapTransform"
+      },
+      {
+       "t": 25478,
+       "name": "",
+       "stapel": "R.renderBufferDirect (eval at evaluate (:311:30), <anonymous>:16:69 < R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:692:7 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3",
+       "uniforms": "morphTexture _gl_DrawID sampler2D usampler2D batchingColorTexture mapTransform alphaMapTransform lightMapTransform aoMapTransform bumpMapTransform"
+      },
+      {
+       "t": 75657,
+       "name": "",
+       "stapel": "R.renderBufferDirect (eval at evaluate (:311:30), <anonymous>:16:69 < R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:657:34 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3",
+       "uniforms": "morphTexture uT uFlash uPxK"
+      }
+     ],
+     "gc": 125,
+     "gc_zeiten": [
+      [
+       1,
+       "gc-27MB"
+      ],
+      [
+       2,
+       "gc-26MB"
+      ],
+      [
+       3,
+       "gc-28MB"
+      ],
+      [
+       5,
+       "gc-27MB"
+      ],
+      [
+       6,
+       "gc-26MB"
+      ],
+      [
+       7,
+       "gc-27MB"
+      ],
+      [
+       8,
+       "gc-26MB"
+      ],
+      [
+       9,
+       "gc-27MB"
+      ],
+      [
+       11,
+       "gc-26MB"
+      ],
+      [
+       12,
+       "gc-27MB"
+      ],
+      [
+       14,
+       "gc-27MB"
+      ],
+      [
+       15,
+       "gc-26MB"
+      ],
+      [
+       18,
+       "gc-40MB"
+      ],
+      [
+       20,
+       "gc-31MB"
+      ],
+      [
+       22,
+       "gc-27MB"
+      ],
+      [
+       22,
+       "gc-44MB"
+      ],
+      [
+       23,
+       "gc-36MB"
+      ],
+      [
+       24,
+       "gc-27MB"
+      ],
+      [
+       25,
+       "gc-27MB"
+      ],
+      [
+       26,
+       "gc-30MB"
+      ],
+      [
+       28,
+       "gc-27MB"
+      ],
+      [
+       29,
+       "gc-27MB"
+      ],
+      [
+       30,
+       "gc-27MB"
+      ],
+      [
+       32,
+       "gc-27MB"
+      ],
+      [
+       33,
+       "gc-27MB"
+      ],
+      [
+       34,
+       "gc-27MB"
+      ],
+      [
+       35,
+       "gc-27MB"
+      ],
+      [
+       36,
+       "gc-27MB"
+      ],
+      [
+       37,
+       "gc-27MB"
+      ],
+      [
+       39,
+       "gc-27MB"
+      ],
+      [
+       40,
+       "gc-27MB"
+      ],
+      [
+       40,
+       "gc-5MB"
+      ],
+      [
+       43,
+       "gc-27MB"
+      ],
+      [
+       47,
+       "gc-27MB"
+      ],
+      [
+       51,
+       "gc-27MB"
+      ],
+      [
+       53,
+       "gc-27MB"
+      ],
+      [
+       54,
+       "gc-27MB"
+      ],
+      [
+       55,
+       "gc-27MB"
+      ],
+      [
+       56,
+       "gc-27MB"
+      ],
+      [
+       58,
+       "gc-27MB"
+      ],
+      [
+       59,
+       "gc-27MB"
+      ],
+      [
+       59,
+       "gc-4MB"
+      ],
+      [
+       60,
+       "gc-27MB"
+      ],
+      [
+       61,
+       "gc-27MB"
+      ],
+      [
+       62,
+       "gc-27MB"
+      ],
+      [
+       63,
+       "gc-27MB"
+      ],
+      [
+       64,
+       "gc-27MB"
+      ],
+      [
+       65,
+       "gc-27MB"
+      ],
+      [
+       67,
+       "gc-27MB"
+      ],
+      [
+       68,
+       "gc-27MB"
+      ],
+      [
+       69,
+       "gc-27MB"
+      ],
+      [
+       70,
+       "gc-27MB"
+      ],
+      [
+       72,
+       "gc-27MB"
+      ],
+      [
+       76,
+       "gc-28MB"
+      ],
+      [
+       78,
+       "gc-27MB"
+      ],
+      [
+       80,
+       "gc-27MB"
+      ],
+      [
+       83,
+       "gc-26MB"
+      ],
+      [
+       84,
+       "gc-27MB"
+      ],
+      [
+       85,
+       "gc-27MB"
+      ],
+      [
+       85,
+       "gc-27MB"
+      ],
+      [
+       87,
+       "gc-27MB"
+      ],
+      [
+       88,
+       "gc-27MB"
+      ],
+      [
+       89,
+       "gc-26MB"
+      ],
+      [
+       90,
+       "gc-27MB"
+      ],
+      [
+       91,
+       "gc-27MB"
+      ],
+      [
+       92,
+       "gc-27MB"
+      ],
+      [
+       93,
+       "gc-27MB"
+      ],
+      [
+       94,
+       "gc-27MB"
+      ],
+      [
+       96,
+       "gc-27MB"
+      ],
+      [
+       96,
+       "gc-27MB"
+      ],
+      [
+       97,
+       "gc-27MB"
+      ],
+      [
+       98,
+       "gc-27MB"
+      ],
+      [
+       100,
+       "gc-27MB"
+      ],
+      [
+       102,
+       "gc-27MB"
+      ],
+      [
+       107,
+       "gc-27MB"
+      ],
+      [
+       111,
+       "gc-27MB"
+      ],
+      [
+       113,
+       "gc-27MB"
+      ],
+      [
+       114,
+       "gc-27MB"
+      ],
+      [
+       114,
+       "gc-16MB"
+      ],
+      [
+       115,
+       "gc-27MB"
+      ],
+      [
+       116,
+       "gc-27MB"
+      ],
+      [
+       118,
+       "gc-27MB"
+      ],
+      [
+       119,
+       "gc-27MB"
+      ],
+      [
+       120,
+       "gc-27MB"
+      ],
+      [
+       121,
+       "gc-27MB"
+      ],
+      [
+       122,
+       "gc-27MB"
+      ],
+      [
+       123,
+       "gc-27MB"
+      ],
+      [
+       124,
+       "gc-27MB"
+      ],
+      [
+       125,
+       "gc-27MB"
+      ],
+      [
+       127,
+       "gc-27MB"
+      ],
+      [
+       128,
+       "gc-27MB"
+      ],
+      [
+       129,
+       "gc-27MB"
+      ],
+      [
+       130,
+       "gc-27MB"
+      ],
+      [
+       134,
+       "gc-27MB"
+      ],
+      [
+       139,
+       "gc-27MB"
+      ],
+      [
+       142,
+       "gc-27MB"
+      ],
+      [
+       143,
+       "gc-27MB"
+      ],
+      [
+       144,
+       "gc-27MB"
+      ],
+      [
+       145,
+       "gc-27MB"
+      ],
+      [
+       147,
+       "gc-27MB"
+      ],
+      [
+       148,
+       "gc-27MB"
+      ],
+      [
+       149,
+       "gc-27MB"
+      ],
+      [
+       150,
+       "gc-27MB"
+      ],
+      [
+       151,
+       "gc-27MB"
+      ],
+      [
+       152,
+       "gc-27MB"
+      ],
+      [
+       153,
+       "gc-27MB"
+      ],
+      [
+       154,
+       "gc-27MB"
+      ],
+      [
+       155,
+       "gc-27MB"
+      ],
+      [
+       156,
+       "gc-27MB"
+      ],
+      [
+       157,
+       "gc-27MB"
+      ],
+      [
+       158,
+       "gc-27MB"
+      ],
+      [
+       159,
+       "gc-34MB"
+      ],
+      [
+       160,
+       "gc-32MB"
+      ],
+      [
+       164,
+       "gc-27MB"
+      ],
+      [
+       165,
+       "gc-27MB"
+      ],
+      [
+       168,
+       "gc-27MB"
+      ],
+      [
+       172,
+       "gc-27MB"
+      ],
+      [
+       173,
+       "gc-27MB"
+      ],
+      [
+       174,
+       "gc-27MB"
+      ],
+      [
+       175,
+       "gc-16MB"
+      ],
+      [
+       176,
+       "gc-27MB"
+      ],
+      [
+       177,
+       "gc-27MB"
+      ],
+      [
+       177,
+       "gc-27MB"
+      ],
+      [
+       178,
+       "gc-27MB"
+      ],
+      [
+       180,
+       "gc-27MB"
+      ]
+     ],
+     "gc_je_30s": [
+      22,
+      21,
+      21,
+      20,
+      19,
+      22,
+      0
+     ],
+     "ap_aenderungen": 44
+    }
+   ]
+  },
+  "nachher": {
+   "wurzel": "/Users/wohnzimmer/dev/.wt/stuntbahn-stuntbahn-n42-tempo-hindernisse",
+   "zusatz": "",
+   "laeufe": [
+    {
+     "n": 28784,
+     "p50": 4.3,
+     "p95": 19,
+     "p99": 35,
+     "ueber50": 0,
+     "ueber100": 0,
+     "max": 42.3,
+     "starts": 2,
+     "haenger": [],
+     "lt_anzahl": 0,
+     "apLog": [
+      {
+       "t": 25.86,
+       "was": "stufe",
+       "richtung": 1,
+       "skala": 0.62,
+       "fps": 300,
+       "arbeit": 2.78
+      },
+      {
+       "t": 28.88,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.68,
+       "fps": 218.6,
+       "arbeit": 3.87
+      },
+      {
+       "t": 31.91,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.74,
+       "fps": 207.3,
+       "arbeit": 3.93
+      },
+      {
+       "t": 34.92,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.8,
+       "fps": 211.3,
+       "arbeit": 3.76
+      },
+      {
+       "t": 37.93,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.86,
+       "fps": 251.6,
+       "arbeit": 3.28
+      },
+      {
+       "t": 40.94,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.92,
+       "fps": 235.3,
+       "arbeit": 3.58
+      },
+      {
+       "t": 42.99,
+       "was": "skala",
+       "richtung": -1,
+       "skala": 0.86,
+       "fps": 57.9,
+       "arbeit": 17.35
+      },
+      {
+       "t": 44.53,
+       "was": "stufe",
+       "richtung": -1,
+       "skala": 1,
+       "fps": 59.3,
+       "arbeit": 16.97
+      },
+      {
+       "t": 55.72,
+       "was": "stufe",
+       "richtung": 1,
+       "skala": 0.62,
+       "fps": 309.1,
+       "arbeit": 2.61
+      },
+      {
+       "t": 58.72,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.68,
+       "fps": 249.9,
+       "arbeit": 3.35
+      },
+      {
+       "t": 61.73,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.74,
+       "fps": 236.7,
+       "arbeit": 3.55
+      },
+      {
+       "t": 64.75,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.8,
+       "fps": 294.9,
+       "arbeit": 2.77
+      },
+      {
+       "t": 67.76,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.86,
+       "fps": 232.7,
+       "arbeit": 3.63
+      },
+      {
+       "t": 70.77,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.92,
+       "fps": 229.5,
+       "arbeit": 3.67
+      },
+      {
+       "t": 72.8,
+       "was": "skala",
+       "richtung": -1,
+       "skala": 0.86,
+       "fps": 51.5,
+       "arbeit": 18.93
+      },
+      {
+       "t": 74.33,
+       "was": "stufe",
+       "richtung": -1,
+       "skala": 1,
+       "fps": 53.3,
+       "arbeit": 19.1
+      },
+      {
+       "t": 86.03,
+       "was": "stufe",
+       "richtung": 1,
+       "skala": 0.62,
+       "fps": 298.5,
+       "arbeit": 2.73
+      },
+      {
+       "t": 89.04,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.68,
+       "fps": 245.3,
+       "arbeit": 3.31
+      },
+      {
+       "t": 92.05,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.74,
+       "fps": 253.2,
+       "arbeit": 3.3
+      },
+      {
+       "t": 95.06,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.8,
+       "fps": 216.5,
+       "arbeit": 3.86
+      },
+      {
+       "t": 98.08,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.86,
+       "fps": 240.3,
+       "arbeit": 3.58
+      },
+      {
+       "t": 101.1,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.92,
+       "fps": 244.3,
+       "arbeit": 3.39
+      },
+      {
+       "t": 102.63,
+       "was": "skala",
+       "richtung": -1,
+       "skala": 0.86,
+       "fps": 57.9,
+       "arbeit": 17.4
+      },
+      {
+       "t": 104.16,
+       "was": "stufe",
+       "richtung": -1,
+       "skala": 1,
+       "fps": 49.4,
+       "arbeit": 17.7
+      },
+      {
+       "t": 115.83,
+       "was": "stufe",
+       "richtung": 1,
+       "skala": 0.62,
+       "fps": 215.9,
+       "arbeit": 3.68
+      },
+      {
+       "t": 118.84,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.68,
+       "fps": 251.6,
+       "arbeit": 3.31
+      },
+      {
+       "t": 121.86,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.74,
+       "fps": 235.4,
+       "arbeit": 3.59
+      },
+      {
+       "t": 124.87,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.8,
+       "fps": 261.9,
+       "arbeit": 3.2
+      },
+      {
+       "t": 127.88,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.86,
+       "fps": 265.9,
+       "arbeit": 3.09
+      },
+      {
+       "t": 132.94,
+       "was": "stufe",
+       "richtung": -1,
+       "skala": 1,
+       "fps": 59.9,
+       "arbeit": 17.56
+      },
+      {
+       "t": 145.68,
+       "was": "stufe",
+       "richtung": 1,
+       "skala": 0.62,
+       "fps": 357.1,
+       "arbeit": 2.25
+      },
+      {
+       "t": 148.7,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.68,
+       "fps": 174.6,
+       "arbeit": 4.82
+      },
+      {
+       "t": 151.71,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.74,
+       "fps": 228.3,
+       "arbeit": 3.78
+      },
+      {
+       "t": 154.73,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.8,
+       "fps": 194.6,
+       "arbeit": 4.46
+      },
+      {
+       "t": 157.74,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.86,
+       "fps": 228.8,
+       "arbeit": 3.7
+      },
+      {
+       "t": 160.75,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.92,
+       "fps": 267.7,
+       "arbeit": 3.1
+      },
+      {
+       "t": 162.78,
+       "was": "skala",
+       "richtung": -1,
+       "skala": 0.86,
+       "fps": 56.2,
+       "arbeit": 17.77
+      },
+      {
+       "t": 164.36,
+       "was": "stufe",
+       "richtung": -1,
+       "skala": 1,
+       "fps": 64.2,
+       "arbeit": 16.89
+      },
+      {
+       "t": 175.6,
+       "was": "stufe",
+       "richtung": 1,
+       "skala": 0.62,
+       "fps": 252.1,
+       "arbeit": 3.26
+      },
+      {
+       "t": 178.62,
+       "was": "skala",
+       "richtung": 1,
+       "skala": 0.68,
+       "fps": 247.5,
+       "arbeit": 3.42
+      }
+     ],
+     "info": {
+      "calls": 97,
+      "tris": 261265,
+      "geometries": 233,
+      "textures": 74,
+      "programs": 124,
+      "pixelRatio": 1.5,
+      "tier": 1,
+      "fps": 225.22822682747884,
+      "ap": {
+       "skala": 0.68,
+       "bereich": [
+        0.62,
+        0.92
+       ],
+       "stufen": {
+        "deko": 0,
+        "autoschatten": 0,
+        "stufe": 1
+       },
+       "fps": 260.9,
+       "arbeit": 3.11,
+       "cpu": 3.11,
+       "gpu": 2.45,
+       "engpass": "cpu",
+       "gedeckelt": false,
+       "gesperrtBis": 45.3,
+       "aenderungen": 45,
+       "t": 181.5
+      },
+      "carLod": 0,
+      "ghostLod": 0,
+      "impostor": {
+       "atlas": true,
+       "arten": [
+        "tanne0",
+        "tanne1",
+        "laub1",
+        "laub2"
+       ],
+       "fehler": null
+      },
+      "reflex": null,
+      "vao": {
+       "fertig": true,
+       "anteil": 1,
+       "ecken": 30768,
+       "gerechnet": 20173,
+       "strahlen": 121038,
+       "strahlenJe": 6,
+       "ms": 358
+      },
+      "apLog": [
+       {
+        "t": 127.88,
+        "was": "skala",
+        "richtung": 1,
+        "skala": 0.86,
+        "fps": 265.9,
+        "arbeit": 3.09
+       },
+       {
+        "t": 132.94,
+        "was": "stufe",
+        "richtung": -1,
+        "skala": 1,
+        "fps": 59.9,
+        "arbeit": 17.56
+       },
+       {
+        "t": 145.68,
+        "was": "stufe",
+        "richtung": 1,
+        "skala": 0.62,
+        "fps": 357.1,
+        "arbeit": 2.25
+       },
+       {
+        "t": 148.7,
+        "was": "skala",
+        "richtung": 1,
+        "skala": 0.68,
+        "fps": 174.6,
+        "arbeit": 4.82
+       },
+       {
+        "t": 151.71,
+        "was": "skala",
+        "richtung": 1,
+        "skala": 0.74,
+        "fps": 228.3,
+        "arbeit": 3.78
+       },
+       {
+        "t": 154.73,
+        "was": "skala",
+        "richtung": 1,
+        "skala": 0.8,
+        "fps": 194.6,
+        "arbeit": 4.46
+       },
+       {
+        "t": 157.74,
+        "was": "skala",
+        "richtung": 1,
+        "skala": 0.86,
+        "fps": 228.8,
+        "arbeit": 3.7
+       },
+       {
+        "t": 160.75,
+        "was": "skala",
+        "richtung": 1,
+        "skala": 0.92,
+        "fps": 267.7,
+        "arbeit": 3.1
+       },
+       {
+        "t": 162.78,
+        "was": "skala",
+        "richtung": -1,
+        "skala": 0.86,
+        "fps": 56.2,
+        "arbeit": 17.77
+       },
+       {
+        "t": 164.36,
+        "was": "stufe",
+        "richtung": -1,
+        "skala": 1,
+        "fps": 64.2,
+        "arbeit": 16.89
+       },
+       {
+        "t": 175.6,
+        "was": "stufe",
+        "richtung": 1,
+        "skala": 0.62,
+        "fps": 252.1,
+        "arbeit": 3.26
+       },
+       {
+        "t": 178.62,
+        "was": "skala",
+        "richtung": 1,
+        "skala": 0.68,
+        "fps": 247.5,
+        "arbeit": 3.42
+       }
+      ],
+      "startProbe": {
+       "n": 20,
+       "median": 9.099999904632568,
+       "p90": 9.5,
+       "min": 8.699999809265137,
+       "max": 11.199999809265137,
+       "skala": 1
+      },
+      "gpuZeit": true
+     },
+     "fehler": [],
+     "neuP": [],
+     "gc": 308,
+     "gc_zeiten": [
+      [
+       0,
+       "gc-26MB"
+      ],
+      [
+       2,
+       "gc-26MB"
+      ],
+      [
+       4,
+       "gc-27MB"
+      ],
+      [
+       5,
+       "gc-27MB"
+      ],
+      [
+       6,
+       "gc-27MB"
+      ],
+      [
+       8,
+       "gc-27MB"
+      ],
+      [
+       10,
+       "gc-26MB"
+      ],
+      [
+       11,
+       "gc-27MB"
+      ],
+      [
+       13,
+       "gc-27MB"
+      ],
+      [
+       14,
+       "gc-27MB"
+      ],
+      [
+       15,
+       "gc-27MB"
+      ],
+      [
+       17,
+       "gc-26MB"
+      ],
+      [
+       18,
+       "gc-26MB"
+      ],
+      [
+       21,
+       "gc-27MB"
+      ],
+      [
+       23,
+       "gc-27MB"
+      ],
+      [
+       25,
+       "gc-26MB"
+      ],
+      [
+       26,
+       "gc-27MB"
+      ],
+      [
+       27,
+       "gc-27MB"
+      ],
+      [
+       29,
+       "gc-27MB"
+      ],
+      [
+       31,
+       "gc-27MB"
+      ],
+      [
+       32,
+       "gc-27MB"
+      ],
+      [
+       34,
+       "gc-27MB"
+      ],
+      [
+       35,
+       "gc-27MB"
+      ],
+      [
+       37,
+       "gc-27MB"
+      ],
+      [
+       39,
+       "gc-27MB"
+      ],
+      [
+       40,
+       "gc-27MB"
+      ],
+      [
+       46,
+       "gc-27MB"
+      ],
+      [
+       51,
+       "gc-27MB"
+      ],
+      [
+       53,
+       "gc-27MB"
+      ],
+      [
+       55,
+       "gc-27MB"
+      ],
+      [
+       56,
+       "gc-27MB"
+      ],
+      [
+       58,
+       "gc-27MB"
+      ],
+      [
+       59,
+       "gc-27MB"
+      ],
+      [
+       61,
+       "gc-27MB"
+      ],
+      [
+       63,
+       "gc-27MB"
+      ],
+      [
+       64,
+       "gc-27MB"
+      ],
+      [
+       66,
+       "gc-27MB"
+      ],
+      [
+       67,
+       "gc-27MB"
+      ],
+      [
+       69,
+       "gc-27MB"
+      ],
+      [
+       70,
+       "gc-27MB"
+      ],
+      [
+       73,
+       "gc-27MB"
+      ],
+      [
+       76,
+       "gc-26MB"
+      ],
+      [
+       79,
+       "gc-27MB"
+      ],
+      [
+       81,
+       "gc-27MB"
+      ],
+      [
+       83,
+       "gc-27MB"
+      ],
+      [
+       84,
+       "gc-27MB"
+      ],
+      [
+       86,
+       "gc-27MB"
+      ],
+      [
+       87,
+       "gc-27MB"
+      ],
+      [
+       89,
+       "gc-27MB"
+      ],
+      [
+       90,
+       "gc-27MB"
+      ],
+      [
+       92,
+       "gc-27MB"
+      ],
+      [
+       93,
+       "gc-27MB"
+      ],
+      [
+       94,
+       "gc-26MB"
+      ],
+      [
+       96,
+       "gc-27MB"
+      ],
+      [
+       97,
+       "gc-27MB"
+      ],
+      [
+       98,
+       "gc-27MB"
+      ],
+      [
+       100,
+       "gc-27MB"
+      ],
+      [
+       101,
+       "gc-28MB"
+      ],
+      [
+       102,
+       "gc-67MB"
+      ],
+      [
+       103,
+       "gc-2MB"
+      ],
+      [
+       103,
+       "gc-2MB"
+      ],
+      [
+       103,
+       "gc-2MB"
+      ],
+      [
+       104,
+       "gc-2MB"
+      ],
+      [
+       104,
+       "gc-2MB"
+      ],
+      [
+       104,
+       "gc-2MB"
+      ],
+      [
+       105,
+       "gc-2MB"
+      ],
+      [
+       105,
+       "gc-2MB"
+      ],
+      [
+       106,
+       "gc-2MB"
+      ],
+      [
+       106,
+       "gc-2MB"
+      ],
+      [
+       106,
+       "gc-2MB"
+      ],
+      [
+       106,
+       "gc-2MB"
+      ],
+      [
+       107,
+       "gc-2MB"
+      ],
+      [
+       107,
+       "gc-2MB"
+      ],
+      [
+       107,
+       "gc-2MB"
+      ],
+      [
+       108,
+       "gc-2MB"
+      ],
+      [
+       108,
+       "gc-2MB"
+      ],
+      [
+       108,
+       "gc-2MB"
+      ],
+      [
+       109,
+       "gc-2MB"
+      ],
+      [
+       109,
+       "gc-2MB"
+      ],
+      [
+       110,
+       "gc-2MB"
+      ],
+      [
+       110,
+       "gc-2MB"
+      ],
+      [
+       110,
+       "gc-2MB"
+      ],
+      [
+       111,
+       "gc-2MB"
+      ],
+      [
+       111,
+       "gc-2MB"
+      ],
+      [
+       111,
+       "gc-2MB"
+      ],
+      [
+       112,
+       "gc-2MB"
+      ],
+      [
+       112,
+       "gc-2MB"
+      ],
+      [
+       112,
+       "gc-2MB"
+      ],
+      [
+       112,
+       "gc-2MB"
+      ],
+      [
+       112,
+       "gc-2MB"
+      ],
+      [
+       112,
+       "gc-2MB"
+      ],
+      [
+       113,
+       "gc-2MB"
+      ],
+      [
+       113,
+       "gc-2MB"
+      ],
+      [
+       113,
+       "gc-2MB"
+      ],
+      [
+       113,
+       "gc-2MB"
+      ],
+      [
+       113,
+       "gc-2MB"
+      ],
+      [
+       113,
+       "gc-2MB"
+      ],
+      [
+       113,
+       "gc-2MB"
+      ],
+      [
+       113,
+       "gc-2MB"
+      ],
+      [
+       113,
+       "gc-2MB"
+      ],
+      [
+       114,
+       "gc-2MB"
+      ],
+      [
+       114,
+       "gc-2MB"
+      ],
+      [
+       114,
+       "gc-2MB"
+      ],
+      [
+       114,
+       "gc-2MB"
+      ],
+      [
+       114,
+       "gc-2MB"
+      ],
+      [
+       114,
+       "gc-2MB"
+      ],
+      [
+       114,
+       "gc-2MB"
+      ],
+      [
+       114,
+       "gc-2MB"
+      ],
+      [
+       114,
+       "gc-2MB"
+      ],
+      [
+       115,
+       "gc-2MB"
+      ],
+      [
+       115,
+       "gc-2MB"
+      ],
+      [
+       115,
+       "gc-2MB"
+      ],
+      [
+       115,
+       "gc-2MB"
+      ],
+      [
+       115,
+       "gc-2MB"
+      ],
+      [
+       115,
+       "gc-2MB"
+      ],
+      [
+       115,
+       "gc-2MB"
+      ],
+      [
+       115,
+       "gc-2MB"
+      ],
+      [
+       115,
+       "gc-2MB"
+      ],
+      [
+       115,
+       "gc-2MB"
+      ],
+      [
+       116,
+       "gc-2MB"
+      ],
+      [
+       116,
+       "gc-2MB"
+      ],
+      [
+       116,
+       "gc-2MB"
+      ],
+      [
+       116,
+       "gc-2MB"
+      ],
+      [
+       116,
+       "gc-2MB"
+      ],
+      [
+       116,
+       "gc-2MB"
+      ],
+      [
+       116,
+       "gc-2MB"
+      ],
+      [
+       116,
+       "gc-2MB"
+      ],
+      [
+       116,
+       "gc-2MB"
+      ],
+      [
+       117,
+       "gc-3MB"
+      ],
+      [
+       117,
+       "gc-3MB"
+      ],
+      [
+       117,
+       "gc-3MB"
+      ],
+      [
+       117,
+       "gc-3MB"
+      ],
+      [
+       117,
+       "gc-3MB"
+      ],
+      [
+       117,
+       "gc-3MB"
+      ],
+      [
+       118,
+       "gc-3MB"
+      ],
+      [
+       118,
+       "gc-3MB"
+      ],
+      [
+       118,
+       "gc-3MB"
+      ],
+      [
+       118,
+       "gc-3MB"
+      ],
+      [
+       119,
+       "gc-3MB"
+      ],
+      [
+       119,
+       "gc-3MB"
+      ],
+      [
+       119,
+       "gc-3MB"
+      ],
+      [
+       119,
+       "gc-3MB"
+      ],
+      [
+       119,
+       "gc-3MB"
+      ],
+      [
+       120,
+       "gc-3MB"
+      ],
+      [
+       120,
+       "gc-3MB"
+      ],
+      [
+       120,
+       "gc-3MB"
+      ],
+      [
+       120,
+       "gc-3MB"
+      ],
+      [
+       120,
+       "gc-3MB"
+      ],
+      [
+       121,
+       "gc-3MB"
+      ],
+      [
+       121,
+       "gc-3MB"
+      ],
+      [
+       121,
+       "gc-3MB"
+      ],
+      [
+       121,
+       "gc-3MB"
+      ],
+      [
+       121,
+       "gc-3MB"
+      ],
+      [
+       122,
+       "gc-3MB"
+      ],
+      [
+       122,
+       "gc-3MB"
+      ],
+      [
+       122,
+       "gc-3MB"
+      ],
+      [
+       122,
+       "gc-3MB"
+      ],
+      [
+       122,
+       "gc-3MB"
+      ],
+      [
+       123,
+       "gc-3MB"
+      ],
+      [
+       123,
+       "gc-3MB"
+      ],
+      [
+       123,
+       "gc-3MB"
+      ],
+      [
+       123,
+       "gc-3MB"
+      ],
+      [
+       123,
+       "gc-3MB"
+      ],
+      [
+       124,
+       "gc-3MB"
+      ],
+      [
+       124,
+       "gc-3MB"
+      ],
+      [
+       124,
+       "gc-3MB"
+      ],
+      [
+       124,
+       "gc-3MB"
+      ],
+      [
+       124,
+       "gc-2MB"
+      ],
+      [
+       124,
+       "gc-3MB"
+      ],
+      [
+       125,
+       "gc-3MB"
+      ],
+      [
+       125,
+       "gc-3MB"
+      ],
+      [
+       125,
+       "gc-3MB"
+      ],
+      [
+       125,
+       "gc-3MB"
+      ],
+      [
+       125,
+       "gc-3MB"
+      ],
+      [
+       126,
+       "gc-3MB"
+      ],
+      [
+       126,
+       "gc-3MB"
+      ],
+      [
+       126,
+       "gc-3MB"
+      ],
+      [
+       126,
+       "gc-3MB"
+      ],
+      [
+       126,
+       "gc-3MB"
+      ],
+      [
+       127,
+       "gc-3MB"
+      ],
+      [
+       127,
+       "gc-3MB"
+      ],
+      [
+       127,
+       "gc-3MB"
+      ],
+      [
+       127,
+       "gc-3MB"
+      ],
+      [
+       127,
+       "gc-3MB"
+      ],
+      [
+       128,
+       "gc-3MB"
+      ],
+      [
+       128,
+       "gc-3MB"
+      ],
+      [
+       128,
+       "gc-3MB"
+      ],
+      [
+       128,
+       "gc-3MB"
+      ],
+      [
+       128,
+       "gc-4MB"
+      ],
+      [
+       129,
+       "gc-3MB"
+      ],
+      [
+       129,
+       "gc-3MB"
+      ],
+      [
+       129,
+       "gc-3MB"
+      ],
+      [
+       129,
+       "gc-3MB"
+      ],
+      [
+       129,
+       "gc-3MB"
+      ],
+      [
+       130,
+       "gc-3MB"
+      ],
+      [
+       130,
+       "gc-3MB"
+      ],
+      [
+       130,
+       "gc-3MB"
+      ],
+      [
+       130,
+       "gc-3MB"
+      ],
+      [
+       131,
+       "gc-3MB"
+      ],
+      [
+       132,
+       "gc-3MB"
+      ],
+      [
+       132,
+       "gc-4MB"
+      ],
+      [
+       133,
+       "gc-3MB"
+      ],
+      [
+       133,
+       "gc-3MB"
+      ],
+      [
+       134,
+       "gc-3MB"
+      ],
+      [
+       135,
+       "gc-3MB"
+      ],
+      [
+       136,
+       "gc-3MB"
+      ],
+      [
+       136,
+       "gc-3MB"
+      ],
+      [
+       137,
+       "gc-3MB"
+      ],
+      [
+       137,
+       "gc-3MB"
+      ],
+      [
+       138,
+       "gc-3MB"
+      ],
+      [
+       138,
+       "gc-4MB"
+      ],
+      [
+       139,
+       "gc-4MB"
+      ],
+      [
+       139,
+       "gc-3MB"
+      ],
+      [
+       140,
+       "gc-3MB"
+      ],
+      [
+       141,
+       "gc-3MB"
+      ],
+      [
+       142,
+       "gc-3MB"
+      ],
+      [
+       142,
+       "gc-4MB"
+      ],
+      [
+       142,
+       "gc-3MB"
+      ],
+      [
+       142,
+       "gc-3MB"
+      ],
+      [
+       143,
+       "gc-3MB"
+      ],
+      [
+       143,
+       "gc-3MB"
+      ],
+      [
+       143,
+       "gc-3MB"
+      ],
+      [
+       143,
+       "gc-3MB"
+      ],
+      [
+       143,
+       "gc-3MB"
+      ],
+      [
+       144,
+       "gc-7MB"
+      ],
+      [
+       144,
+       "gc-7MB"
+      ],
+      [
+       145,
+       "gc-7MB"
+      ],
+      [
+       145,
+       "gc-7MB"
+      ],
+      [
+       145,
+       "gc-7MB"
+      ],
+      [
+       146,
+       "gc-7MB"
+      ],
+      [
+       146,
+       "gc-7MB"
+      ],
+      [
+       147,
+       "gc-7MB"
+      ],
+      [
+       147,
+       "gc-7MB"
+      ],
+      [
+       147,
+       "gc-7MB"
+      ],
+      [
+       148,
+       "gc-7MB"
+      ],
+      [
+       148,
+       "gc-7MB"
+      ],
+      [
+       149,
+       "gc-7MB"
+      ],
+      [
+       149,
+       "gc-7MB"
+      ],
+      [
+       149,
+       "gc-7MB"
+      ],
+      [
+       150,
+       "gc-7MB"
+      ],
+      [
+       150,
+       "gc-7MB"
+      ],
+      [
+       150,
+       "gc-4MB"
+      ],
+      [
+       151,
+       "gc-7MB"
+      ],
+      [
+       151,
+       "gc-7MB"
+      ],
+      [
+       151,
+       "gc-7MB"
+      ],
+      [
+       151,
+       "gc-7MB"
+      ],
+      [
+       152,
+       "gc-7MB"
+      ],
+      [
+       152,
+       "gc-6MB"
+      ],
+      [
+       152,
+       "gc-7MB"
+      ],
+      [
+       153,
+       "gc-7MB"
+      ],
+      [
+       153,
+       "gc-7MB"
+      ],
+      [
+       153,
+       "gc-7MB"
+      ],
+      [
+       153,
+       "gc-7MB"
+      ],
+      [
+       154,
+       "gc-7MB"
+      ],
+      [
+       154,
+       "gc-7MB"
+      ],
+      [
+       154,
+       "gc-7MB"
+      ],
+      [
+       155,
+       "gc-7MB"
+      ],
+      [
+       155,
+       "gc-7MB"
+      ],
+      [
+       155,
+       "gc-7MB"
+      ],
+      [
+       156,
+       "gc-7MB"
+      ],
+      [
+       156,
+       "gc-7MB"
+      ],
+      [
+       156,
+       "gc-7MB"
+      ],
+      [
+       157,
+       "gc-7MB"
+      ],
+      [
+       157,
+       "gc-7MB"
+      ],
+      [
+       157,
+       "gc-7MB"
+      ],
+      [
+       158,
+       "gc-7MB"
+      ],
+      [
+       158,
+       "gc-7MB"
+      ],
+      [
+       158,
+       "gc-7MB"
+      ],
+      [
+       159,
+       "gc-7MB"
+      ],
+      [
+       159,
+       "gc-7MB"
+      ],
+      [
+       160,
+       "gc-6MB"
+      ],
+      [
+       160,
+       "gc-7MB"
+      ],
+      [
+       161,
+       "gc-7MB"
+      ],
+      [
+       162,
+       "gc-7MB"
+      ],
+      [
+       164,
+       "gc-7MB"
+      ],
+      [
+       164,
+       "gc-6MB"
+      ],
+      [
+       164,
+       "gc-7MB"
+      ],
+      [
+       165,
+       "gc-7MB"
+      ],
+      [
+       165,
+       "gc-7MB"
+      ],
+      [
+       166,
+       "gc-7MB"
+      ],
+      [
+       167,
+       "gc-7MB"
+      ],
+      [
+       168,
+       "gc-7MB"
+      ],
+      [
+       170,
+       "gc-6MB"
+      ],
+      [
+       171,
+       "gc-6MB"
+      ],
+      [
+       172,
+       "gc-7MB"
+      ],
+      [
+       172,
+       "gc-7MB"
+      ],
+      [
+       173,
+       "gc-7MB"
+      ],
+      [
+       173,
+       "gc-7MB"
+      ],
+      [
+       173,
+       "gc-7MB"
+      ],
+      [
+       174,
+       "gc-7MB"
+      ],
+      [
+       174,
+       "gc-7MB"
+      ],
+      [
+       175,
+       "gc-7MB"
+      ],
+      [
+       175,
+       "gc-7MB"
+      ],
+      [
+       175,
+       "gc-7MB"
+      ],
+      [
+       176,
+       "gc-7MB"
+      ],
+      [
+       176,
+       "gc-6MB"
+      ],
+      [
+       176,
+       "gc-7MB"
+      ],
+      [
+       177,
+       "gc-7MB"
+      ],
+      [
+       177,
+       "gc-7MB"
+      ],
+      [
+       177,
+       "gc-7MB"
+      ],
+      [
+       177,
+       "gc-7MB"
+      ],
+      [
+       178,
+       "gc-7MB"
+      ],
+      [
+       178,
+       "gc-7MB"
+      ],
+      [
+       178,
+       "gc-7MB"
+      ],
+      [
+       179,
+       "gc-7MB"
+      ],
+      [
+       179,
+       "gc-8MB"
+      ],
+      [
+       180,
+       "gc-7MB"
+      ],
+      [
+       180,
+       "gc-7MB"
+      ]
+     ],
+     "gc_je_30s": [
+      19,
+      14,
+      16,
+      97,
+      94,
+      67,
+      1
+     ],
+     "ap_aenderungen": 42
+    }
+   ]
+  }
+ }
+}

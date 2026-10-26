@@ -1,0 +1,534 @@
+{
+ "datum": "2026-10-26T23:58:24",
+ "modus": "rennen",
+ "profil": {
+  "drossel": 4,
+  "dpr": 2.6,
+  "geraet": "quer",
+  "rtt": 165,
+  "kbit": 9000,
+  "sek": 180.0,
+  "strecke": "seed=20261026&d=2&g=1&h=1",
+  "js_profil": false
+ },
+ "varianten": {
+  "gc_zeit": {
+   "wurzel": "/Users/wohnzimmer/dev/.wt/stuntbahn-stuntbahn-n42-tempo-hindernisse",
+   "zusatz": "",
+   "laeufe": [
+    {
+     "n": 29359,
+     "p50": 5.9,
+     "p95": 8.6,
+     "p99": 10.3,
+     "ueber50": 1,
+     "ueber100": 0,
+     "max": 50.6,
+     "starts": 2,
+     "haenger": [
+      {
+       "t": 79.1,
+       "ms": 50.6,
+       "ursache": "unklar (GPU/Browser)",
+       "stueck": null,
+       "renn_t": null,
+       "vorbild": [
+        1.1,
+        2.9,
+        26
+       ]
+      }
+     ],
+     "lt_anzahl": 0,
+     "apLog": [],
+     "info": {
+      "calls": 118,
+      "tris": 333610,
+      "geometries": 233,
+      "textures": 75,
+      "programs": 124,
+      "pixelRatio": 2,
+      "tier": 2,
+      "fps": 172.4941724941727,
+      "ap": {
+       "skala": 1,
+       "bereich": [
+        0.7,
+        1
+       ],
+       "stufen": {
+        "deko": 1,
+        "autoschatten": 1,
+        "stufe": 2
+       },
+       "fps": 171,
+       "arbeit": 10.69,
+       "cpu": 4.94,
+       "gpu": 10.69,
+       "engpass": "gpu",
+       "gedeckelt": false,
+       "gesperrtBis": 0,
+       "aenderungen": 0,
+       "t": 181.5
+      },
+      "carLod": 0,
+      "ghostLod": 0,
+      "impostor": {
+       "atlas": true,
+       "arten": [
+        "tanne0",
+        "tanne1",
+        "laub1",
+        "laub2"
+       ],
+       "fehler": null
+      },
+      "reflex": null,
+      "vao": {
+       "fertig": true,
+       "anteil": 1,
+       "ecken": 30768,
+       "gerechnet": 20173,
+       "strahlen": 121038,
+       "strahlenJe": 6,
+       "ms": 366
+      },
+      "apLog": [],
+      "startProbe": {
+       "n": 20,
+       "median": 9.300000190734863,
+       "p90": 10,
+       "min": 8.599999904632568,
+       "max": 11.199999809265137,
+       "skala": 1
+      },
+      "gpuZeit": true
+     },
+     "fehler": [],
+     "neuP": [],
+     "gc": 102,
+     "gc_zeiten": [
+      [
+       0,
+       "gc-25MB"
+      ],
+      [
+       2,
+       "gc-25MB"
+      ],
+      [
+       3,
+       "gc-26MB"
+      ],
+      [
+       5,
+       "gc-27MB"
+      ],
+      [
+       6,
+       "gc-26MB"
+      ],
+      [
+       8,
+       "gc-27MB"
+      ],
+      [
+       9,
+       "gc-27MB"
+      ],
+      [
+       11,
+       "gc-27MB"
+      ],
+      [
+       12,
+       "gc-27MB"
+      ],
+      [
+       14,
+       "gc-27MB"
+      ],
+      [
+       15,
+       "gc-26MB"
+      ],
+      [
+       17,
+       "gc-27MB"
+      ],
+      [
+       18,
+       "gc-27MB"
+      ],
+      [
+       20,
+       "gc-27MB"
+      ],
+      [
+       22,
+       "gc-27MB"
+      ],
+      [
+       24,
+       "gc-27MB"
+      ],
+      [
+       26,
+       "gc-28MB"
+      ],
+      [
+       28,
+       "gc-27MB"
+      ],
+      [
+       30,
+       "gc-27MB"
+      ],
+      [
+       32,
+       "gc-27MB"
+      ],
+      [
+       34,
+       "gc-27MB"
+      ],
+      [
+       36,
+       "gc-27MB"
+      ],
+      [
+       38,
+       "gc-27MB"
+      ],
+      [
+       40,
+       "gc-27MB"
+      ],
+      [
+       42,
+       "gc-27MB"
+      ],
+      [
+       45,
+       "gc-27MB"
+      ],
+      [
+       47,
+       "gc-27MB"
+      ],
+      [
+       49,
+       "gc-27MB"
+      ],
+      [
+       51,
+       "gc-27MB"
+      ],
+      [
+       53,
+       "gc-27MB"
+      ],
+      [
+       54,
+       "gc-27MB"
+      ],
+      [
+       56,
+       "gc-27MB"
+      ],
+      [
+       57,
+       "gc-27MB"
+      ],
+      [
+       59,
+       "gc-27MB"
+      ],
+      [
+       61,
+       "gc-27MB"
+      ],
+      [
+       63,
+       "gc-27MB"
+      ],
+      [
+       65,
+       "gc-27MB"
+      ],
+      [
+       67,
+       "gc-27MB"
+      ],
+      [
+       69,
+       "gc-27MB"
+      ],
+      [
+       70,
+       "gc-28MB"
+      ],
+      [
+       72,
+       "gc-27MB"
+      ],
+      [
+       73,
+       "gc-28MB"
+      ],
+      [
+       74,
+       "gc-27MB"
+      ],
+      [
+       76,
+       "gc-27MB"
+      ],
+      [
+       77,
+       "gc-27MB"
+      ],
+      [
+       79,
+       "gc-27MB"
+      ],
+      [
+       80,
+       "gc-27MB"
+      ],
+      [
+       82,
+       "gc-27MB"
+      ],
+      [
+       84,
+       "gc-27MB"
+      ],
+      [
+       84,
+       "gc-41MB"
+      ],
+      [
+       85,
+       "gc-41MB"
+      ],
+      [
+       87,
+       "gc-27MB"
+      ],
+      [
+       88,
+       "gc-27MB"
+      ],
+      [
+       90,
+       "gc-27MB"
+      ],
+      [
+       92,
+       "gc-27MB"
+      ],
+      [
+       93,
+       "gc-27MB"
+      ],
+      [
+       95,
+       "gc-27MB"
+      ],
+      [
+       96,
+       "gc-28MB"
+      ],
+      [
+       98,
+       "gc-27MB"
+      ],
+      [
+       100,
+       "gc-27MB"
+      ],
+      [
+       102,
+       "gc-27MB"
+      ],
+      [
+       104,
+       "gc-27MB"
+      ],
+      [
+       106,
+       "gc-27MB"
+      ],
+      [
+       108,
+       "gc-27MB"
+      ],
+      [
+       110,
+       "gc-27MB"
+      ],
+      [
+       113,
+       "gc-28MB"
+      ],
+      [
+       115,
+       "gc-27MB"
+      ],
+      [
+       116,
+       "gc-28MB"
+      ],
+      [
+       118,
+       "gc-27MB"
+      ],
+      [
+       120,
+       "gc-27MB"
+      ],
+      [
+       123,
+       "gc-27MB"
+      ],
+      [
+       125,
+       "gc-27MB"
+      ],
+      [
+       127,
+       "gc-27MB"
+      ],
+      [
+       129,
+       "gc-27MB"
+      ],
+      [
+       131,
+       "gc-27MB"
+      ],
+      [
+       134,
+       "gc-27MB"
+      ],
+      [
+       135,
+       "gc-28MB"
+      ],
+      [
+       137,
+       "gc-27MB"
+      ],
+      [
+       139,
+       "gc-33MB"
+      ],
+      [
+       141,
+       "gc-27MB"
+      ],
+      [
+       143,
+       "gc-27MB"
+      ],
+      [
+       145,
+       "gc-27MB"
+      ],
+      [
+       147,
+       "gc-27MB"
+      ],
+      [
+       148,
+       "gc-27MB"
+      ],
+      [
+       150,
+       "gc-27MB"
+      ],
+      [
+       152,
+       "gc-27MB"
+      ],
+      [
+       153,
+       "gc-27MB"
+      ],
+      [
+       154,
+       "gc-27MB"
+      ],
+      [
+       156,
+       "gc-28MB"
+      ],
+      [
+       158,
+       "gc-27MB"
+      ],
+      [
+       160,
+       "gc-33MB"
+      ],
+      [
+       160,
+       "gc-3MB"
+      ],
+      [
+       162,
+       "gc-27MB"
+      ],
+      [
+       164,
+       "gc-27MB"
+      ],
+      [
+       166,
+       "gc-27MB"
+      ],
+      [
+       168,
+       "gc-27MB"
+      ],
+      [
+       170,
+       "gc-27MB"
+      ],
+      [
+       172,
+       "gc-26MB"
+      ],
+      [
+       174,
+       "gc-27MB"
+      ],
+      [
+       176,
+       "gc-27MB"
+      ],
+      [
+       177,
+       "gc-27MB"
+      ],
+      [
+       179,
+       "gc-27MB"
+      ]
+     ],
+     "gc_je_30s": [
+      18,
+      16,
+      19,
+      16,
+      15,
+      18,
+      0
+     ],
+     "ap_aenderungen": 0
+    }
+   ]
+  }
+ }
+}

@@ -1,0 +1,510 @@
+{
+ "datum": "2026-10-26T23:39:51",
+ "modus": "rennen",
+ "profil": {
+  "drossel": 4,
+  "dpr": 2.6,
+  "geraet": "quer",
+  "rtt": 165,
+  "kbit": 9000,
+  "sek": 180,
+  "strecke": "seed=20261026&d=2&g=1&h=1",
+  "js_profil": false
+ },
+ "varianten": {
+  "vorher": {
+   "wurzel": "/tmp/n42_vorher",
+   "zusatz": "",
+   "laeufe": [
+    {
+     "n": 29502,
+     "p50": 5.9,
+     "p95": 8.4,
+     "p99": 9.9,
+     "ueber50": 4,
+     "ueber100": 3,
+     "max": 267,
+     "starts": 2,
+     "haenger": [
+      {
+       "t": 3.8,
+       "ms": 133.3,
+       "ursache": "shader+1 [ShaderMaterial] erst[Mesh:ShaderMaterial→bild], Zeichnen 126 ms",
+       "stueck": "start",
+       "renn_t": 1.7,
+       "vorbild": [
+        0.1,
+        126.5,
+        138.7
+       ]
+      },
+      {
+       "t": 75.5,
+       "ms": 267,
+       "ursache": "shader+1 [ShaderMaterial] zustand finished erst[pyro:ShaderMaterial→rt1830x824], Zeichnen 211 ms",
+       "stueck": "start",
+       "renn_t": 91.1,
+       "vorbild": [
+        1,
+        210.6,
+        241.9
+       ]
+      },
+      {
+       "t": 79.2,
+       "ms": 131,
+       "ursache": "unklar (GPU/Browser)",
+       "stueck": null,
+       "renn_t": null,
+       "vorbild": [
+        2,
+        4,
+        104.2
+       ]
+      },
+      {
+       "t": 159.6,
+       "ms": 56.7,
+       "ursache": "unklar (GPU/Browser)",
+       "stueck": null,
+       "renn_t": null,
+       "vorbild": [
+        1.9,
+        4.6,
+        64.5
+       ]
+      }
+     ],
+     "lt_anzahl": 4,
+     "apLog": [],
+     "info": {
+      "calls": 119,
+      "tris": 340366,
+      "geometries": 182,
+      "textures": 69,
+      "programs": 82,
+      "pixelRatio": 2,
+      "tier": 2,
+      "fps": 169.8867421718857,
+      "ap": {
+       "skala": 1,
+       "bereich": [
+        0.7,
+        1
+       ],
+       "stufen": {
+        "deko": 1,
+        "autoschatten": 1,
+        "stufe": 2
+       },
+       "fps": 159.4,
+       "arbeit": 10.48,
+       "cpu": 5.42,
+       "gpu": 10.48,
+       "engpass": "gpu",
+       "gedeckelt": false,
+       "gesperrtBis": 0,
+       "aenderungen": 0,
+       "t": 181.2
+      },
+      "carLod": 0,
+      "ghostLod": 0,
+      "impostor": {
+       "atlas": true,
+       "arten": [
+        "tanne0",
+        "tanne1",
+        "laub1",
+        "laub2"
+       ],
+       "fehler": null
+      },
+      "reflex": null,
+      "vao": {
+       "fertig": true,
+       "anteil": 1,
+       "ecken": 30768,
+       "gerechnet": 20173,
+       "strahlen": 121038,
+       "strahlenJe": 6,
+       "ms": 253
+      },
+      "apLog": [],
+      "startProbe": {
+       "n": 20,
+       "median": 9,
+       "p90": 9.900000095367432,
+       "min": 8.599999904632568,
+       "max": 10.400000095367432,
+       "skala": 1
+      },
+      "gpuZeit": true
+     },
+     "fehler": [],
+     "neuP": [
+      {
+       "t": 3638,
+       "name": "",
+       "stapel": "R.renderBufferDirect (eval at evaluate (:311:30), <anonymous>:16:69 < R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.pass src/gfx/kinolook.js:592:12 < KinoLook.render src/gfx/kinolook.js:795:10 < drawFrame src/main.js:1772:10",
+       "uniforms": "morphTexture tColor uSrcTexel uTime uInvProj uCamRot uCamPos uSunDir uAerial uSunScr"
+      },
+      {
+       "t": 4194,
+       "name": "",
+       "stapel": "R.renderBufferDirect (eval at evaluate (:311:30), <anonymous>:16:69 < R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.pass src/gfx/kinolook.js:592:12 < KinoLook.render src/gfx/kinolook.js:795:10 < drawFrame src/main.js:1772:10",
+       "uniforms": "morphTexture tColor uSrcTexel uTime uInvProj uCamRot uCamPos uSunDir uAerial uSunScr"
+      },
+      {
+       "t": 75225,
+       "name": "",
+       "stapel": "R.renderBufferDirect (eval at evaluate (:311:30), <anonymous>:16:69 < R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:692:7 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3",
+       "uniforms": "morphTexture uT uFlash uPxK"
+      }
+     ],
+     "gc": 136,
+     "ap_aenderungen": 0
+    },
+    {
+     "n": 29421,
+     "p50": 5.9,
+     "p95": 8.5,
+     "p99": 10.1,
+     "ueber50": 3,
+     "ueber100": 2,
+     "max": 275.5,
+     "starts": 2,
+     "haenger": [
+      {
+       "t": 75.4,
+       "ms": 275.5,
+       "ursache": "shader+1 [ShaderMaterial] zustand finished erst[pyro:ShaderMaterial→rt1830x824], Zeichnen 202 ms, Aufgabe außerhalb des Bilds 288 ms",
+       "stueck": "start",
+       "renn_t": 91.1,
+       "vorbild": [
+        1.1,
+        201.9,
+        243.4
+       ]
+      },
+      {
+       "t": 79.1,
+       "ms": 130.2,
+       "ursache": "Aufgabe außerhalb des Bilds 138 ms",
+       "stueck": null,
+       "renn_t": null,
+       "vorbild": [
+        2.2,
+        2.6,
+        104.4
+       ]
+      },
+      {
+       "t": 159.5,
+       "ms": 59,
+       "ursache": "unklar (GPU/Browser)",
+       "stueck": null,
+       "renn_t": null,
+       "vorbild": [
+        1.5,
+        3.8,
+        63.7
+       ]
+      }
+     ],
+     "lt_anzahl": 3,
+     "apLog": [],
+     "info": {
+      "calls": 124,
+      "tris": 341088,
+      "geometries": 182,
+      "textures": 69,
+      "programs": 82,
+      "pixelRatio": 2,
+      "tier": 2,
+      "fps": 167.75396085741116,
+      "ap": {
+       "skala": 1,
+       "bereich": [
+        0.7,
+        1
+       ],
+       "stufen": {
+        "deko": 1,
+        "autoschatten": 1,
+        "stufe": 2
+       },
+       "fps": 158.1,
+       "arbeit": 10.15,
+       "cpu": 5.39,
+       "gpu": 10.15,
+       "engpass": "gpu",
+       "gedeckelt": false,
+       "gesperrtBis": 0,
+       "aenderungen": 0,
+       "t": 181.3
+      },
+      "carLod": 0,
+      "ghostLod": 0,
+      "impostor": {
+       "atlas": true,
+       "arten": [
+        "tanne0",
+        "tanne1",
+        "laub1",
+        "laub2"
+       ],
+       "fehler": null
+      },
+      "reflex": null,
+      "vao": {
+       "fertig": true,
+       "anteil": 1,
+       "ecken": 30768,
+       "gerechnet": 20173,
+       "strahlen": 121038,
+       "strahlenJe": 6,
+       "ms": 276
+      },
+      "apLog": [],
+      "startProbe": {
+       "n": 20,
+       "median": 8.799999952316284,
+       "p90": 9.299999952316284,
+       "min": 8.299999952316284,
+       "max": 9.5,
+       "skala": 1
+      },
+      "gpuZeit": true
+     },
+     "fehler": [],
+     "neuP": [
+      {
+       "t": 3619,
+       "name": "",
+       "stapel": "R.renderBufferDirect (eval at evaluate (:311:30), <anonymous>:16:69 < R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.pass src/gfx/kinolook.js:592:12 < KinoLook.render src/gfx/kinolook.js:795:10 < drawFrame src/main.js:1772:10",
+       "uniforms": "morphTexture tColor uSrcTexel uTime uInvProj uCamRot uCamPos uSunDir uAerial uSunScr"
+      },
+      {
+       "t": 4134,
+       "name": "",
+       "stapel": "R.renderBufferDirect (eval at evaluate (:311:30), <anonymous>:16:69 < R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.pass src/gfx/kinolook.js:592:12 < KinoLook.render src/gfx/kinolook.js:795:10 < drawFrame src/main.js:1772:10",
+       "uniforms": "morphTexture tColor uSrcTexel uTime uInvProj uCamRot uCamPos uSunDir uAerial uSunScr"
+      },
+      {
+       "t": 75172,
+       "name": "",
+       "stapel": "R.renderBufferDirect (eval at evaluate (:311:30), <anonymous>:16:69 < R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:692:7 < drawFrame src/main.js:1772:10 < render src/main.js:1663:3",
+       "uniforms": "morphTexture uT uFlash uPxK"
+      }
+     ],
+     "gc": 139,
+     "ap_aenderungen": 0
+    }
+   ]
+  },
+  "nachher": {
+   "wurzel": "/Users/wohnzimmer/dev/.wt/stuntbahn-stuntbahn-n42-tempo-hindernisse",
+   "zusatz": "",
+   "laeufe": [
+    {
+     "n": 29492,
+     "p50": 5.9,
+     "p95": 8.6,
+     "p99": 10.4,
+     "ueber50": 2,
+     "ueber100": 0,
+     "max": 70.4,
+     "starts": 2,
+     "haenger": [
+      {
+       "t": 102.2,
+       "ms": 59.7,
+       "ursache": "gc-42MB",
+       "stueck": "turnS",
+       "renn_t": 24.1,
+       "vorbild": [
+        0.1,
+        18.9,
+        60.3
+       ]
+      },
+      {
+       "t": 102.2,
+       "ms": 70.4,
+       "ursache": "gc-42MB, Physik 66 ms",
+       "stueck": "turnS",
+       "renn_t": 24.1,
+       "vorbild": [
+        65.6,
+        5.8,
+        78.9
+       ]
+      }
+     ],
+     "lt_anzahl": 1,
+     "apLog": [],
+     "info": {
+      "calls": 118,
+      "tris": 333610,
+      "geometries": 233,
+      "textures": 75,
+      "programs": 124,
+      "pixelRatio": 2,
+      "tier": 2,
+      "fps": 171.9541455611845,
+      "ap": {
+       "skala": 1,
+       "bereich": [
+        0.7,
+        1
+       ],
+       "stufen": {
+        "deko": 1,
+        "autoschatten": 1,
+        "stufe": 2
+       },
+       "fps": 175.3,
+       "arbeit": 9.12,
+       "cpu": 4.56,
+       "gpu": 9.12,
+       "engpass": "gpu",
+       "gedeckelt": false,
+       "gesperrtBis": 0,
+       "aenderungen": 0,
+       "t": 181.5
+      },
+      "carLod": 0,
+      "ghostLod": 0,
+      "impostor": {
+       "atlas": true,
+       "arten": [
+        "tanne0",
+        "tanne1",
+        "laub1",
+        "laub2"
+       ],
+       "fehler": null
+      },
+      "reflex": null,
+      "vao": {
+       "fertig": true,
+       "anteil": 1,
+       "ecken": 30768,
+       "gerechnet": 20173,
+       "strahlen": 121038,
+       "strahlenJe": 6,
+       "ms": 371
+      },
+      "apLog": [],
+      "startProbe": {
+       "n": 20,
+       "median": 9.200000047683716,
+       "p90": 9.899999856948853,
+       "min": 8.600000143051147,
+       "max": 12.099999904632568,
+       "skala": 1
+      },
+      "gpuZeit": true
+     },
+     "fehler": [],
+     "neuP": [],
+     "gc": 325,
+     "ap_aenderungen": 0
+    },
+    {
+     "n": 29380,
+     "p50": 5.9,
+     "p95": 8.6,
+     "p99": 10.3,
+     "ueber50": 1,
+     "ueber100": 0,
+     "max": 66,
+     "starts": 2,
+     "haenger": [
+      {
+       "t": 102.2,
+       "ms": 66,
+       "ursache": "gc-80MB, Physik 49 ms",
+       "stueck": "turnS",
+       "renn_t": 24.1,
+       "vorbild": [
+        49.4,
+        5.6,
+        72.1
+       ]
+      }
+     ],
+     "lt_anzahl": 1,
+     "apLog": [],
+     "info": {
+      "calls": 120,
+      "tris": 338946,
+      "geometries": 233,
+      "textures": 75,
+      "programs": 124,
+      "pixelRatio": 2,
+      "tier": 2,
+      "fps": 178.69004915637132,
+      "ap": {
+       "skala": 1,
+       "bereich": [
+        0.7,
+        1
+       ],
+       "stufen": {
+        "deko": 1,
+        "autoschatten": 1,
+        "stufe": 2
+       },
+       "fps": 164.8,
+       "arbeit": 8.76,
+       "cpu": 4.98,
+       "gpu": 8.76,
+       "engpass": "gpu",
+       "gedeckelt": false,
+       "gesperrtBis": 0,
+       "aenderungen": 0,
+       "t": 181.4
+      },
+      "carLod": 0,
+      "ghostLod": 0,
+      "impostor": {
+       "atlas": true,
+       "arten": [
+        "tanne0",
+        "tanne1",
+        "laub1",
+        "laub2"
+       ],
+       "fehler": null
+      },
+      "reflex": null,
+      "vao": {
+       "fertig": true,
+       "anteil": 1,
+       "ecken": 30768,
+       "gerechnet": 20173,
+       "strahlen": 121038,
+       "strahlenJe": 6,
+       "ms": 393
+      },
+      "apLog": [],
+      "startProbe": {
+       "n": 20,
+       "median": 9.400000095367432,
+       "p90": 10.399999856948853,
+       "min": 8.299999952316284,
+       "max": 10.799999952316284,
+       "skala": 1
+      },
+      "gpuZeit": true
+     },
+     "fehler": [],
+     "neuP": [],
+     "gc": 321,
+     "ap_aenderungen": 0
+    }
+   ]
+  }
+ }
+}

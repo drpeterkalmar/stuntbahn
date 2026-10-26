@@ -288,7 +288,8 @@ def rennen(pw, base, a, zusatz):
             for h, f in zip(sorted(haenger, key=lambda h: -h['ms'])[:25], pr.get('fenster', [])): h['profil'] = f['inklusiv'][:8]
         out = {'n': len(B), 'p50': q(0.5), 'p95': q(0.95), 'p99': q(0.99), 'ueber50': sum(1 for x in dts if x > 50), 'ueber100': sum(1 for x in dts if x > 100),
                'max': dts[-1], 'starts': r['starts'], 'haenger': haenger, 'lt_anzahl': len(r['lt']), 'apLog': r['apLog'], 'info': r['info'], 'fehler': fehler[:5], 'neuP': r['neuP'],
-               'gc': [e for e in r['ereig'] if 'gc-' in e[1]].__len__(), 'ap_aenderungen': [e for e in r['ereig'] if 'aufl' in e[1] or 'stufe' in e[1]].__len__()}
+               'gc': [e for e in r['ereig'] if 'gc-' in e[1]].__len__(), 'gc_zeiten': [[round(B[e[0]][0] / 1000), e[1][e[1].index('gc-'):].split(' ')[0]] for e in r['ereig'] if 'gc-' in e[1]],
+               'gc_je_30s': [sum(1 for e in r['ereig'] if 'gc-' in e[1] and k * 30000 <= B[e[0]][0] < (k + 1) * 30000) for k in range(int(a.sek // 30) + 1)], 'ap_aenderungen': [e for e in r['ereig'] if 'aufl' in e[1] or 'stufe' in e[1]].__len__()}
         return out
     finally:
         b.close()
@@ -376,6 +377,7 @@ def main():
                     if 'server' in r: print('Server:', r['server']['anfragen'], 'Anfragen', round(r['server']['bytes'] / 1e6, 2), 'MB, mehrfach', round(r['server']['bytes_mehrfach'] / 1e6, 2), 'MB')
                 elif a.modus == 'rennen' and 'p50' in r:
                     for x in r.get('neuP', []): print('   Shader', x)
+                    print('   GC je 30 s', r.get('gc_je_30s'))
                     print(f"## {n} Runde {k}: GC {r.get('gc')} AP-Änderungen {r.get('ap_aenderungen')} n {r['n']} p50 {r['p50']} p95 {r['p95']} p99 {r['p99']} >50 {r['ueber50']} >100 {r['ueber100']} max {r['max']} Neustarts {r['starts']} Fehler {r['fehler']}")
                     for h in sorted(r['haenger'], key=lambda h: -h['ms'])[:15]: print(f"   {h['t']:7.1f} s  {h['ms']:6.1f} ms  {h['stueck']}  {h['ursache']}" + (f"  | {h['profil'][:4]}" if h.get('profil') else ''))
                 elif a.modus == 'alloc' and 'top' in r:

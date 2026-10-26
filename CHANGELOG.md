@@ -2,6 +2,17 @@
 
 Kurzfassung je Version; Details in den Abschnitten der `README.md` und in den Berichten (`*_BERICHT.md`).
 
+## __VERSION__ – 27.10.2026 (Ruckeln + Start, n42 Etappe 1)
+- **Kein Ruckeln mehr, wenn die Grafik-Automatik nachregelt** (Peter 26.10.: „ruckeln zeitweise und starten langsam“): Auto-
+  Schatten aus übersetzte bisher alle Shader neu (bis 1,7 s Standbild, Mac mit CPU ×4) – jetzt 0 Hänger über 50 ms.
+- **Kein Ruck** beim Losfahren, beim ersten Action-Moment, bei Kulissen, die erst im Rennen ins Bild kommen, beim Feuerwerk
+  und am Ende der Zielshow: Shader-Varianten und Erst-Zeichnung werden vorab erledigt, der Highlight-Film entsteht in Häppchen.
+  Rennen 3 min (CPU ×4): Bilder > 50 ms 7 → 3, längster Hänger 275 → 70 ms. Optik pixelgleich.
+- **Schnellerer Start**: Autopilot-Prüfung nebenher im Worker, Offline-Speicher lädt beim ersten Besuch nicht mehr alles doppelt,
+  Module parallel. Fast 4G + CPU ×4: erster Besuch 17,5 → 14,4 s bis zum Menü, neue Strecke des Tages 7,05 → 6,25 s.
+- A/B: `?glatt=0` (alles wie 0.14), einzeln `?schattenfix=0`, `?vorwaermen=0`, `?pruefung=alt`, `?swfrueh=1`, `?filmhaeppchen=0`,
+  `?einseitig=0`, `?programmfest=0`, `?tonfrueh=1`. Bericht `N42_BERICHT.md`, Mess-Skripte `tests/n42_mess.py`, `tests/n42_bild.py`.
+
 ## 0.14.0 – 26.10.2026 (Zieljubel-Stunt)
 - **Neu: Stunt nach der Ziellinie** (Peter 20.10.: „automatischer Nitro und Sprung und Schraube oder Front-/Backflip im
   Ziel“): Nitro mit Flammen → Sprung → Schraube, Frontflip oder Backflip → saubere Landung → ausrollen, dann Zielbogen.

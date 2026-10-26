@@ -1,0 +1,232 @@
+{
+ "datum": "2026-10-26T23:54:33",
+ "modus": "rennen",
+ "profil": {
+  "drossel": 4,
+  "dpr": 2.6,
+  "geraet": "quer",
+  "rtt": 165,
+  "kbit": 9000,
+  "sek": 90.0,
+  "strecke": "seed=20261026&d=2&g=1&h=1",
+  "js_profil": false
+ },
+ "varianten": {
+  "an": {
+   "wurzel": "/Users/wohnzimmer/dev/.wt/stuntbahn-stuntbahn-n42-tempo-hindernisse",
+   "zusatz": "",
+   "laeufe": [
+    {
+     "n": 14805,
+     "p50": 5.9,
+     "p95": 8.5,
+     "p99": 10,
+     "ueber50": 0,
+     "ueber100": 0,
+     "max": 49.6,
+     "starts": 1,
+     "haenger": [],
+     "lt_anzahl": 0,
+     "apLog": [],
+     "info": {
+      "calls": 90,
+      "tris": 331918,
+      "geometries": 233,
+      "textures": 75,
+      "programs": 124,
+      "pixelRatio": 2,
+      "tier": 2,
+      "fps": 171.4057932500654,
+      "ap": {
+       "skala": 1,
+       "bereich": [
+        0.7,
+        1
+       ],
+       "stufen": {
+        "deko": 1,
+        "autoschatten": 1,
+        "stufe": 2
+       },
+       "fps": 172.7,
+       "arbeit": 8.74,
+       "cpu": 4.88,
+       "gpu": 8.74,
+       "engpass": "gpu",
+       "gedeckelt": false,
+       "gesperrtBis": 0,
+       "aenderungen": 0,
+       "t": 91.4
+      },
+      "carLod": 0,
+      "ghostLod": 0,
+      "impostor": {
+       "atlas": true,
+       "arten": [
+        "tanne0",
+        "tanne1",
+        "laub1",
+        "laub2"
+       ],
+       "fehler": null
+      },
+      "reflex": null,
+      "vao": {
+       "fertig": true,
+       "anteil": 1,
+       "ecken": 30768,
+       "gerechnet": 20173,
+       "strahlen": 121038,
+       "strahlenJe": 6,
+       "ms": 372
+      },
+      "apLog": [],
+      "startProbe": {
+       "n": 20,
+       "median": 9.099999904632568,
+       "p90": 10.100000143051147,
+       "min": 8.5,
+       "max": 12.300000190734863,
+       "skala": 1
+      },
+      "gpuZeit": true
+     },
+     "fehler": [],
+     "neuP": [],
+     "gc": 52,
+     "ap_aenderungen": 0
+    }
+   ]
+  },
+  "aus": {
+   "wurzel": "/Users/wohnzimmer/dev/.wt/stuntbahn-stuntbahn-n42-tempo-hindernisse",
+   "zusatz": "&glatt=0",
+   "laeufe": [
+    {
+     "n": 14043,
+     "p50": 6.2,
+     "p95": 8.6,
+     "p99": 9.9,
+     "ueber50": 2,
+     "ueber100": 0,
+     "max": 95.8,
+     "starts": 1,
+     "haenger": [
+      {
+       "t": 75.2,
+       "ms": 75.6,
+       "ursache": "shader+1 [ShaderMaterial] zustand finished erst[pyro:ShaderMaterial→rt1830x824], Aufgabe außerhalb des Bilds 78 ms",
+       "stueck": "start",
+       "renn_t": 91.1,
+       "vorbild": [
+        1.2,
+        11.8,
+        42.8
+       ]
+      },
+      {
+       "t": 78.9,
+       "ms": 95.8,
+       "ursache": "unklar (GPU/Browser)",
+       "stueck": null,
+       "renn_t": null,
+       "vorbild": [
+        2.3,
+        2.5,
+        88.1
+       ]
+      }
+     ],
+     "lt_anzahl": 2,
+     "apLog": [],
+     "info": {
+      "calls": 103,
+      "tris": 343374,
+      "geometries": 182,
+      "textures": 69,
+      "programs": 85,
+      "pixelRatio": 2,
+      "tier": 2,
+      "fps": 167.19957367439451,
+      "ap": {
+       "skala": 1,
+       "bereich": [
+        0.7,
+        1
+       ],
+       "stufen": {
+        "deko": 1,
+        "autoschatten": 1,
+        "stufe": 2
+       },
+       "fps": 172.7,
+       "arbeit": 9.54,
+       "cpu": 4.77,
+       "gpu": 9.54,
+       "engpass": "gpu",
+       "gedeckelt": false,
+       "gesperrtBis": 0,
+       "aenderungen": 0,
+       "t": 91.5
+      },
+      "carLod": 0,
+      "ghostLod": 0,
+      "impostor": {
+       "atlas": true,
+       "arten": [
+        "tanne0",
+        "tanne1",
+        "laub1",
+        "laub2"
+       ],
+       "fehler": null
+      },
+      "reflex": null,
+      "vao": {
+       "fertig": true,
+       "anteil": 1,
+       "ecken": 30768,
+       "gerechnet": 20173,
+       "strahlen": 121038,
+       "strahlenJe": 6,
+       "ms": 255
+      },
+      "apLog": [],
+      "startProbe": {
+       "n": 20,
+       "median": 8.900000095367432,
+       "p90": 9.399999856948853,
+       "min": 8.599999904632568,
+       "max": 10.299999952316284,
+       "skala": 1
+      },
+      "gpuZeit": true
+     },
+     "fehler": [],
+     "neuP": [
+      {
+       "t": 3632,
+       "name": "",
+       "stapel": "R.renderBufferDirect (eval at evaluate (:311:30), <anonymous>:16:69 < R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.pass src/gfx/kinolook.js:672:12 < KinoLook.render src/gfx/kinolook.js:863:10 < drawFrame src/main.js:1993:10",
+       "uniforms": "morphTexture tColor uSrcTexel uTime uInvProj uCamRot uCamPos uSunDir uAerial uSunScr"
+      },
+      {
+       "t": 4157,
+       "name": "",
+       "stapel": "R.renderBufferDirect (eval at evaluate (:311:30), <anonymous>:16:69 < R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.pass src/gfx/kinolook.js:672:12 < KinoLook.render src/gfx/kinolook.js:863:10 < drawFrame src/main.js:1993:10",
+       "uniforms": "morphTexture tColor uSrcTexel uTime uInvProj uCamRot uCamPos uSunDir uAerial uSunScr"
+      },
+      {
+       "t": 75184,
+       "name": "",
+       "stapel": "R.renderBufferDirect (eval at evaluate (:311:30), <anonymous>:16:69 < R.render (eval at evaluate (:311:30), <anonymous>:6:105 < KinoLook.render src/gfx/kinolook.js:772:7 < drawFrame src/main.js:1993:10 < render src/main.js:1783:3",
+       "uniforms": "morphTexture uT uFlash uPxK"
+      }
+     ],
+     "gc": 74,
+     "ap_aenderungen": 0
+    }
+   ]
+  }
+ }
+}
