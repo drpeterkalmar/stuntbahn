@@ -17,6 +17,8 @@ WAS = sys.argv[1] if len(sys.argv) > 1 else 'stunt'
 DEV = sys.argv[2] if len(sys.argv) > 2 else 'quer'
 CODE = sys.argv[3] if len(sys.argv) > 3 else ('4711-2-g' if WAS == 'tiere' else '4-2')
 EXTRA = sys.argv[4] if len(sys.argv) > 4 else ''
+QSTUFE = os.environ.get('N40_Q', '2')   # Grafik: 2 Kino (feine Figur), 1 Standard (grobe Figur)
+QTAG = '' if QSTUFE == '2' else f'_q{QSTUFE}'
 # Code wie im Spiel: 4-2 (flach), 4711-2-g (Gelände), 2-2-3d (Hochstraße), Zusatz „h“ = Generator mit Hindernissen (4-2-h, 13-2-gh)
 sd, dd, *rest = CODE.split('-')
 fl = rest[0] if rest else ''
@@ -59,19 +61,22 @@ def tiere(s, art_tag):
         for dist in ((5, 9) if art != 'sitzen' else (6,)):
             s.ev(CAM, [best[0], best[1], best[2], dist, 1.8 if dist < 7 else 2.2, 1.0, 0.3])
             s.frames(30); time.sleep(0.3)
-            paths.append(s.shot(f'{art_tag}_{art}_{dist}m_{DEV}', SUB))
+            # Jubel klingt im Spiel jedes Bild ab (main.js updateCheer) – direkt vor dem Foto wieder voll setzen
+            if art == 'jubel':
+                for k in range(3): s.ev(f"{U}.set({best[0]}, {best[1]}, 80, 1); window.__app.fixTime = {20.0 + 0.13 * k}"); s.frames(1)
+            paths.append(s.shot(f'{art_tag}_{art}_{dist}m_{DEV}{QTAG}', SUB))
     s.ev(f"{U}.set(0, 0, 0, 0)")
     st = (P['inst'].get('stand') or [None])[0]
     if st:
         for dist, h in ((22, 4), (60, 9)):   # Tribüne nah (3D vorn, Karten-Streifen) und fern (nur Karten)
             s.ev(CAM, [st['x'], st['z'], st.get('rot', 0), dist, h, 3, 0.4])
             s.frames(30); time.sleep(0.3)
-            paths.append(s.shot(f'{art_tag}_tribuene_{dist}m_{DEV}', SUB))
+            paths.append(s.shot(f'{art_tag}_tribuene_{dist}m_{DEV}{QTAG}', SUB))
     cr = (P['inst'].get('crowd') or [None])[0]
     if cr:   # Gruppen-Karten in der Ferne (3D blendet ab ~58–74 m aus)
         s.ev(CAM, [cr['x'], cr['z'], cr.get('rot', 0), 90, 6, 1, 0.3])
         s.frames(30); time.sleep(0.3)
-        paths.append(s.shot(f'{art_tag}_fern_90m_{DEV}', SUB))
+        paths.append(s.shot(f'{art_tag}_fern_90m_{DEV}{QTAG}', SUB))
     s.ev("window.__app.freezeCam = false; __game.freeze(false); __game.toMenu()")
     return paths
 
@@ -112,11 +117,11 @@ with Server() as srv, sync_playwright() as pw:
         alle = []
         for zu in ('tiere', 'mensch'):
             s = Session(pw, srv.base, device=DEVICES[DEV])
-            s.open(Q + f'&zuschauer={zu}&q=2&startprobe=0&blur=off&wetter=klar')
+            s.open(Q + f'&zuschauer={zu}&q={QSTUFE}&startprobe=0&blur=off&wetter=klar')
             alle += tiere(s, zu)
             res.setdefault('fehler', []).extend(s.errors[:8])
             s.close()
-        res['collage'] = collage(alle, os.path.join(OUT, f'tiere_{DEV}.jpg')) if alle else None
+        res['collage'] = collage(alle, os.path.join(OUT, f'tiere_{DEV}{QTAG}.jpg')) if alle else None
         ok = bool(alle) and not res['fehler']
     else:
         ok = True

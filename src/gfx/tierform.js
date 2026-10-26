@@ -27,7 +27,9 @@ export const TIER_FARBEN = {
 };
 
 // Gelenke für den Haltungs-Shader (gfx/kulisse2.js fanPoseGlsl): Schultern, Hüfte (Sitzen), Hüpfen, Absenken im Sitzen
-export const TIER_J = { lift: '0.2', sitLift: '-0.15', armL: '-0.24, 0.68, 0.0', armR: '0.24, 0.68, 0.0', hip: '0.0, 0.24, 0.0' };
+// up/spread (n40 Heavy, am Bild): Arme oben bzw. beim Jubel seitlich (rad; Menschen +0,35/+0,42 = leicht nach innen). Tiere
+// negativ = nach außen (V), sonst verschwinden die kurzen Ärmchen hinter dem großen Kopf
+export const TIER_J = { lift: '0.2', sitLift: '-0.15', up: '-0.55', spread: '-0.6', armL: '-0.24, 0.68, 0.0', armR: '0.24, 0.68, 0.0', hip: '0.0, 0.24, 0.0' };
 // Fahnenstange (Teil 5) und Tuch (6) hängen an der rechten Pfote: im Ruhezustand nach UNTEN (Fahne gibt es nur in Haltung 3,
 // dort ist der Arm ~125–165° hochgerissen → Stange zeigt nach oben, Tuch über dem Kopf). Stange bei x = POLE_X
 export const POLE_X = 0.3;

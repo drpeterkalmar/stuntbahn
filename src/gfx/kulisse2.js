@@ -95,7 +95,7 @@ export function fanGeometry() {
 }
 
 // Haltung und Jubel im Vertex-Shader (für Position und Normale dieselbe Drehung). n40: Gelenke als Parameter J (Menschen wie
-// bisher; Tier-Zuschauer gfx/tiere.js mit kurzen Beinen, Schultern tiefer) – für Menschen bleibt der Text Zeichen für Zeichen gleich
+// bisher; Tier-Zuschauer gfx/tiere.js mit kurzen Beinen, Schultern tiefer, Arme oben weiter gespreizt: up/spread) – für Menschen bleibt der Text Zeichen für Zeichen gleich
 export const FAN_J = { lift: '0.24', sitLift: '-0.8', armL: '-0.26, 1.45, 0.0', armR: '0.26, 1.45, 0.0', hip: '0.0, 0.88, 0.0' };
 export const fanPoseGlsl = (J) => `
   attribute float aPart, aCls; attribute vec4 iA; attribute vec2 iB;   // iA: Haltung, Farbe, Phase, Fahne; iB: Blitz, Größe
@@ -112,13 +112,13 @@ export const fanPoseGlsl = (J) => `
     bool sit = pose > 3.5;
     float cheer = sit ? 0.0 : ch * step( 0.15, fract( iA.z * 3.7 ) );   // 85 % springen auf
     float aL = 0.06 + 0.04 * sin( t * 0.7 + ph ), aR = 0.06 + 0.04 * sin( t * 0.8 + ph * 1.3 ), sL = 0.1, sR = 0.1;
-    if ( pose > 0.5 && pose < 1.5 ) { aL = 2.75 + 0.15 * sin( t * 3.0 + ph ); aR = 2.75 + 0.15 * sin( t * 3.0 + ph + 1.5 ); sL = sR = 0.35; }
+    if ( pose > 0.5 && pose < 1.5 ) { aL = 2.75 + 0.15 * sin( t * 3.0 + ph ); aR = 2.75 + 0.15 * sin( t * 3.0 + ph + 1.5 ); sL = sR = ${J.up || '0.35'}; }
     else if ( pose > 1.5 && pose < 2.5 ) { aR = 1.3 + 0.08 * sin( t * 1.7 + ph ); aL = 0.9 + 0.5 * max( 0.0, sin( t * 6.0 + ph ) ); sL = -0.15; sR = -0.1; }
     else if ( pose > 2.5 && pose < 3.5 ) { aR = 2.55 + 0.35 * sin( t * 2.2 + ph ); sR = 0.2; }
     if ( cheer > 0.01 ) {
       float pump = 0.3 * sin( t * ( 7.0 + iA.z * 4.0 ) + ph );
       aL = mix( aL, 2.8 + pump, cheer ); aR = mix( aR, pose > 2.5 && pose < 3.5 ? 2.6 + 0.6 * sin( t * 5.0 + ph ) : 2.8 - pump, cheer );
-      sL = mix( sL, 0.42, cheer ); sR = mix( sR, 0.42, cheer );
+      sL = mix( sL, ${J.spread || '0.42'}, cheer ); sR = mix( sR, ${J.spread || '0.42'}, cheer );
     }
     lift = sit ? ${J.sitLift} : cheer * abs( sin( t * ( 6.0 + iA.z * 3.0 ) + ph ) ) * ${J.lift};
     k = cheer;
