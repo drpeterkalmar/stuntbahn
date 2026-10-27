@@ -79,3 +79,4 @@ tests/.n42_cert/
 tests/shots/n42/*
 !tests/shots/n42/*.jpg
 !tests/shots/n42/*.json
+tests/shots/n42/selten_?.jpg
