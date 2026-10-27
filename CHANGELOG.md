@@ -2,7 +2,7 @@
 
 Kurzfassung je Version; Details in den Abschnitten der `README.md` und in den Berichten (`*_BERICHT.md`).
 
-## __VERSION__ – 27.10.2026 (Pflicht-Hindernisse, n42 Etappe 2)
+## 0.16.0 – 27.10.2026 (Pflicht-Hindernisse, n42 Etappe 2)
 - **Zufallsstrecken haben jetzt immer alle vorgesehenen Hindernisse** (Peter 26.10.: „Zufallsstrecken vergessen
   Hindernisse“): Generator-Version 3, Code-Zusatz **„p“** (4711-2-gp, -3dp, -p). Pflicht-Liste erfüllt in 98–100 % je
   Modus/Stufe statt 0–76 % (Ersatz gezählt: 3D „Irre“ Korkenzieher → Wendel in 49 %).
