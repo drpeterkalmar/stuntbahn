@@ -1,0 +1,179 @@
+{
+ "N": 100,
+ "gv": 3,
+ "verify": false,
+ "ergebnis": {
+  "flat/1": {
+   "erfuellt": 100,
+   "ohneErsatz": 100,
+   "jeElement": {
+    "loop": 100,
+    "zigzag2": 100,
+    "crest": 100
+   },
+   "ersatz": {},
+   "selten": {
+    "tr_hwy": 23,
+    "tr_hwyT": 23,
+    "tr_pipe": 16,
+    "tr_pipeT": 16
+   },
+   "fehler": 0
+  },
+  "flat/2": {
+   "erfuellt": 100,
+   "ohneErsatz": 100,
+   "jeElement": {
+    "jump": 100,
+    "loop": 100,
+    "sbridge": 100,
+    "zigzag": 100
+   },
+   "ersatz": {},
+   "selten": {
+    "tr_corklr": 13,
+    "tr_gap1": 3,
+    "tr_hwy": 33,
+    "tr_hwyT": 33,
+    "tr_pipe": 15,
+    "tr_pipeT": 15
+   },
+   "fehler": 0
+  },
+  "flat/3": {
+   "erfuellt": 100,
+   "ohneErsatz": 100,
+   "jeElement": {
+    "jump": 100,
+    "loop": 100,
+    "sbridge": 100,
+    "zigzag": 100,
+    "tube_wall": 100,
+    "tube": 100
+   },
+   "ersatz": {},
+   "selten": {
+    "tr_pipe": 55,
+    "tr_pipeT": 55,
+    "tr_corklr": 20
+   },
+   "fehler": 0
+  },
+  "3d/1": {
+   "erfuellt": 100,
+   "ohneErsatz": 100,
+   "jeElement": {
+    "loop": 100,
+    "crest": 100,
+    "waves": 100,
+    "zigzag2": 100
+   },
+   "ersatz": {},
+   "selten": {
+    "tr_hwy": 11,
+    "tr_hwyT": 11,
+    "tr_pipe": 11,
+    "tr_pipeT": 11
+   },
+   "fehler": 0
+  },
+  "3d/2": {
+   "erfuellt": 98,
+   "ohneErsatz": 98,
+   "jeElement": {
+    "jump": 100,
+    "loop": 98,
+    "waves": 100,
+    "zigzag": 100
+   },
+   "ersatz": {},
+   "selten": {
+    "tr_corklr": 2,
+    "tr_hwy": 37,
+    "tr_hwyT": 37,
+    "tr_corkud": 12,
+    "tr_pipe": 4,
+    "tr_pipeT": 4,
+    "tr_gap1": 3
+   },
+   "fehler": 0
+  },
+  "3d/3": {
+   "erfuellt": 98,
+   "ohneErsatz": 49,
+   "jeElement": {
+    "jump": 100,
+    "loop": 100,
+    "tr_corklr": 49,
+    "waves": 100,
+    "tube_wall": 100,
+    "zigzag": 100
+   },
+   "ersatz": {
+    "tr_corklr→tr_corkud": 49
+   },
+   "selten": {
+    "tr_corklr": 49,
+    "tr_corkud": 68,
+    "tr_pipe": 42,
+    "tr_pipeT": 42,
+    "slope4": 5,
+    "tr_gap2": 1
+   },
+   "fehler": 0
+  },
+  "gel/1": {
+   "erfuellt": 100,
+   "ohneErsatz": 100,
+   "jeElement": {
+    "loop": 100,
+    "zigzag2": 100
+   },
+   "ersatz": {},
+   "selten": {
+    "halfpipe": 26,
+    "tr_pipe": 64,
+    "tr_pipeT": 64
+   },
+   "fehler": 0
+  },
+  "gel/2": {
+   "erfuellt": 100,
+   "ohneErsatz": 100,
+   "jeElement": {
+    "loop": 100,
+    "zigzag": 100,
+    "jump": 100
+   },
+   "ersatz": {},
+   "selten": {
+    "tr_pipe": 15,
+    "tr_pipeT": 15,
+    "halfpipe": 52,
+    "tr_corklr": 16,
+    "tr_hwy": 22,
+    "tr_hwyT": 22
+   },
+   "fehler": 0
+  },
+  "gel/3": {
+   "erfuellt": 100,
+   "ohneErsatz": 100,
+   "jeElement": {
+    "loop": 100,
+    "zigzag": 100,
+    "tube_wall": 100,
+    "jump": 100,
+    "tube": 100
+   },
+   "ersatz": {},
+   "selten": {
+    "tr_pipe": 32,
+    "tr_pipeT": 32,
+    "halfpipe": 69,
+    "tr_corklr": 18
+   },
+   "fehler": 0
+  }
+ }
+}

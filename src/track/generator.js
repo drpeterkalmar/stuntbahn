@@ -10,6 +10,8 @@ import './pieces_trk.js';
 import './pieces_hind.js';
 import { generate3d } from './generator3d.js';
 import { generateGel } from './generatorG.js';
+import { zerlegeSelten, defuseSelten, SELTEN } from './selten.js';
+import { pflichtSuche, nachLaenge } from './pflicht.js';
 
 export const DIFFS = {
   1: { name: 'Sanft', w: [9, 12], h: [6, 8], bumps: [1, 3], large: 0.9, bank: 0.25, density: 0.18, must: ['loop', 'crest'], types: { bumps: 3, crest: 3, chicane: 2, bridge: 3 } },
@@ -36,9 +38,21 @@ export function hindFilter(D, H = HINDERNIS2) {
   for (const [t, w] of Object.entries(D.types)) { const u = off.has(t) ? sub[t] : t; if (u) types[u] = (types[u] || 0) + w; }
   return { ...D, types, must: D.must.map((t) => (off.has(t) ? sub[t] : t)).filter(Boolean) };
 }
-export const genV = (opts) => ((opts && opts.gv) | 0) >= 2 ? 2 : 1;
-const LEN = { straight: 1, checkpoint: 1, bumps: 1, crest: 2, chicane: 2, loop: 2, tube: 2, jump: 3, bridge: 5, sbridge: 5, sbridgeC: 6, zigzag: 3, zigzag2: 2, tube_wall: 2 };
-const RUNUP = { bumps: 0, crest: 1, chicane: 0, loop: 1, tube: 0, jump: 1, bridge: 0, sbridge: 0, sbridgeC: 0, zigzag: 1, zigzag2: 1, tube_wall: 1 };
+export const genV = (opts) => { const g = (opts && opts.gv) | 0; return g >= 3 ? 3 : g >= 2 ? 2 : 1; };
+// n42 Generator-Version 3 (Peter 26.10.2026: „Zufallsstrecken vergessen Hindernisse“; Code-Zusatz „p“): gleiche Pflicht-Listen
+// wie Version 2, aber sie werden erfüllt (Anläufe mit wachsender Strecke, lange Elemente zuerst; Ersatz Zickzack → kurzer
+// Zickzack nur, wenn kein Anlauf passt) – und seltene Original-Elemente kommen dazu (track/selten.js): Röhre, Autobahn,
+// Lücken-Sprung, Korkenzieher. Version 1/2 (alte Codes) unverändert.
+export const DIFFS3 = {
+  1: { ...DIFFS2[1], types: { ...DIFFS2[1].types, n42_pipe: 2, n42_hwy: 2 }, wunsch: { p: 0.6, w: { n42_pipe: 1, n42_hwy: 1 } } },
+  2: { ...DIFFS2[2], types: { ...DIFFS2[2].types, n42_pipe: 2, n42_hwy: 2, n42_gap1: 3, tr_corklr: 2 }, wunsch: { p: 0.65, w: { n42_gap1: 2, tr_corklr: 1, n42_hwy: 1, n42_pipe: 1 } } },
+  3: { ...DIFFS2[3], types: { ...DIFFS2[3].types, n42_pipe: 2, n42_gap2: 3, n42_gap3: 2, tr_corklr: 3 }, wunsch: { p: 0.7, w: { n42_gap3: 1, n42_gap2: 2, tr_corklr: 1, n42_pipe: 1 } } },
+};
+// Strecke wächst alle WACHS Anläufe um ein Feld je Seite und eine Ausbeulung (Platz für die Pflicht-Elemente)
+export const WACHS = 16;
+export const wachsen = (D, a, max = [24, 22]) => { const g = Math.floor(a / WACHS); return g ? { ...D, w: [Math.min(max[0], D.w[0] + g), Math.min(max[0], D.w[1] + g)], h: [Math.min(max[1], D.h[0] + g), Math.min(max[1], D.h[1] + g)], bumps: [D.bumps[0] + g, D.bumps[1] + g] } : D; };
+const LEN = { straight: 1, checkpoint: 1, bumps: 1, crest: 2, chicane: 2, loop: 2, tube: 2, jump: 3, bridge: 5, sbridge: 5, sbridgeC: 6, zigzag: 3, zigzag2: 2, tube_wall: 2, tr_corklr: 2, ...SELTEN };
+const RUNUP = { bumps: 0, crest: 1, chicane: 0, loop: 1, tube: 0, jump: 1, bridge: 0, sbridge: 0, sbridgeC: 0, zigzag: 1, zigzag2: 1, tube_wall: 1, tr_corklr: 1, n42_pipe: 0, n42_hwy: 0, n42_gap1: 1, n42_gap2: 1, n42_gap3: 1 };
 
 const ADJ = ['Wilde', 'Donnernde', 'Flinke', 'Kühne', 'Rasende', 'Schwindelnde', 'Goldene', 'Tollkühne', 'Brausende', 'Sausende', 'Verwegene', 'Heulende'];
 const NOUN = ['Schleife', 'Talfahrt', 'Kurvenhatz', 'Achterbahn', 'Stuntmeile', 'Pistenjagd', 'Hügelhatz', 'Flugschanze', 'Ringfahrt', 'Wirbelbahn', 'Kesseljagd', 'Sprungmeile'];
@@ -85,15 +99,19 @@ export function bump(cyc, r) {
   const nrm = outward ? left : [-left[0], -left[1]];
   const depth = (outward ? 2 : 1) + r.int(outward ? 3 : 2);
   // neuer Weg: von cyc[i] ... ersetzt cyc[i+1..i+len] durch Umweg
+  // n42: Prüfungen ohne Mengen zuerst (gleiche Zufallszahlen, gleiches Ergebnis – nur schneller abgelehnt; der Generator
+  // Version 3 ruft bump in vielen Anläufen auf)
+  if (i + len + 1 > n) return null;
   const start = cyc[i], end = cyc[(i + len + 1) % n];
   const path = [];
   for (let k = 1; k <= depth; k++) path.push([start[0] + nrm[0] * k, start[1] + nrm[1] * k]);
   for (let k = 1; k <= len; k++) path.push([start[0] + nrm[0] * depth + d0[0] * k, start[1] + nrm[1] * depth + d0[1] * k]);
   for (let k = depth; k >= 1; k--) path.push([end[0] + nrm[0] * k, end[1] + nrm[1] * k]);
+  for (const p of path) if (p[0] < 2 || p[1] < 2 || p[0] > GRID - 3 || p[1] > GRID - 3) return null;
   // Gültigkeit: im Raster, frei, nicht an fremde Zellen angrenzend
   const removed = new Set();
   for (let k = 1; k <= len; k++) removed.add(key(cyc[(i + k) % n]));
-  const keep = new Set(cyc.map(key).filter((q) => !removed.has(q)));
+  const alle = zellenVon(cyc), keep = { has: (q) => alle.has(q) && !removed.has(q) };   // n42: Menge je Rundkurs nur einmal
   for (const p of path) {
     if (p[0] < 2 || p[1] < 2 || p[0] > GRID - 3 || p[1] > GRID - 3) return null;
     if (keep.has(key(p))) return null;
@@ -117,6 +135,9 @@ export function bump(cyc, r) {
   return out;
 }
 const key = (p) => p[0] + ',' + p[1];
+// n42: Zellen-Menge eines Rundkurses einmal je Feld-Array (bump liest die Arrays nur, Ergebnisse sind neue Arrays)
+const ZELLEN = new WeakMap();
+const zellenVon = (cyc) => { let z = ZELLEN.get(cyc); if (!z) { z = new Set(cyc.map(key)); ZELLEN.set(cyc, z); } return z; };
 
 // Richtung als Index: 0 Ost, 1 Süd, 2 West, 3 Nord (Raster-y nach unten = Süd = +Z)
 export function dirIdx(a, b) {
@@ -131,9 +152,21 @@ export function generate(seed, diff = 2, opts = {}) {
   if (opts.d3) return generate3d(seed, diff, opts);
   // Gelände-Strecken (n22): eigener Generator, Schlüssel „-g“
   if (opts.gel) return generateGel(seed, diff, opts);
-  const v2 = genV(opts) === 2;
+  const ver = genV(opts), v2 = ver >= 2;
+  if (ver >= 3) {
+    const D = hindFilter(DIFFS3[diff]), Dm = { ...D, must: nachLaenge(D.must, LEN) };
+    const best = pflichtSuche((a) => flatBuild(seed, diff, wachsen(Dm, a), rng(((seed >>> 0) * 7919 + diff * 104729 + a * 31337 + 0x51e7) >>> 0), 3), D.must, 320);
+    const lay = best.lay;
+    lay.pieces = zerlegeSelten(lay.pieces);
+    lay.meta.pflicht = { soll: D.must, fehlt: best.st.fehlt, ersatz: best.st.ersatz, anlauf: best.a };
+    return lay;
+  }
   const D = v2 ? hindFilter(DIFFS2[diff]) : DIFFS[diff];
-  const r = rng((seed >>> 0) * 7919 + diff * 104729);
+  return flatBuild(seed, diff, D, rng((seed >>> 0) * 7919 + diff * 104729), ver);
+}
+// Bau einer flachen Strecke mit Zufallsquelle r (Version 1/2: genau wie bisher, ein Durchgang)
+function flatBuild(seed, diff, D, r, ver) {
+  const v2 = ver >= 2;
   let cyc = makeCycle(r, D);
   const n = cyc.length;
   const dir = cyc.map((c, i) => dirIdx(c, cyc[(i + 1) % n]));
@@ -197,7 +230,7 @@ export function generate(seed, diff = 2, opts = {}) {
     return weights[0][0];
   };
   const placed = [];
-  const AFTER = v2 ? { loop: 1, jump: 1, tube: 1, zigzag: 1, zigzag2: 1, tube_wall: 1, sbridgeC: 1 } : { loop: 1, jump: 1, tube: 1 };
+  const AFTER = v2 ? { loop: 1, jump: 1, tube: 1, zigzag: 1, zigzag2: 1, tube_wall: 1, sbridgeC: 1, ...(ver >= 3 ? { tr_corklr: 1, n42_gap1: 1, n42_gap2: 1, n42_gap3: 1 } : {}) } : { loop: 1, jump: 1, tube: 1 };
   // Hochstraße mit Spirale (v2): Spiralen brauchen die beiden Felder daneben (links oder rechts, frei, im Raster)
   const spiralSide = (s, m) => {
     const c = cyc[out[s].at], d = dr[(out[s].at - 1 + n) % n];
@@ -257,6 +290,16 @@ export function generate(seed, diff = 2, opts = {}) {
     }
     place(t, best);
   }
+  // n42 Version 3: ein Wunsch-Platz für ein seltenes Original-Element vor dem Auffüllen (s. generator3d.js)
+  if (D.wunsch && r.chance(D.wunsch.p)) {
+    // gewichtet gewähltes Element zuerst, passt es nirgends, die anderen der Reihe nach (lange zuerst)
+    const e = Object.entries(D.wunsch.w), tot = e.reduce((q, [, w]) => q + w, 0);
+    let x = r() * tot, t = e[0][0];
+    for (const [k, w] of e) { x -= w; if (x <= 0) { t = k; break; } }
+    for (const [k] of e) { if (candidates(t).length) break; t = k; }
+    const c = candidates(t);
+    if (c.length) place(t, c[r.int(c.length)]);
+  }
   for (const [a, b] of runs) {
     for (let s = Math.max(a, 2); s <= b; s++) {
       if (!r.chance(D.density)) continue;
@@ -277,7 +320,7 @@ export function generate(seed, diff = 2, opts = {}) {
   // In Layout (Element + Position) umwandeln
   const layout = toLayout(cyc, dr, out);
   layout.seed = seed; layout.diff = diff;
-  layout.meta = { seed, diff, key: `${seed}-${diff}${v2 ? '-h' : ''}`, name: trackName(seed), diffName: D.name, ...(v2 ? { gv: 2 } : {}) };
+  layout.meta = { seed, diff, key: `${seed}-${diff}${ver >= 3 ? '-p' : v2 ? '-h' : ''}`, name: trackName(seed), diffName: D.name, ...(v2 ? { gv: ver } : {}) };
   return layout;
 }
 
@@ -323,6 +366,7 @@ function toLayout(cyc, dr, out) {
 export function defuse(layout, pieceIdx) {
   const p = layout.pieces[pieceIdx];
   if (!p) return false;
+  if (p.sel) return defuseSelten(layout, pieceIdx);   // n42: seltenes Element (Version 3) als Ganzes
   const repl = { loop: ['straight', 'straight'], tube: ['straight', 'straight'], jump: ['straight', 'straight', 'straight'], crest: ['straight', 'straight'], chicane: ['straight', 'straight'], bumps: ['straight'], bank: null,
     waves: ['straight', 'straight', 'straight'], tr_corklr: ['straight', 'straight'], halfpipe: ['straight', 'straight', 'straight'],
     zigzag: ['straight', 'straight', 'straight'], zigzag2: ['straight', 'straight'] };   // n33: Zickzack → Geraden

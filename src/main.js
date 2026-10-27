@@ -292,7 +292,7 @@ async function boot() {
   // ?seed=…&d=… wie bisher flach (alte Codes, Tests); &3d=1 = Hochstraße (n19), &g=1 = Gelände (n22), &h=1 = Generator mit
   // den n33-Hindernissen (Code-Zusatz „h“). Ohne Seed: Strecke des Tages in der gewählten Streckenart (ab n22 Standard
   // „Gelände“; Schalter im Menü), ab n33 mit den neuen Hindernissen
-  else await loadGenerated(q ? +q : daySeed(), +(params.get('d') || 2), q ? (params.get('g') === '1' ? 'gel' : params.get('3d') === '1' ? '3d' : 'flat') : store.settings.trackMode, false, q ? (params.get('h') === '1' ? 2 : 1) : GEN_V);
+  else await loadGenerated(q ? +q : daySeed(), +(params.get('d') || 2), q ? (params.get('g') === '1' ? 'gel' : params.get('3d') === '1' ? '3d' : 'flat') : store.settings.trackMode, false, q ? (params.get('p') === '1' ? 3 : params.get('h') === '1' ? 2 : 1) : GEN_V);   // n42: &p=1 = Version 3
   reflexVorwaermen();
   actionVorwaermen();
   await startAutopilot();
@@ -470,7 +470,8 @@ function pickRandomThema(rnd = Math.random) {
   return ids[Math.floor(rnd() * ids.length) % ids.length] || THEME_IDS[0];
 }
 const modeOf = (m) => (m === true ? '3d' : m === false ? 'flat' : m === '3d' || m === 'gel' || m === 'flat' ? m : store.settings.trackMode || 'gel');
-// gv: Generator-Version (n33: 2 = mit Zickzack, Röhre mit Wand, Spiralen-Hochstraße; Code-Zusatz „h“). ?hindernis2=0 → immer 1
+// gv: Generator-Version (n33: 2 = mit Zickzack, Röhre mit Wand, Spiralen-Hochstraße; Code-Zusatz „h“; n42: 3 = Pflicht-Hindernisse
+// werden erfüllt + seltene Original-Elemente, Code-Zusatz „p“). ?hindernis2=0 → immer 1, ?pflicht=0 → höchstens 2
 // n42: noch nicht geprüft → Strecke sofort bauen und zeigen, der Autopilot prüft nebenher im Worker (track/pruefung_worker.js;
 // vorher lief die Probefahrt ~1,7 s im Ladebildschirm, Mac mit CPU ×4). Entschärft er (selten) oder braucht er eine andere
 // Variante, wird die geprüfte Fassung gebaut, bevor jemand losfährt (startRace wartet). ?pruefung=alt = bisher.

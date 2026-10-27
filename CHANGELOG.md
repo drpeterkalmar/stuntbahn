@@ -2,6 +2,14 @@
 
 Kurzfassung je Version; Details in den Abschnitten der `README.md` und in den Berichten (`*_BERICHT.md`).
 
+## __VERSION__ – 27.10.2026 (Pflicht-Hindernisse, n42 Etappe 2)
+- **Zufallsstrecken haben jetzt immer alle vorgesehenen Hindernisse** (Peter 26.10.: „Zufallsstrecken vergessen
+  Hindernisse“): Generator-Version 3, Code-Zusatz **„p“** (4711-2-gp, -3dp, -p). Pflicht-Liste erfüllt in 98–100 % je
+  Modus/Stufe statt 0–76 % (Ersatz gezählt: 3D „Irre“ Korkenzieher → Wendel in 49 %).
+- **Neu aus dem Original**: Röhre, Autobahn, Lücken-Sprung, öfter Korkenzieher. Alle geprüften Strecken lösbar ohne Entschärfen.
+- Alte Codes und Bestzeiten unverändert (249/249 bitgleich); `?pflicht=0` = Version 2. Kein Darstellungs-Fehler gefunden.
+  Bericht `N42_BERICHT.md` (Etappe 2), Werkzeuge `tools/pflicht_mess.mjs`, `tools/darstellung_mess.mjs`.
+
 ## 0.15.0 – 27.10.2026 (Ruckeln + Start, n42 Etappe 1)
 - **Kein Ruckeln mehr, wenn die Grafik-Automatik nachregelt** (Peter 26.10.: „ruckeln zeitweise und starten langsam“): Auto-
   Schatten aus übersetzte bisher alle Shader neu (bis 1,7 s Standbild, Mac mit CPU ×4) – jetzt 0 Hänger über 50 ms.

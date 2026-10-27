@@ -263,7 +263,7 @@ export class UI {
     // n38: Stunts laden Nitro nach – Mittel-/Original-Bestzeiten einmalig neu (nur, wer schon gespielt hat)
     const lohnNote = !!this.store.lohnNote;
     if (lohnNote) { this.store.lohnNote = 0; setTimeout(() => this.toast('🔥 Stunts laden jetzt Nitro nach (Sprünge, Saltos, Loopings, Ketten) – Mittel- und Original-Bestzeiten starten neu', 6000), 600 + (arcNote ? 6200 : 0)); }
-    if (this.store.hindNote) { this.store.hindNote = 0; setTimeout(() => this.toast('🚧 Neue Hindernisse: Zickzack-Barriere, Röhre mit Wand (über Kopf!), Spiralen-Hochstraße – neue Zufallsstrecken haben ein „h“ im Code, alte Codes und Bestzeiten bleiben', 5500), 600 + (medNote ? 4600 : 0) + (stuntNote ? 5000 : 0) + (tubeNote ? 5000 : 0) + (arcNote ? 6200 : 0) + (lohnNote ? 6200 : 0)); }
+    if (this.store.hindNote) { const n42 = this.store.hindNote === 2; this.store.hindNote = 0; setTimeout(() => this.toast(n42 ? '🚧 Zufallsstrecken haben jetzt immer alle vorgesehenen Hindernisse – und manchmal Original-Teile wie Röhre, Autobahn, Lücken-Sprung, Korkenzieher. Neue Codes mit „p“, alte Codes und Bestzeiten bleiben' : '🚧 Neue Hindernisse: Zickzack-Barriere, Röhre mit Wand (über Kopf!), Spiralen-Hochstraße – neue Zufallsstrecken haben ein „h“ im Code, alte Codes und Bestzeiten bleiben', 5500), 600 + (medNote ? 4600 : 0) + (stuntNote ? 5000 : 0) + (tubeNote ? 5000 : 0) + (arcNote ? 6200 : 0) + (lohnNote ? 6200 : 0)); }
     const S = this.store.settings, m = env.meta, lay = env.layout;
     const stunts = {};
     for (const p of lay.pieces) { const t = p.g === 'gorge' ? 'gorge' : p.g === 'drop' ? 'drop' : { tr_bankC: 'bank', cliff2: 'cliff', slope4: 'slope3', tr_corkud: 'spiral', zigzag2: 'zigzag' }[p.type] || p.type; if (ICON[t] && (t !== 'straight')) stunts[t] = (stunts[t] || 0) + 1; }
@@ -482,8 +482,9 @@ export class UI {
         // „4711-2“ = die bisherige (flache) Strecke wie immer, „4711-2-3d“ = Hochstraße (n19), „4711-2-g“ = Gelände (n22);
         // ohne Stufe die gewählte. n33: „h“ am Ende = mit den neuen Hindernissen (4711-2-gh, 4711-2-3dh, 4711-2-h), ohne „h“
         // baut der Generator wie bis n32 (alte Codes behalten ihr Layout)
-        const c = prompt('Strecken-Code (z. B. 4711-2-gh, 4711-2-3dh oder 4711-2-h; ohne „h“ wie vor den neuen Hindernissen):', this.env && !this.env.meta.imported ? this.env.meta.key : '');
-        if (c) { const m = /^\s*(\d+)(?:\s*-\s*([123]))?(?:\s*-?\s*(3d|g))?(?:\s*-?\s*(h))?\s*$/i.exec(c); if (m) A.newTrack(+m[1], +(m[2] || S.diff || 2), m[3] ? (m[3].toLowerCase() === 'g' ? 'gel' : '3d') : 'flat', undefined, m[4] ? 2 : 1); else this.toast('Ungültiger Code'); }
+        // n42: „p“ am Ende = Generator-Version 3 (alle Pflicht-Hindernisse, seltene Original-Teile), „h“ = Version 2
+        const c = prompt('Strecken-Code (z. B. 4711-2-gp, 4711-2-3dp oder 4711-2-p; „h“ = Hindernisse wie bis Oktober, ohne Zusatz wie vor den neuen Hindernissen):', this.env && !this.env.meta.imported ? this.env.meta.key : '');
+        if (c) { const m = /^\s*(\d+)(?:\s*-\s*([123]))?(?:\s*-?\s*(3d|g))?(?:\s*-?\s*(h|p))?\s*$/i.exec(c); if (m) A.newTrack(+m[1], +(m[2] || S.diff || 2), m[3] ? (m[3].toLowerCase() === 'g' ? 'gel' : '3d') : 'flat', undefined, m[4] ? (m[4].toLowerCase() === 'p' ? 3 : 2) : 1); else this.toast('Ungültiger Code'); }
         break;
       }
       case 'settings': this.showSettings(); break;

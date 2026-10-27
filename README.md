@@ -72,6 +72,17 @@ spielbar am Handy (quer oder hochkant), mit Gamepad oder Tastatur. Als App insta
   Abstand zu jeder Fahrbahn (auch Hochstraßen/Rampen), nie im Wasser. Dosiert nach Grafikstufe; ruckelt es, blendet die
   Automatik (nach der Unschärfe) zuerst Gras/Büsche/Wolkenschatten aus. `?deko=aus` (bis n29 `?deko=0`) / `?wolken=0` zum Vergleich.
 
+## 🚧 Alle Pflicht-Hindernisse + Original-Teile in Zufallsstrecken (seit 27.10.2026, n42 Etappe 2)
+- Peter 26.10.: „Zufallsstrecken vergessen Hindernisse“. Der Generator ließ Pflicht-Elemente aus, wenn kein Platz war (flach
+  „Irre“ in 0 % vollständig). **Generator-Version 3** (Code-Zusatz **„p“**, Standard für neue Strecken und die Strecke des
+  Tages): lange Elemente zuerst, Anläufe mit wachsender Grundform, bis die Liste erfüllt ist – 98–100 % je Modus/Stufe; Ersatz
+  nur wenn nötig und gezählt (`layout.meta.pflicht`). Dazu **Röhre, Autobahn, Lücken-Sprung, Korkenzieher** aus dem Original
+  (`src/track/selten.js`, als .TRK-Teile wie beim Import).
+- Alte Codes (mit „h“ bzw. ohne Zusatz) und Bestzeiten bleiben gleich. A/B: `?pflicht=0` (neue Strecken wie Version 2);
+  Code eingeben mit „p“, URL `?seed=…&d=…&p=1` (`&g=1` Gelände, `&3d=1` Hochstraße).
+- Messen: `node tools/pflicht_mess.mjs [N] [gv=3] [--verify]`, `node tools/darstellung_mess.mjs`; Fotos
+  `python3 tests/n42_selten_fotos.py`; Test `node tests/node/test_n42.mjs`. Bericht `N42_BERICHT.md`.
+
 ## 🧈 Flüssiger und schneller am Start (seit 27.10.2026, n42 Etappe 1)
 - Peter 26.10.: „ruckeln zeitweise und starten langsam“. Gefunden (Mess-Skript `tests/n42_mess.py`, Mittelklasse-Profil: CPU ×4,
   Fast 4G): die Grafik-Automatik übersetzte beim Abschalten des Auto-Schattens alle Shader neu (bis 1,7 s Standbild); neue

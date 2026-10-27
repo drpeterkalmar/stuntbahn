@@ -9,7 +9,9 @@
 import { GRID, HINDERNIS2 } from './defs.js';
 import { rng } from '../core/util.js';
 import { pieceCells, PIECES } from './pieces.js';
-import { DIFFS, bump, dirIdx, trackName, hindFilter, genV, HIND_FALLBACK } from './generator.js';
+import { DIFFS, bump, dirIdx, trackName, hindFilter, genV, HIND_FALLBACK, wachsen } from './generator.js';
+import { zerlegeSelten, SELTEN } from './selten.js';
+import { pflichtSuche, nachLaenge } from './pflicht.js';
 import './pieces_gel.js';   // Halfpipe registrieren
 
 // Je Stufe: Rechteck, Ausbeulungen, Anteil weiter Kurven / davon Steilkurven, Stunt-Dichte, Chance Serpentine,
@@ -33,9 +35,19 @@ export const GD2 = {
   2: { ...GD[2], w: [15, 19], h: [11, 14], must: ['loop', 'zigzag', 'jump'], types: { ...GD[2].types, chicane: 1, zigzag: 2, tube_wall: 2 }, sb: 0.5 },
   3: { ...GD[3], w: [16, 21], h: [12, 15], must: ['loop', 'zigzag', 'tube_wall', 'jump', 'tube'], types: { ...GD[3].types, chicane: 1, zigzag: 2, tube_wall: 2 }, sb: 0.6 },
 };
-const LEN = { straight: 1, checkpoint: 1, bumps: 1, chicane: 2, loop: 2, tube: 2, jump: 3, waves: 3, tr_corklr: 2, halfpipe: 3, cliff: 3, cliff2: 3, zigzag: 3, zigzag2: 2, tube_wall: 2, sbridge: 5 };
-const RUNUP = { bumps: 0, chicane: 0, loop: 1, tube: 0, jump: 1, waves: 0, tr_corklr: 1, halfpipe: 1, cliff: 1, cliff2: 1, zigzag: 1, zigzag2: 1, tube_wall: 1, sbridge: 0 };
-const AFTER = { bumps: 0, chicane: 0, loop: 1, tube: 1, jump: 1, waves: 0, tr_corklr: 1, halfpipe: 1, cliff: 1, cliff2: 1, zigzag: 1, zigzag2: 1, tube_wall: 1, sbridge: 0 };
+const LEN = { straight: 1, checkpoint: 1, bumps: 1, chicane: 2, loop: 2, tube: 2, jump: 3, waves: 3, tr_corklr: 2, halfpipe: 3, cliff: 3, cliff2: 3, zigzag: 3, zigzag2: 2, tube_wall: 2, sbridge: 5, ...SELTEN };
+const RUNUP = { bumps: 0, chicane: 0, loop: 1, tube: 0, jump: 1, waves: 0, tr_corklr: 1, halfpipe: 1, cliff: 1, cliff2: 1, zigzag: 1, zigzag2: 1, tube_wall: 1, sbridge: 0, n42_pipe: 0, n42_hwy: 0 };
+const AFTER = { bumps: 0, chicane: 0, loop: 1, tube: 1, jump: 1, waves: 0, tr_corklr: 1, halfpipe: 1, cliff: 1, cliff2: 1, zigzag: 1, zigzag2: 1, tube_wall: 1, sbridge: 0, n42_pipe: 0, n42_hwy: 0 };
+// n42 Generator-Version 3 (Code-Zusatz „p“): Pflicht wie Version 2, wird erfüllt (Anläufe), dazu Röhre/Autobahn aus dem
+// Original (track/selten.js) und der Korkenzieher häufiger. Lücken-Sprünge nicht im Gelände (dort gibt es den Schluchtsprung)
+export function gd3(diff) {
+  const D = hindFilter(GD2[diff]);
+  const plus = diff === 1 ? { n42_pipe: 2 } : diff === 2 ? { n42_pipe: 2, n42_hwy: 2, tr_corklr: 2 } : { n42_pipe: 2, tr_corklr: 3 };
+  const types = { ...D.types };
+  for (const [k, w] of Object.entries(plus)) types[k] = (types[k] || 0) + w;
+  const wunsch = { p: 0.6, w: diff === 1 ? { n42_pipe: 1 } : diff === 2 ? { tr_corklr: 1, n42_hwy: 1, n42_pipe: 1 } : { tr_corklr: 1, n42_pipe: 1 } };
+  return { ...D, types, wunsch };
+}
 const key = (p) => p[0] + ',' + p[1];
 
 export function rectCycle(r, D) {
@@ -90,7 +102,24 @@ export function serpentine(cyc, r) {
 }
 
 export function generateGel(seed, diff, opts = {}) {
-  const v2 = genV(opts) === 2;
+  const ver = genV(opts);
+  if (ver >= 3) {
+    const D = gd3(diff), base = DIFFS[diff];
+    if (D.types.bridge) { const { bridge, ...rest } = D.types; void bridge; D.types = rest; }
+    const best = pflichtSuche((a) => {
+      const r = rng(((seed >>> 0) * 7919 + diff * 104729 + (opts.variant || 0) * 7727 + a * 31337 + 0x6e3) >>> 0);
+      return tryBuild(r, wachsen({ ...D, must: nachLaenge(D.must, LEN) }, a, [26, 24]), base, diff, seed, true);
+    }, D.must, 200);
+    if (!best) throw new Error('Gelände-Generator: keine Strecke für ' + seed + '-' + diff);
+    const lay = best.lay;
+    lay.pieces = zerlegeSelten(lay.pieces);
+    lay.seed = seed; lay.diff = diff;
+    lay.meta = { seed, diff, gel: true, variant: opts.variant || 0, key: `${seed}-${diff}-gp`, name: trackName(seed), diffName: base.name, attempt: best.a, elems: lay.elems, gv: 3,
+      pflicht: { soll: D.must, fehlt: best.st.fehlt, ersatz: best.st.ersatz, anlauf: best.a } };
+    delete lay.elems;
+    return lay;
+  }
+  const v2 = ver === 2;
   const D = v2 ? hindFilter(GD2[diff]) : GD[diff], base = DIFFS[diff];
   // abgeschaltete Spirale (?spirale2=0) wird flach zur Fluss-Brücke – die gibt es im Gelände nicht (Brücken entstehen dort
   // von selbst über Tälern)
@@ -232,6 +261,16 @@ function tryBuild(r, D, base, diff, seed, v2 = false) {
     if (!c.length) continue;
     if (t === 'jump' && gorgeDone) continue;   // Pflicht-Schanze ist schon der Schluchtsprung
     place(t, spread(c));
+  }
+  // n42 Version 3: ein Wunsch-Platz für ein seltenes Original-Element (s. generator3d.js)
+  if (D.wunsch && r.chance(D.wunsch.p)) {
+    // gewichtet gewähltes Element zuerst, passt es nirgends, die anderen der Reihe nach
+    const e = Object.entries(D.wunsch.w), tot = e.reduce((q, [, w]) => q + w, 0);
+    let x = r() * tot, t = e[0][0];
+    for (const [k, w] of e) { x -= w; if (x <= 0) { t = k; break; } }
+    for (const [k] of e) { if (cands(t).length) break; t = k; }
+    const c = cands(t);
+    if (c.length) place(t, spread(c));
   }
   // Kuppe: zweites Stück eines Laufs aus 4 Geraden (nach der Luftphase zwei Felder zum Landen und Bremsen)
   for (let q = 0; q < D.kuppe; q++) {

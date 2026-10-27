@@ -4,6 +4,12 @@
 //      Referenzzeit, Teile) – flach, 3D, Gelände
 //   C  Tunnel-Attribut mit Hüllquader je Batch = bisherige Rechnung Eckpunkt für Eckpunkt (bitgleich)
 //   D  Schalter (core/glatt.js): Standard alles an, ?glatt=0 alles aus, einzelne Regler
+// Etappe 2 (Generator-Version 3, Code-Zusatz „p“):
+//   E  Pflicht-Liste erfüllt (je Modus/Stufe ≥ 95 % von 40 Codes, Ersatz gezählt), Fehlendes nur in meta.pflicht ausgewiesen
+//   F  Schlüssel: Version 1/2 wie bisher, Version 3 mit „p“; alte Codes bitgleich prüft test_alte_codes.mjs
+//   G  Autopilot-Prüfung: je Modus/Stufe eine Version-3-Strecke lösbar, ohne Entschärfen
+//   H  seltene Elemente: Zerlegen in .TRK-Teile lückenlos, Entschärfen als Ganzes, bauen + fahren
+//   I  Darstellung: jedes Teil hat Geometrie in seinen Feldern (je Modus 4 Strecken)
 // Aufruf: node tests/node/test_n42.mjs
 import { RUNS, runRace, marksOf } from '../../tools/kinoreplay_probe.mjs';
 import { buildFilm, buildFilmG } from '../../src/game/highlights.js';
@@ -97,6 +103,67 @@ check(Object.values(S0).every((v) => v === true), 'D Standard: alle Maßnahmen a
 check(Object.values(S1).every((v) => v === false), 'D ?glatt=0: alle aus (Stand 0.14)');
 check(!S2.vorwaermen && !S2.pruefungWorker && !S2.swSpaet && S2.einseitig && S2.schattenfix && S2.filmHaeppchen, 'D einzelne Regler wirken nur auf ihre Maßnahme');
 delete globalThis.location;
+
+// ---------- E–I Etappe 2 ----------
+const { pflichtStatus } = await import('../../src/track/pflicht.js');
+const { zerlegeSelten, defuseSelten, SELTEN } = await import('../../src/track/selten.js');
+const { defuse } = await import('../../src/track/generator.js');
+const { verifySync } = await import('../../src/track/verify.js');
+const { buildTrack } = await import('../../src/track/build.js');
+const { pieceCells } = await import('../../src/track/pieces.js');
+const { tileX, tileZ, TILE } = await import('../../src/track/defs.js');
+const MODI = [['flat', {}], ['3d', { d3: true }], ['gel', { gel: true }]];
+for (const [m, o] of MODI) for (const d of [1, 2, 3]) {
+  let ok = 0, ers = 0;
+  for (let s = 1; s <= 40; s++) {
+    const l = generate(s * 7919 + 13, d, { ...o, gv: 3, variant: 0 }), st = pflichtStatus(l.pieces, l.meta.pflicht.soll);
+    if (st.ok) ok++;
+    if (st.ersatz.length) ers++;
+    if (JSON.stringify(st.fehlt) !== JSON.stringify(l.meta.pflicht.fehlt)) { check(false, `E ${m}/${d} ${s}: meta.pflicht stimmt nicht`); break; }
+  }
+  check(ok >= 38, `E ${m}/${d}: Pflicht erfüllt in ${ok}/40 (davon mit Ersatz ${ers})`);
+}
+const k3 = generate(4711, 2, { gv: 3 }).meta.key, k3d = generate(4711, 2, { d3: true, gv: 3 }).meta.key, k3g = generate(4711, 2, { gel: true, gv: 3 }).meta.key;
+check(k3 === '4711-2-p' && k3d === '4711-2-3dp' && k3g === '4711-2-gp' && generate(4711, 2, { gv: 2 }).meta.key === '4711-2-h' && generate(4711, 2).meta.key === '4711-2', `F Schlüssel: ${k3}, ${k3d}, ${k3g}; Version 2 „-h“, Version 1 ohne Zusatz`);
+for (const [m, o] of MODI) for (const d of [1, 2, 3]) {
+  const l = generate(20261027 + d * 31, d, { ...o, gv: 3, variant: 0 }), v = verifySync(l);
+  check(v.ok && v.fixes === 0, `G ${m}/${d} ${l.meta.key}: Autopilot ${v.ok ? 'ins Ziel ' + v.apTime.toFixed(1) + ' s' : 'gescheitert'}, entschärft ${v.fixes}`);
+}
+{
+  const F = [[1, 0], [0, 1], [-1, 0], [0, -1]];
+  for (const t of Object.keys(SELTEN)) {
+    const seq = [{ type: 'start' }, ...Array(5).fill({ type: 'straight' }), { type: t }, ...Array(5).fill({ type: 'straight' })];
+    let i = 3, j = 15, dd = 0; const pieces = [];
+    for (const q of seq) { const p = { lvl: 0, m: 1, ...q, i, j, d: dd }; pieces.push(p); [i, j, dd] = pieceCells(p.type, i, j, dd, 1).next; }
+    const z = zerlegeSelten(pieces);
+    let kette = true;
+    for (let k = 1; k < z.length; k++) { const nx = pieceCells(z[k - 1].type, z[k - 1].i, z[k - 1].j, z[k - 1].d, z[k - 1].m || 1).next; if (nx[0] !== z[k].i || nx[1] !== z[k].j || nx[2] !== z[k].d) kette = false; }
+    const env = setupN(z);
+    const lay = { pieces: z.map((p) => ({ ...p })) }, mitte = lay.pieces.findIndex((p) => p.sel) + 1;
+    const vorher = lay.pieces.length, ok = defuse(lay, mitte), nSt = lay.pieces.filter((p) => p.type === 'straight').length;
+    check(kette && env && ok && !lay.pieces.some((p) => p.sel) && nSt === 10 + SELTEN[t], `H ${t}: ${z.filter((p) => p.sel).map((p) => p.type).join('+')} lückenlos, gebaut (Linie ${env ? env.track.line.n : 0} Punkte), entschärft ${vorher} → ${lay.pieces.length} Teile, nur Geraden`);
+    void F;
+  }
+}
+function setupN(pieces) { try { return { track: buildTrack({ pieces }, { treeCount: 0 }) }; } catch (e) { console.log(e.message); return null; } }
+for (const [m, o] of MODI) {
+  let teile = 0, leer = 0;
+  for (let s = 1; s <= 4; s++) {
+    const lay = generate(s * 104729 + 7, 1 + (s % 3), { ...o, gv: 3, variant: 0 }), tr = buildTrack(lay, { treeCount: 0 }), zell = new Map();
+    for (const b of tr.batches) for (let t = 0; t < b.idx.length; t += 3) {
+      const P = b.pos, a = b.idx[t] * 3, c = b.idx[t + 1] * 3, e = b.idx[t + 2] * 3;
+      const kk = Math.floor((P[a] + P[c] + P[e]) / 3 / TILE + 1e-6) + ',' + Math.floor((P[a + 2] + P[c + 2] + P[e + 2]) / 3 / TILE + 1e-6);
+      zell.set(kk, (zell.get(kk) || 0) + 1);
+    }
+    for (const p of lay.pieces) {
+      if (/^tr_gap/.test(p.type)) continue;
+      teile++;
+      const n = pieceCells(p.type, p.i, p.j, p.d, p.m || 1).cells.reduce((q, [i, j]) => q + (zell.get(Math.floor(tileX(i) / TILE + 1e-6) + ',' + Math.floor(tileZ(j) / TILE + 1e-6)) || 0), 0);
+      if (!n) leer++;
+    }
+  }
+  check(leer === 0, `I ${m}: alle ${teile} Teile mit Geometrie in ihren Feldern`);
+}
 
 console.log(fails ? `\n${fails} FEHLER` : '\nalle OK');
 process.exit(fails ? 1 : 0);

@@ -1,0 +1,176 @@
+[
+ {
+  "titel": "Lücken-Sprung (1 Feld), flach 129-2-p",
+  "key": "129-2-p",
+  "pflicht": {
+   "soll": [
+    "jump",
+    "loop",
+    "sbridge",
+    "zigzag"
+   ],
+   "fehlt": [],
+   "ersatz": [],
+   "anlauf": 1
+  },
+  "runde": {
+   "state": "finished",
+   "time": 76.27500000000677,
+   "crashes": 0
+  },
+  "fehler": []
+ },
+ {
+  "titel": "Lücken-Sprung (2 Felder), flach 447-3-p",
+  "key": "447-3-p",
+  "pflicht": {
+   "soll": [
+    "jump",
+    "loop",
+    "sbridge",
+    "zigzag",
+    "tube_wall",
+    "jump",
+    "tube",
+    "loop"
+   ],
+   "fehlt": [],
+   "ersatz": [],
+   "anlauf": 157
+  },
+  "runde": {
+   "state": "finished",
+   "time": 165.11666666668083,
+   "crashes": 0
+  },
+  "fehler": []
+ },
+ {
+  "titel": "Röhre, flach 100-3-p",
+  "key": "100-3-p",
+  "pflicht": {
+   "soll": [
+    "jump",
+    "loop",
+    "sbridge",
+    "zigzag",
+    "tube_wall",
+    "jump",
+    "tube",
+    "loop"
+   ],
+   "fehlt": [],
+   "ersatz": [],
+   "anlauf": 43
+  },
+  "runde": {
+   "state": "finished",
+   "time": 114.11666666670355,
+   "crashes": 0
+  },
+  "fehler": []
+ },
+ {
+  "titel": "Autobahn, flach 100-2-p",
+  "key": "100-2-p",
+  "pflicht": {
+   "soll": [
+    "jump",
+    "loop",
+    "sbridge",
+    "zigzag"
+   ],
+   "fehlt": [],
+   "ersatz": [],
+   "anlauf": 3
+  },
+  "runde": {
+   "state": "finished",
+   "time": 67.76666666666667,
+   "crashes": 0
+  },
+  "fehler": []
+ },
+ {
+  "titel": "Korkenzieher, flach 101-2-p",
+  "key": "101-2-p",
+  "pflicht": {
+   "soll": [
+    "jump",
+    "loop",
+    "sbridge",
+    "zigzag"
+   ],
+   "fehlt": [],
+   "ersatz": [],
+   "anlauf": 20
+  },
+  "runde": {
+   "state": "finished",
+   "time": 77.30000000000759,
+   "crashes": 0
+  },
+  "fehler": []
+ },
+ {
+  "titel": "Röhre, Gelände 100-2-gp",
+  "key": "100-2-gp",
+  "pflicht": {
+   "soll": [
+    "loop",
+    "zigzag",
+    "jump"
+   ],
+   "fehlt": [],
+   "ersatz": [],
+   "anlauf": 1
+  },
+  "runde": {
+   "state": "finished",
+   "time": 88.56666666668322,
+   "crashes": 0
+  },
+  "fehler": []
+ },
+ {
+  "titel": "Autobahn, Gelände 101-2-gp",
+  "key": "101-2-gp",
+  "pflicht": {
+   "soll": [
+    "loop",
+    "zigzag",
+    "jump"
+   ],
+   "fehlt": [],
+   "ersatz": [],
+   "anlauf": 1
+  },
+  "runde": {
+   "state": "finished",
+   "time": 70.75833333333571,
+   "crashes": 0
+  },
+  "fehler": []
+ },
+ {
+  "titel": "Autobahn, 3D 100-2-3dp",
+  "key": "100-2-3dp",
+  "pflicht": {
+   "soll": [
+    "jump",
+    "loop",
+    "waves",
+    "zigzag"
+   ],
+   "fehlt": [],
+   "ersatz": [],
+   "anlauf": 224
+  },
+  "runde": {
+   "state": "finished",
+   "time": 164.1333333333484,
+   "crashes": 0
+  },
+  "fehler": []
+ }
+]

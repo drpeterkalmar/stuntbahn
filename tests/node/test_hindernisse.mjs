@@ -124,7 +124,7 @@ console.log('--- D: Autopilot ---');
 
 console.log('--- E: Generator ---');
 {
-  check(HINDERNIS2.on && GEN_V === 2 && HIND_TAG === '', 'Standard: Generator-Version 2, alle Elemente an');
+  check(HINDERNIS2.on && GEN_V === 3 && HIND_TAG === '', 'Standard: Generator-Version 3 (n42, baut auf Version 2 auf), alle Elemente an');
   const ref = JSON.parse(fs.readFileSync(path.join(HERE, 'data/layout_hashes_n32.json'), 'utf8'));
   let b3 = 0, bg = 0, n = 0;
   for (const s of HASH_SEEDS.slice(0, 40)) for (const d of [1, 2, 3]) {
@@ -218,7 +218,8 @@ console.log('--- G: HUD, Highlights, Grafik, Menü ---');
   let S = new Store();
   const first = S.hindNote; S = new Store();
   mem.clear(); const S0 = new Store();
-  check(first === 1 && !S.hindNote && S.best['4711-3|original+reset@x'] && !S0.hindNote, 'Menü-Hinweis einmal (bisherige Spieler), Bestzeiten bleiben, neu installiert ohne Hinweis');
+  // n42: Standard Version 3 → der Hinweis ist der n42-Hinweis (hindNote 2)
+  check(first === 2 && !S.hindNote && S.best['4711-3|original+reset@x'] && !S0.hindNote, 'Menü-Hinweis einmal (bisherige Spieler), Bestzeiten bleiben, neu installiert ohne Hinweis');
   check(abMode('?hindernis2=0') && abMode('?zickzack=0') && abMode('?roehrewand=0') && abMode('?spirale2=0') && !abMode('?hindernis2=1'), 'A/B-Regler werten nicht');
   const ui = fs.readFileSync(path.join(ROOT, 'src/ui/ui.js'), 'utf8');
   const rx = new RegExp(/const m = \/(.+)\/i\.exec\(c\)/.exec(ui)[1], 'i');

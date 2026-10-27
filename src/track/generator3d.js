@@ -14,7 +14,9 @@ import { GRID } from './defs.js';
 import { rng } from '../core/util.js';
 import { pieceCells, PIECES } from './pieces.js';
 import { cliffDesign } from './pieces_3d.js';
-import { DIFFS, DIFFS2, hindFilter, genV, HIND_FALLBACK, bump, dirIdx, trackName } from './generator.js';
+import { DIFFS, DIFFS2, hindFilter, genV, HIND_FALLBACK, bump, dirIdx, trackName, wachsen, WACHS } from './generator.js';
+import { zerlegeSelten, SELTEN } from './selten.js';
+import { pflichtSuche, nachLaenge } from './pflicht.js';
 import { HINDERNIS2 } from './defs.js';
 
 // Je Stufe: höchste Ebene, Seitenlängen der Schleifen, Anteil Acht, Ausflüge nach oben (Chance, Anzahl), Gewichte der
@@ -45,12 +47,23 @@ export function d3V2(D, diff, H = HINDERNIS2) {
   const f = hindFilter({ types: { ...D.types, ...extra.types }, must }, H);
   return { ...D, up, down, types: f.types, must: f.must };
 }
+// n42 Generator-Version 3 (Code-Zusatz „p“): Pflicht wie Version 2, wird erfüllt (generate3d: Anläufe), dazu seltene
+// Original-Elemente auf Ebene 0 (track/selten.js) und der Korkenzieher häufiger
+export function d3V3(diff, H = HINDERNIS2) {
+  const D = d3V2(D3[diff], diff, H);
+  const plus = diff === 1 ? { n42_pipe: 2, n42_hwy: 2 } : diff === 2 ? { n42_pipe: 2, n42_hwy: 2, n42_gap1: 3, tr_corklr: 1 } : { n42_pipe: 2, n42_gap2: 3, tr_corklr: 1 };
+  const types = { ...D.types };
+  for (const [k, w] of Object.entries(plus)) types[k] = (types[k] || 0) + w;
+  const wunsch = { p: 0.6, w: diff === 1 ? { n42_hwy: 1, n42_pipe: 1 } : diff === 2 ? { n42_gap1: 2, tr_corklr: 1, n42_hwy: 1, n42_pipe: 1 } : { n42_gap2: 2, n42_pipe: 1 } };
+  // Irre: Ausflüge nach oben seltener (0,85 → 0,45) – sechs Pflicht-Stunts brauchen Geraden auf Ebene 0; die Ebenen der Acht bleiben
+  return { ...D, types, v3: true, wunsch, ...(diff === 3 ? { exc: [0.45, 2] } : {}) };
+}
 const SIDE = new Set(['spiral', 'tr_corkud']);   // brauchen zusätzlich die Felder neben der Fahrbahn
-const LEN = { straight: 1, checkpoint: 1, bumps: 1, crest: 2, chicane: 2, loop: 2, tube: 2, jump: 3, waves: 3, tr_corklr: 2, zigzag: 3, zigzag2: 2, tube_wall: 2 };
+const LEN = { straight: 1, checkpoint: 1, bumps: 1, crest: 2, chicane: 2, loop: 2, tube: 2, jump: 3, waves: 3, tr_corklr: 2, zigzag: 3, zigzag2: 2, tube_wall: 2, ...SELTEN };
 // n33: in 3D ohne eigenen Anlauf (wie die Röhre) – Geraden auf Ebene 0 sind knapp; reicht das Tempo nicht, entschärft die
 // Prüffahrt (Röhre mit Wand → Röhre)
-const RUNUP = { bumps: 0, crest: 1, chicane: 0, loop: 1, tube: 0, jump: 1, waves: 0, tr_corklr: 1, zigzag: 0, zigzag2: 0, tube_wall: 0 };
-const AFTER = { loop: 1, jump: 1, tube: 1, tr_corklr: 1, waves: 0, zigzag: 1, zigzag2: 1, tube_wall: 1 };
+const RUNUP = { bumps: 0, crest: 1, chicane: 0, loop: 1, tube: 0, jump: 1, waves: 0, tr_corklr: 1, zigzag: 0, zigzag2: 0, tube_wall: 0, n42_pipe: 0, n42_hwy: 0, n42_gap1: 1, n42_gap2: 1, n42_gap3: 1 };
+const AFTER = { loop: 1, jump: 1, tube: 1, tr_corklr: 1, waves: 0, zigzag: 1, zigzag2: 1, tube_wall: 1, n42_gap1: 1, n42_gap2: 1, n42_gap3: 1 };
 const key = (p) => p[0] + ',' + p[1];
 const cellsOf = (type) => PIECES[type].cells.length === 4 && SIDE.has(type) ? 2 : PIECES[type].cells.length;
 
@@ -109,7 +122,27 @@ function crossOk(cyc) {
 
 // ---------- Hauptfunktion ----------
 export function generate3d(seed, diff, opts = {}) {
-  const v2 = genV(opts) === 2;
+  const ver = genV(opts);
+  if (ver >= 3) {
+    const D = d3V3(diff), base = hindFilter(DIFFS2[diff]);
+    const best = pflichtSuche((a) => {
+      const g = Math.min(4, Math.floor(a / (2 * WACHS)) % 5), R = D.rect, Lb = D.lobe;
+      // spätere Anläufe: weniger Ausflüge nach oben (mehr Geraden auf Ebene 0 für die Pflicht-Stunts), weiterhin mehrstöckig;
+      // Irre ab Anlauf 30 öfter die Wendel als Ebenenwechsel (Ersatz für einen Korkenzieher ohne Platz)
+      const Da = { ...D, must: nachLaenge(D.must, LEN), ...(a >= 30 && diff === 3 ? { up: { ...D.up, 1: { ...D.up[1], tr_corkud: 5 } } } : {}), ...(a >= 120 ? { exc: [Math.min(D.exc[0], 0.15), 1], hiMax: Math.min(D.hiMax, 2) } : a >= 40 ? { exc: [Math.min(D.exc[0], 0.4), 1] } : {}), ...(g ? { rect: [R[0] + g, R[1] + g, R[2] + g, R[3] + g], lobe: [Lb[0] + g, Lb[1] + g] } : {}) };
+      const r = rng(((seed >>> 0) * 7919 + diff * 104729 + (opts.variant || 0) * 7727 + a * 31337 + 0x3d3) >>> 0);
+      return tryBuild(r, Da, wachsen(base, a), diff, true);
+    }, D.must, 300, 40);
+    if (!best) throw new Error('3D-Generator: keine Strecke für ' + seed + '-' + diff);
+    const lay = best.lay;
+    lay.pieces = zerlegeSelten(lay.pieces);
+    lay.seed = seed; lay.diff = diff;
+    lay.meta = { seed, diff, d3: true, variant: opts.variant || 0, key: `${seed}-${diff}-3dp`, name: trackName(seed), diffName: base.name, levels: lay.maxLvl, crossings: lay.crossings, attempt: best.a, gv: 3,
+      pflicht: { soll: D.must, fehlt: best.st.fehlt, ersatz: best.st.ersatz, anlauf: best.a } };
+    delete lay.maxLvl; delete lay.crossings;
+    return lay;
+  }
+  const v2 = ver === 2;
   const D = v2 ? d3V2(D3[diff], diff) : D3[diff], base = v2 ? hindFilter(DIFFS2[diff]) : DIFFS[diff];
   for (let attempt = 0; attempt < 40; attempt++) {
     const r = rng(((seed >>> 0) * 7919 + diff * 104729 + (opts.variant || 0) * 7727 + attempt * 31337 + 0x3d0) >>> 0);
@@ -184,6 +217,29 @@ function tryBuild(r, D, base, diff, v2 = false) {
   const pos = (k) => cyc[out[k].at];
   const dirAt = (k) => dir[(out[k].at - 1 + cyc.length) % cyc.length];
 
+  const placed = [];
+  const fitsSt = (t, s) => {
+    const lo = s - RUNUP[t], hi = s + LEN[t] - 1 + (AFTER[t] || 0);
+    if (lo < 1 || hi >= N) return false;
+    for (let q = lo; q <= hi; q++) if (out[q].t !== 'straight' || out[q].lv || out[q].lock) return false;
+    return true;
+  };
+  const putSt = (t, s) => { out[s].t = t; out[s].cells = LEN[t]; if (t === 'zigzag' || t === 'zigzag2') out[s].m = r.chance(0.5) ? 1 : -1; for (let q = s + 1; q < s + LEN[t]; q++) out[q].t = 'skip'; placed.push({ t, at: s }); };
+  const cand = (t) => { const c = []; for (let s = 2; s < N; s++) if (fitsSt(t, s)) c.push(s); return c; };
+  const mussSetzen = () => {
+    for (let t of D.must) {
+      let c = cand(t);
+      if (!c.length && v2 && HIND_FALLBACK[t]) { t = HIND_FALLBACK[t]; c = cand(t); }
+      if (!c.length) continue;
+      let best = c[r.int(c.length)], bd = -1;
+      for (let k = 0; k < 6; k++) {
+        const s = c[r.int(c.length)];
+        const d = placed.length ? Math.min(...placed.map((p) => Math.min(Math.abs(p.at - s), N - Math.abs(p.at - s)))) : r.int(100);
+        if (d > bd) { bd = d; best = s; }
+      }
+      putSt(t, best);
+    }
+  };
   // --- 3) Ebenen
   const xIdx = out.map((o, k) => (o.x ? k : -1)).filter((k) => k >= 0);
   const segs = [];
@@ -289,26 +345,13 @@ function tryBuild(r, D, base, diff, v2 = false) {
   delete types.sbridge; delete types.sbridgeC;   // n33: Hochstraße mit Spirale ebenso (3D wechselt die Ebenen selbst, Spiralen häufiger)
   const weights = Object.entries(types);
   const pickType = () => { const tot = weights.reduce((s, [, w]) => s + w, 0); let x = r() * tot; for (const [t, w] of weights) { x -= w; if (x <= 0) return t; } return weights[0][0]; };
-  const placed = [];
-  const fitsSt = (t, s) => {
-    const lo = s - RUNUP[t], hi = s + LEN[t] - 1 + (AFTER[t] || 0);
-    if (lo < 1 || hi >= N) return false;
-    for (let q = lo; q <= hi; q++) if (out[q].t !== 'straight' || out[q].lv || out[q].lock) return false;
-    return true;
-  };
-  const putSt = (t, s) => { out[s].t = t; out[s].cells = LEN[t]; if (t === 'zigzag' || t === 'zigzag2') out[s].m = r.chance(0.5) ? 1 : -1; for (let q = s + 1; q < s + LEN[t]; q++) out[q].t = 'skip'; placed.push({ t, at: s }); };
-  const cand = (t) => { const c = []; for (let s = 2; s < N; s++) if (fitsSt(t, s)) c.push(s); return c; };
-  for (let t of D.must) {
-    let c = cand(t);
-    if (!c.length && v2 && HIND_FALLBACK[t]) { t = HIND_FALLBACK[t]; c = cand(t); }
-    if (!c.length) continue;
-    let best = c[r.int(c.length)], bd = -1;
-    for (let k = 0; k < 6; k++) {
-      const s = c[r.int(c.length)];
-      const d = placed.length ? Math.min(...placed.map((p) => Math.min(Math.abs(p.at - s), N - Math.abs(p.at - s)))) : r.int(100);
-      if (d > bd) { bd = d; best = s; }
-    }
-    putSt(t, best);
+  mussSetzen();
+  // n42 Version 3: ein Wunsch-Platz für ein seltenes Original-Element (vor dem Auffüllen; Lücken-Sprung, Röhre … brauchen
+  // lange Geraden, per Gewicht allein kamen sie kaum zum Zug)
+  if (D.wunsch && r.chance(D.wunsch.p)) {
+    let t = pickW(D.wunsch.w);
+    for (const k of Object.keys(D.wunsch.w)) { if (cand(t).length) break; t = k; }   // passt es nirgends: die anderen der Reihe nach
+    const c = cand(t); if (c.length) putSt(t, c[r.int(c.length)]);
   }
   for (let s = 2; s < N; s++) {
     if (!r.chance(base.density)) continue;

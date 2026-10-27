@@ -33,7 +33,7 @@ const STUNT_RESET = 26;
 const TUBE_RESET = 29;
 // n33: neue Hindernisse (Generator-Version 2) – die neuen Zufallsstrecken haben eigene Codes („h“), alte Codes behalten Layout
 // und Bestzeiten; kein Löschen, nur einmal ein Hinweis im Menü (HIND_NOTE)
-const HIND_NOTE = 33;
+const HIND_NOTE = 33, PFLICHT_NOTE = 42;   // n42: einmal Hinweis auf Generator-Version 3
 // n37: Arcade-Fahrgefühl (Luftsteuerung, Wände schrammen, schnellerer Mittel-Antrieb) – Mittel- und Original-Zeiten nicht mit
 // n36 vergleichbar → einmalig deren Bestzeiten und Geister löschen (ARCADE_RESET, idempotent, Hinweis im Menü), Leicht bleibt
 const ARCADE_RESET = 37;
@@ -88,6 +88,7 @@ export class Store {
     if (this.lohnReset < LOHN_RESET) { this.lohnNote = this.clearBests('medium') + this.clearBests('original') + (d.settings ? 0.5 : 0); this.lohnReset = LOHN_RESET; this.save(); }
     this.hindSeen = d.hindSeen || 0;
     if (this.hindSeen < HIND_NOTE && GEN_V === 2) { this.hindNote = d.settings ? 1 : 0; this.hindSeen = HIND_NOTE; this.save(); }   // neu installiert: kein Hinweis
+    else if (this.hindSeen < PFLICHT_NOTE && GEN_V >= 3) { this.hindNote = d.settings ? 2 : 0; this.hindSeen = PFLICHT_NOTE; this.save(); }
     // Streckenart (n22): flach / Hochstraße (n19, „3D“) / Gelände (Standard ab n22). Bisher nur der Schalter „flach“:
     // wer flach gewählt hatte, behält flach; alle anderen bekommen das neue Gelände
     if (!this.settings.trackMode) this.settings.trackMode = this.settings.flat ? 'flat' : 'gel';

@@ -1,0 +1,150 @@
+{
+ "N": 100,
+ "gv": 2,
+ "verify": false,
+ "ergebnis": {
+  "flat/1": {
+   "erfuellt": 56,
+   "ohneErsatz": 56,
+   "jeElement": {
+    "loop": 84,
+    "zigzag2": 61,
+    "crest": 93
+   },
+   "ersatz": {},
+   "selten": {},
+   "fehler": 0
+  },
+  "flat/2": {
+   "erfuellt": 27,
+   "ohneErsatz": 10,
+   "jeElement": {
+    "jump": 78,
+    "loop": 94,
+    "sbridge": 41,
+    "zigzag": 13
+   },
+   "ersatz": {
+    "zigzag→zigzag2": 48
+   },
+   "selten": {},
+   "fehler": 0
+  },
+  "flat/3": {
+   "erfuellt": 0,
+   "ohneErsatz": 0,
+   "jeElement": {
+    "jump": 2,
+    "loop": 5,
+    "sbridge": 41,
+    "zigzag": 24,
+    "tube_wall": 36,
+    "tube": 95
+   },
+   "ersatz": {
+    "zigzag→zigzag2": 48
+   },
+   "selten": {},
+   "fehler": 0
+  },
+  "3d/1": {
+   "erfuellt": 4,
+   "ohneErsatz": 4,
+   "jeElement": {
+    "loop": 52,
+    "crest": 71,
+    "waves": 27,
+    "zigzag2": 7
+   },
+   "ersatz": {},
+   "selten": {},
+   "fehler": 0
+  },
+  "3d/2": {
+   "erfuellt": 6,
+   "ohneErsatz": 1,
+   "jeElement": {
+    "jump": 38,
+    "loop": 47,
+    "waves": 64,
+    "zigzag": 2
+   },
+   "ersatz": {
+    "zigzag→zigzag2": 22
+   },
+   "selten": {
+    "tr_corkud": 13
+   },
+   "fehler": 0
+  },
+  "3d/3": {
+   "erfuellt": 0,
+   "ohneErsatz": 0,
+   "jeElement": {
+    "jump": 31,
+    "loop": 40,
+    "tr_corklr": 7,
+    "waves": 58,
+    "tube_wall": 29,
+    "zigzag": 0
+   },
+   "ersatz": {
+    "zigzag→zigzag2": 5
+   },
+   "selten": {
+    "tr_corkud": 24,
+    "tr_corklr": 7,
+    "slope4": 5
+   },
+   "fehler": 0
+  },
+  "gel/1": {
+   "erfuellt": 76,
+   "ohneErsatz": 76,
+   "jeElement": {
+    "loop": 96,
+    "zigzag2": 76
+   },
+   "ersatz": {},
+   "selten": {
+    "halfpipe": 27
+   },
+   "fehler": 0
+  },
+  "gel/2": {
+   "erfuellt": 70,
+   "ohneErsatz": 45,
+   "jeElement": {
+    "loop": 94,
+    "zigzag": 45,
+    "jump": 95
+   },
+   "ersatz": {
+    "zigzag→zigzag2": 29
+   },
+   "selten": {
+    "tr_corklr": 1,
+    "halfpipe": 48
+   },
+   "fehler": 0
+  },
+  "gel/3": {
+   "erfuellt": 46,
+   "ohneErsatz": 32,
+   "jeElement": {
+    "loop": 93,
+    "zigzag": 35,
+    "tube_wall": 54,
+    "jump": 93,
+    "tube": 96
+   },
+   "ersatz": {
+    "zigzag→zigzag2": 37
+   },
+   "selten": {
+    "halfpipe": 64
+   },
+   "fehler": 0
+  }
+ }
+}

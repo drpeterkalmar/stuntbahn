@@ -82,8 +82,15 @@ export const HINDERNIS2 = (() => {
   const el = (u, e) => on && get(u, e) !== '0';
   return { on, zickzack: el('zickzack', 'STUNT_ZICKZACK'), roehrewand: el('roehrewand', 'STUNT_ROEHREWAND'), spirale: el('spirale2', 'STUNT_SPIRALE2') };
 })();
-// Generator-Version neuer Zufallsstrecken (1 = wie bis n32)
-export const GEN_V = HINDERNIS2.on ? 2 : 1;
+// Generator-Version neuer Zufallsstrecken (1 = wie bis n32, 2 = n33 Hindernisse „h“, 3 = n42 Pflicht-Hindernisse werden
+// erfüllt + seltene Original-Elemente „p“). URL ?pflicht=0 (Node STUNT_PFLICHT=0) = neue Strecken wie Version 2 (A/B)
+export const PFLICHT3 = (() => {
+  const q = globalThis.location && globalThis.location.search, P = q ? new URLSearchParams(q) : null;
+  const env = (globalThis.process && globalThis.process.env) || {};
+  const v = P && P.get('pflicht') != null ? P.get('pflicht') : env.STUNT_PFLICHT;
+  return v !== '0';
+})();
+export const GEN_V = HINDERNIS2.on ? (PFLICHT3 ? 3 : 2) : 1;
 // Zwischenspeicher geprüfter Strecken: einzelne Elemente abgeschaltet → getrennt (main.js VBUILD)
 export const HIND_TAG = !HINDERNIS2.on ? '' : (HINDERNIS2.zickzack ? '' : 'z') + (HINDERNIS2.roehrewand ? '' : 'w') + (HINDERNIS2.spirale ? '' : 's');
 export const ROAD_Y = 0.06;      // Fahrbahn liegt knapp über dem Gelände

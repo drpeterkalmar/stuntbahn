@@ -3,7 +3,7 @@
 Peter 26.10.: „ruckeln zeitweise und starten langsam“ (Handy, besonders Stuntbahn) und „Zufallsstrecken vergessen
 Hindernisse“. Etappe 1 = Ruckeln + Start (eigener Release), Etappe 2 = Hindernisse (eigener Release).
 
-## Kurz – was du am Handy merkst (Etappe 1)
+## Kurz – was du am Handy merkst (Etappe 1, Version 0.15)
 - **Keine Standbilder mehr, wenn die Grafik-Automatik nachregelt.** Bisher wurden beim Abschalten des Auto-Schattens alle
   Shader neu übersetzt – am Mac (CPU gedrosselt) 1,7 s Standbild, am Handy eher länger. Das war mit hoher Wahrscheinlichkeit
   das „zeitweise Ruckeln“: es passiert genau dann, wenn das Handy ins Schwitzen kommt. Jetzt: 0 Hänger über 50 ms.
@@ -127,5 +127,86 @@ und Minikarten-Band/Feuerwerk überlappen sich selbst – sie bleiben bei zwei D
 - Restliche Hänger: große Speicherbereinigungen (1–2 je 3 min, ~65 ms). Die Physik erzeugt je Schritt Hilfsobjekte; das
   umzubauen hätte die bitgleiche Physik (Bestzeiten) gefährdet.
 
-## Etappe 2 – Pflicht-Hindernisse
-(folgt)
+## Etappe 2 – Pflicht-Hindernisse in Zufallsstrecken
+
+### Kurz – was du am Handy merkst
+- **Neue Zufallsstrecken haben jetzt immer alle Hindernisse, die ihre Stufe vorsieht** (Zickzack, Röhre mit Wand,
+  Spiralen-Hochstraße, Looping, Schanzen …). Vorher fehlten sie oft – flach „Irre“ hatte in **keiner** von 100 Strecken die
+  volle Liste, 3D in 0–6 %.
+- **Neu dabei: Teile aus dem Original**, die es bisher nur in importierten .TRK-Strecken gab: **Röhre** (große Röhre mit
+  Portalen), **Autobahn** (zwei Fahrbahnen, Mittelwand), **Lücken-Sprung** (Schanze – Lücke – Landerampe, selten, braucht
+  lange Geraden) und öfter der **Korkenzieher**.
+- Neue Codes tragen ein **„p“** (z. B. 4711-2-gp, Strecke des Tages ebenso). **Alte Codes („h“ und ohne Zusatz) und ihre
+  Bestzeiten bleiben genau gleich.** Beim ersten Start einmal ein Hinweis im Menü.
+- Bitte testen: „🎲 Zufall“ ein paarmal auf „Irre“, auch im Modus Hochstraße (3D).
+
+### Was gefunden wurde
+Hermes' Zahlen bestätigt (`tools/pflicht_mess.mjs`, gleiche Seeds `s·7919+13`, 100 je Modus/Stufe; Datei
+`tests/perf/n42_pflicht_vorher.json`): der Autopilot entschärft nichts – der **Generator** ließ Pflicht-Elemente aus, wenn
+kein Platz war. Grund: die Pflicht-Teile brauchen mehr freie Geraden, als die Grundform hat (flach „Irre“: 8 Elemente
+≈ 35 Felder mit Anlauf/Auslauf, die Strecke bietet ~34), kurze Elemente zerstückelten die Geraden für lange, und in 3D
+belegen die Hochstraßen-Ausflüge die Geraden auf Ebene 0. Bei der Spiralen-Hochstraße fehlte oft der Platz neben der
+Fahrbahn → nur eine einfache Brücke.
+
+**Darstellungs-Problem?** Nein (`tools/darstellung_mess.mjs`): je Modus 30 Zufallsstrecken (Version 2 und 3) gebaut und je
+Teil gezählt, ob in seinen Feldern Strecken-Geometrie liegt – **0 von 2 989 (v2) bzw. 4 943 (v3) Teilen ohne Geometrie**
+(Gegenprobe mit absichtlich verschobenen Feldern schlägt an). Im Browser zusätzlich Fotos der seltenen Elemente.
+
+### Lösung: Generator-Version 3 (Code-Zusatz „p“)
+- Gleiche Pflicht-Listen wie Version 2 (`DIFFS2`, `d3V2`, `GD2`), aber sie werden erfüllt: **lange Elemente zuerst**,
+  **Anläufe** (deterministisch je Code) bis die Liste ohne Ersatz erfüllt ist, alle 16 Anläufe wächst die Grundform um ein
+  Feld je Seite und eine Ausbeulung; in 3D späte Anläufe mit weniger Ausflügen nach oben (weiter mehrstöckig).
+- **Ersatz** nur, wenn kein Anlauf passt, und gezählt (`meta.pflicht`): Zickzack → kurzer Zickzack, Korkenzieher → Wendel
+  (3D „Irre“: in 49 % der Strecken, dort fehlt auf Ebene 0 fast immer der Platz für Korkenzieher **und** zwei weitere Stunts).
+- **Seltene Original-Elemente** (`src/track/selten.js`): Platzhalter im Generator, danach in die .TRK-Teile zerlegt wie beim
+  Import (`tr_pipeT/tr_pipe`, `tr_hwyT/tr_hwy`, `tr_road`-Schanze + `tr_gapK` + Landerampe); in die Gewichte der passenden
+  Modi/Stufen aufgenommen und je Strecke ein „Wunsch-Platz“ vor dem Auffüllen (sonst kamen sie per Gewicht kaum zum Zug).
+  Crasht der Autopilot daran, wird das ganze Element zu Geraden (nie gebraucht, s. u.). Lücken-Sprünge nicht im Gelände
+  (dort gibt es den Schluchtsprung).
+- `?pflicht=0` = neue Strecken wieder wie Version 2 (A/B). `bump()` (Ausbeulen) prüft günstige Bedingungen zuerst –
+  gleiche Zufallszahlen, alte Codes bitgleich (249/249), aber deutlich schneller (die Anläufe rufen es oft auf).
+
+### Vorher → nachher (100 Codes je Modus/Stufe; `tests/perf/n42_pflicht_vorher.json` / `…_nachher.json`)
+| Modus/Stufe | Pflicht-Liste | erfüllt vorher (v2) | erfüllt nachher (v3) | davon mit Ersatz | je Element vorher → nachher |
+|---|---|---|---|---|---|
+| flach Sanft | loop zigzag2 crest | 56 % | **100 %** | 0 % | loop 84→100, zigzag2 61→100, crest 93→100 |
+| flach Sportlich | jump loop sbridge zigzag | 27 % | **100 %** | 0 % | jump 78→100, loop 94→100, sbridge 41→100, zigzag 13→100 |
+| flach Irre | 2× jump, 2× loop, sbridge, zigzag, tube_wall, tube | 0 % | **100 %** | 0 % | jump 2→100, loop 5→100, sbridge 41→100, zigzag 24→100, tube_wall 36→100, tube 95→100 |
+| 3D Sanft | loop crest waves zigzag2 | 4 % | **100 %** | 0 % | loop 52→100, crest 71→100, waves 27→100, zigzag2 7→100 |
+| 3D Sportlich | jump loop waves zigzag | 6 % | **98 %** | 0 % | jump 38→100, loop 47→98, waves 64→100, zigzag 2→100 |
+| 3D Irre | jump loop tr_corklr waves tube_wall zigzag | 0 % | **98 %** | 49 % | jump 31→100, loop 40→100, tr_corklr 7→49 (+49 Wendel), waves 58→100, tube_wall 29→100, zigzag 0→100 |
+| Gelände Sanft | loop zigzag2 | 76 % | **100 %** | 0 % | loop 96→100, zigzag2 76→100 |
+| Gelände Sportlich | loop zigzag jump | 70 % | **100 %** | 0 % | loop 94→100, zigzag 45→100, jump 95→100 |
+| Gelände Irre | loop zigzag tube_wall jump tube | 46 % | **100 %** | 0 % | loop 93→100, zigzag 35→100, tube_wall 54→100, jump 93→100, tube 96→100 |
+
+Seltene Original-Elemente (Anteil Strecken; vorher alle 0 %, nur Korkenzieher 3D Irre 7 %, Gelände Sportlich 1 %):
+| Modus/Stufe | Röhre | Autobahn | Lücken-Sprung | Korkenzieher |
+|---|---|---|---|---|
+| flach Sanft | 16 % | 23 % | – | – |
+| flach Sportlich | 15 % | 33 % | 3 % | 13 % |
+| flach Irre | 55 % | – | 0 % | 20 % |
+| 3D Sanft | 11 % | 11 % | – | – |
+| 3D Sportlich | 4 % | 37 % | 3 % | 2 % |
+| 3D Irre | 42 % | – | 1 % | 49 % |
+| Gelände Sanft | 64 % | – | – | – |
+| Gelände Sportlich | 15 % | 22 % | – | 16 % |
+| Gelände Irre | 32 % | – | – | 18 % |
+
+**Lösbar:** 180 Version-3-Strecken (20 je Modus/Stufe) mit Autopilot-Prüfung: alle ins Ziel, **0 Entschärfungen**; dazu die
+8 Foto-Strecken mit seltenen Elementen im Browser je eine Autopilot-Runde ins Ziel, 0 Crashs, 0 Fehler
+(`tests/n42_selten_fotos.py`, `tests/shots/n42/selten.jpg`).
+**Bauzeit** (Mac, je Code): Gelände (Standard) Median 0,2–0,4 ms (max 3 ms), flach bis 7 ms (max 72 ms „Irre“), 3D Median
+24–28 ms (max ~120 ms) – Version 2: < 2 ms. Die Prüfung läuft ohnehin im Worker; der Bau der gezeigten Strecke im Menü
+kostet in 3D am Handy geschätzt bis ~0,3 s.
+
+### Tests
+`tests/node/test_n42.mjs` Teil E–I: Pflicht ≥ 95 % (40 Codes je Modus/Stufe, tatsächlich 39–40), Schlüssel („p“, „h“, ohne),
+Autopilot lösbar ohne Entschärfen (je Modus/Stufe), seltene Elemente lückenlos zerlegt, gebaut, als Ganzes entschärft,
+Darstellung je Teil. `test_alte_codes.mjs`: 249/249 alte Codes bitgleich; `test_hindernisse.mjs` angepasst (Standard
+jetzt Version 3, Hinweis n42).
+
+### Grenzen, ehrlich
+- 3D „Irre“: in knapp der Hälfte der Strecken ist der Korkenzieher durch eine Wendel ersetzt (gezählt), 2 % ohne volle Liste;
+  3D Sportlich 2 % ohne einen Looping. Ziel ≥ 95 % erreicht, 100 % nicht überall.
+- Lücken-Sprünge bleiben selten (0–3 %): sie brauchen 5–6 freie Geraden am Stück, die Pflicht-Elemente haben Vorrang.
+- Die Strecke des Tages hat ab jetzt den Code mit „p“ – deren Bestzeit-Liste beginnt neu (alte Codes bleiben spielbar).
