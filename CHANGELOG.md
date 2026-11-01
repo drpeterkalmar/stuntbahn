@@ -2,7 +2,7 @@
 
 Kurzfassung je Version; Details in den Abschnitten der `README.md` und in den Berichten (`*_BERICHT.md`).
 
-## __VERSION__ – 01.11.2026 (Brems-Warnton aus)
+## 0.19.1 – 01.11.2026 (Brems-Warnton aus)
 - Der Warnton beim Hinweis „Bremsen!“ ist aus (Peter 01.11.); der Text-Hinweis bleibt. `?bremston=1` = Ton wie bisher.
 
 ## 0.19.0 – 01.11.2026 (Werbebanden 3)
