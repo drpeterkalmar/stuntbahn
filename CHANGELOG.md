@@ -2,6 +2,9 @@
 
 Kurzfassung je Version; Details in den Abschnitten der `README.md` und in den Berichten (`*_BERICHT.md`).
 
+## __VERSION__ – 01.11.2026 (Werbebanden 2)
+- Banden-Werbung (Peter 01.11.): „ZEHENSTROM“ statt „ALPENSTROM“, „LIPPEN-ÖL“ statt „TURBO-ÖL“, „FINGERMILCH“ statt „WIESENMILCH“. Nur Texte.
+
 ## 0.17.1 – 01.11.2026 (Werbebanden)
 - Banden-Werbung (Peter 01.11.): „TOPPER REIFEN“ statt „KALMAR REIFEN“, Getränkehersteller heißt jetzt „McFOLZ“ (vorher „BLITZ COLA“). Nur Texte, sonst nichts geändert.
 

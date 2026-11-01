@@ -60,7 +60,7 @@ Küste 261, Wüste 253, Herbst 229, Winter 204, Alpen 169.
 - Kulissen-Planung: `src/track/kulisse.js` (aus `planDeco` vor der Vegetation; Bäume weichen den Tribünen aus).
   Zeichnen: `src/gfx/kulisse.js`. Jubel: `decoUniforms.uCheer` (Ort, Radius 190 m, Stärke; in `main.js` aus Sprung/Looping/
   Röhre/Luft/Ziel), Zuschauer-Atlas mit zweiter Hälfte „Arme hoch“.
-- Erfundene Marken: TOPPER REIFEN (bis 0.17.0 KALMAR REIFEN), McFOLZ (bis 0.17.0 BLITZ COLA), ALPENSTROM, TURBO-ÖL, STUNTBAHN, WIESENMILCH, RAPID TV, FUNKEN FUNK.
+- Erfundene Marken: TOPPER REIFEN (bis 0.17.0 KALMAR REIFEN), McFOLZ (bis 0.17.0 BLITZ COLA), ZEHENSTROM (bis 0.17.1 ALPENSTROM), LIPPEN-ÖL (bis 0.17.1 TURBO-ÖL), STUNTBAHN, FINGERMILCH (bis 0.17.1 WIESENMILCH), RAPID TV, FUNKEN FUNK.
 
 ## Quellen und Lizenzen
 Alle Fremd-Assets sind **CC0**; die Lizenz wurde am 04.10.2026 auf der Asset-Seite der Primärquelle geprüft
