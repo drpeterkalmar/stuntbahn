@@ -87,7 +87,7 @@ console.log('--- E: ?physik=alt bitgleich zum Stand n36 (c881366) ---');
   const { execFileSync } = await import('child_process');
   const fs = await import('fs');
   const ref = JSON.parse(fs.readFileSync('tests/node/data/arcade_alt_ref.json', 'utf8'));
-  const now = JSON.parse(execFileSync(process.execPath, ['tests/node/arcade_alt_ref.mjs'], { encoding: 'utf8', env: { ...process.env, STUNT_DRIFT: 'alt' } })   // (n43: Spieler-Heck wie bis 0.17.0 – ?drift=alt));
+  const now = JSON.parse(execFileSync(process.execPath, ['tests/node/arcade_alt_ref.mjs'], { encoding: 'utf8', env: { ...process.env, STUNT_DRIFT: 'alt' } }));   // (n43: Spieler-Heck wie bis 0.17.0 – ?drift=alt)
   const bad = Object.keys(ref).filter((k) => ref[k] !== now[k]);
   check(!bad.length, `Leicht/Mittel/Original je 40 s auf 2 Strecken mit ?physik=alt gleich wie n36${bad.length ? ': anders ' + bad.join(', ') : ''}`);
 }
