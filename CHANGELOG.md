@@ -2,6 +2,9 @@
 
 Kurzfassung je Version; Details in den Abschnitten der `README.md` und in den Berichten (`*_BERICHT.md`).
 
+## 0.19.0 – 01.11.2026 (Werbebanden 3)
+- Banden-Werbung (Peter 01.11.): „RADIO KONRAD“ statt „RAPID TV“ (auch am Zeppelin), „1ST SERVE“ statt „DONAU VERSICHERT“. Lange Namen werden auf die Tafelbreite eingepasst.
+
 ## 0.18.0 – 01.11.2026 (Alle Autos driften mehr, n43 Etappe 2)
 - **Gegner driften** (Peter 01.11.: „alle autos driften mehr“): Locker wild (49 % der Kurvenzeit quer), Ebenbürtig oft (46 %),
   Profi kontrolliert in engen Kurven (30 %) – mit Gummispuren und Reifenqualm, nie in Looping/Röhre/Korkenzieher/Schanze/
@@ -12,9 +15,6 @@ Kurzfassung je Version; Details in den Abschnitten der `README.md` und in den Be
   mit Drift-Hilfe (kurz kontrolliert quer, sicher eingefangen), Original ehrlich. Gespeicherte Bestzeiten bleiben gültig
   (sauberes Fahren ±0,3 %). `?drift=alt` = Physik 0.17.0, `?heck=2` = stärker (zum Ausprobieren, wertet nicht).
 - Bericht `N43_BERICHT.md`, Tests `tests/node/test_n43.mjs`, `tests/n43_shots.py`.
-
-## 0.19.0 – 01.11.2026 (Werbebanden 3)
-- Banden-Werbung (Peter 01.11.): „RADIO KONRAD“ statt „RAPID TV“ (auch am Zeppelin), „1ST SERVE“ statt „DONAU VERSICHERT“. Lange Namen werden auf die Tafelbreite eingepasst.
 
 ## 0.17.2 – 01.11.2026 (Werbebanden 2)
 - Banden-Werbung (Peter 01.11.): „ZEHENSTROM“ statt „ALPENSTROM“, „LIPPEN-ÖL“ statt „TURBO-ÖL“, „FINGERMILCH“ statt „WIESENMILCH“. Nur Texte.
