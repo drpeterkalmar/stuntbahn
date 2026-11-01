@@ -19,6 +19,8 @@ const { tracksOf } = await imp('src/game/sammlung.js');
 const { GegnerFeld, STAERKEN } = await imp('src/ai/gegner.js');
 
 const DT = 1 / 120;
+// Abstimmen: --set=profi.tempo:1,locker.pSpaet:0.05 (Werte in STAERKEN, ai/gegner.js)
+for (const kv of String(arg('set', '') || '').split(',').filter((x) => x && x !== 'true')) { const [k, x] = kv.split(':'); const [st, f] = k.split('.'); if (STAERKEN[st]) STAERKEN[st][f] = +x; }
 const STAERKE_LISTE = String(arg('staerken', 'locker,ebenbuertig,profi')).split(',');
 
 // 60 Sammlungs-Strecken gleichmäßig verteilt (wie tools/mittel_probe.mjs)
@@ -35,7 +37,7 @@ export function sammlung60() {
 
 // Ein Rennen ohne Spieler bis alle im Ziel (oder Zeitlimit)
 export function rennen(env, apTime, opt) {
-  const F = new GegnerFeld(env, { anzahl: 1, startplatz: 'hinten', assist: String(arg('assist', 'medium')), physik: String(arg('physik', 'stufe')), takt: String(arg('takt', 'auto')), seed: 3, ...opt });
+  const F = new GegnerFeld(env, { anzahl: 1, startplatz: 'hinten', assist: String(arg('assist', 'medium')), physik: String(arg('physik', 'stufe')), satz: String(arg('satz', 'neu')), takt: String(arg('takt', 'auto')), seed: 3, ...opt });
   const lim = apTime * 2.5 + 40;
   let t = 0;
   const c0 = process.cpuUsage();

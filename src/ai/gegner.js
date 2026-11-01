@@ -14,6 +14,7 @@ import { stoss, HAERTE, HAERTE_JE_STUFE } from '../physics/autoauto.js';
 import { startRaster, spielerSlot, rangliste, Zeitnahme, abstaende, restzeit, fortschritt, zielFortschritt } from '../game/rennfeld.js';
 import { SchadenAuto } from '../physics/schaden.js';
 import { COOLDOWN, NITRO_TOTAL, nitroLevel } from '../physics/extras.js';
+import { computeProfile, PROF } from './profile.js';
 
 // ---------- Einstellungen ----------
 export const GEGNER_ANZAHLEN = [0, 1, 3, 5];   // Menü „🏁 Gegner“: Aus · 1 · 3 · 5 (URL ?gegner= nimmt 0 … 5)
@@ -24,12 +25,28 @@ export const GEGNER_MAX = 5;
 // gebremst“ (Reaktion + spaet s, danach panik s Vollbremsung – ohne die war spätes, hartes Bremsen sogar minimal schneller),
 // pPatzer = Anteil der Stunts mit „verpatzt“ (Anfahrt zu langsam oder zu schnell),
 // start = Startplatz des Spielers bei 'auto' (Locker: hinten – man fährt durchs Feld nach vorn).
-// Startwerte, abgestimmt mit tools/gegner_mess.mjs (Ziel: Locker > Ebenbürtig > Profi, Profi ≈ Autopilot ± 5 %).
+// n43 (Peter 01.11.2026: „alle drei gegnerstufen fahren besser“): zusätzlich kurve = Anteil der Querhaftung des eigenen
+// Kurven-Profils (statt der Reserve der Prüffahrt, profile.js PROF.res 0,76; × Reifenhaftung der Stufe, gegnerBasis),
+// brems = Bremsplan-Anteil des Haftungskreises (PROF.brakeCircle 0,7), streuKurve = Anteil der Streuung in Kurven (0 = in
+// Kurven auf der Ideallinie), mut = Zuschlag (m) auf den Überhol-Mut der Persönlichkeit. Ohne kurve: Profil der Prüffahrt.
+// Abgestimmt mit tools/gegner_mess.mjs (60 Sammlungs-Strecken, Mittel): Ziel Locker ≈ +18–22 %, Ebenbürtig ≈ +6–9 %,
+// Profi ≈ −2 … +1 % zur Autopilot-Zeit. Werte bis 0.16.0: STAERKEN_ALT (?gegnerstaerke=alt).
 export const STAERKEN = {
+  locker: { name: 'Locker', tempo: 0.66, kurve: 0.75, brems: 0.75, reaktion: 0.25, streu: 0.8, streuKurve: 0.4, pSpaet: 0.05, spaet: [0.3, 0.6], panik: [0.3, 0.5], pPatzer: 0.07, mut: 0, start: 'hinten' },
+  ebenbuertig: { name: 'Ebenbürtig', tempo: 0.81, kurve: 0.8, brems: 0.78, reaktion: 0.12, streu: 0.45, streuKurve: 0.2, pSpaet: 0.02, spaet: [0.2, 0.4], panik: [0.2, 0.35], pPatzer: 0.03, mut: 0.2, start: 'mitte' },
+  profi: { name: 'Profi', tempo: 1, kurve: 0.76, brems: 0.8, reaktion: 0.05, streu: 0.2, streuKurve: 0, pSpaet: 0.005, spaet: [0.15, 0.3], panik: [0.15, 0.25], pPatzer: 0.005, mut: 0.35, start: 'mitte' },
+};
+// Stand bis 0.16.0 (n34, abgestimmt mit tools/gegner_mess.mjs: Ziel Locker > Ebenbürtig > Profi, Profi ≈ Autopilot ± 5 %)
+export const STAERKEN_ALT = {
   locker: { name: 'Locker', tempo: 0.58, reaktion: 0.35, streu: 1.2, pSpaet: 0.08, spaet: [0.4, 0.8], panik: [0.4, 0.7], pPatzer: 0.12, start: 'hinten' },
   ebenbuertig: { name: 'Ebenbürtig', tempo: 0.76, reaktion: 0.2, streu: 0.7, pSpaet: 0.04, spaet: [0.3, 0.6], panik: [0.3, 0.5], pPatzer: 0.05, start: 'mitte' },
   profi: { name: 'Profi', tempo: 0.975, reaktion: 0.08, streu: 0.3, pSpaet: 0.01, spaet: [0.2, 0.4], panik: [0.2, 0.3], pPatzer: 0.01, start: 'mitte' },
 };
+// Werte-Satz je Feld (opt.satz): 'neu' (Standard) | 'alt' (= 0.16.0, A/B: ?gegnerstaerke=alt)
+export function staerkeWerte(staerke, satz = 'neu') {
+  const T = satz === 'alt' ? STAERKEN_ALT : STAERKEN;
+  return T[staerke] || T[STAERKE_STD];
+}
 export const STAERKE_STD = 'ebenbuertig';
 // Persönlichkeit: abstand = Folge-Abstand (s) hinter einem Auto, das man nicht überholen kann/darf, luecke = seitlicher
 // Abstand (m, Mitte zu Mitte) beim Überholen, seitV = wie schnell der Seitenversatz wechselt (m/s), tempo = kleiner
@@ -99,8 +116,13 @@ export const MUSS_RAMPE = [60, 20, 30];
 // nie > +250 m, Sieger ≤ ~15 s vor einem schlechten Spieler). Vorbau (Option, Standard aus): ±5 % ab 120 m hinter / 160 m vor dem
 // Spieler – bewegte fast nichts (Hermes-Messung 15.10.: schlechter Spieler sah nach einer Minute niemanden mehr).
 const urlQ = globalThis.location && globalThis.location.search ? new URLSearchParams(globalThis.location.search) : null;
+export const SATZ_URL = urlQ && urlQ.get('gegnerstaerke') === 'alt' ? 'alt' : 'neu';
 const gummiUrl = urlQ && urlQ.has('gummi') ? Math.max(0, Math.min(2, +urlQ.get('gummi') || 0)) : null;
-export const AUFHOL = { k: gummiUrl ?? 1, tot: 30, vorL: 80, hinterL: 140, tau: 1.5, tauVor: 3, physVor: 0.3, physHinter: 1.15, schVor: 0.05, schHinter: 1.45, ende: 350 };
+// n43: die schnelleren Gegner (STAERKEN) bremsen vorn früher und tiefer (vorL 80 → 55 m, physVor 0,3 → 0,2, tauVor 3 → 2 s) –
+// Probe tools/gummiband_probe.mjs, Spieler × 0,5 gegen Locker: Sieger ohne Strafzeit max 20,9 → 10,0 s (0.16.0: 9,0 s).
+// AUFHOL_ALT = Stand bis 0.16.0 (gilt mit ?gegnerstaerke=alt)
+export const AUFHOL = { k: gummiUrl ?? 1, tot: 30, vorL: 55, hinterL: 140, tau: 1.5, tauVor: 2, physVor: 0.2, physHinter: 1.15, schVor: 0.05, schHinter: 1.45, ende: 350 };
+export const AUFHOL_ALT = { ...AUFHOL, vorL: 80, tauVor: 3, physVor: 0.3 };
 // Geist-Phase nach dem Wiedereinsetzen (Reset/Rückspulen, Spieler und Gegner): t s keine Auto-Auto-Kollision, verlängert solange ein
 // anderes Auto näher als frei m ist (sonst stieße man sich beim Ende der Phase ineinander). Probe mit Gummiband: die meisten
 // „Zusammenstoß“-Crashs gab es, wenn ein Auto zurückgesetzt wurde, wo das Feld gerade ankam
@@ -141,7 +163,9 @@ export function gegnerOptionen(search = urlQ ? globalThis.location.search : '', 
   // Schiene außerhalb der Sicht (A/B, Messung): ?schiene=0 = alle Gegner immer volle Physik
   const schiene = q.has('schiene') ? (q.get('schiene') === '0' ? 'nie' : q.get('schiene') === 'immer' ? 'immer' : 'auto') : 'auto';
   const physik = q.get('gegnerphysik') === 'roh' ? 'roh' : 'stufe';
-  return { anzahl, staerke, startplatz, schilder, aufholhilfe, schiene, physik, url: q.has('gegner') };
+  // n43: ?gegnerstaerke=alt = Stärke-Werte bis 0.16.0 (A/B)
+  const satz = q.get('gegnerstaerke') === 'alt' ? 'alt' : 'neu';
+  return { anzahl, staerke, startplatz, schilder, aufholhilfe, schiene, physik, satz, url: q.has('gegner') };
 }
 
 // Startaufstellung der Gegner (Fahrer, Persönlichkeit, Nummer, Tempo-Abweichung ±1,5 %) – deterministisch je Seed
@@ -182,6 +206,7 @@ export function hash01(seed, k) {
 // MUSS_RAMPE m davor/danach); haft: Bodenhaftung aus
 // (wie haftOffAt); lo/hi: Seitengrenzen für den Versatz (Ideallinie, kleinste Breite der nächsten VERKEHR.engVoraus m – mit 30 m
 // kam ein Auto nach dem Überholen bei 70 m/s nicht rechtzeitig vor der Autobahn-Verengung zurück: 3 Aufpralle auf 16 Strecken)
+export const KURVE = { r: [400, 150] };
 export function streckenMasken(env) {
   const T = env.track, L = T.line, I = env.ideal || L, n = L.n;
   const zig = zigMask(T);
@@ -233,7 +258,11 @@ export function streckenMasken(env) {
     }
     for (; w < ENG_FENSTER.length; w++) { const m = a > b ? (a + b) / 2 : null; loW[w][i] = Math.min(0, m ?? a); hiW[w][i] = Math.max(0, m ?? b); }
   }
-  return { stunt, kein, haft, nahe, muss, mussVor: mu.vor, lo: loW[2], hi: hiW[2], loW, hiW, vor };
+  // n43: Kurve 0 … 1 (Krümmung der Ideallinie, Radius über KURVE.r[0] m = gerade, unter KURVE.r[1] m = Kurve) – dort streuen
+  // stärkere Gegner weniger (streuKurve: Ideallinie statt Linien-Rauschen)
+  const kA = env.prof && env.prof.kA, kurve = new Float32Array(n);
+  if (kA) for (let i = 0; i < n; i++) kurve[i] = Math.max(0, Math.min(1, (Math.abs(kA[i]) - 1 / KURVE.r[0]) / (1 / KURVE.r[1] - 1 / KURVE.r[0])));
+  return { stunt, kein, haft, nahe, muss, mussVor: mu.vor, lo: loW[2], hi: hiW[2], loW, hiW, vor, kurve };
 }
 
 // Volllast-Beschleunigung (m/s²) des Autos mit seinen Fahrhilfen (wie car.js: Antrieb × assist.drive, Mittel ab assist.vSoft weich
@@ -244,23 +273,38 @@ export function antrieb(car, v) {
   return (Math.min(d.maxDrive * (A.drive || 1) * aeroLoad(d, va), d.power / va) * tap - d.dragK * va * va) / d.mass;
 }
 
+// Kurven-Profil einer Stärke (n43): eigenes Tempo-Profil mit weniger Reserve – Querhaftung S.kurve × Reifenhaftung der Stufe
+// (haft: Mittel 1,3, Original 1), Bremsplan S.brems; Schanzen-Fenster, Looping-Anpressdruck, Engstellen wie die Prüffahrt.
+// Je Strecke und Wertepaar einmal (env.profG). Ohne S.kurve (Werte bis 0.16.0): Profil der Prüffahrt env.prof.
+export function gegnerBasis(env, S, haft = 1) {
+  if (S.kurve == null || !env.track) return env.prof;
+  const res = Math.min(1.25, S.kurve * haft), bc = S.brems ?? PROF.brakeCircle;
+  const key = res.toFixed(4) + '|' + bc.toFixed(3);
+  const C = env.profG || (env.profG = {});
+  if (!C[key]) { const T = env.track; C[key] = computeProfile(env.ideal || T.line, { jumps: T.jumps, startIdx: T.start.idx, prof: { res, brakeCircle: bc } }); }
+  return C[key];
+}
+
 // Tempo-Profil eines Gegners: vt × Faktor außerhalb der Stunts, in Stunt-Nähe weich bis 1 (nahe). Danach Rückwärtslauf:
 // wo das Auto vom langsameren Tempo die Stunt-Anfahrt nicht mehr erreichen könnte (Volllast-Beschleunigung driveAccel),
-// früher schneller fahren – nie über das Original-Profil.
-export function gegnerProfil(P, L, nahe, faktor, def, acc = null) {
+// früher schneller fahren – nie über das Original-Profil. n43: B = Kurven-Profil der Stärke (gegnerBasis) – außerhalb der
+// Stunts B × Faktor, in Stunt-Nähe weich auf das Profil P der Prüffahrt (Stunts mit genau deren Tempo)
+export function gegnerProfil(P, L, nahe, faktor, def, acc = null, B = P) {
   const n = P.vt.length, vt = new Float32Array(n);
   const f = Math.min(1, faktor);
-  for (let i = 0; i < n; i++) vt[i] = P.vt[i] * (f + (1 - f) * nahe[i]);
+  if (B === P) for (let i = 0; i < n; i++) vt[i] = P.vt[i] * (f + (1 - f) * nahe[i]);
+  else for (let i = 0; i < n; i++) vt[i] = B.vt[i] * f + (P.vt[i] - B.vt[i] * f) * nahe[i];
   for (let pass = 0; pass < (L.closed ? 2 : 1); pass++) {
     for (let i = n - 2; i >= 0; i--) {
       const ds = Math.max(0, L.s[i + 1] - L.s[i]), v1 = vt[i + 1];
       const a = Math.max(0.5, (acc ? acc(vt[i]) : driveAccel(def, vt[i])) * SCHIENE.k);
       const need = Math.sqrt(Math.max(0, v1 * v1 - 2 * a * ds));
-      if (need > vt[i]) vt[i] = Math.min(P.vt[i], need);
+      // (Obergrenze: Prüffahrt-Profil, außerhalb der Stunt-Nähe das Kurven-Profil – in Stunts nie schneller als die Prüffahrt)
+      if (need > vt[i]) vt[i] = Math.max(vt[i], Math.min(P.vt[i] + Math.max(0, B.vt[i] - P.vt[i]) * (1 - nahe[i]), need));
     }
     if (L.closed) vt[n - 1] = vt[0];
   }
-  return { ...P, vt, faktor: f };
+  return { ...B, vt, faktor: f };
 }
 
 // Mindest-Tempo (Gummiband, n34-Abnahme): vor Looping/Röhre/Korkenzieher/Schanze (Maske muss) so schnell, dass das Auto mit Volllast
@@ -284,7 +328,7 @@ export function mindestTempo(P, L, muss, def, acc = null) {
 // Fehler-Plan (deterministisch je Seed): Bremszonen (Profil fällt in 100 m um ≥ 20 % von über 25 m/s) und Stunts.
 // Liefert [{ p (Fortschritt m, Runde 0), art: 'spaet' | 'patzer', extra (s) | k (Tempo-Faktor), bis (m) }]
 export function fehlerPlan(env, M, P, staerke, seed) {
-  const S = STAERKEN[staerke] || STAERKEN[STAERKE_STD];
+  const S = typeof staerke === 'object' ? staerke : STAERKEN[staerke] || STAERKEN[STAERKE_STD];
   const L = env.track.line, n = L.n, r = mulberry(seed ^ 0x5bd1e995), out = [];
   // Bremszonen: lokales Maximum, danach Abfall
   let last = -1e9;
@@ -313,7 +357,7 @@ export class GegnerFahrer {
   constructor(feld, info) {
     const env = feld.env;
     this.feld = feld; this.info = info; this.id = info.id; this.nummer = info.nummer;
-    this.S = STAERKEN[info.staerke] || STAERKEN[STAERKE_STD];
+    this.S = staerkeWerte(info.staerke, feld.opt.satz);
     this.C = CHARAKTERE[info.charakter] || CHARAKTERE.sauber;
     this.car = new Car();
     // Physik der Fahrhilfe-Stufe des Spielers (n37 Arcade: Wand schrammt statt Crash, Crash-Schwellen, Mittel-Antrieb, Landehilfe,
@@ -325,10 +369,12 @@ export class GegnerFahrer {
       this.car.assist.airCtl = 0; this.car.assist.airTap = 0;
     }
     this.acc = (v) => antrieb(this.car, v);
-    this.P = gegnerProfil(env.prof, env.track.line, feld.M.nahe, this.S.tempo * this.C.tempo * info.tempoK, this.car.def, this.acc);
+    // n43: Kurven-Profil der Stärke (Reifenhaftung der Stufe: Mittel mehr Grip; ?gegnerphysik=roh wie die Prüffahrt)
+    const haft = feld.opt.physik !== 'roh' ? (this.car.assist.grip || 1) * (this.car.assist.gripK || 1) : 1;
+    this.P = gegnerProfil(env.prof, env.track.line, feld.M.nahe, this.S.tempo * this.C.tempo * info.tempoK, this.car.def, this.acc, gegnerBasis(env, this.S, haft));
     this.vMin = null;   // Mindest-Tempo vor Stunts (mindestTempo), erst wenn das Gummiband es braucht
     this.ap = new Autopilot(feld.I, this.P);
-    this.fehler = feld.opt.fehler === false ? [] : fehlerPlan(env, feld.M, this.P, info.staerke, info.seed);
+    this.fehler = feld.opt.fehler === false ? [] : fehlerPlan(env, feld.M, this.P, this.S, info.seed);
     this.zustand = 'start';      // start · fahrt · crash · ziel
     this.modus = 'physik';       // physik · schiene
     this.sch = { s: 0, idx: 0, lap: 0, v: 0, stand: 0 };
@@ -590,8 +636,9 @@ export class GegnerFahrer {
     else if (!this.fertig && this.sch.v < this.mindest()[i]) { this.sch.v = Math.min(this.P.vt[i], this.mindest()[i]); this.schienePose(); }
     this.ap.tr.reset(this.sch.idx); this.ap.tr.lap = this.sch.lap;
     // Gummiband-Faktor sofort in den Physik-Bereich (nicht erst im nächsten Schritt)
-    this.gummi = Math.max(AUFHOL.physVor, Math.min(AUFHOL.physHinter, this.gummi));
-    this.tempoMod = Math.max(AUFHOL.physVor, Math.min(AUFHOL.physHinter, this.tempoMod));
+    const A = this.feld.A;
+    this.gummi = Math.max(A.physVor, Math.min(A.physHinter, this.gummi));
+    this.tempoMod = Math.max(A.physVor, Math.min(A.physHinter, this.tempoMod));
     this.modus = 'physik'; this.prev = null; this.bremst = false; this.bremsT = 0;
     this.stuckP = this.fortschritt(); this.stuckT = 0; this.offT = 0;
     return true;
@@ -647,8 +694,9 @@ export class GegnerFahrer {
 export class GegnerFeld {
   constructor(env, opt = {}) {
     this.env = env; this.L = env.track.line; this.I = env.ideal || env.track.line; this.world = env.world;
-    this.opt = { anzahl: 3, staerke: STAERKE_STD, seed: 1, startplatz: 'auto', wreckOn: false, assist: 'medium', aufholhilfe: false, schiene: 'auto', kollision: true, physik: 'stufe', takt: 'auto', ...opt };
+    this.opt = { anzahl: 3, staerke: STAERKE_STD, seed: 1, startplatz: 'auto', wreckOn: false, assist: 'medium', aufholhilfe: false, schiene: 'auto', kollision: true, physik: 'stufe', takt: 'auto', satz: SATZ_URL, ...opt };
     this.wreckOn = !!this.opt.wreckOn;
+    this.A = this.opt.satz === 'alt' ? { ...AUFHOL_ALT, k: AUFHOL.k } : AUFHOL;   // Gummiband-Werte des Satzes (n43)
     this.haerte = HAERTE[HAERTE_JE_STUFE[this.opt.assist] || 'mittel'];
     this.M = streckenMasken(env);
     this.startIdx = env.track.start.idx;
@@ -660,7 +708,7 @@ export class GegnerFeld {
     this.stoesse = 0; this.spGeistT = 0; this.tick = 0;
     this.fremde = []; this.sichtPunkte = null;   // n35 Online
     const raster = this.raster = startRaster(this.L, this.startIdx, this.opt.rasterN || this.fahrer.length + 1);
-    const st = this.opt.startplatz === 'auto' ? (STAERKEN[this.opt.staerke] || STAERKEN[STAERKE_STD]).start : this.opt.startplatz;
+    const st = this.opt.startplatz === 'auto' ? staerkeWerte(this.opt.staerke, this.opt.satz).start : this.opt.startplatz;
     this.spielerPlatz = this.opt.spielerPlatz ?? spielerSlot(raster.length, st);
     this.p0 = Math.min(...raster.map((r) => fortschritt(this.L, r.idx, r.lapDelta))) - 5;
     if (this.opt.plaetze) this.fahrer.forEach((g, k) => g.aufstellen(raster[this.opt.plaetze[k]]));
@@ -779,7 +827,9 @@ export class GegnerFeld {
     // Streuung: neues Ziel alle STREU.tMin … tMax s (aus Seed und Zeitfenster, ohne Zustand)
     const per = STREU.tMin + (STREU.tMax - STREU.tMin) * hash01(g.info.seed, 1);
     const k = Math.floor(this.uhr / per);
-    let ziel = M.kein[i] ? 0 : (hash01(g.info.seed, k + 7) * 2 - 1) * g.S.streu;
+    // (n43: in Kurven nur streuKurve davon – stärkere Gegner fahren dort die Ideallinie)
+    const kq = g.S.streuKurve == null ? 1 : 1 - (1 - g.S.streuKurve) * M.kurve[i];
+    let ziel = M.kein[i] ? 0 : (hash01(g.info.seed, k + 7) * 2 - 1) * g.S.streu * kq;
     let vCap = Infinity, notCap = Infinity;
     if (!g.fertig) {
       // nächstes Auto voraus mit seitlicher Überdeckung
@@ -795,7 +845,8 @@ export class GegnerFeld {
       if (vor) {
         const [lo, hi] = grenzen(M, i, Math.max(0, me.v), GEGNER_FENSTER);
         const links = vor.lat - C.luecke, rechts = vor.lat + C.luecke;
-        const okL = links >= lo - C.mut, okR = rechts <= hi + C.mut;
+        const mut = C.mut + (g.S.mut || 0);   // n43: Ebenbürtig/Profi überholen mutiger
+        const okL = links >= lo - mut, okR = rechts <= hi + mut;
         const darf = !M.kein[i] && !M.kein[vor.idx] && !vor.crash;
         if (darf && (okL || okR)) {
           // Seite: wo schon mehr Platz ist bzw. wohin man ohnehin steht
@@ -872,7 +923,7 @@ export class GegnerFeld {
 
   // Gummiband (AUFHOL): Tempo-Faktor je Gegner aus dem Abstand zum Spieler, weich gefiltert; Grenzen je nach Physik/Schiene
   aufholen(race, dt = 1 / 120) {
-    const A = AUFHOL, p = race.tracker.progress();
+    const A = this.A, p = race.tracker.progress();
     const wH = Math.max(0, Math.min(1, (this.ziel - p - 100) / Math.max(1, A.ende - 100)));   // Aufholen vor dem Ziel ausblenden
     const a = 1 - Math.exp(-dt / A.tau), aV = 1 - Math.exp(-dt / A.tauVor);
     for (const g of this.fahrer) {

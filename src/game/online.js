@@ -174,7 +174,7 @@ export function startDaten(sitzung, einst = {}) {
 export function kiFeld(env, O, assist, opt = {}) {
   const E = O.S.lobby.einst;
   if (!O.kiInfo.length) return null;
-  const F = new GegnerFeld(env, { anzahl: O.kiInfo.length, staerke: E.staerke, seed: E.seed, assist, online: true, wreckOn: false, aufholhilfe: false,
+  const F = new GegnerFeld(env, { anzahl: O.kiInfo.length, staerke: E.staerke, seed: E.seed, assist, online: true, wreckOn: false, aufholhilfe: false, satz: 'neu',   // n43: online immer die aktuellen Werte (alle Geräte gleich)
     rasterN: O.A.n, plaetze: O.A.kiPlaetze, spielerPlatz: O.slot, ...opt });
   F.fahrer.forEach((g, k) => { g.nummer = O.kiInfo[k].nummer; g.info.nummer = O.kiInfo[k].nummer; });
   O.feld = F;

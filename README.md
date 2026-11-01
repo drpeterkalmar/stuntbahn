@@ -223,7 +223,11 @@ immer in der Nähe bleiben“. Messwerte, Fotos, Grenzen: `GEGNER_BERICHT.md`; T
   abfallende Spiegel, Abrisskante, Stoßstangen und Haube als Trümmer, Kratzer, abgeplatzter Lack, Ruß, gesprungene Scheibe, Rauch
   ab ~70 %. Gilt für alle Autos. Mit Fahrfolgen (nur Original mit 💥 Totalschaden): ab ~60 % zieht das Auto und hat weniger
   Leistung, 100 % = Wrack. Reset repariert nicht, ein neues Rennen schon; Rückspulen spult den Schaden mit.
-- Regler (A/B): `?gegnerphysik=roh`, `?gummi=0…2`, `?schiene=0`, `?gegnernitro=0`, `?gegnertakt=voll`, `?schilder=0`,
+- **n43 (01.11.2026, 0.17.0) – Gegner fahren besser:** alle Stufen schneller und sauberer (eigenes Kurven-Profil je Stärke,
+  weniger Patzer/Verbremser, in Kurven auf der Ideallinie, mutigeres Überholen): auf 60 Sammlungs-Strecken (Mittel) Locker
+  +19 % (vorher +36 %), Ebenbürtig +7 % (+16 %), Profi −1 % (+3 %) zur Autopilot-Zeit. Aufholhilfe nachgestimmt. Alt:
+  `?gegnerstaerke=alt`. Bericht `N43_BERICHT.md`.
+- Regler (A/B): `?gegnerstaerke=alt`, `?gegnerphysik=roh`, `?gummi=0…2`, `?schiene=0`, `?gegnernitro=0`, `?gegnertakt=voll`, `?schilder=0`,
   `?startplatz=`. Tests: `node tests/node/test_gegner.mjs`, `test_autoauto.mjs`, `test_schaden.mjs`, `test_gegner_gfx.mjs`,
   `test_schaden_gfx.mjs`; Browser `python3 tests/test_gegner_ui.py`, Fotos `tests/gegner_shots.py`, `tests/schaden_shots.py`;
   Messung `node tools/gegner_mess.mjs`, `node tools/gummiband_probe.mjs`; Mess-Gate `tests/perf_szenen_gegner.json`.

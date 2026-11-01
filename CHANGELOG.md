@@ -2,6 +2,16 @@
 
 Kurzfassung je Version; Details in den Abschnitten der `README.md` und in den Berichten (`*_BERICHT.md`).
 
+## __VERSION__ – 01.11.2026 (Gegner fahren besser, n43 Etappe 1)
+- **Alle drei Gegner-Stufen fahren besser** (Peter 01.11.: „alle drei gegnerstufen fahren besser“): schneller in Kurven
+  (eigenes Kurven-Profil je Stärke mit der Reifenhaftung deiner Fahrhilfe), seltener verbremst oder verpatzt, kürzere
+  Reaktion, in Kurven auf der Ideallinie, Ebenbürtig/Profi überholen mutiger. 60 Sammlungs-Strecken, Mittel: Locker +19 %
+  (vorher +36 %), Ebenbürtig +7 % (+16 %), Profi −1 % (+3 %) zur Autopilot-Zeit; Reihenfolge auf 60/60, 0 Crashs, 0 Stöße
+  in Stunts. Stunts fahren sie weiter mit genau dem Prüffahrt-Tempo.
+- „Gegner bleiben in der Nähe“ nachgestimmt: Gegner vorn bremsen früher – ein sehr langsamer Spieler liegt im Ziel höchstens
+  ~12 s hinter dem Sieger (vorher 14,5 s).
+- Alt: `?gegnerstaerke=alt` (Werte bis 0.16.0, bitgleich). Bericht `N43_BERICHT.md`, Test `tests/node/test_n43.mjs`.
+
 ## 0.16.0 – 27.10.2026 (Pflicht-Hindernisse, n42 Etappe 2)
 - **Zufallsstrecken haben jetzt immer alle vorgesehenen Hindernisse** (Peter 26.10.: „Zufallsstrecken vergessen
   Hindernisse“): Generator-Version 3, Code-Zusatz **„p“** (4711-2-gp, -3dp, -p). Pflicht-Liste erfüllt in 98–100 % je

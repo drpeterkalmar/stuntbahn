@@ -10,7 +10,7 @@ const R = url.pathToFileURL(path.resolve(path.dirname(url.fileURLToPath(import.m
 const { generate } = await import(R + 'src/track/generator.js');
 const { verifySync } = await import(R + 'src/track/verify.js');
 const { Race } = await import(R + 'src/game/race.js');
-const { GegnerFeld, GEGNER_NITRO, TAKT } = await import(R + 'src/ai/gegner.js');
+const { GegnerFeld, GEGNER_NITRO, TAKT, AUFHOL } = await import(R + 'src/ai/gegner.js');
 const DT = 1 / 120;
 const arg = (k, d) => { const a = process.argv.find((s) => s.startsWith(`--${k}=`)); return a ? a.slice(k.length + 3) : d; };
 const auf = process.argv[2] === '1';
@@ -20,13 +20,15 @@ const STAERKEN = arg('staerken', 'locker,ebenbuertig,profi').split(',');
 const SPIELER = arg('spieler', '1,0.7,0.5,crash').split(',');
 const SIEHT = arg('sieht', '0') === '1';
 if (arg('nitro', '1') === '0') GEGNER_NITRO.an = false;   // A/B
+// Abstimmen (n43): --aufhol=physVor:0.25,vorL:60 (Werte in AUFHOL, ai/gegner.js)
+for (const kv of String(arg('aufhol', '')).split(',').filter(Boolean)) { const [k, x] = kv.split(':'); AUFHOL[k] = +x; }
 if (arg('takt', 'auto') === 'voll') TAKT.an = false;
 
 export function probe(v, staerke, sp, aufholhilfe, seed = 3) {
   const crashSp = sp === 'crash', sc = crashSp ? 0.7 : +sp;
   const race = new Race(v.env, { assist: 'medium', countdown: 1, fahrstil: 'sauber', seed });
   race.ap.speedScale = sc;
-  const F = new GegnerFeld(v.env, { anzahl: 3, staerke, seed, assist: 'medium', startplatz: 'mitte', aufholhilfe });
+  const F = new GegnerFeld(v.env, { anzahl: 3, staerke, seed, assist: 'medium', startplatz: 'mitte', aufholhilfe, satz: arg('satz', 'neu') });
   F.spielerAufstellen(race);
   let t = 0, tc = 0; const near = [], spitze = [];
   let crashG = 0, stoss = 0, stossSp = 0; const gr = {};

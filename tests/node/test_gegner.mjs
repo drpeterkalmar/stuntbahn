@@ -254,7 +254,8 @@ ok(hash01(5, 3) === hash01(5, 3) && hash01(5, 3) !== hash01(5, 4), 'hash01 deter
     return { spitze, falsch, schneller, nan: F.fahrer.some((g) => !Number.isFinite(g.car.pos.x + g.car.pos.y + g.car.pos.z)) };
   };
   const an = lauf(true), aus = lauf(false);
-  ok(an.spitze < 260 && aus.spitze > 600, `Spieler steht 40 s: Feldspitze mit Gummiband +${an.spitze.toFixed(0)} m (< 260), ohne +${aus.spitze.toFixed(0)} m`);
+  // (n43: der schnellere Profi nimmt mehr Schwung in den ersten Looping mit – dort kein Band –, 0.16.0: +200 m, jetzt ~ +294 m)
+  ok(an.spitze < 320 && aus.spitze > 600, `Spieler steht 40 s: Feldspitze mit Gummiband +${an.spitze.toFixed(0)} m (< 320), ohne +${aus.spitze.toFixed(0)} m`);
   ok(an.falsch === 0 && an.schneller === 0 && !an.nan, `(falsch ${an.falsch}, schneller ${an.schneller}) Gummiband in Sicht nur im Bereich ${AUFHOL.physVor} … ${AUFHOL.physHinter}, nie über dem Profil-Tempo, keine NaN`);
 }
 console.log(bad ? `KI-Gegner: ${bad} FEHLER` : 'KI-Gegner: alle Prüfungen grün');

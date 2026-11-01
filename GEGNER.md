@@ -36,7 +36,9 @@ Ohne `race` (Server, Messung, KI gegen KI): `feld.step(dt, null, sichtPunkt)`.
 `env = { track: { line, jumps, pieces, obstacles, start: { idx } }, world (Raycasts), ideal (Ideallinie mit blo/bhi), prof (vt, kA) }`.
 
 ## Was jeder Teil macht (und welche Zahl man im neuen Spiel zuerst anfasst)
-- **Stärke** (`STAERKEN`): `tempo` (Faktor aufs Profil außerhalb von Stunts), `reaktion` (s bis zum Bremsen, vorher Gas weg),
+- **Stärke** (`STAERKEN`, n43; bis 0.16.0 `STAERKEN_ALT`, `opt.satz: 'alt'`): `kurve`/`brems` (eigenes Kurven-Profil der Stärke,
+  `gegnerBasis`: Querhaftung × Reifenhaftung der Stufe, Bremsplan; in Stunt-Nähe weich auf das Prüffahrt-Profil), `streuKurve`
+  (Streuung in Kurven), `mut` (Überhol-Zuschlag), `tempo` (Faktor aufs Profil außerhalb von Stunts), `reaktion` (s bis zum Bremsen, vorher Gas weg),
   `streu` (m Linien-Rauschen), `pSpaet`/`pPatzer` (Anteil der Bremszonen bzw. Stunts mit Fehler). Abgestimmt auf 60 Sammlungs-
   Strecken (Endstand n34, Physik der Stufe): Mittel Locker +35,5 %, Ebenbürtig +15,8 %, Profi +3,4 %; Original +35,5 / +13,9 /
   −0,3 % zur Autopilot-Zeit (`tools/gegner_mess.mjs --assist=medium|original`).

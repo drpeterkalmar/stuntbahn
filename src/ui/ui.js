@@ -415,7 +415,7 @@ export class UI {
       ${seg('gegner', GEGNER_ANZAHLEN.map((n) => [n, n ? String(n) : 'Aus']), G.anzahl)}
       <div class="lbl">Stärke</div>
       ${seg('gstaerke', Object.entries(STAERKEN).map(([k, s]) => [k, s.name]), G.staerke)}
-      <p class="hint">${{ locker: '<b>Locker:</b> fahren deutlich unter dem Limit, bremsen spät, verpatzen öfter einen Stunt – gut zum Üben.', ebenbuertig: '<b>Ebenbürtig:</b> etwa wie ein geübter Fahrer auf Mittel – mal vorn, mal hinten.', profi: '<b>Profi:</b> fast so schnell wie der Autopilot, kaum Fehler.' }[G.staerke]} Jeder Gegner fährt mit derselben Physik wie du, hat seinen eigenen Stil (aggressiv oder sauber), Namen und Lack. In Looping, Röhre und Korkenzieher wird nicht überholt.</p>
+      <p class="hint">${{ locker: '<b>Locker:</b> fahren unter dem Limit, verbremsen sich ab und zu, verpatzen manchmal einen Stunt – gut zum Üben.', ebenbuertig: '<b>Ebenbürtig:</b> etwa wie ein guter Fahrer auf Mittel – sauber, mit wenigen Fehlern, mal vorn, mal hinten.', profi: '<b>Profi:</b> so schnell wie der Autopilot, auf der Ideallinie, fast fehlerfrei.' }[G.staerke]} Jeder Gegner fährt mit derselben Physik wie du, hat seinen eigenen Stil (aggressiv oder sauber), Namen und Lack. In Looping, Röhre und Korkenzieher wird nicht überholt.</p>
       <div class="lbl">Dein Startplatz</div>
       ${seg('gstart', Object.entries(STARTPLAETZE), G.startplatz)}
       <div class="row">${sw('gschilder', G.schilder, 'Namen-Schilder')}${sw('gaufhol', G.aufholhilfe, '🪢 Gegner bleiben in der Nähe')}</div>

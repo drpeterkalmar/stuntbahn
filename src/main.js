@@ -926,7 +926,7 @@ function startRace(opts = {}) {
   if (carVis.schadenVis) schadenZeigen(carVis, SCHADEN_HEIL, 'heil' + ++heilV);
   if (truemmer) truemmer.leeren();
   schadenRep = null;
-  gegner = GO.anzahl > 0 && (!opts.autopilot || GO.url) ? new GegnerFeld(env, { anzahl: GO.anzahl, staerke: GO.staerke, seed: race.driftSeed >>> 0, startplatz: GO.startplatz, wreckOn: race.wreckOn, assist: S.assist, aufholhilfe: GO.aufholhilfe, schiene: GO.schiene, physik: GO.physik, schaden: !!schadenSp }) : null;
+  gegner = GO.anzahl > 0 && (!opts.autopilot || GO.url) ? new GegnerFeld(env, { anzahl: GO.anzahl, staerke: GO.staerke, seed: race.driftSeed >>> 0, startplatz: GO.startplatz, wreckOn: race.wreckOn, assist: S.assist, aufholhilfe: GO.aufholhilfe, schiene: GO.schiene, physik: GO.physik, satz: GO.satz, schaden: !!schadenSp }) : null;
   if (gegner) gegner.spielerSchaden = schadenSp;
   race.mitGegnern = !!gegner;   // HUD „Beste“ aus der Liste „mit Gegnern“
   // Mess-Gate Schaden (tests/perf_szenen_gegner.json): ?schadenprobe=1 = Spieler- und Gegner-Autos stark beschädigt ab dem Start

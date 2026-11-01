@@ -8,11 +8,14 @@ const { verifySync } = await import(R + 'src/track/verify.js');
 const { Race } = await import(R + 'src/game/race.js');
 const { GegnerFeld } = await import(R + 'src/ai/gegner.js');
 const DT = 1 / 120;
+// n43: --satz=alt (Stärke-Werte bis 0.16.0), --aufholhilfe=1 (Gummiband wie im Spiel-Standard), --fahrstil=brachial (Leicht)
+const arg = (k, d) => { const a = process.argv.find((x) => x.startsWith(`--${k}=`)); return a ? a.slice(k.length + 3) : d; };
+const SATZ = arg('satz', 'neu'), AUF = arg('aufholhilfe', '0') === '1', STIL = arg('fahrstil', 'sauber'), ST = arg('staerke', 'locker');
 for (const [s, d] of [[11, 2], [4711, 3]]) {
   const v = verifySync(generate(s, d));
   for (const assist of ['easy', 'medium']) for (const mit of [false, true]) {
-    const race = new Race(v.env, { assist, countdown: 1, fahrstil: 'sauber', seed: 3 });
-    const F = mit ? new GegnerFeld(v.env, { anzahl: 5, staerke: 'locker', seed: 3, assist, startplatz: 'hinten' }) : null;
+    const race = new Race(v.env, { assist, countdown: 1, fahrstil: STIL, seed: 3 });
+    const F = mit ? new GegnerFeld(v.env, { anzahl: 5, staerke: ST, seed: 3, assist, startplatz: 'hinten', satz: SATZ, aufholhilfe: AUF }) : null;
     if (F) F.spielerAufstellen(race);
     const ev = {};
     let t = 0;
