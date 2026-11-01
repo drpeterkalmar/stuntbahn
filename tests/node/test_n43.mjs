@@ -97,5 +97,53 @@ for (const [s, d] of [[11, 2], [4711, 3]]) {
   ok(!c.driftSegs && c.fahrer.every((g) => !g.drift && g.car.assist.drift == null) && typeof GEGNER_DRIFT.an === 'boolean', 'ohne Drift (opt.drift false, URL ?gegnerdrift=0): keine Drift-Stellen, kein Drift-Regler');
 }
 
+// 6. Etappe 2 – Spieler-Auto: lockeres Heck (car.js HECK) und Drift-Hilfe Mittel
+{
+  const { fahrt } = await import('../../tools/n43_spieler_drift.mjs');
+  const { HECK } = await import('../../src/physics/car.js');
+  const { Race } = await import('../../src/game/race.js');
+  const { driftTracks } = await import('../../tools/drift_mess.mjs');
+  const T = (await driftTracks()).filter(([n]) => ['4711-2', '88-2-g', 'sam-032'].includes(n));
+  const mit = (k, f) => { const k0 = HECK.k; HECK.k = k; try { return f(); } finally { HECK.k = k0; } };
+  let zeitOk = 0, n = 0, d0 = 0, d1 = 0, c0 = 0, c1 = 0, cr0 = 0, cr1 = 0;
+  for (const [name, mk] of T) {
+    const v = verifySync(mk());
+    for (const st of ['easy', 'medium', 'original']) {
+      const a = mit(0, () => fahrt(v.env, st, 'glatt')), b = mit(1, () => fahrt(v.env, st, 'glatt'));
+      n++; if (a.ok && b.ok && Math.abs(b.time / a.time - 1) <= 0.02) zeitOk++; else console.log('  Zeit', name, st, a.time, b.time);
+    }
+    const a = mit(0, () => fahrt(v.env, 'original', 'vollgas')), b = mit(1, () => fahrt(v.env, 'original', 'vollgas'));
+    d0 += a.curve10; c0 += a.curve; d1 += b.curve10; c1 += b.curve; cr0 += a.crashes; cr1 += b.crashes;
+  }
+  ok(zeitOk === n, `Bestzeit-Maßstab: glatter Fahrer (Sauber-Autopilot bzw. Autopilot-Eingaben) auf Leicht/Mittel/Original ± 2 % (${zeitOk}/${n})`);
+  ok(d1 / c1 > 3 * Math.max(0.01, d0 / c0) && cr1 <= cr0 + 2, `Original, Vollgas-Fahrer: Kurvenzeit > 10° ${(d0 / c0 * 100).toFixed(1)} → ${(d1 / c1 * 100).toFixed(1)} %, Crashs ${cr0} → ${cr1}`);
+  // Prüffahrt (reine Autopilot-Fahrt) ohne Heck; Gegner ohne Spieler-Heck
+  const v = verifySync(generate(4711, 2));
+  const R1 = new Race(v.env, { assist: 'medium', autopilot: true }); Race.carAssist(R1.car, R1.assist, true, 'medium');
+  ok(R1.car.assist.heck === null, 'Prüffahrt/Generator (reine Autopilot-Fahrt): kein lockeres Heck');
+  const R2 = new Race(v.env, { assist: 'medium', countdown: 0.2 });
+  let gesperrt = 0, frei = 0, falsch = 0;
+  for (let t = 0; t < 40 && R2.state !== 'finished'; t += 1 / 120) {
+    const o = R2.ap.out; R2.step(1 / 120, { steer: o.steer, throttle: o.throttle, brake: o.brake });
+    if (R2.state !== 'running') continue;
+    const i = R2.ap.tr.idx, L = v.env.track.line;
+    if (R2.heckSperre()[i]) { gesperrt++; if (R2.car.assist.heck) falsch++; } else frei++;
+    if ((L.loop[i] || L.tube[i] || L.air[i] || R2.isJumpZone(i)) && !R2.heckSperre()[i]) falsch++;
+  }
+  ok(falsch === 0 && gesperrt > 0 && frei > 0, `Heck gesperrt in/vor Looping/Röhre/Schanze (${(gesperrt / (gesperrt + frei) * 100).toFixed(0)} % der Fahrzeit gesperrt, Fehler ${falsch})`);
+  // Drift-Hilfe Mittel: Ereignis → kontrolliert quer, danach eingefangen (Schwimmwinkel wieder < 5°)
+  const R3 = new Race(v.env, { assist: 'medium', countdown: 0.2 });
+  let bmax = 0, gefangen = false, start = null;
+  for (let t = 0; t < 60 && R3.state !== 'finished'; t += 1 / 120) {
+    const o = R3.ap.out, c = R3.car;
+    if (start == null && R3.state === 'running' && !R3.heckSperre()[R3.ap.tr.idx] && c.fwdSpeed() > 15 && Math.abs(o.steer) > 0.25) { start = t; c._hilfeStart(c.assist.heck || {}, Math.sign(-o.steer), 1); }
+    R3.step(1 / 120, { steer: o.steer, throttle: o.throttle, brake: o.brake });
+    const F = c.frame, b = Math.abs(Math.atan2(c.v.x * F.r.x + c.v.y * F.r.y + c.v.z * F.r.z, c.fwdSpeed())) * 180 / Math.PI;
+    if (start != null && t - start < 3) bmax = Math.max(bmax, b);
+    if (start != null && t - start > 1 && t - start < 3.5 && !c._hd && b < 5) gefangen = true;
+  }
+  ok(start != null && bmax > 8 && gefangen && R3.crashes === 0, `Mittel Drift-Hilfe: quer bis ${bmax.toFixed(0)}°, danach eingefangen, kein Crash`);
+}
+
 console.log(bad ? `n43: ${bad} FEHLER` : 'n43: alles OK');
 process.exit(bad ? 1 : 0);

@@ -80,3 +80,6 @@ tests/shots/n42/*
 !tests/shots/n42/*.jpg
 !tests/shots/n42/*.json
 tests/shots/n42/selten_?.jpg
+# n43: nur die Bericht-Bilder (jpg)
+!tests/shots/n43/
+tests/shots/n43/*.png

@@ -2,6 +2,17 @@
 
 Kurzfassung je Version; Details in den Abschnitten der `README.md` und in den Berichten (`*_BERICHT.md`).
 
+## __VERSION__ – 01.11.2026 (Alle Autos driften mehr, n43 Etappe 2)
+- **Gegner driften** (Peter 01.11.: „alle autos driften mehr“): Locker wild (49 % der Kurvenzeit quer), Ebenbürtig oft (46 %),
+  Profi kontrolliert in engen Kurven (30 %) – mit Gummispuren und Reifenqualm, nie in Looping/Röhre/Korkenzieher/Schanze/
+  Steilkurve. Zeiten der Stufen wie in 0.17.0 (Mittel: Locker +20 %, Ebenbürtig +8 %, Profi −0,3 %). `?gegnerdrift=0` = aus.
+- **Leicht-Autopilot „Brachial“** driftet mehr: 52 % statt 28 % der Kurvenzeit quer, 10,6 statt 6,4 Drifts je Runde, Schanzen
+  100 %. `?brachial=alt`.
+- **Eigenes Auto: lockereres Heck** auf allen Stufen (Einlenk-Ruck, Gas weg oder Bremse antippen in der Kurve, Vollgas), Mittel
+  mit Drift-Hilfe (kurz kontrolliert quer, sicher eingefangen), Original ehrlich. Gespeicherte Bestzeiten bleiben gültig
+  (sauberes Fahren ±0,3 %). `?drift=alt` = Physik 0.17.0, `?heck=2` = stärker (zum Ausprobieren, wertet nicht).
+- Bericht `N43_BERICHT.md`, Tests `tests/node/test_n43.mjs`, `tests/n43_shots.py`.
+
 ## 0.17.2 – 01.11.2026 (Werbebanden 2)
 - Banden-Werbung (Peter 01.11.): „ZEHENSTROM“ statt „ALPENSTROM“, „LIPPEN-ÖL“ statt „TURBO-ÖL“, „FINGERMILCH“ statt „WIESENMILCH“. Nur Texte.
 

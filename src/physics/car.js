@@ -79,6 +79,29 @@ export const ESC = { lat: 1.0, dead: 0.12, deadK: 0.15, k: 6, max: 4 };
 // Drift-Regler (Leicht „Brachial“, n25, Car.step): Giermoment kp × Winkelfehler − kd × Winkelrate + I-Anteil (ki, bis iMax)
 // (rad/s²), höchstens max
 export const DRIFT = { kp: 80, kd: 12, ki: 200, iMax: 8, max: 20 };
+// Lockeres Heck (n43, Peter 01.11.2026: „alle autos driften mehr“; Spieler-Autos aller Fahrhilfe-Stufen, nie die Prüffahrt): die
+// Hinterachse verliert Seitenhaftung (Faktor 1 − Summe, höchstens bis min) in der Kurve – Anteil c = Querbeschleunigung /
+// Haftungsgrenze (0 … 1) – durch
+//   gas   Vollgas in der Kurve (erst ab 40 % der Grenze),
+//   lift  Lastwechsel: Gas in evDt s von voll auf null (in der Kurve, über cEv der Grenze) → evT s lang, abklingend,
+//   brems Bremsimpuls: Bremse in evDt s von null auf voll (in der Kurve) → evT s lang, abklingend,
+//   lenk  Einlenken: Lenkung springt in evDt s um mindestens lenkSprung (Handy-Knopf, Ruck) → evT s lang, abklingend,
+//   halt  Drift halten: schon quer (Schwimmwinkel über halt0°, voll ab halt1°, über halt2° … halt3° wieder weg) und Gas → das
+//         Heck bleibt draußen.
+// Erst ab v0 m/s. Je Stufe (race.js carAssist → car.assist.heck; die Rennlogik sperrt es vor/in Stunts, race.js heckSperre):
+// Mittel zusätzlich mit Drift-Hilfe (hilfe Grad, _hilfe: kontrolliert quer, dann eingefangen; Leicht mit Drift-Hilfe crashte
+// in Gelände-Strecken öfter, dort driftet ohnehin der Autopilot „Brachial“), Original ehrlich (nur Physik).
+// Abgestimmt mit tools/n43_spieler_drift.mjs: glatter Fahrer (Autopilot, Bestzeit-Maßstab) ±1 %, keine Extra-Crashs. URL ?drift=alt = Physik bis 0.17.0 (aus), ?heck=0…2 = Stärke (A/B, wertet nicht).
+const heckUrl = urlQ ? (urlQ.get('drift') === 'alt' ? 0 : urlQ.has('heck') ? Math.max(0, Math.min(2, +urlQ.get('heck') || 0)) : null)
+  : globalThis.process && globalThis.process.env && globalThis.process.env.STUNT_DRIFT === 'alt' ? 0 : null;   // Node: STUNT_DRIFT=alt
+export const HECK = {
+  k: heckUrl ?? 1,
+  easy: { lenk: 0.2, gas: 0.06, lift: 0.25, brems: 0.25, halt: 0.08, min: 0.7 },
+  medium: { hilfe: 15, cEv: 0.15, lenk: 0.4, escDead: 0.35, escK: 0.5, gas: 0.12, lift: 0.4, brems: 0.4, halt: 0.15, min: 0.5 },
+  original: { lenk: 0.25, gas: 0.05, lift: 0.25, brems: 0.25, halt: 0.05, min: 0.65 },
+  v0: 12, evDt: 0.15, evT: 0.6, cEv: 0.3, lenkSprung: 0.45, halt0: 6, halt1: 12, halt2: 20, halt3: 30,
+  hIn: 0.2, hMax: 0.8, hOut: 0.4, hPause: 1.5, hV: [28, 50],
+};
 // Antriebs-Kappe (Mittel n24): 1 bis vSoft, dann (1 − k)² mit k = (v − vSoft)/(vTop − vSoft), 0 ab vTop
 export function driveTaper(v, vSoft, vTop) {
   if (!(vTop > vSoft) || v <= vSoft) return 1;
@@ -196,6 +219,63 @@ export class Car {
     this.updateFrame();
   }
 
+  // n43 lockeres Heck: Faktor auf die Hinterrad-Haftung (1 = aus) aus Gas, Lastwechsel, Bremsimpuls und Schwimmwinkel in der Kurve
+  // (HECK). Lastwechsel und Bremsimpuls sind Ereignisse wie am Handy-Knopf (Pedal in evDt s von voll auf null bzw. von null auf voll)
+  // – ein weich regelnder Fahrer (Autopilot, Bestzeit-Maßstab) löst sie kaum aus. Gas/Halten nur mit (fast) Vollgas.
+  _heck(dt, vF, thr, brk, wrecked, steer = 0) {
+    const H = this.assist.heck, k = HECK.k, E = HECK.evDt;
+    this._stLP = (this._stLP || 0) + (steer - (this._stLP || 0)) * Math.min(1, dt / E);   // Lenkung geglättet (evDt s)
+    this._thrPk = Math.max(thr, (this._thrPk || 0) - dt / E);         // Spitze Gas der letzten evDt s
+    this._brkLo = Math.min(brk, (this._brkLo ?? 1) + dt / E);         // Tiefstwert Bremse der letzten evDt s
+    const ev = (this._evT = Math.max(0, (this._evT || 0) - dt));
+    if (!H || !(k > 0) || wrecked || this.surfaceKind || this.onGround < 3 || this.assist.drift != null) { this._evT = 0; return 1; }
+    const av = Math.abs(vF);
+    if (av < HECK.v0) { this._evT = 0; return 1; }
+    const F = this.frame, d = this.def;
+    const yaw = this.w.x * F.u.x + this.w.y * F.u.y + this.w.z * F.u.z;
+    const aLat = (this.assist.grip || 1) * (this.assist.gripK || 1) * d.mu * 9.81 * aeroLoad(d, vF);
+    const c = Math.min(1, Math.abs(yaw * av) / aLat);
+    if (c > (H.cEv ?? HECK.cEv)) {
+      if (this._thrPk >= 0.95 && thr <= 0.05) { this._evT = HECK.evT; this._evK = H.lift; this._thrPk = 0; this._hilfeStart(H, yaw, 1); }        // Lastwechsel
+      else if (this._brkLo <= 0.05 && brk >= 0.9) { this._evT = HECK.evT; this._evK = H.brems; this._brkLo = 1; this._hilfeStart(H, yaw, 1); }  // Bremsimpuls
+    }
+    // Einlenken: Lenkung springt (Handy-Knopf, Ruck am Stick) um mindestens lenkSprung gegenüber den letzten evDt s – nicht beim
+    // Zurücklenken zur Mitte
+    if (Math.abs(steer - this._stLP) >= HECK.lenkSprung && Math.abs(steer) > Math.abs(this._stLP) && !(ev > HECK.evT * 0.5)) { this._evT = HECK.evT; this._evK = H.lenk * Math.min(1, Math.abs(steer)); this._stLP = steer; if (Math.abs(steer) >= 0.5) this._hilfeStart(H, -steer, Math.min(1, Math.abs(steer))); }   // (Richtung aus der Lenkung: rechts lenken = Heck nach links)
+    const vr = this.v.x * F.r.x + this.v.y * F.r.y + this.v.z * F.r.z;
+    const beta = Math.abs(Math.atan2(vr, Math.max(1, av))) * 180 / Math.PI;
+    // (Halten selbstbegrenzend: ab halt0° steigend, voll bei halt1°, über halt2° … halt3° wieder weg – sonst schaukelte es sich zum Dreher auf)
+    const qb = Math.max(0, Math.min(1, (beta - HECK.halt0) / (HECK.halt1 - HECK.halt0), (HECK.halt3 - beta) / (HECK.halt3 - HECK.halt2)));
+    const voll = Math.max(0, (thr - 0.85) / 0.15);
+    const evC = Math.max(Math.min(1, c / 0.6), this._evK && ev > 0 ? 0.5 : 0);   // (Einlenken: Kurve baut sich erst auf)
+    const minus = H.gas * voll * Math.max(0, (c - 0.4) / 0.6) + (ev > 0 ? (this._evK || 0) * evC * ev / HECK.evT : 0) + H.halt * voll * qb;
+    return Math.max(1 - (1 - H.min) * Math.min(1, k), 1 - minus * k);
+  }
+
+  // Drift-Hilfe (n43, Mittel: heck.hilfe = Soll-Schwimmwinkel in Grad): ein Ereignis in der Kurve stellt das Heck über den
+  // Drift-Regler (DRIFT) kontrolliert quer – in HECK.hIn s auf den Winkel, halten solange Gas und Kurve (höchstens hMax s), dann in
+  // hOut s auf 0 und mit Soll 0 einfangen, bis das Auto ruhig ist (wie Leicht „Brachial“ settle). Original: keine Hilfe (ehrlich).
+  _hilfeStart(H, yaw, q) {
+    const av = Math.abs(this.fwdSpeed());
+    if (!H.hilfe || this._hd || this.assist.drift != null || this.time - (this._hdEnde ?? -1e9) < HECK.hPause || av > HECK.hV[1]) return;
+    // (Winkel bis hV[0] m/s voll, darüber weniger – bei Tempo trägt ein Drift sonst weit nach außen)
+    q *= Math.max(0.4, Math.min(1, 1 - (av - HECK.hV[0]) / (HECK.hV[1] - HECK.hV[0])));
+    this._hd = { t: 0, ph: 'in', sg: Math.sign(yaw) || 1, b: Math.min(35, H.hilfe * Math.min(2, HECK.k)) * (0.7 + 0.3 * q) * Math.PI / 180, ruhig: 0 };   // (?heck= skaliert auch den Winkel)
+  }
+  _hilfe(dt, thr, c, beta) {
+    const D = this._hd, X = HECK;
+    if (!D) return null;
+    // (Abbruch auch, wenn die Rennlogik das Heck sperrt – vor Stunts, Engstellen, Hochstraßen: heck null → Soll 0 übernimmt settle)
+    if (this.onGround < 3 || this.surfaceKind || this.crash || Math.abs(this.fwdSpeed()) < X.v0 * 0.7) { this._hd = null; this._hdEnde = this.time; return null; }
+    if (!this.assist.heck && D.ph !== 'aus') { D.ph = 'aus'; D.t = 0; D.b = Math.min(D.b, Math.abs(beta)); }
+    D.t += dt;
+    let ziel;
+    if (D.ph === 'in') { ziel = D.b * Math.min(1, D.t / X.hIn); if (D.t >= X.hIn) { D.ph = 'halt'; D.t = 0; } }
+    else if (D.ph === 'halt') { ziel = D.b; if (D.t > (this.assist.heck ? this.assist.heck.hMax ?? X.hMax : 0) || thr < 0.5 || c < 0.15) { D.ph = 'aus'; D.t = 0; } }
+    else { ziel = D.b * Math.max(0, 1 - D.t / X.hOut); D.ruhig = Math.abs(beta) < 3 * Math.PI / 180 ? D.ruhig + dt : 0; if (D.t > X.hOut && (D.ruhig > 0.2 || D.t > X.hOut + 1.2)) { this._hd = null; this._hdEnde = this.time; return null; } }
+    return D.sg * ziel;
+  }
+
   updateFrame() {
     const q = this.q, F = this.frame;
     qrot(q, 1, 0, 0, F.r); qrot(q, 0, 1, 0, F.u); qrot(q, 0, 0, -1, F.f);
@@ -284,6 +364,7 @@ export class Car {
     let grassN = 0, gnx = 0, gny = 0, gnz = 0;
 
     const rollU = d.rollHV ? Math.max(0, Math.min(1, (Math.abs(vF) - d.rollHV[0]) / (d.rollHV[1] - d.rollHV[0]))) : 1;
+    this.heckK = this._heck(dt, vF, thr, brk, wrecked, inp.roh ?? steerIn);   // (roh: Lenkung des Spielers selbst, race.js)
 
     // Federbeine
     const L = d.rest + d.wheelR;
@@ -327,6 +408,7 @@ export class Car {
       let grip = (GRIP[w.mat] ?? 1) * d.mu * (this.assist.grip || 1) * (this.assist.gripK || 1);   // Fahrhilfe Mittel: mehr Reifenhaftung (n16); n37 ?grip=
       // Drift (Leicht „Brachial“, n25): Hinterräder mit weniger Haftung (assist.rearGrip, wie ein durchdrehendes Heck)
       if (!w.front && this.assist.rearGrip) grip *= this.assist.rearGrip;
+      if (!w.front) grip *= this.heckK;   // n43 lockeres Heck (HECK, Spieler-Autos)
       const fmax = grip * load;
       const slip = vLat / Math.max(Math.abs(vLong), 3.2);
       w.slip = slip;
@@ -426,17 +508,21 @@ export class Car {
     const esc = this.assist.esc || 0;
     // (n37: nicht kurz nach einem Wandkontakt – die Wand dreht das Auto parallel, ESC bremste sonst dagegen)
     this.wallT = Math.max(0, this.wallT - dt);
-    if (esc > 0 && contacts >= 3 && !this.surfaceKind && !wrecked && Math.abs(vF) > 6 && !(this.wallT > 0)) {
+    if (esc > 0 && contacts >= 3 && !this.surfaceKind && !wrecked && Math.abs(vF) > 6 && !(this.wallT > 0) && !this._hd) {
       const yaw = this.w.x * F.u.x + this.w.y * F.u.y + this.w.z * F.u.z;
       const wb = 2.72, av = Math.abs(vF);
       const aLat = (this.assist.grip || 1) * (this.assist.gripK || 1) * d.mu * 9.81 * aero * ESC.lat;
       const rLim = aLat / av, rSteer = -vF * Math.tan(this.steerAng) / wb;
       const rRef = Math.max(-rLim, Math.min(rLim, rSteer));
-      const err = yaw - rRef, dead = (this.assist.escDead ?? ESC.dead) + ESC.deadK * Math.abs(rRef);
+      // (n43: solange das lockere Heck wirkt, greift er etwas später – heck.escDead rad/s mehr Totband, eingefangen wird trotzdem)
+      const hl = this.assist.heck && this.heckK < 1 ? (this.assist.heck.escDead || 0) * Math.min(1, (1 - this.heckK) / 0.2) : 0;
+      const err = yaw - rRef, dead = (this.assist.escDead ?? ESC.dead) + ESC.deadK * Math.abs(rRef) + hl;
       // nur Übersteuern: zu viel Gieren in Lenkrichtung oder Gieren gegen die Lenkung
       const excess = Math.abs(err) - dead;
       if (excess > 0 && (Math.sign(err) === Math.sign(yaw) || Math.abs(rRef) < 0.02)) {
-        const I = d.inertia[1], m0 = Math.min(excess * ESC.k, ESC.max) * esc * I;
+        // (n43: im Heck-Ereignis schwächer – heck.escK –, danach wieder voll: das Rutschen darf kurz stehen bleiben)
+        const escH = hl > 0 ? 1 - (1 - (this.assist.heck.escK ?? 1)) * Math.min(1, hl / Math.max(1e-6, this.assist.heck.escDead || 1)) : 1;
+        const I = d.inertia[1], m0 = Math.min(excess * ESC.k, ESC.max) * esc * escH * I;
         const sg = -Math.sign(err);
         tx += F.u.x * m0 * sg; ty += F.u.y * m0 * sg; tz += F.u.z * m0 * sg;
         // Tempo-Verlust wie beim Abbremsen eines Rades (Hebel = halbe Spur)
@@ -451,7 +537,14 @@ export class Car {
     // Reifen rutschen dabei wirklich (Qualm, Spuren); Lenkung und Gas kommen vom Autopiloten (ai/drift.js). Nicht in
     // Looping/Röhre, nicht in der Luft, nicht im Wrack.
     this.driftOn = 0;
-    const dB = this.assist.drift;
+    let dB = this.assist.drift;
+    if (dB == null && this._hd) {
+      const vr0 = this.v.x * F.r.x + this.v.y * F.r.y + this.v.z * F.r.z, av0 = Math.abs(vF);
+      const yaw0 = this.w.x * F.u.x + this.w.y * F.u.y + this.w.z * F.u.z;
+      const aL = (this.assist.grip || 1) * (this.assist.gripK || 1) * d.mu * 9.81 * aero;
+      dB = this._hilfe(dt, thr, Math.min(1, Math.abs(yaw0 * av0) / aL), Math.atan2(vr0, Math.max(1, av0)));
+      this.hilfeOn = dB != null;
+    } else this.hilfeOn = false;
     if (dB != null && contacts >= 3 && !this.surfaceKind && !wrecked && sp > 5) {
       const vr = this.v.x * F.r.x + this.v.y * F.r.y + this.v.z * F.r.z;
       const beta = Math.atan2(vr, vF);

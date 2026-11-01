@@ -1,7 +1,7 @@
 // Renn-Logik: Countdown, Zeit, Checkpoints, Crash (Fahrbahn-Reset mit Zeitstrafe oder Wrack),
 // Rückspulen, Fahrhilfen (Mischung Spieler/Autopilot), Abkürzungs-Regel, Aufzeichnung für Replay + Geist.
 // Reines JS (auch in Node lauffähig).
-import { Car, CAR_DEF, driveAccel, aeroLoad } from '../physics/car.js';
+import { Car, CAR_DEF, driveAccel, aeroLoad, HECK } from '../physics/car.js';
 import { G } from '../physics/air.js';
 import { Autopilot, Tracker } from '../ai/autopilot.js';
 import { WORLD_SCALE, ROAD_HW, TILE, MAT, WIESE } from '../track/defs.js';
@@ -153,6 +153,7 @@ export function zigMask(track) {
 // gehalten in pushT s bis voll),
 // übernehmen wie beim Mitlenk-Modell nur, wer außerhalb des Bandes weiter von der Linie wegdrückt.
 // URL ?fahrstil=sauber|brachial übersteuert die Einstellung.
+export const HECK_SPERRE = { vor: 25, vorT: 1, nach: 15, breite: 6 };
 export const FAHRSTILE = { brachial: 'Brachial', sauber: 'Sauber' };
 export const FAHRSTIL_URL = urlQ && FAHRSTILE[urlQ.get('fahrstil')] ? urlQ.get('fahrstil') : null;
 export const BRACHIAL_STEER = { nudge: 0.3, nudgeDrift: 0.1, pushT: 1.6, lift: 0.85, liftThr: 0.35, nitroLead: 250 };
@@ -280,6 +281,9 @@ export class Race {
     c.airTap = X ? X.airTap || 0 : 0;
     c.steerSpeed = X ? X.steerSpeed || 0 : 0; c.gripK = X ? X.gripK || 1 : 1; c.escDead = X ? X.escDead : undefined;
     if (X && X.drive) { c.drive = X.drive; c.vSoft = X.vSoft; c.vTop = X.vTop; }
+    // n43 lockeres Heck (car.js HECK) je Stufe – nie in der reinen Autopilot-Fahrt (Prüffahrt/Generator bitgleich); die Rennlogik
+    // sperrt es zusätzlich vor/in Stunts (Race.heckSperre)
+    c.heck = autopilotOnly ? null : HECK[key || Object.keys(ASSISTS).find((k) => ASSISTS[k] === A)] || null;
   }
 
   // Luftsteuerung (n37): Spieler-Eingabe → car.input.air. Was beim Absprung schon gehalten wird (Vollgas, Lenken in der Kurve),
@@ -477,7 +481,9 @@ export class Race {
     this.lastInput = { steer, throttle: thr, brake: brk };
     car.input.steer = steer; car.input.throttle = thr; car.input.brake = brk; car.input.hold = !!A.autoSpeed && !this.autopilotOnly && input.brake < 0.5;
     car.input.hand = brachial && input.brake <= 0.05 ? ap.hand : 0;
+    car.input.roh = this.autopilotOnly ? null : input.steer;   // n43: Spieler-Lenkung (lockeres Heck: Einlenk-Ruck, car.js HECK)
     Race.carAssist(car, A, this.autopilotOnly, this.assistKey);
+    if (car.assist.heck && this.heckSperre()[idx]) car.assist.heck = null;   // n43: kein lockeres Heck vor/in Stunts
     // n37 Luftsteuerung: Eingabe des Spielers (nicht der Hilfe) – Gas = Nase runter, Bremse = Nase hoch, Lenken = Rollen
     this.airInput(input, car, dt);
     // Drift-Physik (n25, Brachial): Soll-Schwimmwinkel, Gegenlenk-Einschlag, Heckhaftung, Antriebsverteilung – sonst aus
@@ -913,6 +919,24 @@ export class Race {
     return j;
   }
 
+  // n43: kein lockeres Heck / keine Drift-Hilfe in und vor Looping/Röhre/Luft/Schanze/Zickzack/Steilkurve/Welle/Engstelle
+  // (HECK_SPERRE m davor bzw. s × Plan-Tempo, nach m dahinter) und nicht auf Hochstraßen – wie Leicht „Brachial“ (ai/drift.js)
+  heckSperre() {
+    if (this._heckS) return this._heckS;
+    const L = this.env.track.line, I = this.env.ideal || L, n = L.n, P = this.env.prof, S = HECK_SPERRE;
+    const bad = new Uint8Array(n), out = new Uint8Array(n);
+    for (let i = 0; i < n; i++) {
+      const pc = this.env.track.pieces[L.piece[i]];
+      if (L.loop[i] || L.tube[i] || L.air[i] || this.isJumpZone(i) || this.zig[i] || Math.abs(L.by[i]) > 0.12 || (L.wave && L.wave[i]) || (pc && pc.stunt) || this.high[i] || (I.hi && I.hi[i] - I.lo[i] < S.breite)) bad[i] = 1;
+    }
+    for (let pass = 0; pass < (L.closed ? 2 : 1); pass++) {
+      let d = 1e9;
+      for (let i = n - 1; i >= 0; i--) { d = bad[i] ? 0 : d + Math.max(0, (L.s[i + 1] ?? L.s[i]) - L.s[i]); if (d < Math.max(S.vor, S.vorT * (P.vt[i] || 0))) out[i] = 1; }
+      let e = 1e9;
+      for (let i = 0; i < n; i++) { e = bad[i] ? 0 : e + (i ? L.s[i] - L.s[i - 1] : 0); if (e < S.nach) out[i] = 1; }
+    }
+    return (this._heckS = out);
+  }
   isJumpZone(idx) {
     for (const j of this.env.track.jumps) if (idx >= j.lipIdx - 30 && idx <= (j.endIdx ?? j.landIdx + 12)) return true;
     return false;

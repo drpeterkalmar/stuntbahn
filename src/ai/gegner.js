@@ -396,6 +396,7 @@ export class GegnerFahrer {
       const key = ASSISTS[feld.opt.assist] ? feld.opt.assist : 'medium';
       Race.carAssist(this.car, ASSISTS[key], false, key);
       this.car.assist.airCtl = 0; this.car.assist.airTap = 0;
+      this.car.assist.heck = null;   // n43: Gegner driften über ihren Drift-Regler (GEGNER_DRIFT), nicht übers lockere Spieler-Heck
     }
     this.acc = (v) => antrieb(this.car, v);
     // n43: Kurven-Profil der Stärke (Reifenhaftung der Stufe: Mittel mehr Grip; ?gegnerphysik=roh wie die Prüffahrt)

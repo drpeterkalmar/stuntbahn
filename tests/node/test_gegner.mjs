@@ -213,7 +213,10 @@ ok(hash01(5, 3) === hash01(5, 3) && hash01(5, 3) !== hash01(5, 4), 'hash01 deter
 // 13. Gegner Aus = bitgleich zum Stand vor n34 (Aufzeichnung + Zeit, Autopilot und gescripteter Spieler, 3 Fahrhilfen)
 {
   const ref = JSON.parse(fs.readFileSync(new URL('./data/gegner_aus_ref.json', import.meta.url), 'utf8'));
+  // (n43: Spieler-Physik mit lockerem Heck – hier wie bis 0.17.0, ?drift=alt; die Gegner-Änderungen betreffen „Gegner Aus“ nicht)
+  const { HECK } = await import('../../src/physics/car.js'); const k0 = HECK.k; HECK.k = 0;
   const neu = hashes();
+  HECK.k = k0;
   const diff = Object.keys(ref).filter((k) => ref[k] !== neu[k]);
   ok(diff.length === 0 && Object.keys(neu).length === Object.keys(ref).length, `Gegner Aus: ${Object.keys(ref).length} Rennen bitgleich zur Basis (Aufzeichnung, Zeit, Crashs)${diff.length ? ' – abweichend: ' + diff.join(', ') : ''}`);
 }

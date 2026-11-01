@@ -227,6 +227,9 @@ immer in der Nähe bleiben“. Messwerte, Fotos, Grenzen: `GEGNER_BERICHT.md`; T
   weniger Patzer/Verbremser, in Kurven auf der Ideallinie, mutigeres Überholen): auf 60 Sammlungs-Strecken (Mittel) Locker
   +19 % (vorher +36 %), Ebenbürtig +7 % (+16 %), Profi −1 % (+3 %) zur Autopilot-Zeit. Aufholhilfe nachgestimmt. Alt:
   `?gegnerstaerke=alt`. Bericht `N43_BERICHT.md`.
+- **n43 Etappe 2 (0.18.0) – alle Autos driften mehr:** Gegner driften je Stärke (Brachial-Drift-Logik, `GEGNER_DRIFT`), mit
+  Gummispuren/Qualm; Leicht „Brachial“ 52 % der Kurvenzeit quer; Spieler-Auto mit lockererem Heck (`HECK` in `physics/car.js`,
+  Mittel mit Drift-Hilfe). Regler `?gegnerdrift=0`, `?brachial=alt`, `?drift=alt`, `?heck=0…2`.
 - Regler (A/B): `?gegnerstaerke=alt`, `?gegnerphysik=roh`, `?gummi=0…2`, `?schiene=0`, `?gegnernitro=0`, `?gegnertakt=voll`, `?schilder=0`,
   `?startplatz=`. Tests: `node tests/node/test_gegner.mjs`, `test_autoauto.mjs`, `test_schaden.mjs`, `test_gegner_gfx.mjs`,
   `test_schaden_gfx.mjs`; Browser `python3 tests/test_gegner_ui.py`, Fotos `tests/gegner_shots.py`, `tests/schaden_shots.py`;

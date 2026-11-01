@@ -82,6 +82,14 @@ Ohne `race` (Server, Messung, KI gegen KI): `feld.step(dt, null, sichtPunkt)`.
   Tiefe, Gesamtschaden, Scheibe), gefüllt aus dem kompakten Schadens-Zustand – n35 überträgt nur `packen(S)` (3 + 8 Byte je Delle).
   Kratzer entstehen auch beim Schrammen an Wänden (`KRATZER`, flache Treffer).
 
+## n43 (01.11.2026): stärker und driftend
+- **Stärken** mit eigenem Kurven-Profil (`gegnerBasis`, siehe oben), `?gegnerstaerke=alt` / `opt.satz: 'alt'` = 0.16.0.
+- **Drift** (`GEGNER_DRIFT`, `opt.drift`): `ai/drift.js` `DriftCtl` je Gegner mit eigener Dosis (`opts.B`), Drift-Stellen einmal je
+  Feld (`feld.driftSegs`), Drift-Deckel im Kurven-Profil relativ zum Tempo-Faktor, ESC/TCS der Stufe ruhen im Drift, kein Drift
+  neben anderen Autos, im Drift kein halber Takt nötig (stabil auch bei 60 Hz). Schiene: Drift-Kurven × `GEGNER_DRIFT.schiene`.
+  WipeOut: Drift-Stellen aus der eigenen Linie; ohne Heck-Physik reicht der Gier-Regler (`assist.drift`) allein.
+- Darstellung: `CarFX.gegnerStep` (Gummispuren/Qualm, Spur-Nummer je Gegner), `?gegnerfx=0`.
+
 ## n35 Online-Mehrspieler – was übernommen wird
 - **Fremde Autos** = `GegnerVis` (Lack, Namensschild, LOD) mit Lage aus dem Netz statt aus der KI (gleiches `sync(feld …)`-
   Prinzip: Lage vor/nach dem letzten Netz-Paket interpolieren).

@@ -212,7 +212,7 @@ console.log('--- G: alle Regler aus = Stand n37 bitgleich ---');
   const { execFileSync } = await import('child_process');
   const fs = await import('fs');
   const ref = JSON.parse(fs.readFileSync('tests/node/data/n38_ref.json', 'utf8'));
-  const now = JSON.parse(execFileSync(process.execPath, ['tests/node/n38_ref.mjs'], { encoding: 'utf8' }));
+  const now = JSON.parse(execFileSync(process.execPath, ['tests/node/n38_ref.mjs'], { encoding: 'utf8', env: { ...process.env, STUNT_DRIFT: 'alt' } })   // (n43: Spieler-Heck wie bis 0.17.0 – ?drift=alt));
   const bad = Object.keys(ref).filter((k) => ref[k] !== now[k]);
   check(!bad.length, `Leicht/Mittel/Original je 60 s auf 3 Strecken (Nitro, Hüpfer, Saltos) wie n37 (dfabb8d)${bad.length ? ': anders ' + bad.join(', ') : ''}`);
 }
