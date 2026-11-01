@@ -2,6 +2,9 @@
 
 Kurzfassung je Version; Details in den Abschnitten der `README.md` und in den Berichten (`*_BERICHT.md`).
 
+## __VERSION__ – 01.11.2026 (Werbebanden)
+- Banden-Werbung (Peter 01.11.): „TOPPER REIFEN“ statt „KALMAR REIFEN“, Getränkehersteller heißt jetzt „McFOLZ“ (vorher „BLITZ COLA“). Nur Texte, sonst nichts geändert.
+
 ## 0.17.0 – 01.11.2026 (Gegner fahren besser, n43 Etappe 1)
 - **Alle drei Gegner-Stufen fahren besser** (Peter 01.11.: „alle drei gegnerstufen fahren besser“): schneller in Kurven
   (eigenes Kurven-Profil je Stärke mit der Reifenhaftung deiner Fahrhilfe), seltener verbremst oder verpatzt, kürzere

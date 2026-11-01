@@ -270,7 +270,7 @@ export function buildSea(theme, M, add, ext) {
 
 // ---------- Streckenrand und Bauten (Plan aus track/kulisse.js über planDeco) ----------
 // Fiktive Marken (keine echten): Fahnen, Portal, Zeppelin
-const BRANDS = [['KALMAR REIFEN', '#101820', '#ffcc00'], ['BLITZ COLA', '#c8102e', '#ffffff'], ['ALPENSTROM', '#ffffff', '#0a5ca8'], ['TURBO-ÖL', '#111111', '#ff6a00'],
+const BRANDS = [['TOPPER REIFEN', '#101820', '#ffcc00'], ['McFOLZ', '#c8102e', '#ffffff'], ['ALPENSTROM', '#ffffff', '#0a5ca8'], ['TURBO-ÖL', '#111111', '#ff6a00'],
   ['STUNTBAHN', '#0e1116', '#e8e8e8'], ['WIESENMILCH', '#2e7d32', '#ffffff'], ['RAPID TV', '#1a237e', '#ffd54f'], ['FUNKEN FUNK', '#f5f5f0', '#b71c1c']];
 let flagTex = null, boardTex = null, zepTex = null;
 function flagAtlas() {
@@ -292,7 +292,7 @@ function boardTexture() {
     g.fillStyle = gr; g.fillRect(0, 0, 1024, 18); g.fillRect(0, 238, 1024, 18);
     g.fillStyle = '#ffffff'; g.font = 'bold 118px Arial, Helvetica, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
     g.fillText('START · ZIEL', 512, 112);
-    g.fillStyle = '#ffcc00'; g.font = 'bold 40px Arial, Helvetica, sans-serif'; g.fillText('KALMAR REIFEN  ·  STUNTBAHN  ·  BLITZ COLA', 512, 200);
+    g.fillStyle = '#ffcc00'; g.font = 'bold 40px Arial, Helvetica, sans-serif'; g.fillText('TOPPER REIFEN  ·  STUNTBAHN  ·  McFOLZ', 512, 200);
   }));
 }
 function zeppelinTexture() {
