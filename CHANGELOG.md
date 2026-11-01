@@ -2,7 +2,7 @@
 
 Kurzfassung je Version; Details in den Abschnitten der `README.md` und in den Berichten (`*_BERICHT.md`).
 
-## __VERSION__ – 01.11.2026 (Alle Autos driften mehr, n43 Etappe 2)
+## 0.18.0 – 01.11.2026 (Alle Autos driften mehr, n43 Etappe 2)
 - **Gegner driften** (Peter 01.11.: „alle autos driften mehr“): Locker wild (49 % der Kurvenzeit quer), Ebenbürtig oft (46 %),
   Profi kontrolliert in engen Kurven (30 %) – mit Gummispuren und Reifenqualm, nie in Looping/Röhre/Korkenzieher/Schanze/
   Steilkurve. Zeiten der Stufen wie in 0.17.0 (Mittel: Locker +20 %, Ebenbürtig +8 %, Profi −0,3 %). `?gegnerdrift=0` = aus.
