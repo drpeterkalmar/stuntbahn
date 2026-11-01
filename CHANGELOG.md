@@ -13,7 +13,7 @@ Kurzfassung je Version; Details in den Abschnitten der `README.md` und in den Be
   (sauberes Fahren ±0,3 %). `?drift=alt` = Physik 0.17.0, `?heck=2` = stärker (zum Ausprobieren, wertet nicht).
 - Bericht `N43_BERICHT.md`, Tests `tests/node/test_n43.mjs`, `tests/n43_shots.py`.
 
-## __VERSION__ – 01.11.2026 (Werbebanden 3)
+## 0.19.0 – 01.11.2026 (Werbebanden 3)
 - Banden-Werbung (Peter 01.11.): „RADIO KONRAD“ statt „RAPID TV“ (auch am Zeppelin), „1ST SERVE“ statt „DONAU VERSICHERT“. Lange Namen werden auf die Tafelbreite eingepasst.
 
 ## 0.17.2 – 01.11.2026 (Werbebanden 2)
