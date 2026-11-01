@@ -14,6 +14,12 @@ import { computeProfile } from './profile.js';
 import { MAT, WORLD_SCALE } from '../track/defs.js';
 import { rng, hashStr } from '../core/util.js';
 
+// n43 (Peter 01.11.2026: „alle autos driften mehr“): mehr Kurven (Radius bis 150 statt 75 m × Maßstab, Bogen ≥ 0,4 rad, ≥ 10 m),
+// kleinere Abstände zu Stunts (18 m / 0,9 s statt 25 m / 1,4 s, danach 6 statt 12 m), jede Drift-Kurve gedriftet (p 1 statt
+// 0,93), Winkel 20–36° statt 18–34°, schneller quer (tIn 0,25 s) und später eingefangen (tOut 0,35 s), straffere Spurführung im
+// Drift (kE 10 statt 4, Rand-Abbruch erst 0,25 statt 0,6 m vor der Kante), Neuansatz nach einem Abbruch (neu). Messung
+// tools/drift_mess.mjs (42 Strecken): Kurvenzeit > 10° 28 → ~50 %, Drifts je Runde 6,4 → ~11. Werte bis 0.17.0: BRACHIAL_ALT
+// (?brachial=alt).
 export const BRACHIAL = {
   // Tempo-Profil (Teilmenge von PROF): Querhaftung 96 % statt 76 % (der Leicht-Magnet hält zusätzlich), Bremsplan 90 %
   // statt 70 % des Haftungskreises (später, härter), Schanze 1,3 statt 1,5 m/s unter der Fenster-Obergrenze (Landung am Ende der Rampe), an Kuppen
@@ -22,13 +28,13 @@ export const BRACHIAL = {
   // Drift-Stellen: Kurven mit Radius ≤ rMax m, Bogen ≥ minTurn rad und ≥ minLen m, Fahrbahn ≥ minW m breit (Ideallinie
   // lo … hi), nicht näher als gapStunt m bzw. gapT s vor und gapAfter m hinter Stunts/Schanzen/Engstellen/Steilkurven/Wellen,
 // vor Hochstraßen ohne Bande und starken Kuppen gapSoft m bzw. gapSoftT s
-  rMax: 75 * WORLD_SCALE, minTurn: 0.55, minLen: 14, minW: 6, gapStunt: 25, gapT: 1.4, gapSoft: 8, gapSoftT: 0.6, gapAfter: 12, kMin: 1 / (75 * WORLD_SCALE), kCMax: 0.012,
+  rMax: 150 * WORLD_SCALE, minTurn: 0.4, minLen: 10, minW: 6, gapStunt: 18, gapT: 0.9, gapSoft: 8, gapSoftT: 0.6, gapAfter: 6, kMin: 1 / (150 * WORLD_SCALE), kCMax: 0.02,
   // Bahnregler im Drift (Querfehler-Verstärkung wie der Autopilot, nur kräftiger), Gas beim Einfangen höchstens thrOut
-  kE: 4, thrOut: 0.55,
+  kE: 10, thrOut: 0.55,
   // Ablauf: Einlenken lead s vor dem Kurvenbeginn, Winkel in tIn s auf, in tOut s vor dem Kurvenende wieder ab
-  lead: 0.25, tIn: 0.35, tOut: 0.45, hand: 0.14,
+  lead: 0.25, tIn: 0.25, tOut: 0.35, hand: 0.14,
   // Soll-Schwimmwinkel (Grad): zufällig im Band, enge Kurven eher mehr; Wahrscheinlichkeit je Kurve und Runde
-  beta: [18, 34], p: 0.93,
+  beta: [18, 34], p: 1,
   // Physik im Drift (car.js): Gegenlenk-Einschlag (rad), Heckhaftung, Antriebsanteil vorn
   lock: 0.62, rearGrip: 0.9, driveFront: 0.3,
   // Tempo in Drift-Kurven: Anteil fD des Brachial-Kurventempos (im Drift zeigt die Hinterachse schräg zur Fahrtrichtung
@@ -43,8 +49,16 @@ export const BRACHIAL = {
   // Wackeln nach harter Landung (Sprung mit ≥ wobbleAir s Flug): Winkel-Ausschlag (Grad), Dauer s
   wobble: 9, wobbleT: 0.7, wobbleAir: 0.8,
   // Sicherheit: Abbruch, wenn die Wagenmitte (vorausgesagt edgeLook s) näher als edge m an den Fahrbahnrand kommt
-  edge: 0.6, edgeLook: 0.25,
+  edge: 0.25, edgeLook: 0.25,
+  // n43: nach einem Abbruch am Rand und dem Einfangen höchstens neu-mal in derselben Kurve neu ansetzen (2: Dreher bis 120° und
+  // „Festgefahren“ auf 2 von 42 Strecken)
+  neu: 1,
+  // n43: Brücke zwischen Kurven gleicher Richtung (m), Einfangen erst ausspaet × Tempo × tOut nach dem Kurvenende
+  bruecke: 0, ausspaet: 0,
 };
+
+export const BRACHIAL_ALT = { ...BRACHIAL, rMax: 75 * WORLD_SCALE, minTurn: 0.55, minLen: 14, gapStunt: 25, gapT: 1.4, gapAfter: 12, kMin: 1 / (75 * WORLD_SCALE), kCMax: 0.012, kE: 4, tIn: 0.35, tOut: 0.45, beta: [18, 34], p: 0.93, edge: 0.6, neu: 0, bruecke: 0, ausspaet: 0 };
+{ const q = globalThis.location && globalThis.location.search; if (q && new URLSearchParams(q).get('brachial') === 'alt') Object.assign(BRACHIAL, BRACHIAL_ALT); }
 
 const RAD = Math.PI / 180;
 const sm = (q) => (q <= 0 ? 0 : q >= 1 ? 1 : q * q * (3 - 2 * q));
@@ -102,10 +116,17 @@ export function planDrifts(I, prof, track, high, world) {
     if (!(Math.abs(kA[i]) > B.kMin) || !ok(i)) { i++; continue; }
     const sg = Math.sign(kA[i]);
     let j = i, turn = 0, kMax = 0;
-    while (j + 1 < n && Math.abs(kA[j + 1]) > B.kMin * 0.7 && Math.sign(kA[j + 1]) === sg && ok(j + 1)) {
-      const ds = I.s[j + 1] - I.s[j];
-      turn += Math.abs(kA[j]) * ds; kMax = Math.max(kMax, Math.abs(kA[j]));
-      j++;
+    for (;;) {
+      while (j + 1 < n && Math.abs(kA[j + 1]) > B.kMin * 0.7 && Math.sign(kA[j + 1]) === sg && ok(j + 1)) {
+        const ds = I.s[j + 1] - I.s[j];
+        turn += Math.abs(kA[j]) * ds; kMax = Math.max(kMax, Math.abs(kA[j]));
+        j++;
+      }
+      // n43: kurzes Stück fast gerade (≤ bruecke m) zwischen zwei Kurven gleicher Richtung → ein Drift (nicht gegen die Richtung)
+      let g = j + 1;
+      while (g < n && I.s[g] - I.s[j] <= (B.bruecke || 0) && ok(g) && !(Math.abs(kA[g]) > B.kMin * 0.7 && Math.sign(kA[g]) === sg) && !(Math.sign(kA[g]) === -sg && Math.abs(kA[g]) > B.kMin * 0.35)) g++;
+      if (g < n && g > j + 1 && I.s[g] - I.s[j] <= (B.bruecke || 0) && Math.abs(kA[g]) > B.kMin * 0.7 && Math.sign(kA[g]) === sg && ok(g)) { j = g; continue; }
+      break;
     }
     const len = I.s[j] - I.s[i];
     if (turn >= B.minTurn && len >= B.minLen && 1 / Math.max(kMax, 1e-6) <= B.rMax && vt[i] > 9) {
@@ -127,9 +148,13 @@ export function planDrifts(I, prof, track, high, world) {
           if (!h || h.mat !== MAT.GRASS || Math.abs(h.y - (L.py[k])) > 0.8) { grass = false; break; }
         }
       }
-      segs.push({ i0, ia: i, i1: j, sg, len, kMax, turn, grass });
+      // n43: Ausgang ausspät m nach dem Kurvenende (Anteil von Tempo × tOut): der Drift wird erst dort eingefangen, nicht davor
+      let i1 = j;
+      const dAus = (B.ausspaet || 0) * vt[j] * B.tOut;
+      while (i1 + 1 < n && I.s[i1 + 1] - I.s[j] <= dAus && ok(i1 + 1) && !(Math.sign(kA[i1 + 1]) === -sg && Math.abs(kA[i1 + 1]) > B.kMin * 0.35)) i1++;
+      segs.push({ i0, ia: i, i1, iK: j, sg, len, kMax, turn, grass });
     }
-    i = j + 1;
+    i = Math.max(j + 1, segs.length ? segs[segs.length - 1].i1 + 1 : 0);
   }
   return segs;
 }
@@ -213,8 +238,13 @@ export class DriftCtl {
     // neuer Drift: Einlenk-Punkt erreicht
     if (!S && !blocked) {
       const k = this.segAt[idx];
-      if (k >= 0 && idx <= this.segs[k].ia && this.plan[k].on && car.onGround >= 3 && v > 9 && this.lastK !== k + lap * 10000) {
-        const p = this.plan[k], seg = this.segs[k];
+      // (n43: nach einem Abbruch am Rand und dem Einfangen neu ansetzen, wenn noch genug Kurve übrig ist – höchstens B.neu-mal)
+      const seg = k >= 0 ? this.segs[k] : null;
+      const neu = seg && this.lastK === k + lap * 10000 && this.lastWhy === 'rand' && !this.settle && (this.neuN || 0) < (B.neu || 0) && idx > seg.ia
+        && I.s[seg.i1] - I.s[idx] > v * (B.tIn + B.tOut + 0.6);
+      if (k >= 0 && (idx <= seg.ia || neu) && this.plan[k].on && car.onGround >= 3 && v > 9 && (this.lastK !== k + lap * 10000 || neu)) {
+        this.neuN = neu ? (this.neuN || 0) + 1 : 0;
+        const p = this.plan[k];
         S = this.st = { k, ph: 'in', t: 0, bs: p.bs, b0: 0, spin: !!p.spin, grass: !!p.grass, hand: v > 14 ? B.hand : 0, bMax: 0, t0: car.time, sg: seg.sg };
         this.lastK = k + lap * 10000;
         this.wob = null;
@@ -254,6 +284,7 @@ export class DriftCtl {
       const toOut = dEnd < Math.max(3, v * B.tOut * 0.8);
       if (abort || toOut) {
         S.ph = 'out'; S.t = 0; S.b0 = this.bAim ?? S.bs; S.fast = abort;
+        S.why = !abort ? 'ende' : blocked ? 'spieler' : car.onGround < 2 ? 'luft' : v < 7 ? 'langsam' : nearEdge ? 'rand' : 'segment';   // Diagnose (n43)
         if (S.grass && !abort) this.exc = { t: 0, sg: S.sg };   // Ausritt am Kurvenausgang
       }
       else if (S.ph === 'in' && S.t >= B.tIn) { S.ph = 'hold'; S.t = 0; }
@@ -272,9 +303,10 @@ export class DriftCtl {
     } else bAim = S.b0 * (1 - sm(S.t / (S.fast ? B.tOut * 0.6 : B.tOut)));
     this.bAim = bAim;
     if (S.ph === 'out' && (S.t >= B.tOut * (S.fast ? 0.6 : 1)) && (Math.abs(this.beta) < 5 * RAD || S.t > 1.5)) {
-      this.log.push({ k: S.k, t0: S.t0, t1: car.time, bMax: S.bMax, spin: !!S.spinOn, grass: !!S.grassHit, sg: S.sg });
+      this.log.push({ k: S.k, t0: S.t0, t1: car.time, bMax: S.bMax, spin: !!S.spinOn, grass: !!S.grassHit, sg: S.sg, why: S.why });
       if (this.exc) this.exc.log = this.log[this.log.length - 1];
       this.endT = car.time;   // Kurvenausgang (race.js: Nitro)
+      this.lastWhy = S.why;
       if (this.log.length > 400) this.log.shift();
       this.st = null;
       this.settle = { t: 0, calm: 0 };
