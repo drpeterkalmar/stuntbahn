@@ -2,6 +2,9 @@
 
 Kurzfassung je Version; Details in den Abschnitten der `README.md` und in den Berichten (`*_BERICHT.md`).
 
+## __VERSION__ – 01.11.2026 (Brems-Warnton aus)
+- Der Warnton beim Hinweis „Bremsen!“ ist aus (Peter 01.11.); der Text-Hinweis bleibt. `?bremston=1` = Ton wie bisher.
+
 ## 0.19.0 – 01.11.2026 (Werbebanden 3)
 - Banden-Werbung (Peter 01.11.): „RADIO KONRAD“ statt „RAPID TV“ (auch am Zeppelin), „1ST SERVE“ statt „DONAU VERSICHERT“. Lange Namen werden auf die Tafelbreite eingepasst.
 

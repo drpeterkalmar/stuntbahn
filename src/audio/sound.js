@@ -200,6 +200,9 @@ async function makeBank() {
 // ---------- Aufnahmen (n16) ----------
 const urlQ = globalThis.location && globalThis.location.search ? new URLSearchParams(globalThis.location.search) : null;
 export const SND_ALT = !!urlQ && urlQ.get('snd') === 'alt';
+// Brems-Warnton (Peter 01.11.2026: „warnton für bremsen deaktivieren“): Standard aus, der Text „Bremsen!“ bleibt.
+// ?bremston=1 = Ton wie bis 0.19.0
+export const BREMSTON = !!urlQ && urlQ.get('bremston') === '1';
 const REC_URL = typeof import.meta !== 'undefined' ? new URL('../../assets/snd/', import.meta.url).href : 'assets/snd/';
 // Pegel (abgeglichen mit tests/sound_levels.py und tests/ton_probe.py: Motor und Crash so laut wie bis n15)
 export const MIX = { eng: 1.2, off: 0.5, tire: 0.42, scrape: 0.5, crash: 0.95, land: 0.8, pop: 0.42, nitro: 0.4, lpOut: 3800, lpOff: 2200, lpCockpit: 1300, pyro: 0.55, rain: 0.16 };   // rain: n32 (TODO n32-Heavy: am Handy abhören)
@@ -397,7 +400,7 @@ export class Sound {
     // n40 Zieljubel-Stunt: Nitro zünden, Absprung, Landung (TODO n40-Heavy: Lautstärke neben dem Feuerwerk abhören)
     else if (e.type === 'zstunt') { if (e.ph === 'nitro') this.shot(this.bank.nitroGo, R ? 0.6 : 0.9); else if (e.ph === 'jump') this.shot(this.bank.hop, 0.9); else if (e.ph === 'land' && R) this.landRec(5); else if (e.ph === 'land') this.shot(this.bank.thump, 0.6); }
     else if (e.type === 'refill') this.shot(this.bank.cp, 0.5);
-    else if (e.type === 'brakehint' && this.bank.brake) this.shot(this.bank.brake, 0.55);
+    else if (e.type === 'brakehint' && BREMSTON && this.bank.brake) this.shot(this.bank.brake, 0.55);
   }
   // Crash nach Schwere s (0 … 1, aus Aufprall-Tempo bzw. Fahrtempo): Wumms + Blech immer, Knirschen ab mittel,
   // rieselnde Trümmer ab mittel-schwer (verzögert), Glas nur schwer; Auswahl, Tonhöhe, Einsatz zufällig
