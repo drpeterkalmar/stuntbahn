@@ -271,7 +271,7 @@ export function buildSea(theme, M, add, ext) {
 // ---------- Streckenrand und Bauten (Plan aus track/kulisse.js über planDeco) ----------
 // Fiktive Marken (keine echten): Fahnen, Portal, Zeppelin
 const BRANDS = [['TOPPER REIFEN', '#101820', '#ffcc00'], ['McFOLZ', '#c8102e', '#ffffff'], ['ZEHENSTROM', '#ffffff', '#0a5ca8'], ['LIPPEN-ÖL', '#111111', '#ff6a00'],
-  ['STUNTBAHN', '#0e1116', '#e8e8e8'], ['FINGERMILCH', '#2e7d32', '#ffffff'], ['RAPID TV', '#1a237e', '#ffd54f'], ['FUNKEN FUNK', '#f5f5f0', '#b71c1c']];
+  ['STUNTBAHN', '#0e1116', '#e8e8e8'], ['FINGERMILCH', '#2e7d32', '#ffffff'], ['RADIO KONRAD', '#1a237e', '#ffd54f'], ['FUNKEN FUNK', '#f5f5f0', '#b71c1c']];
 let flagTex = null, boardTex = null, zepTex = null;
 function flagAtlas() {
   // 8 Fahnen à 256 × 128 (2 Spalten × 4 Zeilen) in 512 × 512: Grund, Streifen, Marke
@@ -281,7 +281,7 @@ function flagAtlas() {
       g.fillStyle = bg; g.fillRect(x, y, 256, 128);
       g.fillStyle = fg; g.fillRect(x, y + 104, 256, 10);
       g.font = `bold ${t.length > 11 ? 30 : 36}px Arial, Helvetica, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
-      g.fillText(t, x + 128, y + 60);
+      g.fillText(t, x + 128, y + 60, 240);
     });
   }));
 }
@@ -299,7 +299,7 @@ function zeppelinTexture() {
   return zepTex || (zepTex = canvasTex(1024, 256, (g) => {
     g.fillStyle = '#e9ecef'; g.fillRect(0, 0, 1024, 256);
     g.fillStyle = '#1565c0'; g.font = 'bold 150px Arial, Helvetica, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.fillText('RAPID TV', 512, 132);
+    g.fillText('RADIO KONRAD', 512, 132, 960);   // Breite begrenzt (Name länger als „RAPID TV“)
   }));
 }
 // Fahnen-Material: Atlas-Zelle je Instanz, Tuch weht (Welle entlang der Fahne, außen stärker)

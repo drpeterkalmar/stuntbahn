@@ -111,7 +111,7 @@ export function canvasTex(w, h, draw, srgb = true) {
 // 8 Werbebanner (je 512 × 96) in einem 1024 × 512-Atlas + 3 Bremstafeln (150/100/50) unten rechts
 const ADS = [
   ['TOPPER REIFEN', '#101820', '#ffcc00'], ['McFOLZ', '#c8102e', '#ffffff'], ['ZEHENSTROM', '#ffffff', '#0a5ca8'], ['LIPPEN-ÖL', '#111111', '#ff6a00'],
-  ['STUNTBAHN', '#0e1116', '#e8e8e8'], ['FINGERMILCH', '#2e7d32', '#ffffff'], ['RAPID TV', '#1a237e', '#ffd54f'], ['DONAU VERSICHERT', '#f5f5f0', '#b71c1c'],
+  ['STUNTBAHN', '#0e1116', '#e8e8e8'], ['FINGERMILCH', '#2e7d32', '#ffffff'], ['RADIO KONRAD', '#1a237e', '#ffd54f'], ['1ST SERVE', '#f5f5f0', '#b71c1c'],
 ];
 // n32: doppelte Auflösung (2048 × 1024, Sponsor-Schrift scharf); ?kulisse=alt = wie bis n31
 function signAtlas(sc = KULISSE2_URL ? 2 : 1) {
@@ -122,7 +122,7 @@ function signAtlas(sc = KULISSE2_URL ? 2 : 1) {
       const x = (k % 2) * 512, y = Math.floor(k / 2) * 96;
       g.fillStyle = bg; g.fillRect(x, y, 512, 96);
       g.fillStyle = fg; g.font = `bold ${t.length > 13 ? 50 : 60}px Arial, Helvetica, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
-      g.fillText(t, x + 256, y + 50);
+      g.fillText(t, x + 256, y + 50, 490);
       g.fillStyle = 'rgba(0,0,0,0.18)'; g.fillRect(x, y + 88, 512, 8);
     });
     // Bremstafeln: weiß, rote Umrandung, schwarze Zahl (je 160 × 128 ab y = 384)
