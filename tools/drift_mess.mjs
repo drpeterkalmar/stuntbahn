@@ -83,6 +83,40 @@ export function measureLap(env, stil, opt = {}) {
   return M;
 }
 
+// n43: ein KI-Gegner allein (GegnerFeld, volle Physik, Stufe assist) – gleiche Kennzahlen wie measureLap, dazu Zeit zur Autopilot-
+// Prüffahrt und „Drift-Regler an in einer Stunt-Zone“ (Looping/Röhre/Korkenzieher/Luft/Schanzen-Zone/Steilkurve; muss 0 sein)
+export function measureGegner(env, staerke, opt) {
+  const { GegnerFeld } = opt.mods;
+  const F = new GegnerFeld(env, { anzahl: 1, staerke, seed: opt.seed ?? 3, assist: opt.assist || 'medium', startplatz: 'hinten', schiene: 'nie', drift: opt.drift ?? true });
+  const g = F.fahrer[0], car = g.car, L = env.track.line, P = env.prof;
+  const lim = (opt.apTime || 100) * 3 + 40;
+  const M = { t: 0, drive: 0, b10: 0, b25: 0, curve: 0, curve10: 0, curve25: 0, drifts: 0, bmax: 0, spins: 0, grass: 0, jumps: [], why: {}, stuntDrift: 0 };
+  let ep = 0, epMax = 0, nCrash = 0;
+  const jz = (i) => env.track.jumps.some((j) => i >= j.lipIdx - 30 && i <= (j.endIdx ?? j.landIdx + 12));
+  while (M.t < lim && !g.fertig) {
+    F.step(DT); M.t += DT;
+    for (const e of F.events) if (e.type === 'gegnerCrash') M.why[e.reason] = (M.why[e.reason] || 0) + 1;
+    F.events.length = 0;
+    if (g.zustand !== 'fahrt') { ep = 0; continue; }
+    const ti = g.ap.tr.idx, sp = car.speed();
+    const stunt = L.loop[ti] || L.tube[ti] || L.air[ti] || jz(ti);
+    if (g.drift && g.drift.st && (stunt || Math.abs(L.by[ti]) > 0.12 || (L.wave && L.wave[ti]))) M.stuntDrift += DT;
+    const Fr = car.frame, vf = car.v.x * Fr.f.x + car.v.y * Fr.f.y + car.v.z * Fr.f.z, vr = car.v.x * Fr.r.x + car.v.y * Fr.r.y + car.v.z * Fr.r.z;
+    const b = Math.abs(Math.atan2(vr, vf)) * 180 / Math.PI;
+    if (car.grass > 0 && car.grass < 1) M.grass += DT;
+    if (car.onGround >= 3 && sp > 8 && !car.surfaceKind) {
+      M.drive += DT;
+      if (b > 10) M.b10 += DT;
+      if (b > 25) M.b25 += DT;
+      if (!stunt && Math.abs(P.kA[ti]) * sp * sp >= 5) { M.curve += DT; if (b > 10) M.curve10 += DT; if (b > 25) M.curve25 += DT; }
+      M.bmax = Math.max(M.bmax, b);
+      if (b > 12) { ep += DT; epMax = Math.max(epMax, b); } else { if (ep >= 0.4) { M.drifts++; if (epMax >= 60) M.spins++; } ep = 0; epMax = 0; }
+    }
+  }
+  M.ok = g.fertig; M.time = g.zeit; M.crashes = g.crashes; M.ap = opt.apTime;
+  return M;
+}
+
 export function summarize(rows) {
   const S = { laps: rows.length, ok: 0, crashes: 0, why: {}, drive: 0, b10: 0, b25: 0, curve: 0, curve10: 0, curve25: 0, drifts: 0, bmax: 0, spins: 0, grass: 0, jumps: [], bmaxList: [] };
   for (const r of rows) {
@@ -90,6 +124,8 @@ export function summarize(rows) {
     S.crashes += r.crashes;
     for (const k in r.why) S.why[k] = (S.why[k] || 0) + r.why[k];
     for (const k of ['drive', 'b10', 'b25', 'curve', 'curve10', 'curve25', 'drifts', 'spins', 'grass']) S[k] += r[k];
+    S.stuntDrift = (S.stuntDrift || 0) + (r.stuntDrift || 0);
+    if (r.ap && r.ok) (S.apQ ||= []).push(r.time / r.ap);
     S.bmax = Math.max(S.bmax, r.bmax); S.bmaxList.push(r.bmax);
     S.jumps.push(...r.jumps);
   }
@@ -103,6 +139,7 @@ export function report(name, S) {
   const bm = S.bmaxList.slice().sort((a, b) => a - b), bMed = bm.length ? bm[Math.floor(bm.length / 2)] : 0;
   console.log(`${name.padEnd(9)} Runden ${S.laps}, im Ziel ${S.ok} · Crashs ${S.crashes} (${f1(S.crashes / S.laps * 10)} je 10 Runden) ${JSON.stringify(S.why)}`);
   console.log(`          Schwimmwinkel > 10°: ${pc(S.b10, S.drive)} der Fahrzeit, > 25°: ${pc(S.b25, S.drive)} · Kurvenzeit > 10°: ${pc(S.curve10, S.curve)}, > 25°: ${pc(S.curve25, S.curve)} · Drifts/Runde ${f1(S.drifts / S.laps)} · größter Winkel ${f1(S.bmax)}° (Median je Runde ${f1(bMed)}°) · Beinahe-Dreher ${S.spins} · Gras (teilweise) ${f1(S.grass)} s`);
+  if (S.apQ) console.log(`          Zeit zur Autopilot-Prüffahrt Mittel ${((S.apQ.reduce((a, b) => a + b, 0) / S.apQ.length - 1) * 100).toFixed(1)} % · Drift in Stunt-Zonen ${(S.stuntDrift || 0).toFixed(2)} s`);
   console.log(`          Schanzen ${n}: ok ${c('ok')} (${pc(c('ok'), n)}), weit ${c('weit')}, kurz ${c('kurz')}, Crash ${c('crash')} · Lippe Median ${med.toFixed(0)} km/h echt`);
 }
 
@@ -124,11 +161,16 @@ if (process.argv[1] && path.resolve(process.argv[1]) === url.fileURLToPath(impor
     process.exit(0);
   }
   const { Race } = await imp('src/game/race.js');
+  const { GegnerFeld, GEGNER_DRIFT } = await imp('src/ai/gegner.js');
+  // Abstimmen: --gdosis=profi.rDrift:60,locker.grassP:0.2 (GEGNER_DRIFT, ai/gegner.js; beta als a/b: profi.beta:10/18)
+  for (const kv of (arg('gdosis', '') || '').split(',').filter(Boolean)) { const [k, x] = kv.split(':'); const [st, f] = k.split('.'); GEGNER_DRIFT[st][f] = x.includes('/') ? x.split('/').map(Number) : +x; }
+  // n43: --gegner=locker,ebenbuertig,profi misst KI-Gegner (Stufe --assist=medium|original|easy, --gegnerdrift=0 = ohne Drift)
   // Abstimmen: --set=spinP:1,vSpin:32 (Werte in BRACHIAL, ai/drift.js)
   const { BRACHIAL } = await imp('src/ai/drift.js');
   for (const kv of (arg('set', '') || '').split(',').filter(Boolean)) { const [k, x] = kv.split(':'); BRACHIAL[k] = +x; }
   const { verifySync } = await imp('src/track/verify.js');
-  const stile = arg('stil', 'sauber,brachial').split(',');
+  const gegner = arg('gegner') ? arg('gegner').split(',') : null;
+  const stile = gegner ? gegner.map((x) => 'g:' + x) : arg('stil', 'sauber,brachial').split(',');
   const list = await driftTracks();
   const von = +arg('von', 0), n = +arg('n', list.length), seed = arg('seed') != null ? +arg('seed') : undefined;
   const out = {};
@@ -138,10 +180,10 @@ if (process.argv[1] && path.resolve(process.argv[1]) === url.fileURLToPath(impor
     if (!v.env) { console.log(name, 'nicht baubar'); continue; }
     const line = [];
     for (const st of stile) {
-      const M = measureLap(v.env, st, { mods: { Race }, seed });
+      const M = st.startsWith('g:') ? measureGegner(v.env, st.slice(2), { mods: { GegnerFeld }, seed, assist: arg('assist', 'medium'), apTime: v.apTime, drift: arg('gegnerdrift', '1') !== '0' }) : measureLap(v.env, st, { mods: { Race }, seed });
       M.name = name;
       (out[st] ||= []).push(M);
-      line.push(`${st} ${M.ok ? (M.time).toFixed(1) + ' s' : 'NICHT im Ziel'} cr ${M.crashes}${M.crashes ? ' ' + JSON.stringify(M.why) : ''} >10° ${pc(M.b10, M.drive)} Kurve>10° ${pc(M.curve10, M.curve)} drifts ${M.drifts} max ${f1(M.bmax)}° spins ${M.spins}`);
+      line.push(`${st} ${M.ok ? (M.time).toFixed(1) + ' s' + (M.ap ? ` (${((M.time / M.ap - 1) * 100).toFixed(1)} %)` : '') : 'NICHT im Ziel'}${M.stuntDrift ? ' STUNT-DRIFT ' + M.stuntDrift.toFixed(2) + ' s' : ''} cr ${M.crashes}${M.crashes ? ' ' + JSON.stringify(M.why) : ''} >10° ${pc(M.b10, M.drive)} Kurve>10° ${pc(M.curve10, M.curve)} drifts ${M.drifts} max ${f1(M.bmax)}° spins ${M.spins}`);
     }
     console.log(`${name.padEnd(16)} ${line.join(' | ')}  (${((Date.now() - t0) / 1000).toFixed(0)} s)`);
   }

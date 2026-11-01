@@ -300,6 +300,30 @@ export class CarFX {
     }
     car.lastImpact = 0;
   }
+  // n43 KI-Gegner (driften jetzt auch): Gummispuren und Reifenqualm wie beim eigenen Auto (gleiche Schwellen, ohne Wetter, Staub
+  // und Funken), eigene Spur-Nummern je Gegner (nr 0 … 4) im selben Spur-Puffer, Qualm seltener (je 0,05 s) und nur nah (nah m
+  // zur Kamera, sonst nur die Spuren). key: Gegner-Nummer.
+  gegnerStep(dt, car, nr, nah) {
+    const sp = car.speed(), A = this.gAcc || (this.gAcc = []);
+    A[nr] = (A[nr] || 0) + dt;
+    const emit = A[nr] > 0.05 && nah; if (A[nr] > 0.05) A[nr] = 0;
+    for (let k = 0; k < 4; k++) {
+      const w = car.wheels[k], kk = 4 + nr * 4 + k;
+      if (!w.contact) { this.skids.add(kk, this.p, this.n, this.side, 0); continue; }
+      this.p.set(w.hx, w.hy, w.hz); this.n.set(w.nx, w.ny, w.nz);
+      this.side.set(car.frame.r.x, car.frame.r.y, car.frame.r.z);
+      const slip = Math.abs(w.slip), onRoad = w.mat !== 8;
+      const braking = car.input.brake > 0.5 && sp > 6 && !car.input.hold ? 0.5 : 0;
+      const s = onRoad ? Math.max(0, Math.min(1, (slip - 0.18) * 3)) + braking * 0.6 : 0;
+      this.skids.add(kk, this.p, this.n, this.side, s * Math.min(1, sp / 6));
+      if (emit && onRoad && s > 0.5 && sp > 8) {
+        const big = Math.max(0, Math.min(1, (slip - 0.45) / 0.35));
+        if (this.rich) this.parts.spawn(this.p.setY(this.p.y + 0.4), this.v.set(car.v.x * 0.18 + (Math.random() - 0.5), 0.5 + Math.random() * 0.6, car.v.z * 0.18 + (Math.random() - 0.5)), 0.8 + 0.4 * big, 4.2 + 2.2 * big, 1.7 + 0.5 * big, 0xc4c4c2, 0.3 + 0.15 * Math.min(1, s - 0.5) + 0.2 * big);
+        else this.parts.spawn(this.p, this.v.set(0, 0.6, 0), 0.6, 2.6, 1.2, 0xd8d8d8, 0.35);
+      }
+      if (emit && !onRoad && sp > 8.5 && k >= 2) this.parts.spawn(this.p, this.v.set(car.v.x * 0.25 + (Math.random() - 0.5) * 2, 1.6 + Math.random() * 1.5, car.v.z * 0.25 + (Math.random() - 0.5) * 2), 0.25, 0.9, 0.6, Math.random() < 0.6 ? 0x5e7d2a : 0x6b5236, 0.9);
+    }
+  }
   // Replay/Kino-Replay (n25): Reifenqualm an den Hinterrädern aus dem aufgezeichneten Schwimmwinkel (beta rad, wie im Rennen
   // ab ~19° Rutschen der Hinterräder), dt = vergangene Aufzeichnungszeit; pose = Replay-Lage, sp = Tempo m/s
   replayStep(dt, pose, beta, sp) {

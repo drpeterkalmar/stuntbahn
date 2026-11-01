@@ -37,11 +37,11 @@ const rennen = (v, opt) => {
   let gleich = 0, n = 0;
   for (const [key, [zeiten, h]] of Object.entries(REF_016)) {
     const [, st, assist] = key.split('/');
-    const F = rennen(v, { staerke: st, assist, satz: 'alt' });
+    const F = rennen(v, { staerke: st, assist, satz: 'alt', drift: false });
     const z = F.fahrer.map((g) => +g.zeit.toFixed(4));
     n++; if (z.every((x, i) => x === zeiten[i]) && pruefsumme(F) === h) gleich++; else console.log('  abweichend', key, z, pruefsumme(F));
   }
-  ok(gleich === n, `?gegnerstaerke=alt: ${gleich}/${n} Rennen bitgleich zu 0.16.0 (Zielzeiten + Aufzeichnung)`);
+  ok(gleich === n, `?gegnerstaerke=alt (+ ?gegnerdrift=0): ${gleich}/${n} Rennen bitgleich zu 0.16.0 (Zielzeiten + Aufzeichnung)`);
 }
 
 // 3. Neue Werte: Reihenfolge und Abstand zur Autopilot-Zeit (1 Gegner, Stufe Mittel und Original, 2 Strecken)
@@ -70,6 +70,31 @@ for (const [s, d] of [[11, 2], [4711, 3]]) {
   ok(stuntAb === 0, `Profi-Profil in Looping/Röhre/Schanze = Prüffahrt-Tempo (${stuntAb} Abweichungen)`);
   ok(langsamer === 0 && schneller > 50, `Profi-Profil außerhalb der Stunts nie langsamer, in Kurven schneller als die Prüffahrt (${schneller} Punkte schneller)`);
   ok(gegnerBasis(v.env, STAERKEN_ALT.profi) === v.env.prof && gegnerBasis(v.env, STAERKEN.profi, 1.3) === gegnerBasis(v.env, STAERKEN.profi, 1.3), 'Kurven-Profil je Strecke zwischengespeichert; Werte bis 0.16.0 nutzen das Prüffahrt-Profil');
+}
+
+// 5. Etappe 2 – Gegner driften: je Stärke Anteil Kurvenzeit quer, nie in Stunt-Zonen, deterministisch je Seed, ?gegnerdrift=0
+{
+  const { measureGegner } = await import('../../tools/drift_mess.mjs');
+  const { GEGNER_DRIFT } = await import('../../src/ai/gegner.js');
+  const sum = {}, stunt = {}, crashes = {};
+  for (const [s, d] of [[4711, 2], [20260927, 3], [88, 2]]) {
+    const v = verifySync(generate(s, d));
+    for (const st of ['locker', 'ebenbuertig', 'profi']) {
+      const M = measureGegner(v.env, st, { mods: { GegnerFeld }, apTime: v.apTime });
+      const S = sum[st] ||= [0, 0]; S[0] += M.curve; S[1] += M.curve10;
+      stunt[st] = (stunt[st] || 0) + M.stuntDrift; crashes[st] = (crashes[st] || 0) + M.crashes;
+      if (!M.ok) ok(false, `S${s}/${d} ${st}: nicht im Ziel`);
+    }
+  }
+  const q = (st) => sum[st][1] / Math.max(1e-6, sum[st][0]);
+  ok(q('locker') > 0.3 && q('ebenbuertig') > 0.3 && q('profi') > 0.2, `Gegner driften: Kurvenzeit > 10° Locker ${(q('locker') * 100).toFixed(0)} %, Ebenbürtig ${(q('ebenbuertig') * 100).toFixed(0)} %, Profi ${(q('profi') * 100).toFixed(0)} % (Ziel ≥ 30/30/20 %)`);
+  ok(Object.values(stunt).every((x) => x === 0), `Gegner driften nie in Looping/Röhre/Korkenzieher/Schanze/Steilkurve (${JSON.stringify(stunt)} s)`);
+  ok(Object.values(crashes).reduce((a, b) => a + b, 0) <= 1, `Crashs beim Driften ${JSON.stringify(crashes)} (≤ 1 auf 9 Rennen)`);
+  const v = verifySync(generate(4711, 2));
+  const a = rennen(v, { staerke: 'locker', assist: 'medium' }), b = rennen(v, { staerke: 'locker', assist: 'medium' });
+  ok(pruefsumme(a) === pruefsumme(b) && a.fahrer.every((g, i) => g.zeit === b.fahrer[i].zeit) && a.fahrer.some((g) => g.drift && g.drift.log.length > 3), `Gegner-Drift deterministisch je Seed (3 Gegner, ${a.fahrer.map((g) => g.drift.log.length).join('/')} Drifts, zweimal gleich)`);
+  const c = rennen(v, { staerke: 'locker', assist: 'medium', drift: false });
+  ok(!c.driftSegs && c.fahrer.every((g) => !g.drift && g.car.assist.drift == null) && typeof GEGNER_DRIFT.an === 'boolean', 'ohne Drift (opt.drift false, URL ?gegnerdrift=0): keine Drift-Stellen, kein Drift-Regler');
 }
 
 console.log(bad ? `n43: ${bad} FEHLER` : 'n43: alles OK');

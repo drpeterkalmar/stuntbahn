@@ -15,6 +15,9 @@ import { startRaster, spielerSlot, rangliste, Zeitnahme, abstaende, restzeit, fo
 import { SchadenAuto } from '../physics/schaden.js';
 import { COOLDOWN, NITRO_TOTAL, nitroLevel } from '../physics/extras.js';
 import { computeProfile, PROF } from './profile.js';
+import { DriftCtl, planDrifts, BRACHIAL } from './drift.js';
+import { highLine } from '../game/race.js';
+import { WORLD_SCALE } from '../track/defs.js';
 
 // ---------- Einstellungen ----------
 export const GEGNER_ANZAHLEN = [0, 1, 3, 5];   // Menü „🏁 Gegner“: Aus · 1 · 3 · 5 (URL ?gegner= nimmt 0 … 5)
@@ -32,8 +35,8 @@ export const GEGNER_MAX = 5;
 // Abgestimmt mit tools/gegner_mess.mjs (60 Sammlungs-Strecken, Mittel): Ziel Locker ≈ +18–22 %, Ebenbürtig ≈ +6–9 %,
 // Profi ≈ −2 … +1 % zur Autopilot-Zeit. Werte bis 0.16.0: STAERKEN_ALT (?gegnerstaerke=alt).
 export const STAERKEN = {
-  locker: { name: 'Locker', tempo: 0.66, kurve: 0.75, brems: 0.75, reaktion: 0.25, streu: 0.8, streuKurve: 0.4, pSpaet: 0.05, spaet: [0.3, 0.6], panik: [0.3, 0.5], pPatzer: 0.07, mut: 0, start: 'hinten' },
-  ebenbuertig: { name: 'Ebenbürtig', tempo: 0.81, kurve: 0.8, brems: 0.78, reaktion: 0.12, streu: 0.45, streuKurve: 0.2, pSpaet: 0.02, spaet: [0.2, 0.4], panik: [0.2, 0.35], pPatzer: 0.03, mut: 0.2, start: 'mitte' },
+  locker: { name: 'Locker', tempo: 0.685, kurve: 0.75, brems: 0.75, reaktion: 0.25, streu: 0.8, streuKurve: 0.4, pSpaet: 0.05, spaet: [0.3, 0.6], panik: [0.3, 0.5], pPatzer: 0.07, mut: 0, start: 'hinten' },
+  ebenbuertig: { name: 'Ebenbürtig', tempo: 0.83, kurve: 0.8, brems: 0.78, reaktion: 0.12, streu: 0.45, streuKurve: 0.2, pSpaet: 0.02, spaet: [0.2, 0.4], panik: [0.2, 0.35], pPatzer: 0.03, mut: 0.2, start: 'mitte' },
   profi: { name: 'Profi', tempo: 1, kurve: 0.76, brems: 0.8, reaktion: 0.05, streu: 0.2, streuKurve: 0, pSpaet: 0.005, spaet: [0.15, 0.3], panik: [0.15, 0.25], pPatzer: 0.005, mut: 0.35, start: 'mitte' },
 };
 // Stand bis 0.16.0 (n34, abgestimmt mit tools/gegner_mess.mjs: Ziel Locker > Ebenbürtig > Profi, Profi ≈ Autopilot ± 5 %)
@@ -138,6 +141,22 @@ export const GEGNER_NITRO = { an: !(urlQ && urlQ.get('gegnernitro') === '0'), fr
 // Umkreis von frei m rechnet seine Physik im halben Takt (60 Hz, abwechselnd je Gegner, doppeltes dt) – Auto-Auto-Kollisionen in
 // der Nähe bleiben bei 120 Hz. ?gegnertakt=voll = immer 120 Hz (A/B)
 export const TAKT = { an: !(urlQ && urlQ.get('gegnertakt') === 'voll'), frei: 25, halbImmer: !!(urlQ && urlQ.get('gegnertakt') === 'halb') };
+// Gegner driften (n43, Peter 01.11.2026: „alle autos driften mehr“): Drift-Logik des Leicht-Autopiloten „Brachial“ (ai/drift.js:
+// Drift-Stellen, nie in Looping/Röhre/Korkenzieher/Engstelle/Schanze/Steilkurve/Hochstraße ohne Bande; Soll-Schwimmwinkel über
+// den Drift-Regler in car.js), je Stärke dosiert: p = Anteil der Drift-Kurven, beta = Winkel (Grad), spinP/grassP = Beinahe-
+// Dreher/Ausritt (spinMin/spinRand: Dreher nur ab Tempo und mit Abstand zum Rand), fD = Kurventempo im Drift (Anteil des eigenen Kurven-Profils, Bremsplan davor folgt), rDrift = nur Kurven bis
+// zu diesem Radius (m), hand = Handbremsen-Ruck beim Einlenken (s; kostete auf Mittel/Original ohne Magnet Tempo und Crashs).
+// Locker viel und wild, Ebenbürtig oft, Profi kontrolliert nur in engen Kurven (dort kostet der Drift
+// kaum Zeit). Kein Drift-Beginn, wenn ein anderes Auto näher als frei m ist (Abbruch unter frei × 0,6 m). Deterministisch je
+// Seed (Fahrer-Seed + Strecke). Schleuderschutz (Mittel) ruht im Drift. ?gegnerdrift=0 = aus
+export const GEGNER_DRIFT = {
+  // schiene: Tempo-Anteil auf der Schiene in Drift-Kurven (Vergleich Schiene ↔ Physik, tools/gegner_mess.mjs --vergleich)
+  an: !(urlQ && urlQ.get('gegnerdrift') === '0'), frei: 8, gapSoft: 20, gapSoftT: 1.2, schiene: 0.88,
+  // (alle Stufen: Drift erst ab vMin m/s – ein Beinahe-Dreher bei 30 km/h in einer Haarnadel endete im Gras an der Wand)
+  locker: { vMin: 15, p: 0.95, beta: [22, 36], spinP: 0.25, spinMin: 15, spinRand: 3.5, grassP: 0.15, fD: 0.85, hand: 0 },
+  ebenbuertig: { vMin: 15, p: 0.85, beta: [18, 32], spinP: 0.12, spinMin: 15, spinRand: 3.5, grassP: 0.25, fD: 0.9, hand: 0 },
+  profi: { vMin: 15, p: 0.8, beta: [10, 18], spinP: 0, grassP: 0, fD: 1, rDrift: 60, hand: 0 },
+};
 // Nach dem Zieleinlauf des Spielers fahren die Gegner höchstens so lange weiter (s), dann Hochrechnung
 export const NACHLAUF = 10;
 // Aufzeichnung fürs Replay: 15 Hz, 8 Floats je Bild (x, y, z, qx, qy, qz, qw, Flags) – gleiches Format wie das Geisterauto
@@ -276,12 +295,22 @@ export function antrieb(car, v) {
 // Kurven-Profil einer Stärke (n43): eigenes Tempo-Profil mit weniger Reserve – Querhaftung S.kurve × Reifenhaftung der Stufe
 // (haft: Mittel 1,3, Original 1), Bremsplan S.brems; Schanzen-Fenster, Looping-Anpressdruck, Engstellen wie die Prüffahrt.
 // Je Strecke und Wertepaar einmal (env.profG). Ohne S.kurve (Werte bis 0.16.0): Profil der Prüffahrt env.prof.
-export function gegnerBasis(env, S, haft = 1) {
-  if (S.kurve == null || !env.track) return env.prof;
-  const res = Math.min(1.25, S.kurve * haft), bc = S.brems ?? PROF.brakeCircle;
-  const key = res.toFixed(4) + '|' + bc.toFixed(3);
+// dr (n43, Gegner driften): { segs, fD } – in den Drift-Kurven höchstens fD des Kurventempos (Bremsplan davor folgt, wie
+// ai/drift.js driftProfile)
+export function gegnerBasis(env, S, haft = 1, dr = null) {
+  if ((S.kurve == null && !dr) || !env.track) return env.prof;
+  const res = S.kurve != null ? Math.min(1.25, S.kurve * haft) : PROF.res, bc = S.brems ?? PROF.brakeCircle;
+  const key = res.toFixed(4) + '|' + bc.toFixed(3) + (dr ? '|d' + dr.fD + '|' + (dr.rDrift || 0) : '');
   const C = env.profG || (env.profG = {});
-  if (!C[key]) { const T = env.track; C[key] = computeProfile(env.ideal || T.line, { jumps: T.jumps, startIdx: T.start.idx, prof: { res, brakeCircle: bc } }); }
+  if (!C[key]) {
+    const T = env.track, I = env.ideal || T.line, opt = { jumps: T.jumps, startIdx: T.start.idx, prof: { res, brakeCircle: bc } };
+    if (dr) {
+      const B0 = gegnerBasis(env, S, haft), cap = new Float32Array(I.n);
+      for (const sg of dr.segs) if (!(dr.rDrift && 1 / Math.max(sg.kMax, 1e-6) > dr.rDrift)) for (let i = sg.i0; i <= sg.i1; i++) cap[i] = B0.vt[i] * dr.fD;
+      opt.vcap = cap;
+    }
+    C[key] = computeProfile(I, opt);
+  }
   return C[key];
 }
 
@@ -371,7 +400,15 @@ export class GegnerFahrer {
     this.acc = (v) => antrieb(this.car, v);
     // n43: Kurven-Profil der Stärke (Reifenhaftung der Stufe: Mittel mehr Grip; ?gegnerphysik=roh wie die Prüffahrt)
     const haft = feld.opt.physik !== 'roh' ? (this.car.assist.grip || 1) * (this.car.assist.gripK || 1) : 1;
-    this.P = gegnerProfil(env.prof, env.track.line, feld.M.nahe, this.S.tempo * this.C.tempo * info.tempoK, this.car.def, this.acc, gegnerBasis(env, this.S, haft));
+    // n43: Driften (GEGNER_DRIFT, Dosis je Stärke) – Drift-Stellen je Feld, eigener Drift-Regler je Gegner
+    const DZ = feld.driftSegs ? GEGNER_DRIFT[info.staerke] || GEGNER_DRIFT[STAERKE_STD] : null;
+    // (Deckel fD aufs Kurven-Profil, geteilt durch den Tempo-Faktor: wer ohnehin langsamer fährt – Locker –, bremst fürs Driften nicht extra)
+    const faktor = this.S.tempo * this.C.tempo * info.tempoK;
+    const fD = DZ ? Math.round(DZ.fD / Math.min(1, faktor) * 100) / 100 : 1;
+    const dr = DZ && fD < 1 ? { segs: feld.driftSegs, fD, rDrift: DZ.rDrift } : null;
+    this.P = gegnerProfil(env.prof, env.track.line, feld.M.nahe, faktor, this.car.def, this.acc, gegnerBasis(env, this.S, haft, dr));
+    this.escStufe = this.car.assist.esc || 0; this.tcsStufe = this.car.assist.tcs || 0;
+    this.drift = DZ ? new DriftCtl(env, env.prof, { B: { ...BRACHIAL, ...DZ }, segs: feld.driftSegs, P: this.P, seed: info.seed }) : null;
     this.vMin = null;   // Mindest-Tempo vor Stunts (mindestTempo), erst wenn das Gummiband es braucht
     this.ap = new Autopilot(feld.I, this.P);
     this.fehler = feld.opt.fehler === false ? [] : fehlerPlan(env, feld.M, this.P, this.S, info.seed);
@@ -472,7 +509,8 @@ export class GegnerFahrer {
   schrittPhysik(dt, F) {
     const car = this.car, ap = this.ap, L = F.L, M = F.M;
     if (this.zustand === 'crash') {
-      car.input.steer = 0; car.input.throttle = 0; car.input.brake = 0.4; car.input.hold = true;
+      car.input.steer = 0; car.input.throttle = 0; car.input.brake = 0.4; car.input.hold = true; car.input.hand = 0;
+      if (this.drift) { this.drift.reset(); this.driftPhysik(null); }
       car.step(dt, F.world);
       this.crashT += dt;
       if (this.crashT >= (F.wreckOn ? 2.6 : Math.max(RESET_DELAY, 0.6))) this.zuruecksetzen(F);
@@ -488,6 +526,12 @@ export class GegnerFahrer {
     ap.speedScale = mod * patzer;
     const c = ap.control(car);
     const idx = ap.tr.idx;
+    // n43 Driften: Drift-Regler verändert Lenkung/Pedale und setzt die Drift-Physik; nicht neben/hinter einem anderen Auto
+    let dres = null;
+    if (this.drift) {
+      const nah = this.drift.st ? !F.frei(this, GEGNER_DRIFT.frei * 0.6) : !F.frei(this, GEGNER_DRIFT.frei);
+      dres = this.drift.step(dt, car, ap, c, this.fertig || nah || F_ != null, ap.tr.lap);
+    }
     let thr = c.throttle, brk = c.brake;
     // Brems-Reaktion: verlangt das Profil Bremsen, erst nach reaktion s (bei „zu spät gebremst“ länger) – bis dahin Gas weg
     // (Bremsen wegen eines langsameren Autos voraus – Folge-Deckel unter dem Profil – mit kurzer Reaktion VERKEHR.reaktion: mit der
@@ -505,7 +549,8 @@ export class GegnerFahrer {
     else this.bremsT = 0;
     // Verbremser: nach dem verspäteten Einsatz kurz voll in die Eisen (Panik), Gas weg
     if (this.panikT > 0) { this.panikT -= dt; brk = 1; thr = 0; }
-    car.input.steer = c.steer; car.input.throttle = thr; car.input.brake = brk; car.input.hold = this.fertig; car.input.hand = 0;
+    car.input.steer = c.steer; car.input.throttle = thr; car.input.brake = brk; car.input.hold = this.fertig; car.input.hand = dres && brk <= 0.05 ? c.hand || 0 : 0;
+    this.driftPhysik(dres);
     car.surfaceKind = L.loop[idx] || L.tube[idx] ? 1 : 0;
     car.haftOff = !!M.haft[idx];
     car.step(dt, F.world);
@@ -519,6 +564,14 @@ export class GegnerFahrer {
       if (car.onGround > 0 && !L.air[idx] && car.pos.y < L.py[idx] - FALL.drop && ap.tr.dist > 2) car.setCrash('Abgestürzt');
     }
     if (car.crash) this.crash(F);
+  }
+
+  // Drift-Physik aufs Auto (car.js assist.drift …; null = aus) – im Drift ruhen Schleuderschutz und Traktionskontrolle der Stufe
+  driftPhysik(d) {
+    const A = this.car.assist;
+    A.drift = d ? d.drift : null; A.lock = d ? d.lock : 0; A.rearGrip = d ? d.rearGrip : 0; A.driveFront = d ? d.driveFront : null;
+    A.esc = d && d.drift != null ? 0 : this.escStufe;
+    A.tcs = d && d.drift != null && d.rearGrip ? 0 : this.tcsStufe;   // Traktionskontrolle nahm im Drift fast allen Hinterrad-Antrieb
   }
 
   crash(F) {
@@ -566,6 +619,7 @@ export class GegnerFahrer {
     this.car.place([I.px[j], I.py[j], I.pz[j]], [I.tx[j], I.ty[j], I.tz[j]], [I.nx[j], I.ny[j], I.nz[j]], v);
     this.ap.tr.reset(j); this.ap.tr.lap = lap;
     this.versatz = 0; this.aktiv = null; this.bremst = false; this.bremsT = 0; this.panikT = 0;
+    if (this.drift) { this.drift.reset(); this.ap.extra = 0; this.driftPhysik(null); }
     this.offT = 0; this.stuckT = 0; this.stuckP = fortschritt(L, j, lap);
     this.zustand = this.fertig ? 'ziel' : 'fahrt';
     this.prev = null;
@@ -585,6 +639,9 @@ export class GegnerFahrer {
       const u = I.s[i1] > I.s[Sc.idx] ? Math.max(0, Math.min(1, (Sc.s - I.s[Sc.idx]) / (I.s[i1] - I.s[Sc.idx]))) : 0;
       const vP = this.P.vt[Sc.idx] + (this.P.vt[i1] - this.P.vt[Sc.idx]) * u;
       let vMax = Math.min(vP * this.tempoMod, this.vCap);
+      // n43: in einer gewürfelten Drift-Kurve so viel langsamer, wie der Drift in der Physik kostet (GEGNER_DRIFT.schiene)
+      const D = this.drift;
+      if (D) { if (D.lapRolled !== Sc.lap) D.roll(Sc.lap); const k = D.segAt[Sc.idx]; if (k >= 0 && D.plan[k].on) vMax *= GEGNER_DRIFT.schiene; }
       // Gummiband: aufholend auch schneller beschleunigen (unsichtbar); in Stunt-Nähe genau Profil-Tempo (wechselt das Auto dort in
       // die Physik, kommt es mit dem nötigen Tempo an der Lippe/im Looping an)
       const a = antrieb(this.car, Sc.v) * SCHIENE.k * Math.max(1, this.tempoMod);
@@ -640,6 +697,7 @@ export class GegnerFahrer {
     this.gummi = Math.max(A.physVor, Math.min(A.physHinter, this.gummi));
     this.tempoMod = Math.max(A.physVor, Math.min(A.physHinter, this.tempoMod));
     this.modus = 'physik'; this.prev = null; this.bremst = false; this.bremsT = 0;
+    if (this.drift) { this.drift.reset(); this.ap.extra = 0; this.driftPhysik(null); }
     this.stuckP = this.fortschritt(); this.stuckT = 0; this.offT = 0;
     return true;
   }
@@ -680,6 +738,7 @@ export class GegnerFahrer {
     Object.assign(this.sch, z.sch);
     Object.assign(this, { modus: z.modus, zustand: z.zustand, crashT: z.crashT, versatz: z.versatz, strafen: z.strafen, crashes: z.crashes, fe: z.fe, aktiv: z.aktiv, fertig: z.fertig, zeit: z.zeit, failS: z.failS, failN: z.failN, aktivGebremst: !!z.aktivGebremst, aktivBezahlt: !!z.aktivBezahlt, nitroT: z.nitroT ?? -1, nitroCd: z.nitroCd ?? 0 });
     this.bremst = false; this.bremsT = 0; this.panikT = 0; this.prev = null; this.stuckT = 0; this.offT = 0; this.stuckP = this.fortschritt();
+    if (this.drift) { this.drift.reset(); this.ap.extra = 0; this.driftPhysik(null); }
   }
 }
 
@@ -694,7 +753,7 @@ export class GegnerFahrer {
 export class GegnerFeld {
   constructor(env, opt = {}) {
     this.env = env; this.L = env.track.line; this.I = env.ideal || env.track.line; this.world = env.world;
-    this.opt = { anzahl: 3, staerke: STAERKE_STD, seed: 1, startplatz: 'auto', wreckOn: false, assist: 'medium', aufholhilfe: false, schiene: 'auto', kollision: true, physik: 'stufe', takt: 'auto', satz: SATZ_URL, ...opt };
+    this.opt = { anzahl: 3, staerke: STAERKE_STD, seed: 1, startplatz: 'auto', wreckOn: false, assist: 'medium', aufholhilfe: false, schiene: 'auto', kollision: true, physik: 'stufe', takt: 'auto', satz: SATZ_URL, drift: GEGNER_DRIFT.an, ...opt };
     this.wreckOn = !!this.opt.wreckOn;
     this.A = this.opt.satz === 'alt' ? { ...AUFHOL_ALT, k: AUFHOL.k } : AUFHOL;   // Gummiband-Werte des Satzes (n43)
     this.haerte = HAERTE[HAERTE_JE_STUFE[this.opt.assist] || 'mittel'];
@@ -702,6 +761,11 @@ export class GegnerFeld {
     this.startIdx = env.track.start.idx;
     this.ziel = zielFortschritt(this.L, this.startIdx);
     this.uhr = 0; this.laeuft = false; this.events = [];
+    // n43: Drift-Stellen (wie Leicht „Brachial“, ai/drift.js planDrifts) einmal je Feld; opt.drift false = Gegner driften nie
+    // (Gegner: vor Hochstraßen ohne Bande/Engstellen mehr Abstand als Leicht – ohne Magnet schwingt das Auto nach dem Einfangen
+    // länger nach: GEGNER_DRIFT.gapSoft/gapSoftT)
+    this.hoch = highLine(env.track);
+    this.driftSegs = this.opt.drift && env.world && env.prof ? planDrifts(this.I, env.prof, env.track, this.hoch, env.world, { ...BRACHIAL, gapSoft: GEGNER_DRIFT.gapSoft, gapSoftT: GEGNER_DRIFT.gapSoftT }) : null;
     this.fahrer = gegnerListe(this.opt.anzahl, this.opt.staerke, this.opt.seed).map((g) => new GegnerFahrer(this, g));
     this.spielerZn = null; this.spielerZiel = null; this.nachT = 0; this.abgeschlossen = false;
     this.snaps = []; this.snapT = 0; this.rewinds = 0; this.recT = 0;
@@ -845,7 +909,7 @@ export class GegnerFeld {
       if (vor) {
         const [lo, hi] = grenzen(M, i, Math.max(0, me.v), GEGNER_FENSTER);
         const links = vor.lat - C.luecke, rechts = vor.lat + C.luecke;
-        const mut = C.mut + (g.S.mut || 0);   // n43: Ebenbürtig/Profi überholen mutiger
+        const mut = C.mut + (this.hoch[i] ? 0 : g.S.mut || 0);   // n43: Ebenbürtig/Profi überholen mutiger (nicht auf Hochstraßen)
         const okL = links >= lo - mut, okR = rechts <= hi + mut;
         const darf = !M.kein[i] && !M.kein[vor.idx] && !vor.crash;
         if (darf && (okL || okR)) {

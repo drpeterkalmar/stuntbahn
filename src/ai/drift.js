@@ -66,8 +66,8 @@ const sm = (q) => (q <= 0 ? 0 : q >= 1 ? 1 : q * q * (3 - 2 * q));
 // Drift-Stellen auf der Ideallinie I (gleiches Index-Raster wie die Basislinie). track: Stunts, Schanzen; high: Linien-
 // punkte hoch über dem Gelände (race.js highLine); world: Gras außen (Ausritt). Liefert [{ i0, ia, i1, sg, len, kMax }]:
 // i0 Einlenk-Punkt (lead vor ia), ia/i1 Kurvenbeginn/-ende, sg +1 = Rechtskurve (kA > 0), −1 = Linkskurve.
-export function planDrifts(I, prof, track, high, world) {
-  const B = BRACHIAL, L = track.line, n = I.n, kA = prof.kA, vt = prof.vt, TR = track.terrain;
+export function planDrifts(I, prof, track, high, world, B = BRACHIAL) {
+  const L = track.line, n = I.n, kA = prof.kA, vt = prof.vt, TR = track.terrain;
   // gesperrte Punkte: 2 = hart (Stunts, Schanzen-Zonen, Engstellen, Steilkurven, Wellen/Kuppen/Steilwand – davor viel
   // Abstand), 1 = weich (Hochstraße ohne Bande, starke Kuppe/Senke – der Drift muss nur vorher eingefangen sein)
   const bad = new Uint8Array(n);
@@ -171,11 +171,14 @@ export function driftProfile(env, prof, segs) {
 
 // Drift-Regler: läuft nach dem normalen Autopiloten (ap.control) und verändert dessen Ausgabe (Lenkung, Pedale) bzw.
 // setzt die Drift-Physik (car.assist.drift/lock/rearGrip/driveFront).
+// opts (n43, KI-Gegner): B = eigene Werte (Standard BRACHIAL; Gegner: BRACHIAL + Dosis der Stärke), segs = fertige Drift-Stellen
+// (je Feld einmal), P = Profil fürs Driften (Gegner: ihr eigenes Profil mit Drift-Deckel), seed
 export class DriftCtl {
   constructor(env, prof, opts = {}) {
     this.env = env; this.I = env.ideal || env.track.line;
-    this.segs = planDrifts(this.I, prof, env.track, opts.high, env.world);
-    this.P = driftProfile(env, prof, this.segs);
+    this.B = opts.B || BRACHIAL;
+    this.segs = opts.segs || planDrifts(this.I, prof, env.track, opts.high, env.world, this.B);
+    this.P = opts.P || driftProfile(env, prof, this.segs);
     this.segAt = new Int16Array(this.I.n).fill(-1);
     this.segs.forEach((s, k) => { for (let i = s.i0; i <= s.i1; i++) this.segAt[i] = k; });
     const key = (env.meta && env.meta.key) || (env.layout && env.layout.meta && env.layout.meta.key) || '';
@@ -191,12 +194,13 @@ export class DriftCtl {
 
   // Würfeln je Runde: welche Kurven driften, mit welchem Winkel, wo Beinahe-Dreher/Ausritt
   roll(lap) {
-    const B = BRACHIAL, r = rng((this.seed0 + lap * 7919) >>> 0);
+    const B = this.B, r = rng((this.seed0 + lap * 7919) >>> 0);
     this.lapRolled = lap;
     this.plan = this.segs.map((s) => {
       const tight = Math.min(1, s.kMax * 30 * WORLD_SCALE);   // R ≤ 30 m × Maßstab = eng → mehr Winkel
       const deg = B.beta[0] + (B.beta[1] - B.beta[0]) * (0.35 * tight + 0.65 * r());
-      return { on: r() < B.p, bs: deg * RAD, spinR: r(), grassR: r(), pos: r() };
+      // (n43 Gegner: rDrift = nur Kurven bis zu diesem Radius, Profi driftet nur enge Kurven)
+      return { on: r() < B.p && !(B.rDrift && 1 / Math.max(s.kMax, 1e-6) > B.rDrift), bs: deg * RAD, spinR: r(), grassR: r(), pos: r() };
     });
     // höchstens ein Beinahe-Dreher und ein Ausritt je Runde
     let sp = -1, gr = -1;
@@ -210,7 +214,7 @@ export class DriftCtl {
   // car: Auto; ap: Autopilot (nach control); o: Ausgabe { steer, throttle, brake } (wird verändert); blocked: Spieler lenkt
   // selbst / Stunt-Übergabe; lap: Runde (Tracker). Liefert die Physik-Hilfen fürs Auto.
   step(dt, car, ap, o, blocked, lap) {
-    const B = BRACHIAL, I = this.I, F = car.frame, idx = ap.tr.idx;
+    const B = this.B, I = this.I, F = car.frame, idx = ap.tr.idx;
     if (lap !== this.lapRolled) this.roll(lap);
     const vf = car.v.x * F.f.x + car.v.y * F.f.y + car.v.z * F.f.z, vr = car.v.x * F.r.x + car.v.y * F.r.y + car.v.z * F.r.z;
     const yaw = car.w.x * F.u.x + car.w.y * F.u.y + car.w.z * F.u.z;
@@ -242,7 +246,7 @@ export class DriftCtl {
       const seg = k >= 0 ? this.segs[k] : null;
       const neu = seg && this.lastK === k + lap * 10000 && this.lastWhy === 'rand' && !this.settle && (this.neuN || 0) < (B.neu || 0) && idx > seg.ia
         && I.s[seg.i1] - I.s[idx] > v * (B.tIn + B.tOut + 0.6);
-      if (k >= 0 && (idx <= seg.ia || neu) && this.plan[k].on && car.onGround >= 3 && v > 9 && (this.lastK !== k + lap * 10000 || neu)) {
+      if (k >= 0 && (idx <= seg.ia || neu) && this.plan[k].on && car.onGround >= 3 && v > (B.vMin || 9) && (this.lastK !== k + lap * 10000 || neu)) {
         this.neuN = neu ? (this.neuN || 0) + 1 : 0;
         const p = this.plan[k];
         S = this.st = { k, ph: 'in', t: 0, bs: p.bs, b0: 0, spin: !!p.spin, grass: !!p.grass, hand: v > 14 ? B.hand : 0, bMax: 0, t0: car.time, sg: seg.sg };
@@ -295,7 +299,10 @@ export class DriftCtl {
     else if (S.ph === 'hold') {
       bAim = S.bs;
       // Beinahe-Dreher: nach 0,15 s halten auf spin Grad hoch und wieder zurück (nur mit genug Kurve übrig)
-      if (S.spin && S.t > 0.15 && (S.spinOn || (v < B.vSpin && dEnd > v * (B.spinT + B.tOut + 0.2)))) {
+      // (n43 Gegner: spinMin = nicht unter diesem Tempo, spinRand = abbrechen, wenn die Wagenmitte vorausgesagt näher als so viele m an
+      // den Rand kommt – ohne Leicht-Magnet trug der Dreher das Auto sonst ins Gras/an die Wand)
+      if (S.spinOn && B.spinRand && Math.min(eP - lo, hi - eP) < B.spinRand) { S.spin = false; S.spinOn = false; }
+      if (S.spin && S.t > 0.15 && (S.spinOn || (v < B.vSpin && v > (B.spinMin || 0) && dEnd > v * (B.spinT + B.tOut + 0.2)))) {
         S.spinOn = true;
         const u = (S.t - 0.15) / B.spinT;
         if (u < 1) bAim = S.bs + (B.spin * RAD - S.bs) * Math.sin(Math.PI * u) ** 0.7;

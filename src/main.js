@@ -1300,6 +1300,7 @@ function bild(now) {
       if (schadenSp) schadenSchritt();
       if (ghost) ghost.advance(DT, race);
       if (fx) fx.step(DT, race.car, race.state);
+      if (fx && gegner) gegnerFx();   // n43: Spuren und Qualm der (driftenden) Gegner
       if (fx && LOHN.schweif) fx.airTrail(DT, race.car, race.state === 'running' ? race.stunts.live() : null);   // n38
       acc -= DT; steps++;
     }
@@ -1348,6 +1349,18 @@ function schadenSchritt() {
 // n34: ein Physikschritt der Gegner nach dem des Spielers – Bewegung, Auto-Auto-Kollision, Leicht weicht aus; Stöße mit dem
 // Spieler → Blech-Ton (höchstens alle 0,25 s; ein Crash „Zusammenstoß“ kommt über race.events), Funken an der Kontaktstelle
 const gegnerTon = { t: -1 }, GEGNER_TON = 90, _gv = new THREE.Vector3(), GEGNER_VIS_AUS = params.get('gegnervis') === '0';
+// n43: Gummispuren/Reifenqualm der Gegner (fx.gegnerStep) – nur Autos in voller Physik bis GEGNER_FX[1] m zur Kamera, Qualm bis
+// GEGNER_FX[0] m (?gegnerfx=0 = aus, Mess-Regler)
+const GEGNER_FX = [70, 140], GEGNER_FX_AN = new URLSearchParams(location.search).get('gegnerfx') !== '0';
+function gegnerFx() {
+  if (!GEGNER_FX_AN) return;
+  const c = camera.position;
+  gegner.fahrer.forEach((g, k) => {
+    if (g.modus !== 'physik' || g.zustand === 'start') return;
+    const p = g.car.pos, d = Math.abs(p.x - c.x) + Math.abs(p.z - c.z);
+    if (d < GEGNER_FX[1]) fx.gegnerStep(DT, g.car, k, d < GEGNER_FX[0]);
+  });
+}
 function gegnerSchritt() {
   gegner.step(DT, race);
   if (race.assistKey === 'easy') { const A = gegner.ausweichen(race, DT); race.ap.avoid = A.versatz; race.ap.vCap = A.vCap; }
@@ -2097,7 +2110,7 @@ window.__game = {
   cam(m) { rig.mode = m; rig.init = false; },
   get cockpit() { return cockpit; },
   get brakeLights() { return brakeLights; }, get air() { return air; },
-  get fx() { return fx; }, get sound() { return sound; },
+  get fx() { return fx; }, get sound() { return sound; }, get camera() { return camera; },   // n43: Tests (Partikel beim Vorspulen altern lassen)
   get carVis() { return carVis; }, get ghostVis() { return ghostVis; }, get ghost() { return ghost; },
   get gegner() { return gegner; }, get gegnerVis() { return gegnerVis; },   // n34 (Mess-/Abnahme-Skripte)
   get online() { return { spiel: onl, rennen: onlR, ansicht: onlA, aktion: onlineAktion, rufe: onlRufe }; },   // n35 (Abnahme-Skripte, zwei Pages)
@@ -2109,7 +2122,7 @@ window.__game = {
   sim(seconds, inp = null) {
     const I = inp || { steer: 0, throttle: 0, brake: 0 };
     const n = Math.round(seconds / DT);
-    for (let k = 0; k < n; k++) { prevPose = race.car.snapshot(); race.step(DT, I); if (gegner) gegnerSchritt(); if (schadenSp) schadenSchritt(); if (ghost) ghost.advance(DT, race); if (fx) fx.step(DT, race.car, race.state); if (fx && LOHN.schweif) fx.airTrail(DT, race.car, race.state === 'running' ? race.stunts.live() : null); if (race.state === 'finished') break; }
+    for (let k = 0; k < n; k++) { prevPose = race.car.snapshot(); race.step(DT, I); if (gegner) gegnerSchritt(); if (schadenSp) schadenSchritt(); if (ghost) ghost.advance(DT, race); if (fx) fx.step(DT, race.car, race.state); if (fx && gegner) gegnerFx(); if (fx && LOHN.schweif) fx.airTrail(DT, race.car, race.state === 'running' ? race.stunts.live() : null); if (race.state === 'finished') break; }
     handleEvents();
     return this.state();
   },
