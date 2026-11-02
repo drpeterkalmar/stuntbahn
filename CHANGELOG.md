@@ -2,7 +2,7 @@
 
 Kurzfassung je Version; Details in den Abschnitten der `README.md` und in den Berichten (`*_BERICHT.md`).
 
-## __VERSION__ – 02.11.2026 (Neue Strecke nach dem Replay)
+## 0.19.2 – 02.11.2026 (Neue Strecke nach dem Replay)
 - **Fix** (Peter 02.11.: „Zufallsstrecke startet in der Wiese weit neben der Strecke, Auto und Strecke teils schwarz“): Nach
   📼 Replay → ✕ → „🎲 Neue Strecke“ blieb das Spiel im Replay-Modus und zeichnete das Auto aus der Aufzeichnung der alten
   Strecke in die neue Landschaft (gemessen 252 m neben dem Start, im Gelände versunken). Jetzt geht es sauber ins Menü, das
