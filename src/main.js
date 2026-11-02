@@ -955,10 +955,19 @@ function startRace(opts = {}) {
   prevPose = null;
 }
 function retry() { startRace(); }
-async function newTrack(seed, diff, mode, randomTheme = false, gv = GEN_V) {
+// Fix 02.11. (Peter: „Zufallsstrecke startet in der Wiese neben der Strecke, Auto/Strecke teils schwarz“): der Parameter hieß
+// `mode` und verdeckte den globalen Spielmodus – nach Replay/Ergebnis → „🎲 Neue Strecke“ blieb das Spiel im Replay-Modus und
+// zeichnete das Auto aus der Aufzeichnung der ALTEN Strecke in die neue Landschaft. Jetzt wie toMenu(): Replay/Film/Show weg.
+async function newTrack(seed, diff, art, randomTheme = false, gv = GEN_V) {
+  if (mode !== 'menu') {
+    act = null; ui.actionFx(null); replay = null; quitShow();
+    if (cine) { cine = null; ui.hideCine(); }
+    sound.stop(); gegnerAus();
+    mode = 'menu';
+  }
   ui.loading(0.5, 'Strecke bauen …');
   await new Promise((r) => setTimeout(r, 30));
-  await loadGenerated(seed, diff, modeOf(mode), randomTheme, gv);
+  await loadGenerated(seed, diff, modeOf(art), randomTheme, gv);
   ui.loading(1);
   ui.showMenu(env);
   mode = 'menu';

@@ -2,6 +2,12 @@
 
 Kurzfassung je Version; Details in den Abschnitten der `README.md` und in den Berichten (`*_BERICHT.md`).
 
+## __VERSION__ – 02.11.2026 (Neue Strecke nach dem Replay)
+- **Fix** (Peter 02.11.: „Zufallsstrecke startet in der Wiese weit neben der Strecke, Auto und Strecke teils schwarz“): Nach
+  📼 Replay → ✕ → „🎲 Neue Strecke“ blieb das Spiel im Replay-Modus und zeichnete das Auto aus der Aufzeichnung der alten
+  Strecke in die neue Landschaft (gemessen 252 m neben dem Start, im Gelände versunken). Jetzt geht es sauber ins Menü, das
+  Auto steht am neuen Start. Test `tests/test_neue_strecke_nach_replay.py` (alter Stand rot, neuer grün).
+
 ## 0.19.1 – 01.11.2026 (Brems-Warnton aus)
 - Der Warnton beim Hinweis „Bremsen!“ ist aus (Peter 01.11.); der Text-Hinweis bleibt. `?bremston=1` = Ton wie bisher.
 
