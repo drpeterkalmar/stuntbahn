@@ -64,7 +64,7 @@ import { mipBiasEinbauen } from './gfx/kern/taau.js';
 import { loadDecoAssets, decoUniforms, GB } from './gfx/deco.js';
 import { kulisseTick } from './gfx/kulisse.js';
 import { DEKO, REDUCED, makeBirds, AirMotes, makeBrakeLights } from './gfx/deko.js';
-import { daySeed } from './core/util.js';
+import { daySeed, zeitlimit } from './core/util.js';
 import { GLATT } from './core/glatt.js';   // n42 Ruckeln + langsamer Start: Schalter der Maßnahmen
 import { showKmhMs } from './core/showspeed.js';
 import { GMeter, G_ON } from './core/gforce.js';
@@ -126,6 +126,11 @@ let reflex = null, reflexOff = false;
 const REFLEX_LAYER = 2, REFLEX_OBJ = /^(trk|terrain|kulisse-(meer|horizont|nah|fern)|trees)/;   // nur große Flächen: jeder Draw-Call der Spiegel-Seite kostet am Handy CPU
 // n30: Bäume als Oktaeder-Impostors (Standard/Kino), sobald assets/tex/imp/impostor.json da ist; ?impostor=0 = Karten
 const IMP = params.get('impostor') === '0' ? null : new ImpostorBibliothek('assets/tex/imp/impostor.json', renderer);
+// n44 (Peter 02.11.: „hängt bei Strecke bauen“): Nachgeladenes beim Streckenbau (Landschafts-Paket, Baum-Atlanten, Shader)
+// wartet höchstens so lange (ms), dann Ersatz (Land, Karten-Bäume, weiter ohne Warten). ?ladelimit=0 = ohne Limit (wie bis 0.19.2)
+const LADE_LIMIT = params.has('ladelimit') ? Math.max(0, +params.get('ladelimit') || 0) : 10000;
+// n44 Test-Haken: ?ladefehler=N → der N-te Streckenbau wirft (Rückfall-Weg prüfen, tests/test_n44_strecke_bauen.py)
+let LADE_FEHLER = +(params.get('ladefehler') || 0);
 // n39: Minikarte im Rennen (eigene kleine Szene, Render-Target 20/30 Hz, je Bild eine Kopie in die Ecke). GPU-Messung der
 // Karte (?kartemess=1) nur, wenn nicht schon die Bild-Messung läuft (Zeitabfragen lassen sich nicht schachteln)
 const karte = new Minikarte(renderer, { darfMessen: () => !(quality.gpu && (!quality.forced || GPU_MESS)) });
@@ -225,6 +230,18 @@ function ghostify(root, nur = null) {
   });
 }
 
+// n44: Streckenbau beim Start gescheitert → Meldung und Rückfall auf die flache Strecke des Tages (bzw. die Teststrecke);
+// scheitert auch das, zeigt boot() den Fehler (ui.fatal) statt eines stehenden Ladebalkens
+async function startRueckfall(e) {
+  console.error('Streckenbau gescheitert', e);
+  if (window.__errors) window.__errors.push('Streckenbau: ' + String(e && e.message || e));
+  app.rueckfall = String(e && e.message || e);
+  ui.loading(0.85, 'Andere Strecke …');
+  pruefungAbbrechen();
+  try { await loadGenerated(daySeed(), 2, 'flat'); } catch (e2) { console.error('Ersatzstrecke gescheitert', e2); pruefungAbbrechen(); await loadTrack(demoLayout(), { name: 'Teststrecke' }); }
+  setTimeout(() => ui.toast('Strecke ließ sich nicht bauen – Ersatzstrecke geladen', 3500), 600);
+}
+
 async function boot() {
   ui.loading(0.05, 'Himmel und Licht …');
   // Kulissen (n20): Himmel/Licht/Boden kommen mit dem Landschafts-Thema der Strecke (gfx/themes.js). Das Thema der Start-
@@ -286,13 +303,13 @@ async function boot() {
   scheibe = new Scheibe();   // n32: Regentropfen auf Scheibe/Linse (nur bei Regen in Cockpit-/Stoßstangen-Kamera)
   ui.loading(0.8, 'Strecke bauen …');
   const q = params.get('seed');
-  if (params.has('demo')) await loadTrack(demoLayout(), { name: 'Teststrecke' });
+  if (params.has('demo')) await loadTrack(demoLayout(), { name: 'Teststrecke' }).catch(startRueckfall);
   else if (params.has('gallery')) await loadTrack(params.get('gallery') === 'gel' ? galleryGelLayout() : galleryLayout());   // ?gallery=gel: Gelände-Galerie (n22)
-  else if (params.has('trk')) await loadImported(params.get('trk')).catch((e) => { console.warn(e); return loadGenerated(daySeed(), 2); });
+  else if (params.has('trk')) await loadImported(params.get('trk')).catch((e) => { console.warn(e); return loadGenerated(daySeed(), 2); }).catch(startRueckfall);
   // ?seed=…&d=… wie bisher flach (alte Codes, Tests); &3d=1 = Hochstraße (n19), &g=1 = Gelände (n22), &h=1 = Generator mit
   // den n33-Hindernissen (Code-Zusatz „h“). Ohne Seed: Strecke des Tages in der gewählten Streckenart (ab n22 Standard
   // „Gelände“; Schalter im Menü), ab n33 mit den neuen Hindernissen
-  else await loadGenerated(q ? +q : daySeed(), +(params.get('d') || 2), q ? (params.get('g') === '1' ? 'gel' : params.get('3d') === '1' ? '3d' : 'flat') : store.settings.trackMode, false, q ? (params.get('p') === '1' ? 3 : params.get('h') === '1' ? 2 : 1) : GEN_V);   // n42: &p=1 = Version 3
+  else await loadGenerated(q ? +q : daySeed(), +(params.get('d') || 2), q ? (params.get('g') === '1' ? 'gel' : params.get('3d') === '1' ? '3d' : 'flat') : store.settings.trackMode, false, q ? (params.get('p') === '1' ? 3 : params.get('h') === '1' ? 2 : 1) : GEN_V).catch(startRueckfall);   // n42: &p=1 = Version 3
   reflexVorwaermen();
   actionVorwaermen();
   await startAutopilot();
@@ -687,11 +704,13 @@ async function loadTrack(layout, meta = {}, pre = null) {
   const { track, world, ideal, prof } = P;
   env = { track, world, ideal, prof, layout, meta: { ...layout.meta, ...meta } };
   // Kulissen (n20): Thema laden/anwenden (Himmel, Licht, Boden), dann die Welt mit seinen Pflanzen, Bauten, Fernkulisse
-  const th = await themes.use(themeOf(layout));
+  if (LADE_FEHLER > 0 && --LADE_FEHLER === 0) throw new Error('Test: Streckenbau scheitert (?ladefehler)');
+  const ladeTxt = setTimeout(() => { if (document.querySelector('#loading.show')) ui.loading(0.82, 'Landschaft laden …'); }, 1500);   // n44
+  const th = await themes.use(themeOf(layout), LADE_LIMIT).finally(() => clearTimeout(ladeTxt));
   env.theme = th.id;
   env.themeRandom = !!randomThemaOf(layout);
   wendeWetter();   // n32
-  if (IMP && quality.tier >= 1) await IMP.vorladen(impostorArten(th.def));   // n30: fehlt der Atlas, bleiben es Karten
+  if (IMP && quality.tier >= 1) await zeitlimit(IMP.vorladen(impostorArten(th.def)), LADE_LIMIT);   // n30: fehlt der Atlas, bleiben es Karten
   if (worldGroup) { scene.remove(worldGroup); worldGroup.traverse((o) => { if (o.geometry) o.geometry.dispose(); }); worldGroup = null; }
   worldGroup = buildWorld(track, M, { world, tier: quality.tier, ideal, prof, deco: params.get('deko') !== 'aus', impostor: IMP, theme: { id: th.id, def: th.def, veg: th.veg, horizon: th.horizon, seed: layout.seed || layout.meta?.seed || 1 } });
   // Deko (n28): Vogelschwärme über der Landschaft (ein Draw-Call, Bahn im Shader)
@@ -717,7 +736,7 @@ async function loadTrack(layout, meta = {}, pre = null) {
   env.buildMs = performance.now() - t0;
   if (GLATT.programmfest) app.programmfest = programmfest(scene);   // n42 (ganze Szene: auch Dinge außerhalb der Welt-Gruppe)
   quality.schattenNeu(); quality.apply(sun, renderer);   // n42: Schatten-Regel wieder voll (Shader werden hier ohnehin übersetzt)
-  try { if (renderer.compileAsync) await renderer.compileAsync(scene, camera); } catch { /* optional */ }
+  try { if (renderer.compileAsync) await zeitlimit(renderer.compileAsync(scene, camera), LADE_LIMIT); } catch { /* optional */ }
   if (quality.ap) quality.ap.schonen(1.5);   // n30: Shader/Texturen der neuen Strecke – erste Bilder zählen nicht
   // n42: Feuerwerk-Objekt schon jetzt (kleiner Plan, unsichtbar) – Shader, Puffer-Aufbau und erste Zeichnung (Erst-Zeichnung
   // unten) sind dann beim Zieldurchgang schon da; der echte Plan ersetzt nur die Daten (sonst ~70–180 ms Hänger im Ziel)
@@ -967,7 +986,16 @@ async function newTrack(seed, diff, art, randomTheme = false, gv = GEN_V) {
   }
   ui.loading(0.5, 'Strecke bauen …');
   await new Promise((r) => setTimeout(r, 30));
-  await loadGenerated(seed, diff, modeOf(art), randomTheme, gv);
+  // n44: scheitert der Bau, nie mit stehendem Ladebalken enden – Meldung, zurück zur bisherigen Strecke (neu gebaut)
+  const alt = env;
+  try { await loadGenerated(seed, diff, modeOf(art), randomTheme, gv); } catch (e) {
+    console.error('Neue Strecke gescheitert', e);
+    if (window.__errors) window.__errors.push('Neue Strecke: ' + String(e && e.message || e));
+    app.rueckfall = String(e && e.message || e);
+    pruefungAbbrechen();
+    try { if (alt) await loadTrack(alt.layout, alt.meta, { track: alt.track, world: alt.world, ideal: alt.ideal, prof: alt.prof }); } catch (e2) { console.error(e2); }
+    ui.toast('Strecke ließ sich nicht bauen – bitte nochmal würfeln', 3500);
+  }
   ui.loading(1);
   ui.showMenu(env);
   mode = 'menu';
@@ -979,7 +1007,7 @@ async function setTheme(v) {
   if (!env) return;
   ui.loading(0.5, 'Landschaft …');
   await new Promise((r) => setTimeout(r, 20));
-  await loadTrack(env.layout, env.meta, { track: env.track, world: env.world, ideal: env.ideal, prof: env.prof });
+  try { await loadTrack(env.layout, env.meta, { track: env.track, world: env.world, ideal: env.ideal, prof: env.prof }); } catch (e) { console.error('Landschaft', e); ui.toast('Landschaft ließ sich nicht laden', 3000); }   // n44: Ladebalken nie stehen lassen
   ui.loading(1);
   if (mode === 'menu') ui.showMenu(env);
 }

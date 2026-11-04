@@ -83,6 +83,15 @@ spielbar am Handy (quer oder hochkant), mit Gamepad oder Tastatur. Als App insta
 - Messen: `node tools/pflicht_mess.mjs [N] [gv=3] [--verify]`, `node tools/darstellung_mess.mjs`; Fotos
   `python3 tests/n42_selten_fotos.py`; Test `node tests/node/test_n42.mjs`. Bericht `N42_BERICHT.md`.
 
+## 🧯 Start hängt nicht bei „Strecke bauen“ (seit 04.11.2026, n44)
+- Peter 02.11.: „stuntbahn hängt bei ‚Strecke bauen‘“. Ursache: das Landschafts-Paket der Strecke (nicht im Offline-Speicher,
+  nach Updates weg) kam aus dem Netz nicht an → der Start wartete ewig. Jetzt höchstens 10 s, dann Ersatz-Landschaft „Land“;
+  Baum-Atlanten und Shader-Vorübersetzen ebenso mit Limit. Scheitert der Bau, Ersatzstrecke bzw. die bisherige Strecke, nie
+  ein stehender Ladebalken. `?ladelimit=<ms>` (0 = wie bis 0.19.2), Test-Haken `?ladefehler=N`.
+- Test `python3 tests/test_n44_strecke_bauen.py` (`N44_ROOT=<Ordner>` prüft einen anderen Stand). Mess-Skripte:
+  `tests/n44_boot_probe.py`, `n44_wiederkehr.py`, `n44_sw_update.py`, `n44_netz_probe.py`, `n44_kontext_probe.py`,
+  `n44_neue_strecke_sweep.py`, `node tools/n44_seed_sweep.mjs`. Bericht `NACHT44_BERICHT.md`.
+
 ## 🧈 Flüssiger und schneller am Start (seit 27.10.2026, n42 Etappe 1)
 - Peter 26.10.: „ruckeln zeitweise und starten langsam“. Gefunden (Mess-Skript `tests/n42_mess.py`, Mittelklasse-Profil: CPU ×4,
   Fast 4G): die Grafik-Automatik übersetzte beim Abschalten des Auto-Schattens alle Shader neu (bis 1,7 s Standbild); neue

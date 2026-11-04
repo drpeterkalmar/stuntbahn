@@ -13,6 +13,7 @@ import { GRADES } from './kinolook.js';
 import { merkeBasis, wendeWetterAn, meldeWetterGrades } from './wetter.js';
 import { wendeZeitAn } from './zeit.js';
 import { zeitLook } from '../track/zeit.js';
+import { zeitlimit } from '../core/util.js';
 
 meldeWetterGrades(GRADES);   // n32: Farbkorrektur „wetter_regen“ / „wetter_schnee“
 
@@ -75,10 +76,15 @@ export class ThemeManager {
     return pack;
   }
   // Thema anwenden (lädt bei Bedarf). Liefert das angewandte Thema (bei Fehler „Land“)
-  async use(id) {
+  // n44 (Peter 02.11.: „hängt bei Strecke bauen“): limit ms – kommt das Paket nicht rechtzeitig (Netz hängt; Themen liegen
+  // nicht im Vorab-Cache, nach jedem Update fehlen sie), gilt „Land“ (Grund-Dateien, vorab gecacht). Das Paket lädt weiter
+  // (Service Worker legt es ab), die nächste Strecke bzw. das nächste Laden hat es dann. Land selbst nicht da → Fehler.
+  async use(id, limit = 0) {
     if (this.cur && this.cur.id === id) return this.cur;
-    let pack = await this.prefetch(id);
-    if (!pack) { id = 'land'; pack = await this.prefetch('land'); }
+    let pack = await zeitlimit(this.prefetch(id), limit);
+    if (!pack && id !== 'land') this.stats.zeitlimit = (this.stats.zeitlimit || 0) + (this.packs.has(id) ? 1 : 0);
+    if (!pack) { id = 'land'; pack = await zeitlimit(this.prefetch('land'), limit); }
+    if (!pack) throw new Error('Landschaft lädt nicht');
     if (this.cur && this.cur.id === id) return this.cur;
     this.apply(pack);
     // vorheriges Paket freigeben (nur eins im Speicher)

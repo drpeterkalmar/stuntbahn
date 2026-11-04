@@ -37,6 +37,13 @@ export function hashStr(s) {
   return h >>> 0;
 }
 
+// n44: Promise mit Zeitlimit – nach ms erfüllt mit `ersatz` (das Original läuft weiter); ms <= 0 = ohne Limit
+export function zeitlimit(p, ms, ersatz = null) {
+  if (!(ms > 0)) return p;
+  let t;
+  return Promise.race([p, new Promise((r) => { t = setTimeout(() => r(ersatz), ms); })]).finally(() => clearTimeout(t));
+}
+
 // "Strecke des Tages": Datum als Seed (JJJJMMTT)
 export function daySeed(d = new Date()) {
   return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();

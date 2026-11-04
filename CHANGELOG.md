@@ -2,6 +2,18 @@
 
 Kurzfassung je Version; Details in den Abschnitten der `README.md` und in den Berichten (`*_BERICHT.md`).
 
+## __VERSION__ – 04.11.2026 (Start hängt nicht mehr bei „Strecke bauen“, n44)
+- **Fix** (Peter 02.11.: „stuntbahn hängt bei ‚Strecke bauen‘“, beim Öffnen): Die Landschafts-Pakete (Wüste, Alpen, Küste …)
+  liegen nicht im Offline-Speicher und sind nach jedem Update weg. Kam ein Paket aus dem Netz nicht an (Netz da, aber es kommt
+  nichts), wartete der Start ewig – am 02.11. hatte die Tagesstrecke als erste seit Tagen die Wüste, am selben Nachmittag kam
+  0.19.2. Jetzt: nach 10 s Ersatz-Landschaft „Land“ (liegt immer im Offline-Speicher), das Paket lädt weiter und ist beim
+  nächsten Laden da. Im Normalfall alles wie bisher (Landschaft, Strecke, Zeiten unverändert).
+- Robuster: Scheitert der Streckenbau beim Start, kommt die flache Strecke des Tages (bzw. die Teststrecke) mit Hinweis; bei
+  „🎲 Neue Strecke“ bleibt die bisherige Strecke. Der Ladebalken bleibt nie stehen. Wartet der Bau auf die Landschaft, steht
+  „Landschaft laden …“ da.
+- `?ladelimit=<ms>` (0 = ohne Limit wie bis 0.19.2), Test-Haken `?ladefehler=N`. Test `tests/test_n44_strecke_bauen.py`
+  (0.19.2: 3 von 6 Fällen hängen, jetzt 6/6 grün). Bericht `NACHT44_BERICHT.md`.
+
 ## 0.19.2 – 02.11.2026 (Neue Strecke nach dem Replay)
 - **Fix** (Peter 02.11.: „Zufallsstrecke startet in der Wiese weit neben der Strecke, Auto und Strecke teils schwarz“): Nach
   📼 Replay → ✕ → „🎲 Neue Strecke“ blieb das Spiel im Replay-Modus und zeichnete das Auto aus der Aufzeichnung der alten

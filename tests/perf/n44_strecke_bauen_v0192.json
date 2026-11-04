@@ -1,0 +1,126 @@
+[
+ {
+  "name": "Start 02.11. Gelände (Wüste), Netz hängt",
+  "ok": false,
+  "s": 25.1,
+  "zustand": {
+   "t": "Strecke bauen …",
+   "show": true,
+   "ready": false,
+   "menu": false,
+   "thema": null,
+   "key": "20261102-2-gp",
+   "rueckfall": null,
+   "neu": null
+  },
+  "haengende_anfragen": 9,
+  "pageerrors": []
+ },
+ {
+  "name": "Start 02.11. 3D (Winter), Netz hängt, Desktop",
+  "ok": false,
+  "s": 25.2,
+  "zustand": {
+   "t": "Strecke bauen …",
+   "show": true,
+   "ready": false,
+   "menu": false,
+   "thema": null,
+   "key": "20261102-2-3dp",
+   "rueckfall": null,
+   "neu": null
+  },
+  "haengende_anfragen": 9,
+  "pageerrors": []
+ },
+ {
+  "name": "Start 02.11. Gelände, Netz normal",
+  "ok": true,
+  "s": 2.5,
+  "zustand": {
+   "t": "Grafik einstellen …",
+   "show": false,
+   "ready": true,
+   "menu": true,
+   "thema": "wueste",
+   "key": "20261102-2-gp",
+   "rueckfall": null,
+   "neu": null
+  },
+  "haengende_anfragen": 0,
+  "pageerrors": []
+ },
+ {
+  "name": "Neue Strecke (Alpen), Netz hängt",
+  "ok": false,
+  "s": 3.0,
+  "zustand": {
+   "t": "Grafik einstellen …",
+   "show": false,
+   "ready": true,
+   "menu": true,
+   "thema": "land",
+   "key": "20261101-2-gp",
+   "rueckfall": null,
+   "neu": null
+  },
+  "haengende_anfragen": 0,
+  "pageerrors": [],
+  "danach_s": 25.2,
+  "danach": {
+   "t": "Strecke bauen …",
+   "show": false,
+   "ready": true,
+   "menu": true,
+   "thema": null,
+   "key": "20261103-2-gp",
+   "rueckfall": null,
+   "neu": false
+  }
+ },
+ {
+  "name": "Start mit Baufehler (?ladefehler=1)",
+  "ok": true,
+  "s": 2.2,
+  "zustand": {
+   "t": "Grafik einstellen …",
+   "show": false,
+   "ready": true,
+   "menu": true,
+   "thema": "wueste",
+   "key": "20261102-2-gp",
+   "rueckfall": null,
+   "neu": null
+  },
+  "haengende_anfragen": 0,
+  "pageerrors": []
+ },
+ {
+  "name": "Neue Strecke mit Baufehler (?ladefehler=2)",
+  "ok": true,
+  "s": 2.8,
+  "zustand": {
+   "t": "Grafik einstellen …",
+   "show": false,
+   "ready": true,
+   "menu": true,
+   "thema": "land",
+   "key": "20261101-2-gp",
+   "rueckfall": null,
+   "neu": null
+  },
+  "haengende_anfragen": 0,
+  "pageerrors": [],
+  "danach_s": 3.5,
+  "danach": {
+   "t": "Strecke bauen …",
+   "show": false,
+   "ready": true,
+   "menu": true,
+   "thema": "land",
+   "key": "4711-2-gp",
+   "rueckfall": null,
+   "neu": true
+  }
+ }
+]
