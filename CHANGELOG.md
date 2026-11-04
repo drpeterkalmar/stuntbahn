@@ -2,7 +2,7 @@
 
 Kurzfassung je Version; Details in den Abschnitten der `README.md` und in den Berichten (`*_BERICHT.md`).
 
-## __VERSION__ – 04.11.2026 (Start hängt nicht mehr bei „Strecke bauen“, n44)
+## 0.19.3 – 04.11.2026 (Start hängt nicht mehr bei „Strecke bauen“, n44)
 - **Fix** (Peter 02.11.: „stuntbahn hängt bei ‚Strecke bauen‘“, beim Öffnen): Die Landschafts-Pakete (Wüste, Alpen, Küste …)
   liegen nicht im Offline-Speicher und sind nach jedem Update weg. Kam ein Paket aus dem Netz nicht an (Netz da, aber es kommt
   nichts), wartete der Start ewig – am 02.11. hatte die Tagesstrecke als erste seit Tagen die Wüste, am selben Nachmittag kam
