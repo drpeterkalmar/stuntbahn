@@ -19,7 +19,7 @@
  {
   "name": "Start 02.11. 3D (Winter), Netz hängt, Desktop",
   "ok": true,
-  "s": 12.5,
+  "s": 12.6,
   "zustand": {
    "t": "Grafik einstellen …",
    "show": false,
@@ -36,7 +36,7 @@
  {
   "name": "Start 02.11. Gelände, Netz normal",
   "ok": true,
-  "s": 2.5,
+  "s": 2.8,
   "zustand": {
    "t": "Grafik einstellen …",
    "show": false,
@@ -53,7 +53,7 @@
  {
   "name": "Neue Strecke (Alpen), Netz hängt",
   "ok": true,
-  "s": 3.0,
+  "s": 2.9,
   "zustand": {
    "t": "Grafik einstellen …",
    "show": false,
@@ -81,7 +81,7 @@
  {
   "name": "Start mit Baufehler (?ladefehler=1)",
   "ok": true,
-  "s": 2.6,
+  "s": 3.0,
   "zustand": {
    "t": "Grafik einstellen …",
    "show": false,
@@ -98,7 +98,7 @@
  {
   "name": "Neue Strecke mit Baufehler (?ladefehler=2)",
   "ok": true,
-  "s": 2.7,
+  "s": 2.8,
   "zustand": {
    "t": "Grafik einstellen …",
    "show": false,
@@ -111,7 +111,7 @@
   },
   "haengende_anfragen": 0,
   "pageerrors": [],
-  "danach_s": 0.0,
+  "danach_s": 0.1,
   "danach": {
    "t": "Strecke bauen …",
    "show": false,
