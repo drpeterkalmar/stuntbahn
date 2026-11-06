@@ -72,6 +72,19 @@ spielbar am Handy (quer oder hochkant), mit Gamepad oder Tastatur. Als App insta
   Abstand zu jeder Fahrbahn (auch Hochstraßen/Rampen), nie im Wasser. Dosiert nach Grafikstufe; ruckelt es, blendet die
   Automatik (nach der Unschärfe) zuerst Gras/Büsche/Wolkenschatten aus. `?deko=aus` (bis n29 `?deko=0`) / `?wolken=0` zum Vergleich.
 
+## 🏎️💨 Arcade-Drift, Gegner geben Gas, Rempler ohne Strafe (seit 06.11.2026, n45)
+- **Arcade-Drift** (Mittel, Original, alle Gegner): in zügigen Kurven dreht die Karosserie sichtbar quer, das Auto fährt und lenkt
+  aber genau wie ohne Drift (`src/core/arcadedrift.js`, reine Darstellung: Winkel aus Querbeschleunigung und Tempo, Drehpunkt
+  0,8 m vor der Mitte, Aufbau 0,2 s / zurück 0,3 s, gesperrt per `arcadeSperre` in `game/race.js`). Qualm/Spuren/Quietschen aus
+  `car.arcadeSlip`, Vorderräder zeigen in die Fahrtrichtung, Drift-Kamera. Nicht im Cockpit/an der Stoßstange, nicht im Replay.
+  Regler: `?drift=n43` (0.19.3, lockeres Heck), `?drift=alt` (0.17.0), `?arcadedrift=0…2`.
+- **Anzug** (`ANZUG` in `ai/gegner.js`): wartet ein Gegner vorn und du holst auf, zieht er (und seine Kolonne) auf ~85–97 % deines
+  Tempos an, nie über sein Renntempo. `?aufhol=alt`.
+- **Rempler** (`HAERTE` in `physics/autoauto.js`): Crash erst ab 30 m/s (Mittel) bzw. 19 m/s (Original) Stoß-Tempo. `?rempel=alt`.
+- Messung: `node tools/n45_mess.mjs` (288 Rennen Auffahren/Strafen/Gummiband), `node tools/n45_drift_mess.mjs [--gegner=1]`,
+  Browser `python3 tests/n45_shots.py quer|hoch spieler|gegner medium|original`, `python3 tests/perf_n45.py quer|hoch`.
+  Test `tests/node/test_n45.mjs`. Bericht `N45_BERICHT.md`.
+
 ## 🚧 Alle Pflicht-Hindernisse + Original-Teile in Zufallsstrecken (seit 27.10.2026, n42 Etappe 2)
 - Peter 26.10.: „Zufallsstrecken vergessen Hindernisse“. Der Generator ließ Pflicht-Elemente aus, wenn kein Platz war (flach
   „Irre“ in 0 % vollständig). **Generator-Version 3** (Code-Zusatz **„p“**, Standard für neue Strecken und die Strecke des

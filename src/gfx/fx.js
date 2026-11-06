@@ -256,7 +256,7 @@ export class CarFX {
         // Reifenrauch: Kino dichter, größer, steigt und treibt hinter dem Auto her
         // n25: quer rutschend (Drift, Rutschwinkel > ~25°) dichter und größer
         const big = Math.max(0, Math.min(1, (slip - 0.45) / 0.35));
-        if (this.rich) this.parts.spawn(this.p.setY(this.p.y + 0.4), this.v.set(car.v.x * 0.18 + (Math.random() - 0.5), 0.5 + Math.random() * 0.6, car.v.z * 0.18 + (Math.random() - 0.5)), 0.8 + 0.4 * big, 4.2 + 2.2 * big, 1.7 + 0.5 * big, 0xc4c4c2, 0.3 + 0.15 * Math.min(1, s - 0.5) + 0.2 * big);
+        if (this.rich) this.parts.spawn(this.p.setY(this.p.y + 0.4), this.v.set(car.v.x * 0.18 + (Math.random() - 0.5), 0.5 + Math.random() * 0.6, car.v.z * 0.18 + (Math.random() - 0.5)), 0.8 + 0.4 * big, 4.2 + 2.2 * big, 1.7 + 0.5 * big, 0xc4c4c2, 0.3 + 0.15 * Math.min(1, s - 0.5) + 0.2 * big + (arc ? 0.15 : 0));   // n45: im Arcade-Drift dichter
         else this.parts.spawn(this.p, this.v.set(0, 0.6, 0), 0.6, 2.6, 1.2, 0xd8d8d8, 0.35);
       }
       if (emit && !onRoad && sp > 5 && k >= 2) {
@@ -325,7 +325,7 @@ export class CarFX {
       this.skids.add(kk, this.p, this.n, this.side, s * Math.min(1, sp / 6));
       if (emit && onRoad && s > 0.5 && sp > 8) {
         const big = Math.max(0, Math.min(1, (slip - 0.45) / 0.35));
-        if (this.rich) this.parts.spawn(this.p.setY(this.p.y + 0.4), this.v.set(car.v.x * 0.18 + (Math.random() - 0.5), 0.5 + Math.random() * 0.6, car.v.z * 0.18 + (Math.random() - 0.5)), 0.8 + 0.4 * big, 4.2 + 2.2 * big, 1.7 + 0.5 * big, 0xc4c4c2, 0.3 + 0.15 * Math.min(1, s - 0.5) + 0.2 * big);
+        if (this.rich) this.parts.spawn(this.p.setY(this.p.y + 0.4), this.v.set(car.v.x * 0.18 + (Math.random() - 0.5), 0.5 + Math.random() * 0.6, car.v.z * 0.18 + (Math.random() - 0.5)), 0.8 + 0.4 * big, 4.2 + 2.2 * big, 1.7 + 0.5 * big, 0xc4c4c2, 0.3 + 0.15 * Math.min(1, s - 0.5) + 0.2 * big + (arc ? 0.15 : 0));   // n45: im Arcade-Drift dichter
         else this.parts.spawn(this.p, this.v.set(0, 0.6, 0), 0.6, 2.6, 1.2, 0xd8d8d8, 0.35);
       }
       if (emit && !onRoad && sp > 8.5 && k >= 2) this.parts.spawn(this.p, this.v.set(car.v.x * 0.25 + (Math.random() - 0.5) * 2, 1.6 + Math.random() * 1.5, car.v.z * 0.25 + (Math.random() - 0.5) * 2), 0.25, 0.9, 0.6, Math.random() < 0.6 ? 0x5e7d2a : 0x6b5236, 0.9);

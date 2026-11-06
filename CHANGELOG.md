@@ -2,6 +2,17 @@
 
 Kurzfassung je Version; Details in den Abschnitten der `README.md` und in den Berichten (`*_BERICHT.md`).
 
+## __VERSION__ – 06.11.2026 (Gegner geben Gas, Rempler ohne Strafe, sichtbarer Arcade-Drift, n45)
+- **Wartende Gegner geben Gas, wenn du aufholst** (Peter 04.11.): ein Gegner (bzw. eine ganze Gegner-Kolonne), der per Gummiband
+  auf dich wartet, zieht rechtzeitig und zügig (0,3 s) wieder auf dein Tempo an. `?aufhol=alt` = wie 0.19.3.
+- **Ein bisschen Kontakt darf sein:** Auto-Auto-Crash erst bei etwa doppeltem Stoß-Tempo (Mittel 30 statt 16 m/s, Original 19 statt
+  9,5 m/s), für dich, die Gegner und Online gleich. Strafen aus Auto-Kontakten in 288 Mess-Rennen 476 → 92 (−81 %). `?rempel=alt`.
+- **Arcade-Drift auf Mittel und Original:** in jeder zügigen Kurve steht dein Auto sichtbar quer (typisch 15–30°, eng+schnell bis 40°),
+  lenkt aber genau wie ohne Drift (nur Darstellung: Linie, Kollision, Rundenzeit unverändert – Bestzeiten bleiben gültig). Mit
+  Gummispuren, Qualm, Quietschen, gegengelenkten Vorderrädern und Drift-Kamera; nie in Looping/Röhre/Schanze/Luft/Steilkurve.
+  Das lockere Heck aus 0.18.0 ist auf Mittel/Original still. Gegner bekommen dieselbe Darstellung. `?drift=n43` = 0.19.3,
+  `?drift=alt` = 0.17.0, `?arcadedrift=0…2` = Stärke. Bericht `N45_BERICHT.md`.
+
 ## 0.19.3 – 04.11.2026 (Start hängt nicht mehr bei „Strecke bauen“, n44)
 - **Fix** (Peter 02.11.: „stuntbahn hängt bei ‚Strecke bauen‘“, beim Öffnen): Die Landschafts-Pakete (Wüste, Alpen, Küste …)
   liegen nicht im Offline-Speicher und sind nach jedem Update weg. Kam ein Paket aus dem Netz nicht an (Netz da, aber es kommt

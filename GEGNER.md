@@ -90,6 +90,15 @@ Ohne `race` (Server, Messung, KI gegen KI): `feld.step(dt, null, sichtPunkt)`.
   WipeOut: Drift-Stellen aus der eigenen Linie; ohne Heck-Physik reicht der Gier-Regler (`assist.drift`) allein.
 - Darstellung: `CarFX.gegnerStep` (Gummispuren/Qualm, Spur-Nummer je Gegner), `?gegnerfx=0`.
 
+## n45 (06.11.2026): Anzug, Rempler, Arcade-Drift
+- **Anzug** (`ANZUG`): Untergrenze des Gummiband-Faktors = k × Spieler-Tempo / Profil-Tempo (k 0,97 nah → 0,85 bei `nah` m, nie > 1),
+  voll innerhalb max(nah, Rest + Annäherung²/(2·a)), Kolonne zählt vom hintersten Auto, τ 0,3 s auf / 0,8 s ab. `?aufhol=alt`.
+  WipeOut: dieselbe Rechnung, ohne Stunts.
+- **Rempel-Schwelle** (`HAERTE`/`HAERTE_ALT`): mittel 30, hart 19 m/s (bis 0.19.3: 16 / 9,5). `?rempel=alt`. Stoß-Ereignis mit
+  `hinten` (wer aufgefahren ist).
+- **Arcade-Drift** je Gegner (`g.arcade`, `core/arcadedrift.js`, Dosis `ARCADE_DRIFT.gegner`): nur Darstellung (`gegnervis.js`
+  `arcadePose`), zählt einen echten Drift-Winkel mit. Online-Menschen (fremde Autos) ohne.
+
 ## n35 Online-Mehrspieler – was übernommen wird
 - **Fremde Autos** = `GegnerVis` (Lack, Namensschild, LOD) mit Lage aus dem Netz statt aus der KI (gleiches `sync(feld …)`-
   Prinzip: Lage vor/nach dem letzten Netz-Paket interpolieren).

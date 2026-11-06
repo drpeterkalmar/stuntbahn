@@ -1692,7 +1692,7 @@ function render(rdt) {
     pose.vel = c.v;
     // n45 Arcade-Drift (Mittel/Original): Karosserie quer gedreht dargestellt, Kamera/Physik folgen weiter der Fahrbahn-Lage
     // (nicht im Cockpit/an der Stoßstange: dort sitzt die Kamera im Auto und würde mit querdrehen)
-    if (c.arcade && c.arcade.beta && !race.autopilotOnly && rig.view !== 'cockpit' && rig.view !== 'bumper') pose = arcadePose(pose, c.frame, c.arcade.beta);
+    if (c.arcade && c.arcade.beta && (!race.autopilotOnly || race.arcadeAuch) && rig.view !== 'cockpit' && rig.view !== 'bumper') pose = arcadePose(pose, c.frame, c.arcade.beta);
     carVis.sync(c, 1, pose);
   }
   updateCheer(pose, rdt);

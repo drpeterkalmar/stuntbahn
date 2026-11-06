@@ -520,7 +520,8 @@ export class Race {
     if (this.schadenFolgen) this.schadenFolgen(car);
     car.step(dt, this.env.world);
     // n45 Arcade-Drift (Mittel/Original, nur Darstellung – Bahn, Kollision und Zeit bleiben): Karosserie dreht in Kurven quer
-    const arcOn = ARCADE_DRIFT.an && !this.autopilotOnly && (this.assistKey === 'medium' || this.assistKey === 'original');
+    const arcOn = ARCADE_DRIFT.an && (!this.autopilotOnly || this.arcadeAuch) &&   // (arcadeAuch: Mess-Haken, Bildrate mit Autopilot)
+      (this.assistKey === 'medium' || this.assistKey === 'original');
     if (arcOn && !this.arcade) this.arcade = new ArcadeDrift();
     else if (!arcOn && this.arcade) { this.arcade.reset(car); car.arcade = null; this.arcade = null; }
     if (this.arcade) this.arcade.step(dt, car, this.state !== 'running' || !!arcadeSperre(this.env.track, this.env.prof)[idx]);

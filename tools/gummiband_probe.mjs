@@ -15,6 +15,8 @@ if (process.argv.includes('--anzug=0')) ANZUG.an = false;   // n45: 0.19.3-Verha
 const DT = 1 / 120;
 const arg = (k, d) => { const a = process.argv.find((s) => s.startsWith(`--${k}=`)); return a ? a.slice(k.length + 3) : d; };
 const auf = process.argv[2] === '1';
+for (const kv of String(arg('anzugset', '')).split(',').filter(Boolean)) { const [k, x] = kv.split(':'); ANZUG[k] = +x; }
+
 const q = (a, p) => { const b = [...a].sort((x, y) => x - y); return b[Math.min(b.length - 1, Math.floor(p * b.length))]; };
 const STRECKEN = arg('strecken', '11-2,4711-3,77-2,5-1,2024-3,303-2').split(',').map((x) => x.split('-').map(Number));
 const STAERKEN = arg('staerken', 'locker,ebenbuertig,profi').split(',');
