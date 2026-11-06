@@ -12,6 +12,8 @@ const HERE = path.dirname(url.fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '..');
 const arg = (k, d) => { const a = process.argv.find((s) => s.startsWith(`--${k}=`)); return a ? a.slice(k.length + 3) : process.argv.includes(`--${k}`) ? true : d; };
 const imp = (p) => import(url.pathToFileURL(path.join(ROOT, p)).href);
+// n45: --rempel=alt = Crash-Schwellen der Auto-Auto-Kollision bis 0.19.3 (wie ?rempel=alt)
+if (arg('rempel') === 'alt') globalThis.location = { search: '?rempel=alt' };
 const { verifySync } = await imp('src/track/verify.js');
 const { parseTrk, TRK_BYTES } = await imp('src/track/trk.js');
 const { trkToLayout } = await imp('src/track/trkimport.js');

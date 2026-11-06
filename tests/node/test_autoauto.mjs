@@ -3,7 +3,7 @@
 // Crash nur auf hart, Impulserhaltung im Stoß, deterministisch, nie NaN, nie tiefer als 0,35 m ineinander.
 import { Car } from '../../src/physics/car.js';
 import { MAT } from '../../src/track/defs.js';
-import { stoss, ueberlapp, quader, HAERTE, BOX } from '../../src/physics/autoauto.js';
+import { stoss, ueberlapp, quader, HAERTE, HAERTE_ALT, BOX } from '../../src/physics/autoauto.js';
 
 let bad = 0;
 const ok = (c, m) => { console.log((c ? 'OK   ' : 'FAIL ') + m); if (!c) bad++; };
@@ -100,10 +100,23 @@ function fahrt(A, B, haerte, sek, eingabe = {}) {
   ok(!r.nan && r.stoesse > 0 && r.maxPen < 0.35, `T-Stoß 80 m/s: Stoß, kein NaN, Tiefe ${r.maxPen.toFixed(3)} m`);
   ok(A.pos.x < B.pos.x, `T-Stoß: A nicht durch B hindurch (A ${A.pos.x.toFixed(2)}, B ${B.pos.x.toFixed(2)})`);
 }
+// n45 Rempler (Peter 04.11.2026: „ein bisschen kontakt darf schon sein“): Auffahren mit 12 m/s Unterschied crasht auf mittel und hart
+// nicht mehr (bis 0.19.3 auf hart schon), 25 m/s auf hart weiter; ?rempel=alt-Werte unverändert
+{
+  const lauf = (h, dv) => { const A = auto(0, 0, [0, 0, -1], 20 + dv), B = auto(0, -8, [0, 0, -1], 20); const r = fahrt(A, B, h, 1.5); return { A, B, r }; };
+  const m = lauf(HAERTE.mittel, 12), h = lauf(HAERTE.hart, 12), ha = lauf(HAERTE_ALT.hart, 12), h2 = lauf(HAERTE.hart, 25);
+  ok(!m.A.crash && !m.B.crash, `Rempler mittel 12 m/s: kein Crash (Stoß ${m.r.maxVn.toFixed(1)} m/s)`);
+  ok(!h.A.crash && !h.B.crash, `Rempler hart 12 m/s: kein Crash (Stoß ${h.r.maxVn.toFixed(1)} m/s)`);
+  ok(ha.A.crash && ha.B.crash, `?rempel=alt hart 12 m/s: Crash wie bis 0.19.3`);
+  ok(h2.A.crash && h2.B.crash, `harter Einschlag hart 25 m/s: weiter Crash (Stoß ${h2.r.maxVn.toFixed(1)} m/s)`);
+  ok(HAERTE.mittel.crash >= 2 * HAERTE_ALT.mittel.crash * 0.9 && HAERTE.hart.crash >= 2 * HAERTE_ALT.hart.crash * 0.9, `Crash-Schwellen etwa doppelt (mittel ${HAERTE.mittel.crash}, hart ${HAERTE.hart.crash} m/s)`);
+  ok(h.r.maxPen < 0.35 && h.B.pos.z < h.A.pos.z - 2, `Rempler hart: kein Durchrutschen (Tiefe ${h.r.maxPen.toFixed(3)} m)`);
+}
 // 7. weich dreht weniger als hart (Stoß an der Ecke)
 {
   const run = (h) => { const A = auto(0, 0, [0, 0, -1], 35), B = auto(1.4, -6, [0, 0, -1], 25); fahrt(A, B, h, 0.5); return Math.abs(B.w.y) + Math.abs(A.w.y); };
-  const w = run(HAERTE.weich), hh = run(HAERTE.hart);
+  // (n45: mit der Crash-Schwelle bis 0.19.3 – crashen beide, steht die Gierrate des Stoßes; ohne Crash fängt die Reifenhaftung sie ab)
+  const w = run(HAERTE.weich), hh = run(HAERTE_ALT.hart);
   ok(w < hh, `Eckstoß: weich dreht weniger als hart (Gierrate ${w.toFixed(2)} < ${hh.toFixed(2)} rad/s)`);
 }
 // 8. deterministisch

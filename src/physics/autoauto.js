@@ -13,11 +13,24 @@ export const BOX = { cy: 0.26, h: [0.95, 0.52, 2.28] };
 // 1 = voller Starrkörper), korr = Anteil der Lagekorrektur je Schritt, dvMax = größte Tempo-Änderung je Stoß (m/s,
 // „anstupsen“), crash = Stoß-Tempo (m/s senkrecht), ab dem beide Autos crashen (Infinity = nie).
 // Leicht weich (anstupsen), Original hart (Brief Peter 08.10.: „Auf Leicht weich, auf Original hart“).
-export const HAERTE = {
+// n45 (Peter 04.11.2026: „die strafe für aufpraller nicht so schnell …, ein bisschen kontakt darf schon sein“): Crash erst bei
+// etwa doppeltem Stoß-Tempo (Mittel 16 → 30 m/s, Original 9,5 → 19 m/s) – Anstupsen, Schieben, Schleifen, Auffahren mit kleinem
+// Tempo-Unterschied geben nur Funken, Ton, Schubs, Delle. Ein Crash braucht EINEN harten Stoß (viele leichte binnen kurzer Zeit
+// summieren sich nie); liegen bleiben/umkippen/abfliegen nach dem Stoß bleiben Crashs (Regeln in car.js/race.js). Gilt gleich für
+// Spieler, Gegner und Online (game/online.js nimmt dieselbe Tabelle). ?rempel=alt = Werte bis 0.19.3 (HAERTE_ALT).
+const remUrl = globalThis.location && globalThis.location.search ? new URLSearchParams(globalThis.location.search).get('rempel') : null;
+export const HAERTE_NEU = {
   weich: { rest: 0.05, fric: 0.08, dreh: 0.25, korr: 0.5, dvMax: 6, crash: Infinity },
-  mittel: { rest: 0.15, fric: 0.18, dreh: 0.6, korr: 0.6, dvMax: 14, crash: 16 },
-  hart: { rest: 0.3, fric: 0.3, dreh: 1, korr: 0.7, dvMax: Infinity, crash: 9.5 },
+  mittel: { rest: 0.15, fric: 0.18, dreh: 0.6, korr: 0.6, dvMax: 14, crash: 30 },
+  hart: { rest: 0.3, fric: 0.3, dreh: 1, korr: 0.7, dvMax: Infinity, crash: 19 },
 };
+export const HAERTE_ALT = {
+  weich: HAERTE_NEU.weich,
+  mittel: { ...HAERTE_NEU.mittel, crash: 16 },
+  hart: { ...HAERTE_NEU.hart, crash: 9.5 },
+};
+export const REMPEL_ALT = remUrl === 'alt';
+export const HAERTE = REMPEL_ALT ? HAERTE_ALT : HAERTE_NEU;
 export const HAERTE_JE_STUFE = { easy: 'weich', medium: 'mittel', original: 'hart' };
 // Swept-Test ab so viel relativer Bewegung je Schritt (m), Teilstücke höchstens so lang
 export const SWEPT = { ab: 0.5, stueck: 0.35 };
