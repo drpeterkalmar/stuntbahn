@@ -10,7 +10,8 @@ const R = url.pathToFileURL(path.resolve(path.dirname(url.fileURLToPath(import.m
 const { generate } = await import(R + 'src/track/generator.js');
 const { verifySync } = await import(R + 'src/track/verify.js');
 const { Race } = await import(R + 'src/game/race.js');
-const { GegnerFeld, GEGNER_NITRO, TAKT, AUFHOL } = await import(R + 'src/ai/gegner.js');
+const { GegnerFeld, GEGNER_NITRO, TAKT, AUFHOL, ANZUG } = await import(R + 'src/ai/gegner.js');
+if (process.argv.includes('--anzug=0')) ANZUG.an = false;   // n45: 0.19.3-Verhalten (?aufhol=alt)
 const DT = 1 / 120;
 const arg = (k, d) => { const a = process.argv.find((s) => s.startsWith(`--${k}=`)); return a ? a.slice(k.length + 3) : d; };
 const auf = process.argv[2] === '1';

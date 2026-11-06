@@ -126,6 +126,15 @@ const gummiUrl = urlQ && urlQ.has('gummi') ? Math.max(0, Math.min(2, +urlQ.get('
 // AUFHOL_ALT = Stand bis 0.16.0 (gilt mit ?gegnerstaerke=alt)
 export const AUFHOL = { k: gummiUrl ?? 1, tot: 30, vorL: 55, hinterL: 140, tau: 1.5, tauVor: 2, physVor: 0.2, physHinter: 1.15, schVor: 0.05, schHinter: 1.45, ende: 350 };
 export const AUFHOL_ALT = { ...AUFHOL, vorL: 80, tauVor: 3, physVor: 0.3 };
+// n45 Anzug (Peter 04.11.2026: „die npc gegner die auf mich warten [sollen] etwas beschleunigen wenn ich zu ihnen aufhole sonst gibt es
+// ständig auffahrunfälle“): ein wartender Gegner vorn (Gummiband < 1, volle Physik) zieht rechtzeitig und zügig wieder an, wenn der
+// Spieler näher kommt – Ziel: beim Eintreffen fährt er mit ähnlichem Tempo. Untergrenze des Faktors = k (bei tot m; bis nah m
+// weich auf kFern) × Spieler-Tempo / Profil-
+// Tempo des Gegners (höchstens 1 = sein normales Renntempo, nie schneller), voll innerhalb max(nah, Bremsweg-Formel) m (Abstand des
+// hintersten Autos einer Kolonne): Rest-Abstand
+// rand m + Annäherung² / (2 × Beschleunigung × a), ausgeblendet über weitere aus m; Anstieg mit tau s statt AUFHOL.tau, im Anzug abwärts tauAb s statt tauVor. Kurven/
+// Bremszonen: das Profil bleibt die Obergrenze (Faktor ≤ 1). ?aufhol=alt = 0.19.3 (kein Anzug)
+export const ANZUG = { an: !(urlQ && urlQ.get('aufhol') === 'alt'), k: 0.97, kFern: 0.85, tot: 30, nah: 70, aus: 30, rand: 15, a: 0.7, tau: 0.3, tauAb: 0.8 };
 // Geist-Phase nach dem Wiedereinsetzen (Reset/Rückspulen, Spieler und Gegner): t s keine Auto-Auto-Kollision, verlängert solange ein
 // anderes Auto näher als frei m ist (sonst stieße man sich beim Ende der Phase ineinander). Probe mit Gummiband: die meisten
 // „Zusammenstoß“-Crashs gab es, wenn ein Auto zurückgesetzt wurde, wo das Feld gerade ankam
@@ -990,7 +999,16 @@ export class GegnerFeld {
   aufholen(race, dt = 1 / 120) {
     const A = this.A, p = race.tracker.progress();
     const wH = Math.max(0, Math.min(1, (this.ziel - p - 100) / Math.max(1, A.ende - 100)));   // Aufholen vor dem Ziel ausblenden
-    const a = 1 - Math.exp(-dt / A.tau), aV = 1 - Math.exp(-dt / A.tauVor);
+    const a = 1 - Math.exp(-dt / A.tau), aV = 1 - Math.exp(-dt / A.tauVor), aA = 1 - Math.exp(-dt / ANZUG.tau), aAb = 1 - Math.exp(-dt / ANZUG.tauAb);
+    const vs = race.state === 'running' ? Math.max(0, race.car.fwdSpeed()) : 0;
+    // Kolonne: fahren Gegner vor dem Spieler dicht hintereinander (Lücke ≤ VERKEHR.blick m), zählt für den Anzug der Abstand des
+    // hintersten – sonst hängt das Ende der Kolonne am wartenden Kopf fest (Messung: 80 % der „zu langsam vor dir“-Fälle)
+    const dKol = new Map();
+    if (ANZUG.an && vs > 5) {
+      const vorn = this.fahrer.filter((g) => !g.fertig && g.zustand !== 'start').map((g) => ({ g, d: g.fortschritt() - p })).filter((x) => x.d > 0).sort((x, y) => x.d - y.d);
+      let tail = null, last = -1e9;
+      for (const x of vorn) { if (x.d - last > VERKEHR.blick) tail = x.d; last = x.d; dKol.set(x.g, tail); }
+    }
     for (const g of this.fahrer) {
       if (g.fertig || g.zustand === 'start') { g.gummi = 1; g.tempoMod = 1; continue; }
       const d = g.fortschritt() - p;
@@ -998,9 +1016,28 @@ export class GegnerFeld {
       z = 1 + (z - 1) * A.k * (z > 1 ? wH : 1);
       const sch = g.modus === 'schiene';
       z = Math.max(sch ? A.schVor : A.physVor, Math.min(sch ? A.schHinter : Math.min(A.physHinter, 1 / Math.max(0.3, g.P.faktor)), z));
+      // n45 Anzug: wartet der Gegner vorn und der Spieler kommt näher, rechtzeitig wieder aufs Renntempo (ANZUG)
+      let anzug = false, imAnzug = false;
+      if (ANZUG.an && !sch && z < 1 && d > 0 && vs > 5 && g.zustand === 'fahrt') {
+        const vg = Math.max(0, g.tempo()), vc = vs - vg;
+        const acc = Math.max(1.5, antrieb(g.car, vg) * ANZUG.a);
+        const dVoll = Math.max(ANZUG.nah, ANZUG.rand + (vc > 0 ? vc * vc / (2 * acc) : 0));
+        const dK = dKol.get(g) ?? d, w = Math.max(0, Math.min(1, (dVoll + ANZUG.aus - dK) / ANZUG.aus));
+        if (w > 0) {
+          imAnzug = true;
+          // (nah am Spieler k × sein Tempo, weiter weg bis kFern – so kommt der Spieler noch heran, das Band hält das Feld in der Nähe)
+          const kd = ANZUG.k - (ANZUG.k - ANZUG.kFern) * Math.max(0, Math.min(1, (dK - ANZUG.tot) / (ANZUG.nah - ANZUG.tot)));
+          const vP = Math.max(1, g.P.vt[g.idx()]);
+          const zF = Math.min(1, kd * vs / vP);
+          const zA = z + (Math.max(z, zF) - z) * w;
+          if (zA > z) { z = zA; anzug = vc > 0 || zA > g.gummi; }
+        }
+      }
       // in der Physik langsamer abbremsen (tauVor) als beschleunigen – das Band macht vordere Gegner langsamer als hintere, ein
       // plötzliches Bremsen staute das Feld ineinander; nach dem Wechsel von der Schiene sofort im Physik-Bereich (kein Kriechen)
-      g.gummi += (z - g.gummi) * (!sch && z < g.gummi ? aV : a);
+      // (im Anzug folgt der Faktor dem Spieler-Tempo auch nach unten zügig – sonst trug ein Gegner Faktor 1 aus einer Kurve, in der sein
+      // Profil ohnehin langsamer war, auf die Gerade und fuhr davon)
+      g.gummi += (z - g.gummi) * (!sch && z < g.gummi ? (imAnzug ? aAb : aV) : anzug ? aA : a);
       if (!sch) g.gummi = Math.max(A.physVor, Math.min(A.physHinter, g.gummi));
       // Physik: in Stunt-Nähe Faktor 1 (weich über die Maske); Schiene: aufholend dort höchstens Profil-Tempo, wartend auch dort
       const nahe = this.M.nahe[g.idx()] || 0;
@@ -1035,7 +1072,13 @@ export class GegnerFeld {
       if (r.vn > 1.5) {
         // n36: welcher Gegner (bei Spieler-Stößen) und frontal (Fahrtrichtungen gegeneinander) – für den Takedown-Moment
         const G = A.spieler ? B.g : B.spieler ? A.g : null, fa = A.car.frame.f, fb = B.car.frame.f;
-        this.ereignis({ type: 'stoss', v: r.vn, p: r.p, n: r.n, spieler: !!(A.spieler || B.spieler), crash: r.crash, id: G ? G.id : null, frontal: fa.x * fb.x + fa.y * fb.y + fa.z * fb.z < -0.7 });
+        // n45: Auffahren (gleiche Richtung, das hintere Auto trifft mit der Front das Heck des vorderen): hinten = 'spieler' | Gegner-id
+        let hinten = null;
+        if (fa.x * fb.x + fa.y * fb.y + fa.z * fb.z > 0.7) {
+          const dx = B.car.pos.x - A.car.pos.x, dy = B.car.pos.y - A.car.pos.y, dz = B.car.pos.z - A.car.pos.z, l = dx * fa.x + dy * fa.y + dz * fa.z;
+          if (Math.abs(l) > 2.5) { const H = l > 0 ? A : B; hinten = H.spieler ? 'spieler' : H.g ? H.g.id : 'fremd'; }
+        }
+        this.ereignis({ type: 'stoss', v: r.vn, p: r.p, n: r.n, spieler: !!(A.spieler || B.spieler), crash: r.crash, id: G ? G.id : null, frontal: fa.x * fb.x + fa.y * fb.y + fa.z * fb.z < -0.7, hinten });
       }
       else if (this.uhr - (this.schleifT || -1) > 0.06) {
         // Schleifen (Seite an Seite): Funken, wenn die Autos schnell aneinander vorbeigleiten (höchstens ~16 × je s)
