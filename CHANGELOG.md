@@ -2,7 +2,7 @@
 
 Kurzfassung je Version; Details in den Abschnitten der `README.md` und in den Berichten (`*_BERICHT.md`).
 
-## __VERSION__ – 06.11.2026 (Gegner geben Gas, Rempler ohne Strafe, sichtbarer Arcade-Drift, n45)
+## 0.20.0 – 06.11.2026 (Gegner geben Gas, Rempler ohne Strafe, sichtbarer Arcade-Drift, n45)
 - **Wartende Gegner geben Gas, wenn du aufholst** (Peter 04.11.): ein Gegner (bzw. eine ganze Gegner-Kolonne), der per Gummiband
   auf dich wartet, zieht rechtzeitig und zügig (0,3 s) wieder auf dein Tempo an. `?aufhol=alt` = wie 0.19.3.
 - **Ein bisschen Kontakt darf sein:** Auto-Auto-Crash erst bei etwa doppeltem Stoß-Tempo (Mittel 30 statt 16 m/s, Original 19 statt
