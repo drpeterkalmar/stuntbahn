@@ -11,6 +11,7 @@ import { JumpAssist } from './jumpassist.js';
 import { showKmhMs } from '../core/showspeed.js';
 import { computeProfile } from '../ai/profile.js';
 import { DriftCtl, BRACHIAL } from '../ai/drift.js';
+import { ArcadeDrift, ARCADE_DRIFT } from '../core/arcadedrift.js';
 import { ZIEL } from './zielshow.js';
 import { ZSTUNT, ZIELJUBEL, stuntRaum, stuntArt, stuntStart, stuntFlug, flugFrei, lineAhead, lineAt } from './zielstunt.js';
 import { ARCADE, arcadeAssist } from '../physics/arcade.js';
@@ -154,6 +155,25 @@ export function zigMask(track) {
 // übernehmen wie beim Mitlenk-Modell nur, wer außerhalb des Bandes weiter von der Linie wegdrückt.
 // URL ?fahrstil=sauber|brachial übersteuert die Einstellung.
 export const HECK_SPERRE = { vor: 25, vorT: 1, nach: 15, breite: 6 };
+// n45 Arcade-Drift gesperrt (core/arcadedrift.js): Looping, Röhre, Korkenzieher, Luft, Schanzen-Zone, Zickzack, Steilkurve (Querneigung
+// über steil), Achterbahn-Wellen, Stunt-Bausteine; davor vor m bzw. vorT s × Profil-Tempo, danach nach m. Je Strecke einmal (track._arcS)
+export const ARCADE_SPERRE = { vor: 20, vorT: 0.7, nach: 12, steil: 0.2 };
+export function arcadeSperre(track, prof = null) {
+  if (track._arcS) return track._arcS;
+  const L = track.line, n = L.n, S = ARCADE_SPERRE, zig = zigMask(track), bad = new Uint8Array(n), out = new Uint8Array(n);
+  const jz = (i) => { for (const j of track.jumps) if (i >= j.lipIdx - 30 && i <= (j.endIdx ?? j.landIdx + 12)) return true; return false; };
+  for (let i = 0; i < n; i++) {
+    const pc = track.pieces[L.piece[i]];
+    if (L.loop[i] || L.tube[i] || L.air[i] || zig[i] || jz(i) || Math.abs(L.by[i]) > S.steil || (L.wave && L.wave[i]) || (pc && pc.stunt)) bad[i] = 1;
+  }
+  for (let pass = 0; pass < (L.closed ? 2 : 1); pass++) {
+    let d = 1e9;
+    for (let i = n - 1; i >= 0; i--) { d = bad[i] ? 0 : d + Math.max(0, (L.s[i + 1] ?? L.s[i]) - L.s[i]); if (d < Math.max(S.vor, S.vorT * (prof && prof.vt ? prof.vt[i] || 0 : 30))) out[i] = 1; }
+    let e = 1e9;
+    for (let i = 0; i < n; i++) { e = bad[i] ? 0 : e + (i ? L.s[i] - L.s[i - 1] : 0); if (e < S.nach) out[i] = 1; }
+  }
+  return (track._arcS = out);
+}
 export const FAHRSTILE = { brachial: 'Brachial', sauber: 'Sauber' };
 export const FAHRSTIL_URL = urlQ && FAHRSTILE[urlQ.get('fahrstil')] ? urlQ.get('fahrstil') : null;
 export const BRACHIAL_STEER = { nudge: 0.3, nudgeDrift: 0.1, pushT: 1.6, lift: 0.85, liftThr: 0.35, nitroLead: 250 };
@@ -283,7 +303,9 @@ export class Race {
     if (X && X.drive) { c.drive = X.drive; c.vSoft = X.vSoft; c.vTop = X.vTop; }
     // n43 lockeres Heck (car.js HECK) je Stufe – nie in der reinen Autopilot-Fahrt (Prüffahrt/Generator bitgleich); die Rennlogik
     // sperrt es zusätzlich vor/in Stunts (Race.heckSperre)
-    c.heck = autopilotOnly ? null : HECK[key || Object.keys(ASSISTS).find((k) => ASSISTS[k] === A)] || null;
+    // n45: auf Mittel/Original ersetzt der Arcade-Drift (core/arcadedrift.js, nur Darstellung) das lockere Heck – ?drift=n43 = alt
+    const hk = key || Object.keys(ASSISTS).find((k) => ASSISTS[k] === A);
+    c.heck = autopilotOnly || ((hk === 'medium' || hk === 'original') && ARCADE_DRIFT.an && !ARCADE_DRIFT.heckN43) ? null : HECK[hk] || null;
   }
 
   // Luftsteuerung (n37): Spieler-Eingabe → car.input.air. Was beim Absprung schon gehalten wird (Vollgas, Lenken in der Kurve),
@@ -497,6 +519,11 @@ export class Race {
     // Schadensmodell „Mit Fahrfolgen“ (n34, nur Original + Totalschaden; null = aus): Ziehen, weniger Leistung, Wrack
     if (this.schadenFolgen) this.schadenFolgen(car);
     car.step(dt, this.env.world);
+    // n45 Arcade-Drift (Mittel/Original, nur Darstellung – Bahn, Kollision und Zeit bleiben): Karosserie dreht in Kurven quer
+    const arcOn = ARCADE_DRIFT.an && !this.autopilotOnly && (this.assistKey === 'medium' || this.assistKey === 'original');
+    if (arcOn && !this.arcade) this.arcade = new ArcadeDrift();
+    else if (!arcOn && this.arcade) { this.arcade.reset(car); car.arcade = null; this.arcade = null; }
+    if (this.arcade) this.arcade.step(dt, car, this.state !== 'running' || !!arcadeSperre(this.env.track, this.env.prof)[idx]);
     // Fortschritt / Checkpoints / Ziel
     let ti = this.tracker.update(car.pos.x, car.pos.y, car.pos.z);
     if (!this.autopilotOnly) {

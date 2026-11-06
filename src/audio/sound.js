@@ -549,6 +549,7 @@ export class Sound {
     // Reifen: Quietschen (Aufnahme, bei jedem neuen Rutschen zufällig eine von zwei), Tonhöhe mit dem Schlupf
     let slip = 0;
     for (const w of car.wheels) if (w.contact) slip = Math.max(slip, Math.abs(w.slip));
+    slip = Math.max(slip, (car.arcadeSlip || 0) * 0.7);   // n45 Arcade-Drift: quietscht, wenn die Karosserie quer steht
     const sp = car.speed(), cock = opt.cockpit ? 0.6 : 1;
     const tireV = run || state === 'finished' ? clamp01((slip - 0.12) * 3) * Math.min(1, sp / 8) : 0;
     if (tireV > 0.01 && !N.tire) { N.tire = this.loop(pick(R.tire), 0, N.tireBus, Math.random() * 1.5); }

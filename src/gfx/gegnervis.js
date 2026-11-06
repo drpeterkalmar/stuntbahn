@@ -8,6 +8,7 @@ import { makeCar } from './carmesh.js';
 import { GEGNER_MAX } from '../ai/gegner.js';
 import { schadenZeigen, SCHADEN_NAH as DELLEN_NAH } from './schadenvis.js';   // n34-Nachtrag Schadensmodell
 import { neuerSchaden } from '../physics/schaden.js';
+import { arcadePose } from '../core/arcadedrift.js';
 const HEIL = neuerSchaden();
 let heilV = 0;
 
@@ -105,6 +106,8 @@ export class GegnerVis {
         pose = { pos: { x: P.p[0] + (c.pos.x - P.p[0]) * a, y: P.p[1] + (c.pos.y - P.p[1]) * a, z: P.p[2] + (c.pos.z - P.p[2]) * a }, q: { x: qa.x, y: qa.y, z: qa.z, w: qa.w } };
       } else pose = { pos: c.pos, q: c.q };
       pose.air = c.onGround === 0 && !c.surfaceKind && !c.crash;
+      // n45 Arcade-Drift der Gegner (ai/gegner.js g.arcade): Karosserie quer dazu, Bahn bleibt
+      if (c.arcade && c.arcade.beta) { pose.frame = c.frame; pose = arcadePose(pose, c.frame, c.arcade.beta); }
       A.car.root.visible = true;
       A.car.sync(c, 1, pose);
       if (RAEDER_AUS) for (const k in A.car.wheels) A.car.wheels[k].pivot.visible = false;

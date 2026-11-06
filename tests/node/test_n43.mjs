@@ -6,6 +6,9 @@
 import { generate } from '../../src/track/generator.js';
 import { verifySync } from '../../src/track/verify.js';
 import { GegnerFeld, gegnerOptionen, staerkeWerte, STAERKEN, STAERKEN_ALT, gegnerBasis } from '../../src/ai/gegner.js';
+import { ARCADE_DRIFT } from '../../src/core/arcadedrift.js';
+// n45: auf Mittel/Original ersetzt der Arcade-Drift das lockere Heck – die Heck-Prüfungen hier gelten dem alten Weg ?drift=n43
+ARCADE_DRIFT.heckN43 = true;
 
 let bad = 0;
 const ok = (c, m) => { console.log((c ? 'OK   ' : 'FAIL ') + m); if (!c) bad++; };

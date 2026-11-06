@@ -4,6 +4,7 @@ import { GLATT } from '../core/glatt.js';   // n42: durchsichtig + beidseitig in
 import { zeitUniforms } from './zeit.js';
 import { DEKO } from './deko.js';
 import { MAT } from '../track/defs.js';
+import { arcadePunkt } from '../core/arcadedrift.js';
 
 // Rauch-/Staubwolke (n17): weicher Rand + Wolken-Rauschen (statt glatter Scheibe), Alpha in der Textur, kein Bild nötig
 function smokeTexture() {
@@ -228,7 +229,11 @@ export class CarFX {
       if (!w.contact) { this.skids.add(k, this.p, this.n, this.side, 0); return; }
       this.p.set(w.hx, w.hy, w.hz); this.n.set(w.nx, w.ny, w.nz);
       this.side.set(car.frame.r.x, car.frame.r.y, car.frame.r.z);
-      const slip = Math.abs(w.slip);
+      // n45 Arcade-Drift (core/arcadedrift.js): Karosserie steht quer – Spuren/Qualm an den sichtbaren Rädern, Rutschen aus dem
+      // sichtbaren Schwimmwinkel (Hinterräder voll, vorn ein Drittel)
+      const arc = car.arcade && car.arcade.beta ? car.arcade.beta : 0;
+      if (arc) arcadePunkt(car, arc, this.p, this.p);
+      const slip = Math.max(Math.abs(w.slip), arc ? (car.arcadeSlip || 0) * (k >= 2 ? 1 : 0.35) : 0);
       const braking = car.input.brake > 0.5 && sp > 6 && !car.input.hold ? 0.5 : 0;
       const onRoad = w.mat !== 8;
       const s = onRoad ? Math.max(0, Math.min(1, (slip - 0.18) * 3)) + braking * 0.6 : 0;
@@ -312,7 +317,9 @@ export class CarFX {
       if (!w.contact) { this.skids.add(kk, this.p, this.n, this.side, 0); continue; }
       this.p.set(w.hx, w.hy, w.hz); this.n.set(w.nx, w.ny, w.nz);
       this.side.set(car.frame.r.x, car.frame.r.y, car.frame.r.z);
-      const slip = Math.abs(w.slip), onRoad = w.mat !== 8;
+      const arc = car.arcade && car.arcade.beta ? car.arcade.beta : 0;   // n45 Arcade-Drift wie beim Spieler
+      if (arc) arcadePunkt(car, arc, this.p, this.p);
+      const slip = Math.max(Math.abs(w.slip), arc ? (car.arcadeSlip || 0) * (k >= 2 ? 1 : 0.35) : 0), onRoad = w.mat !== 8;
       const braking = car.input.brake > 0.5 && sp > 6 && !car.input.hold ? 0.5 : 0;
       const s = onRoad ? Math.max(0, Math.min(1, (slip - 0.18) * 3)) + braking * 0.6 : 0;
       this.skids.add(kk, this.p, this.n, this.side, s * Math.min(1, sp / 6));

@@ -16,7 +16,8 @@ import { SchadenAuto } from '../physics/schaden.js';
 import { COOLDOWN, NITRO_TOTAL, nitroLevel } from '../physics/extras.js';
 import { computeProfile, PROF } from './profile.js';
 import { DriftCtl, planDrifts, BRACHIAL } from './drift.js';
-import { highLine } from '../game/race.js';
+import { highLine, arcadeSperre } from '../game/race.js';
+import { ArcadeDrift, ARCADE_DRIFT } from '../core/arcadedrift.js';
 import { WORLD_SCALE } from '../track/defs.js';
 
 // ---------- Einstellungen ----------
@@ -440,6 +441,8 @@ export class GegnerFahrer {
     this.zn = null;
     // Schadensmodell (n34-Nachtrag, Option ?schaden=): nur Optik bei Gegnern (Fahrfolgen nur für den Spieler auf Original)
     this.schaden = feld.opt.schaden ? new SchadenAuto(this.car) : null;
+    // n45 Arcade-Drift (nur Darstellung, zusätzlich zum Drift-Regler): Karosserie in Kurven sichtbar quer, je Stärke dosiert
+    this.arcade = ARCADE_DRIFT.an && feld.opt.arcade !== false ? new ArcadeDrift(ARCADE_DRIFT.gegner[info.staerke] ?? 1) : null;
   }
 
   // auf den Rasterplatz stellen (Fahrbahnpunkt mit Seitenversatz, im Stand)
@@ -476,6 +479,7 @@ export class GegnerFahrer {
     this.nitro(dt, F);
     if (this.modus === 'schiene') this.schrittSchiene(dt, F);
     else this.schrittPhysik(dt, F);
+    if (this.arcade) this.arcade.step(dt, this.car, this.zustand !== 'fahrt' || this.modus === 'schiene' || !!arcadeSperre(F.env.track, F.env.prof)[this.idx()]);
     if (!this.fertig && this.fortschritt() >= F.ziel) this.insZiel(F);
     if (this.fertig) this.finT += dt;
     this.zn.melde(this.fortschritt(), F.uhr);

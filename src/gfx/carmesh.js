@@ -425,7 +425,8 @@ export async function makeCar(opts = {}) {
         const w = phys.wheels[i], W = wheels[k];
         const yc = d.mountY - (d.rest + d.wheelR - w.comp) + rVis;
         W.pivot.position.set(W.base.x, Math.min(yc, W.base.y + 0.22), W.base.z);
-        W.pivot.rotation.set(0, -w.steer, 0);
+        // n45 Arcade-Drift: Karosserie um lenkVersatz gedreht – Vorderräder zeigen weiter in die Fahrtrichtung (sichtbares Gegenlenken)
+      W.pivot.rotation.set(0, -w.steer - (P.lenkVersatz && k[0] === 'F' ? P.lenkVersatz : 0), 0);
         W.spin.rotation.x = -w.spin;
       });
       if (contact) {

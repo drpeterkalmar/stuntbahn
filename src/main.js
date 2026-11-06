@@ -68,6 +68,7 @@ import { daySeed, zeitlimit } from './core/util.js';
 import { GLATT } from './core/glatt.js';   // n42 Ruckeln + langsamer Start: Schalter der Maßnahmen
 import { showKmhMs } from './core/showspeed.js';
 import { GMeter, G_ON } from './core/gforce.js';
+import { arcadePose } from './core/arcadedrift.js';   // n45 Arcade-Drift (Darstellung)
 import { WORLD_TAG, WORLD_SCALE, STUNT_TAG, TUBE_TAG, MAT, GEN_V, HIND_TAG } from './track/defs.js';
 // Geprüfte Strecken (Autopilot, Entschärfungen) je Weltmaßstab getrennt: ?welt=1 prüft neu statt die Teile der
 // anderen Welt zu übernehmen
@@ -1689,6 +1690,9 @@ function render(rdt) {
     pose.air = c.onGround === 0 && !c.surfaceKind && !c.crash;
     pose.wheels = c.wheels;
     pose.vel = c.v;
+    // n45 Arcade-Drift (Mittel/Original): Karosserie quer gedreht dargestellt, Kamera/Physik folgen weiter der Fahrbahn-Lage
+    // (nicht im Cockpit/an der Stoßstange: dort sitzt die Kamera im Auto und würde mit querdrehen)
+    if (c.arcade && c.arcade.beta && !race.autopilotOnly && rig.view !== 'cockpit' && rig.view !== 'bumper') pose = arcadePose(pose, c.frame, c.arcade.beta);
     carVis.sync(c, 1, pose);
   }
   updateCheer(pose, rdt);
@@ -1729,7 +1733,7 @@ function render(rdt) {
     const sp = mode === 'replay' ? Math.abs(replay.speed()) : race ? race.car.speed() : 0;
     rig.boost = boost;
     rig.speedLook = mode === 'race' && race && race.assistKey === 'medium' && !race.autopilotOnly ? 1 : 0;   // Mittel (n23): weiter voraus
-    rig.driftCam = mode === 'replay' || (mode === 'race' && race && race.brachial);   // n25: Drift-Kamera (Leicht Brachial, Replays)
+    rig.driftCam = mode === 'replay' || (mode === 'race' && race && (race.brachial || !!race.arcade));   // n25: Drift-Kamera (Leicht Brachial, Replays); n45 auch Arcade-Drift
     { const zs = mode === 'race' && !!race && race.state === 'finished' && !!race.zstunt && race.zstunt.tN != null;   // n40: Flip nicht im Cockpit
       if (zs && !rig.zielStunt && (rig.mode === 'cockpit' || rig.mode === 'bumper')) rig.init = false;   // harter Schnitt hinter das Auto
       rig.zielStunt = zs; }
