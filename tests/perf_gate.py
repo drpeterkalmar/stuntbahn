@@ -77,7 +77,7 @@ class OffenerBrowser:
         s = socket.socket(); s.bind(('127.0.0.1', 0)); self.port = s.getsockname()[1]; s.close()
         self.prof = tempfile.mkdtemp(prefix='perfgate_')
         subprocess.run(['open', '-na', app, '--args', '--headless=new', f'--remote-debugging-port={self.port}', f'--user-data-dir={self.prof}',
-                        '--no-first-run', '--no-default-browser-check', *args, 'about:blank'], check=True, timeout=30)
+                        '--no-first-run', '--no-default-browser-check', '--use-mock-keychain', '--password-store=basic', *args, 'about:blank'], check=True, timeout=30)
         import urllib.request
         t0 = time.time()
         while True:
