@@ -2,6 +2,14 @@
 
 Kurzfassung je Version; Details in den Abschnitten der `README.md` und in den Berichten (`*_BERICHT.md`).
 
+## 0.21.0 – 20.11.2026 (Look nach „Uno com escada“, TV-Kamera, n47)
+- **Neuer Look** nach Vorbild [viktorkav/uno-com-escada](https://github.com/viktorkav/uno-com-escada) (Peter 18.11.): Clubkurs an
+  einem Nachmittag – harte Sonne, Himmel mit Cumulus aus Code, dichter Mischwald am Rand, matter Asphalt mit Gummi-Abrieb,
+  gedämpfte Curbs, doppelte Leitplanken, Reifenwände, beiges Kiesbett, neutrales Grading ohne Vignette. Nur Optik, Bestzeiten
+  bleiben gültig. Eigener Code nach den Vorbild-Screenshots (kein Code übernommen). `?look=alt` = 0.20.0, alter `?look=alt` → `?look=n22`.
+- **📺 TV-Kamera** im Kamera-Wechsel und im Replay.
+- Bildrate im Handy-Profil unverändert (±3 %), +1 Draw-Call. Bericht `N47_BERICHT.md`.
+
 ## 0.20.0 – 06.11.2026 (Gegner geben Gas, Rempler ohne Strafe, sichtbarer Arcade-Drift, n45)
 - **Wartende Gegner geben Gas, wenn du aufholst** (Peter 04.11.): ein Gegner (bzw. eine ganze Gegner-Kolonne), der per Gummiband
   auf dich wartet, zieht rechtzeitig und zügig (0,3 s) wieder auf dein Tempo an. `?aufhol=alt` = wie 0.19.3.
