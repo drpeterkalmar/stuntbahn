@@ -27,6 +27,9 @@ GPU_ARGS = ["--use-angle=metal", "--enable-unsafe-swiftshader", "--ignore-gpu-bl
 # Linux (omen16, n31): ANGLE über Vulkan statt Metal (gleiche Weiche wie tests/util.py)
 if sys.platform.startswith('linux'):
     GPU_ARGS = ["--use-gl=angle", "--use-angle=vulkan", "--ignore-gpu-blocklist", "--enable-webgl", "--mute-audio"]
+# Windows (rog17, n47): ANGLE über D3D11 (RTX 3070 Ti)
+if sys.platform == 'win32':
+    GPU_ARGS = ["--use-angle=d3d11", "--ignore-gpu-blocklist", "--enable-unsafe-webgpu", "--enable-webgl", "--mute-audio"]
 UA = "Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36"
 
 def profil(geraet, dpr):

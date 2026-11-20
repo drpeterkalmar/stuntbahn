@@ -5,6 +5,7 @@
 //  Felsen (Poly Haven, vereinfacht), entfernte Bauernhöfe. Keine Kollision.
 //  Karten blenden mit der Entfernung aus (Gras/Blumen ab ~55 m), Gras wiegt sich leicht im Wind.
 import * as THREE from 'three';
+import { UNO } from './uno.js';
 import { GLATT } from '../core/glatt.js';   // n42: durchsichtig + beidseitig in einem Durchgang
 import { DEKO } from './deko.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
@@ -42,6 +43,9 @@ export async function loadDecoAssets() {
   return assets;
 }
 
+// n47: Leitplanken-Profil (Höhe, Normalen-y); Look „Uno“: zwei Bänder übereinander
+const RAIL1 = [[0.52, -0.5], [0.63, 0.1], [0.71, -0.1], [0.82, 0.5]];
+const RAIL2 = [...RAIL1, ...RAIL1.map(([h, n]) => [h + 0.36, n])];
 // ---------- kleine Geometrie-Werkstatt (Vertexfarben) ----------
 export class GB {
   constructor() { this.p = []; this.n = []; this.c = []; this.uv = []; this.i = []; }
@@ -324,7 +328,7 @@ export function buildDeco(track, M, surfaceY, add, opts = {}) {
     const pos = [], col = [], uv = [], nrm = [], idx = [];
     for (const st of plan.strips) {
       const gravel = st.kind === 'gravel';
-      const tint = gravel ? [0.74, 0.7, 0.62] : [0.55, 0.49, 0.4];   // Kies (n17): bisher fast weiß wie Schnee
+      const tint = gravel ? (UNO ? [0.82, 0.72, 0.56] : [0.74, 0.7, 0.62]) : [0.55, 0.49, 0.4];   // n47: Kies beige   // Kies (n17): bisher fast weiß wie Schnee
       const nP = st.pts.length;
       st.pts.forEach((p, k) => {
         const endA = Math.min(1, Math.min(k, nP - 1 - k) / 2);
@@ -378,10 +382,11 @@ export function buildDeco(track, M, surfaceY, add, opts = {}) {
   if (P.tyre && P.tyre.length) {
     const b = new GB(), dark = [0.05, 0.05, 0.055], top = [0.95, 0.95, 0.95];
     // je Stapel: unten zwei Reifen als ein Zylinder, oben der bemalte Reifen mit Deckel (8 Segmente, 40 Dreiecke)
-    for (const x of [-0.7, 0, 0.7]) { b.cyl(x, 0, 0, 0.34, 0.34, 0.51, 8, dark, false); b.cyl(x, 0.52, 0, 0.34, 0.34, 0.25, 8, top, true, [0.04, 0.04, 0.04]); }
+    // n47 (gfx/uno.js): Reifenwand statt Dreiergruppe – 7 Stapel nebeneinander
+    for (const x of UNO ? [-2.1, -1.4, -0.7, 0, 0.7, 1.4, 2.1] : [-0.7, 0, 0.7]) { b.cyl(x, 0, 0, 0.34, 0.34, 0.51, 8, dark, false); b.cyl(x, 0.52, 0, 0.34, 0.34, 0.25, 8, UNO && Math.abs(x) > 0.1 ? dark : top, true, [0.04, 0.04, 0.04]); }   // n47: meist schwarz, Farbe nur als Akzent
     const g = b.geo();
-    const red = new THREE.Color(0.75, 0.08, 0.06), white = new THREE.Color(0.93, 0.93, 0.9);
-    const list = P.tyre.map((t) => ({ x: t.x, y: gy(t.x, t.z) - 0.02, z: t.z, rot: t.rot, color: t.v ? red : white }));
+    const red = UNO ? new THREE.Color(0.55, 0.1, 0.07) : new THREE.Color(0.75, 0.08, 0.06), white = UNO ? new THREE.Color(0.78, 0.78, 0.75) : new THREE.Color(0.93, 0.93, 0.9);
+    const list = P.tyre.map((t) => ({ x: t.x, y: gy(t.x, t.z) - 0.02, z: t.z, rot: t.rot, color: UNO ? (t.v ? red : white) : t.v ? red : white }));
     const im = instanced(g, paint, list, 'deco-tyres', null, true);
     add(im, true); count(im, list.length, g.index.count / 3);
   }
@@ -395,8 +400,10 @@ export function buildDeco(track, M, surfaceY, add, opts = {}) {
         const y = gy(p.x, p.z);
         const nx = Math.sin(p.rot), nz = Math.cos(p.rot);   // zur Straße
         // Profil: unten schräg nach unten, Mitte, oben schräg nach oben (Normalen) → Welle im Licht
-        for (const [h, ny] of [[0.52, -0.5], [0.63, 0.1], [0.71, -0.1], [0.82, 0.5]]) { pos.push(p.x, y + h, p.z); const l = Math.hypot(nx, ny, nz); nrm.push(nx / l, ny / l, nz / l); }
-        if (k > 0) { const b = b0 + (k - 1) * 4; for (let r = 0; r < 3; r++) idx.push(b + r, b + 4 + r, b + r + 1, b + r + 1, b + 4 + r, b + 5 + r); }
+        // n47: doppelte Planke (zweites Band 0,36 m höher) wie im Vorbild
+        for (const [h, ny] of UNO ? RAIL2 : RAIL1) { pos.push(p.x, y + h, p.z); const l = Math.hypot(nx, ny, nz); nrm.push(nx / l, ny / l, nz / l); }
+        const nr = UNO ? 8 : 4;
+        if (k > 0) { const b = b0 + (k - 1) * nr; for (let r = 0; r < nr - 1; r++) if (r !== 3) idx.push(b + r, b + nr + r, b + r + 1, b + r + 1, b + nr + r, b + nr + r + 1); }
         posts.push({ x: p.x - nx * 0.12, y: y, z: p.z - nz * 0.12, rot: p.rot });   // Pfosten alle 4 m
       });
     }
@@ -404,10 +411,10 @@ export function buildDeco(track, M, surfaceY, add, opts = {}) {
     g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
     g.setAttribute('normal', new THREE.Float32BufferAttribute(nrm, 3));
     g.setIndex(idx); g.computeBoundingSphere();
-    const m = once('rail', () => patchStaticShadow(new THREE.MeshStandardMaterial({ color: 0xb9c0c6, roughness: 0.42, metalness: 0.75, side: THREE.DoubleSide, envMapIntensity: 1.1 })));
+    const m = once('rail', () => patchStaticShadow(new THREE.MeshStandardMaterial({ color: UNO ? 0x9aa2a8 : 0xb9c0c6, roughness: UNO ? 0.5 : 0.42, metalness: UNO ? 0.65 : 0.75, side: THREE.DoubleSide, envMapIntensity: 1.1 })));
     const mesh = new THREE.Mesh(g, m); mesh.name = 'deco-rails';
     add(mesh, true); count(mesh, 1, idx.length / 3); stats.inst--;
-    const pb = new GB(); pb.box(0, 0.42, -0.06, 0.1, 0.84, 0.14, [0.55, 0.57, 0.6]);
+    const pb = new GB(); if (UNO) pb.box(0, 0.6, -0.06, 0.1, 1.2, 0.14, [0.45, 0.47, 0.5]); else pb.box(0, 0.42, -0.06, 0.1, 0.84, 0.14, [0.55, 0.57, 0.6]);
     pb.i.length = 24;   // nur die vier Seiten (8 Dreiecke), Deckel sieht man unter der Planke nicht
     const pg = pb.geo();
     const im = instanced(pg, paint, posts, 'deco-railposts');
@@ -520,7 +527,7 @@ export function buildDeco(track, M, surfaceY, add, opts = {}) {
   // eigene Zellen hat (Sukkulenten, Rooibos, Palmen, Köcherbäume, Jungtannen …), sonst aus dem Land-Atlas
   const gTint = V.tint && V.tint.grass ? lin(...V.tint.grass) : V.snow ? lin(2.6, 2.7, 2.8) : V.autumn ? lin(2.3, 2.0, 0.9) : lin(1.9, 2.5, 1.35);
   // Deko (n28): Grasbüschel heller (die Atlas-Karten sind sehr dunkel → wirkten von Weitem wie schwarze Krümel)
-  if (DEKO && !V.snow) gTint.multiplyScalar(1.75);
+  if (DEKO && !V.snow) gTint.multiplyScalar(UNO ? 2.4 : 1.75);   // n47: Büschel in Grasfarbe statt dunkler Krümel
   const useT = (cells) => cells && TV && cells.every((c) => TV.meta[Array.isArray(c) ? c[0] : c]);
   if (tier > 0 && ((P.grass && P.grass.length) || (P.flower && P.flower.length))) {
     const list = [];

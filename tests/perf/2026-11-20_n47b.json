@@ -1,0 +1,95 @@
+{
+ "datum": "2026-11-20T20:17:39",
+ "stand": "n47b",
+ "modus": "ab",
+ "runden": 3,
+ "varianten": [
+  {
+   "name": "alt",
+   "wurzel": "C:\\Users\\drpet\\dev\\stuntbahn",
+   "zusatz": "&look=alt"
+  },
+  {
+   "name": "neu",
+   "wurzel": "C:\\Users\\drpet\\dev\\stuntbahn",
+   "zusatz": ""
+  }
+ ],
+ "profil": {
+  "drossel": 4,
+  "dpr": 2.6,
+  "sek": 5.0,
+  "start": "direkt",
+  "vsync": false
+ },
+ "szenen": {
+  "start_kino": {
+   "hoch": {
+    "alt": {
+     "p50": 26.6,
+     "p95": 48.6,
+     "fps": 36.3,
+     "calls": 82,
+     "tris": 327301,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      48.7,
+      48.6,
+      48.5
+     ],
+     "fehler": []
+    },
+    "neu": {
+     "p50": 25.7,
+     "p95": 49.3,
+     "fps": 37.5,
+     "calls": 83,
+     "tris": 329102,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      45.4,
+      50.2,
+      49.3
+     ],
+     "fehler": []
+    }
+   }
+  },
+  "rennen_einfach": {
+   "hoch": {
+    "alt": {
+     "p50": 12.7,
+     "p95": 18,
+     "fps": 75.8,
+     "calls": 49,
+     "tris": 146292,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      18,
+      19,
+      17.5
+     ],
+     "fehler": []
+    },
+    "neu": {
+     "p50": 12.4,
+     "p95": 17.4,
+     "fps": 77.3,
+     "calls": 50,
+     "tris": 177536,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      17.1,
+      17.4,
+      30
+     ],
+     "fehler": []
+    }
+   }
+  }
+ }
+}
