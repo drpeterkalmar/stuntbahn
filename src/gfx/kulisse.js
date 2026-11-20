@@ -4,6 +4,7 @@
 //  - Bauten der Themen (Hochhäuser, Kräne, Hochstraße, Leuchtturm, Hütten …) und der Streckenrand (gfx: buildRand)
 // Alles ohne Kollision, instanziert bzw. zusammengefasst; Positionen plant track/kulisse.js (Node-testbar).
 import * as THREE from 'three';
+import { UNO_LAUB } from './uno.js';
 import { zeitUniforms } from './zeit.js';
 import { GB, cellMaterial, cardGeometry, instanced, decoAssets, decoUniforms, canvasTex, lumTint } from './deco.js';
 import { patchStaticShadow, themeUniforms } from './materials.js';
@@ -83,7 +84,7 @@ export function buildTrees(track, M, opts, surfaceY, add, treeGeometry) {
     }
     if (autumn.length) {
       const Mt = A.meta, LB = ['laub1', 'laub2'], H = { laub1: 11.5, laub2: 10 };
-      const list = autumn.map((t, i) => { const n = LB[i % 2], k = H[n] / Mt[n].h * t.s * 1.1; const c = AUTUMN[Math.floor(hashI(i, 9) * AUTUMN.length)]; return { x: t.x, y: surfaceY(t.x, t.z) - 0.25, z: t.z, rot: t.rot, sx: Mt[n].w * k, sy: Mt[n].h * k, cell: Mt[n].uv, color: lin(c[0] / 2.2, c[1] / 2.2, c[2] / 2.2) }; });
+      const list = autumn.map((t, i) => { const n = LB[i % 2], k = H[n] / Mt[n].h * t.s * 1.1; const PAL = Tt.gruen ? UNO_LAUB : AUTUMN, c = PAL[Math.floor(hashI(i, 9) * PAL.length)]; return { x: t.x, y: surfaceY(t.x, t.z) - 0.25, z: t.z, rot: t.rot, sx: Mt[n].w * k, sy: Mt[n].h * k, cell: Mt[n].uv, color: lin(c[0] / 2.2, c[1] / 2.2, c[2] / 2.2) }; });
       const imp = LB.map((n) => impArt(opts, n));
       if (imp[0] && imp[1]) {
         // Impostors je Laubart, Herbstfarbe als Instanzfarbe (three.js multipliziert sie nach der Atlas-Farbe)

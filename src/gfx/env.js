@@ -1,5 +1,6 @@
 // Himmel (HDRI von Poly Haven, CC0), Bildbasiertes Licht, Sonne, Nebel, statische Schattenkarte.
 import * as THREE from 'three';
+import { UNO_SKY_GLSL } from './uno.js';
 import { HDRLoader } from 'three/addons/loaders/HDRLoader.js';
 import { shadowUniforms } from './materials.js';
 import { WORLD_SCALE } from '../track/defs.js';
@@ -38,11 +39,13 @@ export function makeSky(skyInfo, tex = null, opts = {}) {
     uniforms: { sky: { value: tex }, cutV: { value: skyInfo.cutV }, horizon: { value: hz }, exposure: { value: 1.0 }, wSky: { value: new THREE.Vector2(1, 0) },
       // n32 Tageszeit: Nacht (Sterne, Mond: x Stärke, yzw Mond-Richtung), Abendrot (x Stärke, yzw Sonne), Tönung, alter Sonnenfleck
       wNight: { value: new THREE.Vector4(0, 0, 1, 0) }, wGlow: { value: new THREE.Vector4(0, 0, 1, 0) }, wTint: { value: new THREE.Vector3(1, 1, 1) }, wOld: { value: new THREE.Vector4(0, 0, 1, 0) },
+      wUno: { value: new THREE.Vector4(0, 0, 1, 0) },   // n47: Himmel aus Code (gfx/uno.js), x = an, yzw = Sonne
       ...(cl ? cloudUniforms(opts.sunDir) : {}) },
     vertexShader: `varying vec3 vDir; void main(){ vDir = position; vec4 p = projectionMatrix * modelViewMatrix * vec4(position, 1.0); gl_Position = p.xyww; }`,
     fragmentShader: `uniform sampler2D sky; uniform float cutV; uniform vec3 horizon; uniform float exposure; uniform vec2 wSky; varying vec3 vDir;
       uniform vec4 wNight, wGlow, wOld; uniform vec3 wTint;
       float sH( vec3 p ) { return fract( sin( dot( p, vec3( 127.1, 311.7, 74.7 ) ) ) * 43758.5453 ); }
+      ${UNO_SKY_GLSL.pars}
       ${cl ? CLOUD_GLSL.pars : ''}
       void main(){
         vec3 d = normalize(vDir);
@@ -51,6 +54,7 @@ export function makeSky(skyInfo, tex = null, opts = {}) {
         vec3 c;
         if (v < cutV - 0.002) c = texture2D(sky, vec2(u, 1.0 - v / cutV)).rgb;
         else c = horizon;
+        ${UNO_SKY_GLSL.main}
         ${cl ? CLOUD_GLSL.main : ''}
         // n32 Wetter: x = Helligkeit, y = Entsättigung (1, 0 = klar, Bild unverändert)
         // n32 Tageszeit: Sonnenfleck des Himmelsbilds dämpfen (Abend/Nacht steht die Sonne woanders)

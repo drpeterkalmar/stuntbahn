@@ -3,6 +3,7 @@
 //  - Fahrbahnmarkierungen (Randlinien, Mittelstreifen, Start/Ziel-Karo, Checkpoint-Linie)
 //  - Randsteine rot/weiß, Gras mit Kachel-Brechung
 import * as THREE from 'three';
+import { UNO } from './uno.js';
 import { mipBiasEinbauen } from './kern/taau.js';
 // n31: TAA_MIP muss in jedem Fall definiert sein (Fahrbahn-Detail/Gelände nutzen es); main.js setzt den Wert vor dem ersten
 // Übersetzen (negativer Mip-Bias mit TAAU), sonst 0
@@ -462,8 +463,9 @@ function kerbTexture() {
   const c = document.createElement('canvas');
   c.width = 64; c.height = 256;
   const g = c.getContext('2d');
-  g.fillStyle = '#c21d14'; g.fillRect(0, 0, 64, 128);
-  g.fillStyle = '#f2f2ee'; g.fillRect(0, 128, 64, 128);
+  // n47 (gfx/uno.js): gedämpftes Ziegelrot und gebrochenes Weiß wie im Vorbild; ?look=alt = Signalrot/Weiß
+  g.fillStyle = UNO ? '#a8382c' : '#c21d14'; g.fillRect(0, 0, 64, 128);
+  g.fillStyle = UNO ? '#dedad0' : '#f2f2ee'; g.fillRect(0, 128, 64, 128);
   let seed = 4242; const R = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
   // abgeplatzte Farbe (Beton schaut durch), feine Sprenkel
   for (let i = 0; i < 520; i++) {

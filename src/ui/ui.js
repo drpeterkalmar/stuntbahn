@@ -1049,7 +1049,7 @@ export class UI {
     const R = $('#replayui');
     R.classList.add('show');
     this._rpen = 0; this._rsec = 0; this._rtxt = '';
-    $('.btns', R).innerHTML = [['chase', '🚗 Ver&shy;folger'], ['cockpit', '🏁 Cockpit'], ['far', '🚁 Hub&shy;schrauber'], ['track', '📹 Strecke'], ['bumper', '🎯 Stoß&shy;stange']]
+    $('.btns', R).innerHTML = [['chase', '🚗 Ver&shy;folger'], ['cockpit', '🏁 Cockpit'], ['far', '🚁 Hub&shy;schrauber'], ['track', '📹 Strecke'], ['bumper', '🎯 Stoß&shy;stange'], ['tv', '📺 TV-Kamera']]
       .map(([m, n]) => { const [ic, ...w] = n.split(' '); return `<button data-a="rcam" data-v="${m}"><i>${ic}</i> <span>${w.join(' ')}</span></button>`; }).join('')
       + '<button data-a="rplay" aria-label="Pause/Weiter">⏯</button><button data-a="rslow" aria-label="Zeitlupe">🐢</button><button data-a="rend" aria-label="Replay beenden">✕</button>';
     this.replayCamMark('chase');

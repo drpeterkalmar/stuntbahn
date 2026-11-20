@@ -17,6 +17,9 @@ SWIFT_ARGS = ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignor
 # Linux (omen16, n31): Metal gibt es nicht – ANGLE über Vulkan (RTX 3070), sonst fiele Chromium auf SwiftShader zurück
 if sys.platform.startswith('linux'):
     GPU_ARGS = ["--use-gl=angle", "--use-angle=vulkan", "--ignore-gpu-blocklist", "--enable-webgl", "--mute-audio"]
+# Windows (rog17, n47): ANGLE über D3D11 (RTX 3070 Ti)
+if sys.platform == 'win32':
+    GPU_ARGS = ["--use-angle=d3d11", "--ignore-gpu-blocklist", "--enable-unsafe-webgpu", "--enable-webgl", "--mute-audio"]
 ARGS = SWIFT_ARGS if os.environ.get('WEBGL') == 'swiftshader' else GPU_ARGS
 GL_RENDERER = """() => { const gl = document.createElement('canvas').getContext('webgl2'); if (!gl) return 'kein WebGL2';
   const e = gl.getExtension('WEBGL_debug_renderer_info'); return e ? gl.getParameter(e.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER); }"""
@@ -92,7 +95,7 @@ class Session:
         _gl_checked = True
         try: r = self.ev(GL_RENDERER)
         except Exception as e: r = 'unbekannt (' + str(e)[:80] + ')'
-        if ARGS is GPU_ARGS and 'Metal' not in str(r) and 'Vulkan' not in str(r):
+        if ARGS is GPU_ARGS and 'Metal' not in str(r) and 'Vulkan' not in str(r) and 'D3D11' not in str(r) and 'Direct3D' not in str(r):
             print('WARNUNG WebGL läuft nicht auf der GPU:', r, file=sys.stderr, flush=True)
     def ev(self, js, arg=None):
         return self.pg.evaluate(js, arg) if arg is not None else self.pg.evaluate(js)

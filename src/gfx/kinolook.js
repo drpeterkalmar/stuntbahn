@@ -32,6 +32,7 @@
 //   nur noch CAS-Nachschärfen (keine FXAA-Art). Rückfall (Autopilot, fehlendes HalfFloat-Ziel, Skala < 0,6): FXAA-Art,
 //   MSAA 0. Schnittstelle für andere Spiele: KINOLOOK.md „TAAU in ein anderes Spiel“.
 import * as THREE from 'three';
+import { UNO_GRADE } from './uno.js';
 import { TAAU } from './kern/taau.js';
 import { taaModus } from './kern/taau_mathe.js';
 
@@ -73,6 +74,7 @@ export const GRADES = {
   kueste: { wb: [1.0, 1.0, 1.0], lift: [0.002, 0.006, 0.012], gamma: [1.0, 0.99, 1.0], gain: [1.02, 1.02, 1.0], shadow: [-0.014, 0.004, 0.018], high: [0.016, 0.008, -0.01], split: 1, sat: 1.1, vib: 0.2, contrast: 0.24, green: 0.6 },
   stadt: { wb: [1.04, 1.0, 0.93], lift: [0.01, 0.006, 0.012], gamma: [0.98, 1.0, 1.03], gain: [1.05, 1.0, 0.92], shadow: [-0.01, -0.002, 0.024], high: [0.034, 0.012, -0.024], split: 1.2, sat: 1.04, vib: 0.16, contrast: 0.24 },
   herbst: { wb: [1.03, 1.0, 0.94], lift: [0.008, 0.006, 0.008], gamma: [0.99, 1.0, 1.02], gain: [1.04, 1.0, 0.93], shadow: [-0.006, 0.0, 0.016], high: [0.028, 0.012, -0.018], split: 1.1, sat: 1.1, vib: 0.2, contrast: 0.22 },
+  uno: UNO_GRADE,   // n47 (gfx/uno.js)
   winter: { wb: [0.97, 0.99, 1.04], lift: [0.006, 0.008, 0.014], gamma: [1.0, 1.0, 0.99], gain: [0.99, 1.0, 1.03], shadow: [-0.008, 0.0, 0.022], high: [0.004, 0.004, 0.0], split: 0.8, sat: 0.92, vib: 0.08, contrast: 0.2 },
 };
 

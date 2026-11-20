@@ -13,6 +13,7 @@ import { GRADES } from './kinolook.js';
 import { merkeBasis, wendeWetterAn, meldeWetterGrades } from './wetter.js';
 import { wendeZeitAn } from './zeit.js';
 import { zeitLook } from '../track/zeit.js';
+import { unoLicht } from './uno.js';
 import { zeitlimit } from '../core/util.js';
 
 meldeWetterGrades(GRADES);   // n32: Farbkorrektur „wetter_regen“ / „wetter_schnee“
@@ -143,6 +144,7 @@ export class ThemeManager {
     themeUniforms.tTreeTint.value.set(...(def.trees.tint || [1, 1, 1]));
     this.cur = { id: pack.id, def, veg: pack.vegTex ? { tex: pack.vegTex, meta: pack.vegMeta } : null, horizon: hz, info };
     // n32: Werte des Themas merken, dann das Wetter darüber legen (klar = unverändert)
+    unoLicht(this.c, pack.id, themeUniforms);   // n47: Sonne ~40°, Himmel aus Code (nur Land; ?look=alt aus)
     this.base = merkeBasis(this.c); this.treeSnow = themeUniforms.tTreeSnow.value;
     this.setWetter(this.wetter, this.tier);
   }

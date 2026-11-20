@@ -756,6 +756,8 @@ export function buildTrack(layout, opt = {}) {
   // behalten ihre Größe. Die Grafik dünnt auf Qualitätsstufe 0 aus (world.js).
   const tc = (n) => Math.round(n * WS * WS);
   const trees = trkTerr ? sceneryTrees.concat(placeTrees(terrain, layout.seed || 1, opt.treeCount ?? tc(420), WORLD_HALF + 25 * WS)) : placeTrees(terrain, layout.seed || 1, opt.treeCount ?? tc(520));
+  // n47 Look „Uno com escada“: fast geschlossener Waldrand 24–75 m neben der Strecke (nur Optik; ?look=alt ohne)
+  if (UNO_WALD && opt.treeCount == null && terrain.distTiles) trees.push(...placeWaldrand(terrain, layout.seed || 1, tc(1100)));
 
   // ----- Batches finalisieren -----
   const outBatches = [];
@@ -948,6 +950,23 @@ function addRails(L, terrain, layout, plan, batch, chunkOf, addColTri) {
   return rails.length;
 }
 
+// n47: Waldrand (Bäume dicht im Band 24–75 m von der Strecke, Lücken über Rauschen, nicht auf Wasser/Fels)
+const UNO_WALD = (() => { try { const l = new URLSearchParams(self.location.search).get('look'); return l !== 'alt' && l !== 'n22'; } catch (e) { return true; } })();
+function placeWaldrand(terrain, seed, count) {
+  const r = rng(seed * 29 + 11), noise = makeNoise2(seed * 7 + 3), out = [];
+  for (let tries = 0; out.length < count && tries < count * 40; tries++) {
+    const x = r.range(-560 * WS, 560 * WS), z = r.range(-560 * WS, 560 * WS);
+    const dt = terrain.distTiles(x, z);
+    if (dt < 0.5 + 24 / TILE || dt > 0.5 + 75 / TILE) continue;
+    if (noise.fbm(x / (60 * WS), z / (60 * WS), 2) < -0.35) continue;
+    const y = terrain.height(x, z);
+    if (terrain.wet ? terrain.wet(x, z) : y < -0.5) continue;
+    if (terrain.gel && Math.max(Math.abs(terrain.height(x + 3, z) - terrain.height(x - 3, z)), Math.abs(terrain.height(x, z + 3) - terrain.height(x, z - 3))) / 6 > 0.85) continue;
+    if (terrain.waters.some((w) => { const dx = x - w.E[0], dz = z - w.E[2], f = dx * w.F[0] + dz * w.F[2], rr = dx * w.R[0] + dz * w.R[2]; return f > w.f0 - 6 && f < w.f1 + 6 && rr > w.r0 - 6 && rr < w.r1 + 6; })) continue;
+    out.push({ x, y, z, s: r.range(0.8, 1.45), rot: r.range(0, Math.PI), v: r.int(2) });
+  }
+  return out;
+}
 function placeTrees(terrain, seed, count, keepOut = 0) {
   const r = rng(seed * 13 + 5);
   const noise = makeNoise2(seed * 3 + 1);

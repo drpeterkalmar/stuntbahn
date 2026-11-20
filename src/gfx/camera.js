@@ -7,8 +7,9 @@ import { tunnelLaeufe, roehreKamera } from '../track/tunnel.js';
 import { ARCADE } from '../physics/arcade.js';
 
 const V = () => new THREE.Vector3();
-export const CAM_MODES = ['chase', 'cockpit', 'far', 'bumper', 'track'];
-export const CAM_NAMES = { chase: 'Verfolger', cockpit: 'Cockpit', far: 'Hubschrauber', bumper: 'Stoßstange', track: 'Streckenkamera' };
+// n47: 'tv' = TV-Kamera nach Vorbild „Uno com escada“ (erhöht 6,5 m, seitlich ~30 m, Tele ~90 mm, schwenkt mit)
+export const CAM_MODES = ['chase', 'cockpit', 'far', 'bumper', 'track', 'tv'];
+export const CAM_NAMES = { chase: 'Verfolger', cockpit: 'Cockpit', far: 'Hubschrauber', bumper: 'Stoßstange', track: 'Streckenkamera', tv: 'TV-Kamera' };
 // URL-Regler (Browser): ?eye= Augenhöhe, ?hz= Horizont, ?dash= Armaturenbrett (s. u.)
 const Q = new URLSearchParams(typeof location !== 'undefined' ? location.search : '');
 const qnum = (k, lo, hi) => { const v = parseFloat(Q.get(k)); return Number.isFinite(v) ? Math.max(lo, Math.min(hi, v)) : null; };
@@ -183,7 +184,7 @@ export class CameraRig {
     const f = this._d.set(P.frame.f.x, P.frame.f.y, P.frame.f.z);
     const u = this._u.set(P.frame.u.x, P.frame.u.y, P.frame.u.z);
     if (crashed) { u.set(0, 1, 0); }
-    if (!this.init) { this.cInit = false; this.fwd.copy(f); this.up.copy(u); this.init = true; this.pos.copy(cp).addScaledVector(f, -6).addScaledVector(u, 2.3); this.baseY = cp.y; this.airK = 0; this.hasCp = false; this.trkOk = false; this.aimK = 0; this.hiK = 1; this.aimInit = false; }
+    if (!this.init) { this.tvInit = false; this.cInit = false; this.fwd.copy(f); this.up.copy(u); this.init = true; this.pos.copy(cp).addScaledVector(f, -6).addScaledVector(u, 2.3); this.baseY = cp.y; this.airK = 0; this.hasCp = false; this.trkOk = false; this.aimK = 0; this.hiK = 1; this.aimInit = false; }
     // Flug (alle Räder frei, nicht in Looping/Röhre): Verfolger zieht nicht mit hoch, sondern bleibt auf
     // Absprunghöhe, etwas weiter hinten und waagrecht → der Sprung wirkt sichtbar hoch. airK blendet weich.
     this.airT = P.air && !crashed ? this.airT + dt : 0;
@@ -324,6 +325,25 @@ export class CameraRig {
       this.look.copy(this.pos).addScaledVector(f, 10);
       cam.lookAt(this.look);
       targetFov += 6;
+    } else if (this.mode === 'tv') {
+      // n47 TV-Kamera: Kamerawagen fährt seitlich mit (Abstand ~30 m, 6,5 m hoch), hängt etwas nach und schwenkt dem Auto
+      // nach; Seite = Kurven-Innenseite (geglättet, wechselt nur bei klarer Gegenkurve), Tele ~14,5° (≈ 90 mm KB, Auto ≈ ⅓ Bildbreite)
+      const fh = V().copy(f); fh.y = 0; if (fh.lengthSq() < 1e-4) fh.set(0, 0, 1); fh.normalize();
+      if (!this.tvInit) { this.tvInit = true; this.tvSide = 1; this.tvTurn = 0; this.tvF = fh.clone(); this.tvPos = null; }
+      const turn = V().crossVectors(this.tvF, fh).y / Math.max(dt, 1e-3);
+      this.tvF.copy(fh);
+      this.tvTurn += (turn - this.tvTurn) * (1 - Math.exp(-dt * 0.8));
+      if (Math.abs(this.tvTurn) > 0.12 && Math.sign(this.tvTurn) !== this.tvSide) this.tvSide = Math.sign(this.tvTurn);
+      const side = V().crossVectors(V().set(0, 1, 0), fh).multiplyScalar(this.tvSide);   // +: links vom Auto
+      const want = V().copy(cp).addScaledVector(side, 30).addScaledVector(fh, -5); want.y = cp.y + 6.5;
+      if (world && world.terrain && world.terrain.height) { const g = world.terrain.height(want.x, want.z); if (g != null && isFinite(g)) want.y = Math.max(want.y, g + 3.5); }
+      if (!this.tvPos || this.tvPos.distanceToSquared(want) > 90 * 90) this.tvPos = want.clone();
+      else this.tvPos.lerp(want, 1 - Math.exp(-dt * 1.4));
+      cam.position.copy(this.tvPos);
+      cam.up.set(0, 1, 0);
+      this.look.copy(cp).addScaledVector(u, 0.6);
+      cam.lookAt(this.look);
+      targetFov = Math.max(9, Math.min(22, 435 / Math.max(10, this.tvPos.distanceTo(cp))) * (cam.aspect < 1 ? 1.6 : 1));
     } else if (this.mode === 'track') {
       // nächster Mast vor/neben dem Auto
       let best = null, bd = 1e18;

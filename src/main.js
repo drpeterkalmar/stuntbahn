@@ -8,6 +8,8 @@ import { TUNNEL_LOOK, tunnelLaeufe, maskeAm } from './track/tunnel.js';
 import { makeSky, sunDirFromUV, bakeStaticShadow } from './gfx/env.js';
 import { ThemeManager } from './gfx/themes.js';
 import { themeFor, THEMES, THEME_IDS } from './track/themes.js';
+import { UNO, unoThemen } from './gfx/uno.js';
+unoThemen(THEMES);   // n47 Look nach „Uno com escada“ (Standard; ?look=alt = Look von 0.20.0)
 import { wetterFor, parseWetter, wetterLook, WETTER, WETTER_IDS } from './track/wetter.js';
 import { zeitFor, parseZeit, zeitLook, ZEIT, ZEIT_IDS } from './track/zeit.js';
 import { zeitUniforms, zeitShader, glowUniforms, glowMesh, planNachtLichter, backeLichtKarte, reflNaechste } from './gfx/zeit.js';
@@ -92,7 +94,8 @@ renderer.info.autoReset = false;   // zwei Durchgänge (Welt + Cockpit) → Zäh
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(62, 1, 0.25, 4000 * WORLD_SCALE);   // Fernring/Bergkranz wachsen mit
 camera.layers.enable(STATIC_LAYER);
-// Kino-Look (n17): ?look=0|1|2 erzwingt Einfach/Standard/Kino (A/B), ?look=alt = Bild wie bis n22 (alter Weg mit post.js),
+// Kino-Look (n17): ?look=0|1|2 erzwingt Einfach/Standard/Kino (A/B), ?look=n22 = Bild wie bis n22 (alter Weg mit post.js;
+// bis 0.20.0 hieß das ?look=alt – das ist seit n47 der Look von 0.20.0, gfx/uno.js),
 // ?kl=-bloom,+ssao schaltet einzelne Stufen. Ohne ?look folgt der Look der Grafik-Stufe (Einstellung bzw. Automatik).
 const LOOK = params.get('look');
 const LOOK_FIX = LOOK != null && /^[012]$/.test(LOOK) ? +LOOK : null;
@@ -104,7 +107,7 @@ const quality = new Quality(renderer, params.get('q') ?? (LOOK_FIX != null ? Str
 // (auto | 8 | 16 | 32 | 0 = kein Versatz), ?taagamma= Clip-Breite, ?taadis= Disocclusion-Schwelle, ?taaskala= Start-Renderskala
 // (0,6–1; mit fester Stufe ?q= bleibt sie stehen) – für Peters A/B
 const TAA_URL = params.get('taa') === '1' ? '+taa' : params.get('taa') === '0' ? '-taa' : '';
-const kino = LOOK === 'alt' ? null : new KinoLook(renderer, { level: LOOK_FIX ?? quality.tier, stages: [params.get('vao') === '0' ? '' : '-ssao', TAA_URL, params.get('kl') || ''].filter(Boolean).join(','),
+const kino = LOOK === 'n22' ? null : new KinoLook(renderer, { level: LOOK_FIX ?? quality.tier, stages: [params.get('vao') === '0' ? '' : '-ssao', UNO ? '-vignette,-flare' : '', TAA_URL, params.get('kl') || ''].filter(Boolean).join(','),
   taa: { gewicht: params.get('taaw'), muster: params.get('jit'), gamma: params.get('taagamma'), dis: params.get('taadis'), skala: params.get('taaskala'), debug: params.get('taadbg'), scharf: params.get('taasharp'), cub: params.get('taacub'), bewegung: params.get('taamot'), sigmaTreffer: params.get('taasig') } });
 // n31: negativer Mip-Bias für TAAU (Texturen in Zielauflösungs-Schärfe abtasten, sonst bleibt Texturdetail bei Renderskala
 // 0,65 verloren) – Konstante in den Shadern, deshalb hier beim Start vor dem ersten Übersetzen: log2(Start-Renderskala),
@@ -112,7 +115,7 @@ const kino = LOOK === 'alt' ? null : new KinoLook(renderer, { level: LOOK_FIX ??
 const GPU_MESS = params.get('gpumess') === '1';
 const TAA_BOOT = !!(kino && kino.taaGewuenscht(kino.level) && kino.taaTechnik());
 app.mipBias = mipBiasEinbauen(THREE.ShaderChunk, TAA_BOOT ? (params.get('taamip') ?? Math.log2(kino.scaleRangeOf(kino.level)[0])) : 0);
-// Bewegungsunschärfe: im Kino-Look Teil derselben Pipeline (ein Szenen-Durchlauf); ?look=alt: bisheriges post.js
+// Bewegungsunschärfe: im Kino-Look Teil derselben Pipeline (ein Szenen-Durchlauf); ?look=n22: bisheriges post.js
 const post = kino || new Post(renderer);
 quality.post = post; quality.kino = kino;
 let sun, M, carVis, ghostVis, sky, cockpit, themes, air = null, brakeLights = null, brakeV = null, scheibe = null, headL = null, headGlow = null;
@@ -383,11 +386,13 @@ let URL_THEMA = params.get('thema');   // gilt, bis im Menü eine Landschaft gew
 // Einstellung und ?thema=; eine Wahl im Landschafts-Menü hebt es auf. Andere Strecken (Tages-Strecke, Code, .TRK) wie bisher.
 let RANDOM_THEMA = null;   // { key, id }
 const randomThemaOf = (layout) => (RANDOM_THEMA && layout && layout.meta && layout.meta.key === RANDOM_THEMA.key ? RANDOM_THEMA.id : null);
-const themeOf = (layout) => (ONLINE_LOOK && ONLINE_LOOK.thema && THEMES[ONLINE_LOOK.thema] ? ONLINE_LOOK.thema : null) || randomThemaOf(layout) || themeFor(layout, store.settings.theme || 'auto', URL_THEMA);
+const themeOf = (layout) => (ONLINE_LOOK && ONLINE_LOOK.thema && THEMES[ONLINE_LOOK.thema] ? ONLINE_LOOK.thema : null) || randomThemaOf(layout) || themeFor(layout, unoAuto(store.settings.theme, 'land'), URL_THEMA);
+// n47: im Look „Uno com escada“ heißt „Automatisch“ Land am Nachmittag bei klarem Himmel (Wahl im Menü/URL gilt weiter)
+function unoAuto(v, a) { return UNO && (!v || v === 'auto') ? a : v || 'auto'; }
 // n32 Wetter (nur Optik): URL ?wetter= > Einstellung „Wetter“ (localStorage, gilt schon beim Start) > passend zu Strecke
 // und Thema (track/wetter.js). Wertet nicht extra (kein A/B-Zusatz), Physik/Strecke/Bestzeit-Schlüssel unverändert.
 let URL_WETTER = parseWetter(params.get('wetter'));   // gilt, bis im Menü ein Wetter gewählt wird
-const wetterOf = (layout, themeId) => wetterFor(layout, themeId, store.settings.wetter || 'auto', (ONLINE_LOOK && ONLINE_LOOK.wetter) || URL_WETTER);
+const wetterOf = (layout, themeId) => wetterFor(layout, themeId, unoAuto(store.settings.wetter, 'klar'), (ONLINE_LOOK && ONLINE_LOOK.wetter) || URL_WETTER);
 // Wetter der aktuellen Strecke anwenden: Licht/Nebel/Himmel/Flächen (ThemeManager), Teilchen (render), Gischt/Dampf/
 // Spuren (fx), Regengeräusch (sound). Ohne Neubau der Welt.
 function wendeWetter() {
@@ -405,7 +410,7 @@ function wendeWetter() {
 let URL_ZEIT = parseZeit(params.get('zeit'));
 // ?spiegel=0 … 4: Zahl der Licht-Spiegelungen auf nasser Fahrbahn fest (A/B, Messung); sonst Kino 4, Standard 2, „Deko sparsam“ (Automatik) 0
 const SPIEGEL = params.has('spiegel') ? Math.max(0, Math.min(4, +params.get('spiegel') || 0)) : null;
-const zeitOf = (layout, themeId) => zeitFor(layout, themeId, store.settings.zeit || 'auto', (ONLINE_LOOK && ONLINE_LOOK.zeit) || URL_ZEIT);
+const zeitOf = (layout, themeId) => zeitFor(layout, themeId, unoAuto(store.settings.zeit, 'tag'), (ONLINE_LOOK && ONLINE_LOOK.zeit) || URL_ZEIT);
 // Nacht-Lichter der Strecke (Licht-Karte + Leuchtpunkte) einmal je Welt bauen, sobald Abend/Nacht gebraucht wird
 function nachtAufbauen() {
   if (!env || !env.worldReady || !worldGroup || !env.zeitLook || env.zeitLook.lights <= 0) return;
@@ -1488,7 +1493,7 @@ function actionKamera(pose, rdt) {
   actRig.look[0] = _ak.x; actRig.look[1] = _ak.y; actRig.look[2] = _ak.z;
   actCar[0] = pose.pos.x; actCar[1] = pose.pos.y + 0.5; actCar[2] = pose.pos.z;
   const C = act.kamera(actRig, actCar, actFrei, actBoden, rdt);
-  if (!C.an || (rig.view === 'cockpit' && !act.kreis)) return;   // Cockpit: festes Sichtfeld (gegen Übelkeit), nur Bild-Effekte
+  if (!C.an || rig.view === 'tv' || (rig.view === 'cockpit' && !act.kreis)) return;   // n47 TV-Kamera bleibt ruhig; Cockpit: festes Sichtfeld (gegen Übelkeit), nur Bild-Effekte
   if (act.kreis) { camera.up.set(0, 1, 0); rig.view = rig.view === 'cockpit' ? 'chase' : rig.view; }
   camera.position.set(C.pos[0], C.pos[1], C.pos[2]);
   camera.lookAt(C.look[0], C.look[1], C.look[2]);
