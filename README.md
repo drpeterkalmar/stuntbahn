@@ -72,6 +72,23 @@ spielbar am Handy (quer oder hochkant), mit Gamepad oder Tastatur. Als App insta
   Abstand zu jeder Fahrbahn (auch Hochstraßen/Rampen), nie im Wasser. Dosiert nach Grafikstufe; ruckelt es, blendet die
   Automatik (nach der Unschärfe) zuerst Gras/Büsche/Wolkenschatten aus. `?deko=aus` (bis n29 `?deko=0`) / `?wolken=0` zum Vergleich.
 
+## 🌳 Look: Clubkurs am Nachmittag nach „Uno com escada“ (seit 20.11.2026, n47, Version 0.21.0)
+Peter (18.11.): „Stuntbahn soll jetzt so aussehen“ – Vorbild ist [viktorkav/uno-com-escada](https://github.com/viktorkav/uno-com-escada)
+(Fable-Fassung). Übernommen ist die **Bildsprache** der Screenshots; der Code ist eigener (`src/gfx/uno.js`), es wurde kein Code
+und kein Shader aus dem Vorbild kopiert. Nur Optik: Bahn, Physik, Gegner, Zeiten und Bestzeiten bleiben unverändert.
+- **Licht:** harte Nachmittagssonne (32°), dunkle, aber gezeichnete Schatten, weniger Umgebungslicht, leichter bläulicher Dunst.
+- **Himmel aus Code:** klares Blau mit Cumulus-Wolken (sonnenbeschienene Ränder, grauer Bauch), einmal je Landschaft in eine
+  Würfeltextur gebacken (kostet je Bild nur einen Textur-Zugriff). Keine Ballons/Zeppeline/Windräder im Land-Thema.
+- **Wald:** fast geschlossener Mischwald (Tannen + sommergrüne Laubbäume, höher) 20–80 m neben der Strecke, auch auf
+  Zufalls- und Gelände-Strecken; die Grafikstufe dünnt ihn wie bisher aus.
+- **Strecke:** hellerer, matter Asphalt mit Gummi-Abrieb zur Mitte, gedämpfte ziegelrot/gebrochen-weiße Curbs, doppelte
+  verzinkte Leitplanken, Reifenwände (meist schwarz, Farbe als Akzent), beiges Kiesbett, Rasen statt Blumenwiese.
+- **Grading:** neutral, leicht warm, etwas entsättigt; keine Vignette, kein Linsen-Flare.
+- **📺 TV-Kamera** (neu im Kamera-Wechsel und im Replay): Kamerawagen ~32 m seitlich, 9 m hoch, Tele (~80 mm), schwenkt mit.
+- „Automatisch“ bei Landschaft/Tageszeit/Wetter heißt jetzt Land, Tag, klar; eine Wahl im Menü gilt weiter.
+- `?look=alt` = Look von 0.20.0 (zufällige Landschaft, alter Himmel, alte Curbs/Leitplanken, kein Waldrand).
+  Der bisherige `?look=alt` (Bild wie bis n22, `post.js`) heißt jetzt `?look=n22`. Bericht `N47_BERICHT.md`.
+
 ## 🏎️💨 Arcade-Drift, Gegner geben Gas, Rempler ohne Strafe (seit 06.11.2026, n45)
 - **Arcade-Drift** (Mittel, Original, alle Gegner): in zügigen Kurven dreht die Karosserie sichtbar quer, das Auto fährt und lenkt
   aber genau wie ohne Drift (`src/core/arcadedrift.js`, reine Darstellung: Winkel aus Querbeschleunigung und Tempo, Drehpunkt

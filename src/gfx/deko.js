@@ -2,6 +2,7 @@
 // Vogelschwärme. Alles im Spiel erzeugt (0 KB Download), je ein Draw-Call, Bewegung im Shader aus der Zeit (keine
 // CPU-Arbeit je Bild). ?deko=0 = Aussehen wie bis n29 (alles hier aus); ?deko=aus = ohne Streckenrand-Deko (bis n29: ?deko=0).
 import * as THREE from 'three';
+import { UNO } from './uno.js';
 import { GLATT } from '../core/glatt.js';   // n42: durchsichtig + beidseitig in einem Durchgang
 import { zeitUniforms } from './zeit.js';
 import { decoUniforms } from './deco.js';
@@ -291,7 +292,7 @@ export class AirMotes {
   // Einfach wenige); lite = Automatik „Deko sparsam“ → Wetter-Teilchen halbiert (Luft des Themas ist dann ganz aus, main.js)
   set(id, tier, sunDir, wetter = null, lite = false) {
     this.theme = id; this.tier = tier; this.wetter = WETTER_AIR[wetter] ? wetter : null; this.lite = !!lite;
-    const A = (this.wetter && WETTER_AIR[this.wetter]) || AIR[id], U = this.u;
+    const A = (this.wetter && WETTER_AIR[this.wetter]) || (UNO && id === 'land' ? null : AIR[id]), U = this.u;   // n47: keine Pollen-Punkte im Land-Look
     if (!A) { this.mesh.visible = false; return; }
     U.uKind.value = A.kind; U.uSize.value = A.size; U.uFall.value = A.fall; U.uSway.value = A.sway; U.uWind.value = A.wind; U.uSpin.value = A.spin;
     U.uBox.value = A.box; U.uH.value = A.h; U.uA.value = A.a * (this.cover ?? 1); this.baseA = A.a; U.uC0.value.setRGB(...A.c0); U.uC1.value.setRGB(...A.c1);

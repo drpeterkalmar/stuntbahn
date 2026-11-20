@@ -469,7 +469,7 @@ function kerbTexture() {
   const g = c.getContext('2d');
   // n47 (gfx/uno.js): gedämpftes Ziegelrot und gebrochenes Weiß wie im Vorbild; ?look=alt = Signalrot/Weiß
   g.fillStyle = UNO ? '#a8382c' : '#c21d14'; g.fillRect(0, 0, 64, 128);
-  g.fillStyle = UNO ? '#dedad0' : '#f2f2ee'; g.fillRect(0, 128, 64, 128);
+  g.fillStyle = UNO ? '#cbc7bd' : '#f2f2ee'; g.fillRect(0, 128, 64, 128);
   let seed = 4242; const R = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
   // abgeplatzte Farbe (Beton schaut durch), feine Sprenkel
   for (let i = 0; i < 520; i++) {
@@ -569,7 +569,7 @@ export function makeMaterials(renderer, q = {}) {
   M.water = new THREE.MeshStandardMaterial({ color: 0x1d3a3a, roughness: 0.04, metalness: 0.1, transparent: true, opacity: 0.88, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 2 });
   patchWater(M.water);
   M.tree = [0, 1].map((v) => {
-    const m = new THREE.MeshStandardMaterial({ map: tex(`assets/tex/fir_card_${v}.webp`, true, 1, aniso), alphaTest: 0.42, alphaToCoverage: true, side: THREE.DoubleSide, roughness: 0.95, metalness: 0, color: UNO ? 0xffffff : 0xd8f0c8, emissive: UNO ? 0x18260c : 0x0b1406 });   // n47: hellere, sonnige Kronen
+    const m = new THREE.MeshStandardMaterial({ map: tex(`assets/tex/fir_card_${v}.webp`, true, 1, aniso), alphaTest: 0.42, alphaToCoverage: true, side: THREE.DoubleSide, roughness: 0.95, metalness: 0, color: UNO ? 0xffffff : 0xd8f0c8, emissive: UNO ? 0x22300e : 0x0b1406 });   // n47: hellere, sonnige Kronen
     m.map.wrapS = m.map.wrapT = THREE.ClampToEdgeWrapping;
     m.map.repeat.set(1, 1);
     patchTreeTheme(m);

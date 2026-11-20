@@ -1,0 +1,61 @@
+{
+ "datum": "2026-11-20T20:40:10",
+ "stand": "n47_desktop",
+ "modus": "ab",
+ "runden": 3,
+ "varianten": [
+  {
+   "name": "alt",
+   "wurzel": "C:\\Users\\drpet\\dev\\stuntbahn",
+   "zusatz": "&look=alt"
+  },
+  {
+   "name": "neu",
+   "wurzel": "C:\\Users\\drpet\\dev\\stuntbahn",
+   "zusatz": ""
+  }
+ ],
+ "profil": {
+  "drossel": 1.0,
+  "dpr": 1.0,
+  "sek": 6.0,
+  "start": "direkt",
+  "vsync": false
+ },
+ "szenen": {
+  "rennen_kino": {
+   "quer": {
+    "alt": {
+     "p50": 2,
+     "p95": 3.1,
+     "fps": 469.8,
+     "calls": 94,
+     "tris": 305599,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      3.1,
+      2.9,
+      3.5
+     ],
+     "fehler": []
+    },
+    "neu": {
+     "p50": 2.1,
+     "p95": 3.4,
+     "fps": 459.1,
+     "calls": 90,
+     "tris": 315504,
+     "gpu50": null,
+     "gpu95": null,
+     "runden_p95": [
+      3.4,
+      3.4,
+      2.9
+     ],
+     "fehler": []
+    }
+   }
+  }
+ }
+}

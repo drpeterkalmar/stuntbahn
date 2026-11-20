@@ -14,7 +14,7 @@ export const UNO = LOOK !== 'alt' && LOOK !== 'n22';
 export const UNO_GRADE = { wb: [1.02, 1.0, 0.97], lift: [0.012, 0.014, 0.018], gamma: [1.0, 1.0, 1.0], gain: [0.985, 0.99, 0.995], shadow: [-0.008, 0.0, 0.014], high: [0.008, 0.004, -0.006], split: 0.8, sat: 0.92, vib: 0.06, contrast: 0.26, green: 0.2 };
 
 // Laubbaum-Töne für den Mischwald (statt Herbstfarben, kulisse.js): Sommergrün von Gelbgrün bis Oliv, dunkle Eiche
-export const UNO_LAUB = [[1.05, 1.6, 0.55], [0.9, 1.4, 0.5], [1.25, 1.7, 0.6], [0.8, 1.25, 0.5], [1.1, 1.45, 0.65]];
+export const UNO_LAUB = [[1.35, 1.85, 0.55], [1.15, 1.65, 0.5], [1.55, 1.95, 0.6], [1.0, 1.45, 0.5], [1.35, 1.7, 0.65]];
 
 // Land-Thema (track/themes.js) auf den Clubkurs-Nachmittag stellen: satteres Gras statt Steppe, Mischwald, Licht
 export function unoThemen(THEMES) {
