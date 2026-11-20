@@ -9,12 +9,10 @@ pj = os.path.join(ROOT, 'package.json'); txt = open(pj, encoding='utf-8').read()
 cur = json.loads(txt)['version']
 t = lambda v: tuple(int(x) for x in v.split('.'))
 ver = want if t(want) > t(cur) else f'{t(cur)[0]}.{t(cur)[1] + 1}.0'
-open(pj, 'w', encoding='utf-8', newline='
-').write(txt.replace(f'"version": "{cur}"', f'"version": "{ver}"', 1))
+open(pj, 'w', encoding='utf-8', newline='\n').write(txt.replace(f'"version": "{cur}"', f'"version": "{ver}"', 1))
 cl = os.path.join(ROOT, 'CHANGELOG.md'); c = open(cl, encoding='utf-8').read()
 if '## __VERSION__' not in c: sys.exit('CHANGELOG ohne „## __VERSION__“')
-open(cl, 'w', encoding='utf-8', newline='
-').write(c.replace('## __VERSION__', f'## {ver}', 1))
+open(cl, 'w', encoding='utf-8', newline='\n').write(c.replace('## __VERSION__', f'## {ver}', 1))
 subprocess.run([sys.executable, os.path.join(ROOT, 'tools', 'update_sw.py')], check=True, cwd=ROOT)
 subprocess.run(['git', 'add', 'package.json', 'CHANGELOG.md', 'sw.js', 'src/build.js', 'index.html'], check=True, cwd=ROOT)   # n42: index.html (Modul-Vorladeliste)
 subprocess.run(['git', 'commit', '-qm', f'{ver}: {titel} – Version, CHANGELOG, Service-Worker\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>'], check=True, cwd=ROOT)

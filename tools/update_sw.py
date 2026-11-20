@@ -43,8 +43,7 @@ a, b = '<!-- n42-modulepreload', '<!-- /n42-modulepreload -->'
 if a in html and b in html:
     i = html.index(a); i = html.index('-->', i) + 3; j = html.index(b)
     html = html[:i] + '\n' + ''.join(f'<link rel="modulepreload" href="{g}">\n' for g in graph) + html[j:]
-    open(ix, 'w', encoding='utf-8', newline='
-').write(html)
+    open(ix, 'w', encoding='utf-8', newline='\n').write(html)
     print('modulepreload', len(graph), 'Module')
 # Inhalts-Hash auch über die Themen-Pakete (nicht vorab gecacht, aber eine Änderung muss die Version wechseln)
 hashed = list(files)
@@ -65,9 +64,7 @@ for f in hashed:
 ver = h.hexdigest()[:10]
 tpl = open(os.path.join(ROOT, 'tools', 'sw.template.js'), encoding='utf-8').read()
 out = tpl.replace('__VERSION__', ver).replace('__ASSETS__', ',\n  '.join("'" + f + "'" for f in files))
-open(os.path.join(ROOT, 'sw.js'), 'w', encoding='utf-8', newline='
-').write(out)
-open(os.path.join(ROOT, 'src', 'build.js'), 'w', encoding='utf-8', newline='
-').write(f"export const BUILD = '{ver}';\n")
+open(os.path.join(ROOT, 'sw.js'), 'w', encoding='utf-8', newline='\n').write(out)
+open(os.path.join(ROOT, 'src', 'build.js'), 'w', encoding='utf-8', newline='\n').write(f"export const BUILD = '{ver}';\n")
 size = sum(os.path.getsize(os.path.join(ROOT, f)) for f in files)
 print('sw.js Version', ver, len(files), 'Dateien', round(size / 1e6, 2), 'MB')
