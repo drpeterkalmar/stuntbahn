@@ -335,10 +335,10 @@ export class CameraRig {
       this.tvTurn += (turn - this.tvTurn) * (1 - Math.exp(-dt * 0.8));
       if (Math.abs(this.tvTurn) > 0.12 && Math.sign(this.tvTurn) !== this.tvSide) this.tvSide = Math.sign(this.tvTurn);
       const side = V().crossVectors(V().set(0, 1, 0), fh).multiplyScalar(this.tvSide);   // +: links vom Auto
-      const want = V().copy(cp).addScaledVector(side, 30).addScaledVector(fh, -5); want.y = cp.y + 6.5;
-      if (world && world.terrain && world.terrain.height) { const g = world.terrain.height(want.x, want.z); if (g != null && isFinite(g)) want.y = Math.max(want.y, g + 3.5); }
+      const want = V().copy(cp).addScaledVector(side, 42).addScaledVector(fh, 4); want.y = cp.y + 4;
+      if (world && world.terrain && world.terrain.height) { const g = world.terrain.height(want.x, want.z); if (g != null && isFinite(g)) want.y = Math.max(want.y, g + 3); }
       if (!this.tvPos || this.tvPos.distanceToSquared(want) > 90 * 90) this.tvPos = want.clone();
-      else this.tvPos.lerp(want, 1 - Math.exp(-dt * 1.4));
+      else this.tvPos.lerp(want, 1 - Math.exp(-dt * 3.5));
       cam.position.copy(this.tvPos);
       cam.up.set(0, 1, 0);
       this.look.copy(cp).addScaledVector(u, 0.6);

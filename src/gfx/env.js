@@ -39,7 +39,7 @@ export function makeSky(skyInfo, tex = null, opts = {}) {
     uniforms: { sky: { value: tex }, cutV: { value: skyInfo.cutV }, horizon: { value: hz }, exposure: { value: 1.0 }, wSky: { value: new THREE.Vector2(1, 0) },
       // n32 Tageszeit: Nacht (Sterne, Mond: x Stärke, yzw Mond-Richtung), Abendrot (x Stärke, yzw Sonne), Tönung, alter Sonnenfleck
       wNight: { value: new THREE.Vector4(0, 0, 1, 0) }, wGlow: { value: new THREE.Vector4(0, 0, 1, 0) }, wTint: { value: new THREE.Vector3(1, 1, 1) }, wOld: { value: new THREE.Vector4(0, 0, 1, 0) },
-      wUno: { value: new THREE.Vector4(0, 0, 1, 0) },   // n47: Himmel aus Code (gfx/uno.js), x = an, yzw = Sonne
+      wUno: { value: new THREE.Vector4(0, 0, 1, 0) }, uCube: { value: null },   // n47: Himmel aus Code (gfx/uno.js), x = an, yzw = Sonne
       ...(cl ? cloudUniforms(opts.sunDir) : {}) },
     vertexShader: `varying vec3 vDir; void main(){ vDir = position; vec4 p = projectionMatrix * modelViewMatrix * vec4(position, 1.0); gl_Position = p.xyww; }`,
     fragmentShader: `uniform sampler2D sky; uniform float cutV; uniform vec3 horizon; uniform float exposure; uniform vec2 wSky; varying vec3 vDir;

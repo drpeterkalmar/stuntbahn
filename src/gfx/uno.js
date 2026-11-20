@@ -11,7 +11,7 @@ export const UNO = LOOK !== 'alt' && LOOK !== 'n22';
 
 // Farbkorrektur (kinolook.js GRADES.uno): neutral bis leicht entsättigt, Schwarz angehoben, sanfte S-Kurve, Lichter nicht
 // abgeschnitten; Schatten leicht kühl (Himmels-Füllung), Lichter kaum warm
-export const UNO_GRADE = { wb: [1.0, 1.0, 1.005], lift: [0.022, 0.026, 0.032], gamma: [1.0, 1.0, 1.0], gain: [0.985, 0.99, 0.995], shadow: [-0.008, 0.0, 0.014], high: [0.008, 0.004, -0.006], split: 0.8, sat: 0.95, vib: 0.06, contrast: 0.22, green: 0.3 };
+export const UNO_GRADE = { wb: [1.0, 1.0, 1.005], lift: [0.012, 0.014, 0.018], gamma: [1.0, 1.0, 1.0], gain: [0.985, 0.99, 0.995], shadow: [-0.008, 0.0, 0.014], high: [0.008, 0.004, -0.006], split: 0.8, sat: 1.0, vib: 0.08, contrast: 0.3, green: 0.2 };
 
 // Laubbaum-Töne für den Mischwald (statt Herbstfarben, kulisse.js): Sommergrün von Gelbgrün bis Oliv, dunkle Eiche
 export const UNO_LAUB = [[0.75, 1.15, 0.42], [0.62, 0.98, 0.36], [0.9, 1.2, 0.45], [0.55, 0.85, 0.38], [0.8, 1.0, 0.5]];
@@ -23,13 +23,13 @@ export function unoThemen(THEMES) {
   if (!L) return;
   const C = (r, g, b) => new THREE.Color(r, g, b);
   L.ground = { ...L.ground, g0: C(0.03, 0.075, 0.018), g1: C(0.16, 0.3, 0.06), dry: C(0.24, 0.27, 0.1), dryK: 0.3, tint: C(0.85, 0.95, 0.38), tintK: 0.3, fields: 0, forest: C(0.02, 0.045, 0.016), forestK: 1.2 };
-  L.light = { ...L.light, sunI: 4.2, envI: 1.0, fog: [1.4, 1.5], grade: 'uno', haze: [0.62, 0.72, 0.85] };
+  L.light = { ...L.light, sunI: 4.4, envI: 0.62, fog: [1.9, 2.1], grade: 'uno', haze: [0.58, 0.68, 0.8] };
   L.trees = { ...L.trees, autumn: 0.55, gruen: 1 };
   L.sky = { ...L.sky, balloons: 0, zeppelin: 0, turbines: 0 };
 }
 
-// Sonne: Richtung des Themas (Azimut) behalten, Höhe auf ~40° (Nachmittag), warm-weiß; Himmel aus Code
-const SUN_EL = 40 * Math.PI / 180;
+// Sonne: Richtung des Themas (Azimut) behalten, Höhe auf ~32° (später Nachmittag, lange Schatten), warm-weiß; Himmel aus Code
+const SUN_EL = 32 * Math.PI / 180;
 export function unoLicht(c, themeId, themeUniforms = null) {
   if (!UNO) return;
   const { sun, sky, scene } = c;
@@ -40,20 +40,43 @@ export function unoLicht(c, themeId, themeUniforms = null) {
   sun.position.copy(sun.target.position).addScaledVector(d, 60);
   sun.color.setRGB(1.0, 0.95, 0.86);
   const U = sky.material.uniforms;
+  if (c.kino) { Object.assign(c.kino.aerial, { density: 0.00022, max: 0.24 }); c.kino.sunCol.setRGB(0.92, 0.88, 0.8); }   // leichter, bläulicher Dunst
   if (U.cK) U.cK.value = 0;   // Deko-Schleierwolken (deko.js) aus: die Cumulus kommen aus unoSky
   if (themeUniforms) { themeUniforms.tFlowers.value = 0; themeUniforms.tMeadow.value = 0; }   // gemähter Rasen statt Blumenwiese
   if (U.wUno) {
     U.wUno.value.set(1, d.x, d.y, d.z);
+    // n47: Wolken-Rauschen kostete je Bildpunkt (+82 % Bildzeit im Handy-Profil) → einmal je Landschaft in eine
+    // Würfeltextur backen (512², Halbfloat), der Himmel liest dann nur noch eine Textur
+    if (c.renderer) { U.uCube.value = backeHimmel(c.renderer, d); U.wUno.value.x = 2; }
     const h = new THREE.Color().setRGB(0.66, 0.75, 0.87, THREE.SRGBColorSpace);
     U.horizon.value.copy(h);
     if (scene.fog) scene.fog.color.copy(h);
   }
 }
 
+let bake = null;
+function backeHimmel(renderer, d) {
+  if (!bake) {
+    const rt = new THREE.WebGLCubeRenderTarget(512, { type: THREE.HalfFloatType, generateMipmaps: false, minFilter: THREE.LinearFilter });
+    const mat = new THREE.ShaderMaterial({
+      uniforms: { wUno: { value: new THREE.Vector4() } }, side: THREE.BackSide, depthWrite: false, depthTest: false,
+      vertexShader: 'varying vec3 vDir; void main(){ vDir = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+      fragmentShader: `varying vec3 vDir; ${UNO_SKY_GLSL.pars} void main(){ gl_FragColor = vec4( unoSky( normalize( vDir ) ), 1.0 ); }`,
+    });
+    const sc = new THREE.Scene(); sc.add(new THREE.Mesh(new THREE.BoxGeometry(10, 10, 10), mat));
+    bake = { rt, mat, sc, cam: new THREE.CubeCamera(0.1, 100, rt) };
+  }
+  bake.mat.uniforms.wUno.value.set(1, d.x, d.y, d.z);
+  const tm = renderer.toneMapping; renderer.toneMapping = THREE.NoToneMapping;
+  bake.cam.update(renderer, bake.sc);
+  renderer.toneMapping = tm;
+  return bake.rt.texture;
+}
+
 // Himmel aus Code (GLSL-Fassung nach fable/source/wgsl/skyfn.wgsl): Rayleigh-Verlauf (tiefes Blau oben, blasser Dunst am
 // Horizont), Sonnenhof, Cumulus aus fbm-Rauschen auf einer Wolkenebene mit sonnenbeschienenen Rändern und grauem Bauch
 export const UNO_SKY_GLSL = {
-  pars: `uniform vec4 wUno;
+  pars: `uniform vec4 wUno; uniform samplerCube uCube;
     float uH( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) * 43758.5453 ); }
     float uN( vec2 p ) { vec2 i = floor( p ), f = fract( p ); f = f * f * ( 3.0 - 2.0 * f );
       return mix( mix( uH( i ), uH( i + vec2( 1, 0 ) ), f.x ), mix( uH( i + vec2( 0, 1 ) ), uH( i + vec2( 1, 1 ) ), f.x ), f.y ); }
@@ -81,5 +104,5 @@ export const UNO_SKY_GLSL = {
       }
       return c;
     }`,
-  main: `if ( wUno.x > 0.5 ) c = unoSky( d );`,
+  main: `if ( wUno.x > 1.5 ) c = textureCube( uCube, vec3( -d.x, d.y, d.z ) ).rgb; else if ( wUno.x > 0.5 ) c = unoSky( d );`,
 };

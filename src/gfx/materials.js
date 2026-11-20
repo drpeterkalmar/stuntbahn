@@ -222,6 +222,10 @@ function patchRoad(mat, detail = true) {
         float fw = max( fwidth( s ), 0.002 );
         float big = rNoise( vec2( x * 0.12, s * 0.05 ) ) * 0.6 + rNoise( vec2( x * 0.4, s * 0.17 ) ) * 0.4;
         diffuseColor.rgb *= mix( 0.86, 1.1, big );
+        ${UNO ? `// n47 (gfx/uno.js): Gummi-Abrieb – dunkleres, fleckiges Band zur Fahrbahnmitte (Ideallinie), Rand etwas heller
+        float gum = exp( - x * x / ( hw * hw * 0.16 + 0.5 ) ) * ( 0.55 + 0.45 * rNoise( vec2( x * 0.7, s * 0.09 ) ) );
+        diffuseColor.rgb *= ( 1.0 - 0.22 * gum ) * ( 1.0 + 0.1 * smoothstep( hw * 0.7, hw, abs( x ) ) );
+        rRough -= 0.12 * gum;` : ''}
         float cell = floor( s / 31.0 ), h = rHash( vec2( cell, 7.7 ) );
         if ( h < 0.45 ) {
           float len = 3.0 + 9.0 * fract( h * 17.3 ), w = 0.9 + 1.4 * fract( h * 29.1 );
@@ -528,7 +532,7 @@ export function makeMaterials(renderer, q = {}) {
     aoMap: tex(`assets/tex/${name}_arm.webp`, false, rep, aniso),
   });
   const M = {};
-  M[MAT.ROAD] = new THREE.MeshStandardMaterial({ ...set('asphalt', 1 / 5), roughness: 1, metalness: 0, color: 0xb4b4b4, normalScale: new THREE.Vector2(0.8, 0.8), aoMapIntensity: 0.6 });
+  M[MAT.ROAD] = new THREE.MeshStandardMaterial({ ...set('asphalt', 1 / 5), roughness: 1, metalness: 0, color: UNO ? 0xd0d0cc : 0xb4b4b4, normalScale: UNO ? new THREE.Vector2(0.5, 0.5) : new THREE.Vector2(0.8, 0.8), aoMapIntensity: 0.6 });   // n47: matter, mittelgrauer Belag
   patchRoad(M[MAT.ROAD]);
   if (DETAIL_ON && !detailUniforms.sbDetailNor.value) {
     detailUniforms.sbDetailNor.value = new THREE.TextureLoader().load('assets/tex/asphalt_detail_nor.webp', (t) => { detailUniforms.sbDetailK.value = 1; }, undefined, () => console.warn('Detail-Normalmap fehlt'));
